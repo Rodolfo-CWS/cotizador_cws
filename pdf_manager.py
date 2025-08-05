@@ -294,16 +294,67 @@ class PDFManager:
     
     def _buscar_pdfs_offline(self, query: str, page: int, per_page: int) -> Dict:
         """Búsqueda de PDFs en modo offline"""
-        # En modo offline, devolver lista vacía sin error
-        return {
-            "resultados": [],
-            "total": 0,
-            "pagina": page,
-            "por_pagina": per_page,
-            "paginas": 0,
-            "modo": "offline",
-            "mensaje": "Búsqueda de PDFs no disponible en modo offline"
-        }
+        print(f"Búsqueda de PDFs en modo offline: '{query}'")
+        
+        try:
+            # Buscar archivos PDF físicamente en las carpetas
+            resultados = []
+            
+            # Buscar en carpeta de PDFs nuevos
+            if self.nuevas_path.exists():
+                for pdf_file in self.nuevas_path.glob("*.pdf"):
+                    nombre = pdf_file.stem
+                    if not query or query.lower() in nombre.lower():
+                        resultados.append({
+                            "numero_cotizacion": nombre,
+                            "cliente": "Cliente (modo offline)",
+                            "fecha_creacion": "N/A",
+                            "ruta_completa": str(pdf_file),
+                            "tipo": "nuevo",
+                            "tiene_desglose": False
+                        })
+            
+            # Buscar en carpeta de PDFs antiguos  
+            if self.antiguas_path.exists():
+                for pdf_file in self.antiguas_path.glob("*.pdf"):
+                    nombre = pdf_file.stem
+                    if not query or query.lower() in nombre.lower():
+                        resultados.append({
+                            "numero_cotizacion": nombre,
+                            "cliente": "Cliente histórico (modo offline)",
+                            "fecha_creacion": "N/A", 
+                            "ruta_completa": str(pdf_file),
+                            "tipo": "historico",
+                            "tiene_desglose": False
+                        })
+            
+            # Paginar resultados
+            start = (page - 1) * per_page
+            end = start + per_page
+            resultados_paginados = resultados[start:end]
+            
+            print(f"Encontrados {len(resultados)} PDFs offline, mostrando {len(resultados_paginados)}")
+            
+            return {
+                "resultados": resultados_paginados,
+                "total": len(resultados),
+                "pagina": page,
+                "por_pagina": per_page,
+                "total_paginas": (len(resultados) + per_page - 1) // per_page,
+                "modo": "offline"
+            }
+            
+        except Exception as e:
+            print(f"Error en búsqueda offline: {e}")
+            return {
+                "resultados": [],
+                "total": 0,
+                "pagina": page,
+                "por_pagina": per_page,
+                "total_paginas": 0,
+                "modo": "offline",
+                "error": f"Error en búsqueda offline: {str(e)}"
+            }
     
     def obtener_pdf(self, numero_cotizacion: str) -> Dict:
         """
