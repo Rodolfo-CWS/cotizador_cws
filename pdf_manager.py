@@ -36,14 +36,33 @@ class PDFManager:
         self._crear_estructura_carpetas()
         
         # Colección para índice de PDFs
-        if not self.db_manager.modo_offline:
-            self.pdf_collection = self.db_manager.db["pdf_index"]
-            self._crear_indices_pdf()
+        self._inicializar_coleccion()
         
         print(f"PDF Manager inicializado:")
         print(f"  Ruta base: {self.base_pdf_path}")
         print(f"  PDFs nuevos: {self.nuevas_path}")
         print(f"  PDFs antiguos: {self.antiguas_path}")
+    
+    def _inicializar_coleccion(self):
+        """Inicializa la colección de PDFs si MongoDB está disponible"""
+        if not self.db_manager.modo_offline:
+            self.pdf_collection = self.db_manager.db["pdf_index"]
+            self._crear_indices_pdf()
+            print("PDF Collection inicializada con MongoDB")
+        else:
+            self.pdf_collection = None
+            print("PDF Manager en modo offline - colección no disponible")
+    
+    def _verificar_conexion_mongodb(self):
+        """Verifica y reinicia conexión MongoDB si es necesario"""
+        if self.db_manager.modo_offline:
+            # Intentar reconectar
+            print("Intentando reconectar a MongoDB...")
+            self.db_manager._conectar_mongodb()
+            if not self.db_manager.modo_offline:
+                self._inicializar_coleccion()
+                print("PDF Manager reconectado a MongoDB")
+        return not self.db_manager.modo_offline
     
     def _detectar_google_drive(self) -> Path:
         """Detecta automáticamente la ruta de Google Drive"""
@@ -220,7 +239,8 @@ class PDFManager:
             Dict con resultados de la búsqueda
         """
         try:
-            if self.db_manager.modo_offline or not hasattr(self, 'pdf_collection'):
+            # Verificar y reinicializar conexión si es necesario
+            if not self._verificar_conexion_mongodb():
                 return self._buscar_pdfs_offline(query, page, per_page)
             
             # Verificar que pdf_collection existe
