@@ -1,0 +1,2128 @@
+{
+  "cotizaciones": [
+    {
+      "datosGenerales": {
+        "vendedor": "Test User",
+        "proyecto": "Proyecto Offline",
+        "cliente": "Cliente Test",
+        "atencionA": "Juan Pérez",
+        "contacto": "juan@test.com",
+        "numeroCotizacion": "OFFLINE-001",
+        "revision": "1",
+        "actualizacionRevision": ""
+      },
+      "items": [
+        {
+          "descripcion": "Mesa de Prueba",
+          "cantidad": "5",
+          "uom": "Pieza",
+          "costoUnidad": "4085.27",
+          "total": "20426.36",
+          "transporte": "100",
+          "instalacion": "200",
+          "seguridad": "5",
+          "descuento": "10"
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tipoCambio": "",
+        "tiempoEntrega": "15",
+        "entregaEn": "Oficina del cliente",
+        "terminos": "",
+        "comentarios": "Esta es una prueba en modo offline"
+      },
+      "fechaCreacion": "2025-07-28T19:04:32.591236",
+      "timestamp": 1753751072591,
+      "version": "1.0.0",
+      "numeroCotizacion": "OFFLINE-001",
+      "revision": "1",
+      "_id": "5b3d9d12-71ac-4773-96a7-bbc2cf776dcc",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Rodolfo Moreno",
+        "proyecto": "TEST 2",
+        "cliente": "CLIENTE DE PRUEBA",
+        "atencionA": "Lorenz Tuts",
+        "contacto": "gracio Roman",
+        "numeroCotizacion": "CWS RM TEST",
+        "revision": "2",
+        "actualizacionRevision": "Revisión de test"
+      },
+      "items": [
+        {
+          "descripcion": "Mesa modular",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "523.47",
+          "total": "5234.68",
+          "transporte": "3000",
+          "instalacion": "1500",
+          "seguridad": "5",
+          "descuento": "10"
+        },
+        {
+          "descripcion": "Mesa 2 para TEST",
+          "cantidad": "2",
+          "uom": "Pieza",
+          "costoUnidad": "147.83",
+          "total": "295.66",
+          "transporte": "290",
+          "instalacion": "1000",
+          "seguridad": "5",
+          "descuento": ""
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "30",
+        "entregaEn": "Planta SLP",
+        "terminos": "",
+        "comentarios": "Ojalá salga todo bien"
+      },
+      "fechaCreacion": "2025-07-28T19:51:35.656442",
+      "timestamp": 1753753895656,
+      "version": "1.0.0",
+      "numeroCotizacion": "CWS RM TEST",
+      "revision": "2",
+      "_id": "c0ba50d5-0e4b-4b6e-8875-e5b2d72e46a1",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Test Final",
+        "proyecto": "Proyecto Final",
+        "cliente": "Cliente Final",
+        "atencionA": "Juan",
+        "contacto": "test@test.com",
+        "numeroCotizacion": "FINAL-001",
+        "revision": "2",
+        "actualizacionRevision": "NEgociación Final "
+      },
+      "items": [
+        {
+          "descripcion": "Mesa Final",
+          "cantidad": "2",
+          "uom": "Pieza",
+          "costoUnidad": "0.00",
+          "total": "0.00",
+          "transporte": "",
+          "instalacion": "",
+          "seguridad": "",
+          "descuento": ""
+        },
+        {
+          "descripcion": "Mesa 2",
+          "cantidad": "",
+          "uom": "Pieza",
+          "costoUnidad": "",
+          "total": "",
+          "transporte": "",
+          "instalacion": "",
+          "seguridad": "",
+          "descuento": ""
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tipoCambio": "",
+        "tiempoEntrega": "15",
+        "entregaEn": "Oficina de Cliente",
+        "terminos": "",
+        "comentarios": "Esta es la prueba final"
+      },
+      "fechaCreacion": "2025-07-28T23:57:58.708734",
+      "timestamp": 1753768678708,
+      "version": "1.0.0",
+      "numeroCotizacion": "FINAL-001",
+      "revision": "2",
+      "_id": "45d14982-d394-4aff-84f9-599ffe1b777d",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "",
+        "proyecto": "",
+        "cliente": "",
+        "atencionA": "",
+        "contacto": "",
+        "numeroCotizacion": "TEST-TERMINOS-FIX",
+        "revision": "0",
+        "actualizacionRevision": ""
+      },
+      "items": [
+        {
+          "descripcion": "",
+          "cantidad": "",
+          "uom": "Pieza",
+          "costoUnidad": "0.00",
+          "total": "0.00",
+          "transporte": "",
+          "instalacion": "",
+          "seguridad": "",
+          "descuento": ""
+        }
+      ],
+      "condiciones": {
+        "moneda": "",
+        "tipoCambio": "",
+        "tiempoEntrega": "",
+        "entregaEn": "",
+        "terminos": "50% anticipo, 50% contra entrega",
+        "comentarios": ""
+      },
+      "fechaCreacion": "2025-07-29T00:03:11.060206",
+      "timestamp": 1753768991060,
+      "version": "1.0.0",
+      "numeroCotizacion": "TEST-TERMINOS-FIX",
+      "revision": "0",
+      "_id": "87b02769-2d98-4a5d-96fb-8004d60b7d5e",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "",
+        "proyecto": "",
+        "cliente": "",
+        "atencionA": "",
+        "contacto": "",
+        "numeroCotizacion": "TEST TERMINOS 2",
+        "revision": "0",
+        "actualizacionRevision": ""
+      },
+      "items": [
+        {
+          "descripcion": "",
+          "cantidad": "",
+          "uom": "Pieza",
+          "costoUnidad": "0.00",
+          "total": "0.00",
+          "transporte": "",
+          "instalacion": "",
+          "seguridad": "",
+          "descuento": ""
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "20",
+        "entregaEn": "Clilente",
+        "terminos": "50% anticipo, 50% contra entrega",
+        "comentarios": "Todo bien "
+      },
+      "fechaCreacion": "2025-07-29T00:04:13.813284",
+      "timestamp": 1753769053813,
+      "version": "1.0.0",
+      "numeroCotizacion": "TEST TERMINOS 2",
+      "revision": "0",
+      "_id": "4f327a57-7401-48ed-bb4b-3d680624533d",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Rodolfo Moreno",
+        "proyecto": "TEST de materiales",
+        "cliente": "Materiales Test",
+        "atencionA": "Juan Test",
+        "contacto": "csm@wen.com",
+        "numeroCotizacion": "TEST 234 Materiales",
+        "revision": "1",
+        "actualizacionRevision": ""
+      },
+      "items": [
+        {
+          "descripcion": "Rack MEtalico Test",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "948.69",
+          "total": "9486.92",
+          "transporte": "2350",
+          "instalacion": "11000",
+          "seguridad": "5",
+          "descuento": "10"
+        },
+        {
+          "descripcion": "Rack de la línea 2",
+          "cantidad": "8",
+          "uom": "Pieza",
+          "costoUnidad": "1589.95",
+          "total": "12719.60",
+          "transporte": "2061",
+          "instalacion": "7800",
+          "seguridad": "5",
+          "descuento": ""
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "30",
+        "entregaEn": "Cliente plant",
+        "terminos": "30 días de crédito",
+        "comentarios": "Veamos que pasa"
+      },
+      "fechaCreacion": "2025-07-29T00:21:09.793023",
+      "timestamp": 1753770069793,
+      "version": "1.0.0",
+      "numeroCotizacion": "TEST 234 Materiales",
+      "revision": "1",
+      "_id": "88d81333-06a6-4d58-b893-36ed0842e364",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Julian Alvarez",
+        "proyecto": "TEST NUevo ",
+        "cliente": "BYD",
+        "atencionA": "Frank Zappa",
+        "contacto": "hsdg@cwsdl.com",
+        "numeroCotizacion": "234 TEST ZAPPA",
+        "revision": "2",
+        "actualizacionRevision": "Nuevo precio"
+      },
+      "items": [
+        {
+          "descripcion": "Mesa de lavado",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "594.68",
+          "total": "5946.82",
+          "transporte": "1400",
+          "instalacion": "2000",
+          "seguridad": "5",
+          "descuento": "10",
+          "materiales": [
+            {
+              "material": "PTR 1' x 1' CAL 14",
+              "peso": "1.44",
+              "cantidad": "2.1",
+              "precio": "80",
+              "subtotal": "241.92"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage",
+              "precio": "2000",
+              "cantidad": "4",
+              "subtotal": "8000.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "20",
+        "entregaEn": "Clientes",
+        "terminos": "30 dias de crédito",
+        "comentarios": "Ojala ya quede "
+      },
+      "fechaCreacion": "2025-07-29T00:50:09.100234",
+      "timestamp": 1753771809100,
+      "version": "1.0.0",
+      "numeroCotizacion": "234 TEST ZAPPA",
+      "revision": "2",
+      "_id": "948b04d5-f7b1-4759-ba20-bf31c06d7a1c",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Armando Castillo",
+        "proyecto": "Gavetas",
+        "cliente": "Plastic Omnium",
+        "atencionA": "Hector Jaramillo",
+        "contacto": "Rolando Rose",
+        "numeroCotizacion": "PO-CWS-437",
+        "revision": "2",
+        "actualizacionRevision": "Negociación implementada"
+      },
+      "items": [
+        {
+          "descripcion": "Gaveta para Calidad",
+          "cantidad": "5",
+          "uom": "Pieza",
+          "costoUnidad": "1031.41",
+          "total": "5157.04",
+          "transporte": "5500",
+          "instalacion": "2300",
+          "seguridad": "5",
+          "descuento": "",
+          "materiales": [
+            {
+              "material": "PTR 1' x 1' CAL 13",
+              "peso": "1.71",
+              "cantidad": "1.2",
+              "precio": "80",
+              "subtotal": "164.16"
+            },
+            {
+              "material": "PTR 1' x 1' CAL 14",
+              "peso": "1.44",
+              "cantidad": ".8",
+              "precio": "78",
+              "subtotal": "89.86"
+            },
+            {
+              "material": "PTR 1' x 1' CAL 14",
+              "peso": "1.44",
+              "cantidad": "4.5",
+              "precio": "80",
+              "subtotal": "518.40"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage",
+              "precio": "2400",
+              "cantidad": "4",
+              "subtotal": "9600.00"
+            }
+          ]
+        },
+        {
+          "descripcion": "Gaveta LOGISTICA",
+          "cantidad": "12",
+          "uom": "Pieza",
+          "costoUnidad": "1590.20",
+          "total": "19082.34",
+          "transporte": "12000",
+          "instalacion": "450",
+          "seguridad": "6",
+          "descuento": "10",
+          "materiales": [
+            {
+              "material": "PTR 3/4 x 3/4 CAL 14",
+              "peso": "1.06",
+              "cantidad": "4.5",
+              "precio": "80",
+              "subtotal": "381.60"
+            },
+            {
+              "material": "PTR 1' x 1' CAL 13",
+              "peso": "1.71",
+              "cantidad": "2.1",
+              "precio": "75",
+              "subtotal": "269.32"
+            },
+            {
+              "material": "PTR 1' x 1' CAL 11",
+              "peso": "2.25",
+              "cantidad": "4.3",
+              "precio": "80",
+              "subtotal": "774.00"
+            },
+            {
+              "material": "PTR 1' x 1' CAL 11",
+              "peso": "2.25",
+              "cantidad": "12.4",
+              "precio": "79",
+              "subtotal": "2204.10"
+            },
+            {
+              "material": "PTR 1' x 1' CAL 11",
+              "peso": "2.25",
+              "cantidad": "1.3",
+              "precio": "75",
+              "subtotal": "219.38"
+            },
+            {
+              "material": "PTR 1' x 1' CAL 13",
+              "peso": "1.71",
+              "cantidad": "5.4",
+              "precio": "80",
+              "subtotal": "738.72"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage largo para Gaveta",
+              "precio": "2300",
+              "cantidad": "6",
+              "subtotal": "13800.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "20",
+        "entregaEn": "SLP",
+        "terminos": "30 dias de crédito",
+        "comentarios": "Incluye 2D y 3D\nTransporte incluido\nSe requiere validación de cliente\nCotización valida por 15 días"
+      },
+      "fechaCreacion": "2025-07-29T08:32:27.969261",
+      "timestamp": 1753799547969,
+      "version": "1.0.0",
+      "numeroCotizacion": "PO-CWS-437",
+      "revision": "2",
+      "_id": "d591a7d0-a85a-4151-9a03-4ff8c782dfb7",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Rodolfo Moreno",
+        "proyecto": "NUEVO FORMULARIO",
+        "cliente": "Mongo",
+        "atencionA": "Faustino Oro",
+        "contacto": "fdfdf@gmail.com",
+        "numeroCotizacion": "CWS-754",
+        "revision": "2",
+        "actualizacion": "Nuevo Formulario"
+      },
+      "items": [
+        {
+          "descripcion": "RACK METALICO 1",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "3577.64",
+          "total": "35776.44",
+          "transporte": "2000",
+          "instalacion": "120",
+          "seguridad": "5",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 1' x 1' CAL 13",
+              "peso": "1.71",
+              "cantidad": "2.1",
+              "precio": "80",
+              "subtotal": "287.28"
+            },
+            {
+              "material": "PTR 1' x 1' CAL 13",
+              "peso": "0",
+              "cantidad": "0",
+              "precio": "0",
+              "subtotal": "0"
+            },
+            {
+              "material": "PTR 1' x 1' CAL 13",
+              "peso": "0",
+              "cantidad": "0",
+              "precio": "0",
+              "subtotal": "0"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage",
+              "precio": "10",
+              "cantidad": "100",
+              "subtotal": "1000.00"
+            }
+          ]
+        },
+        {
+          "descripcion": "RACK 2 PARA PROBAR",
+          "cantidad": "20",
+          "uom": "Pieza",
+          "costoUnidad": "12241.92",
+          "total": "244838.40",
+          "transporte": "0",
+          "instalacion": "0",
+          "seguridad": "0",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 1' x 1' CAL 14",
+              "peso": "1.44",
+              "cantidad": "2.1",
+              "precio": "80",
+              "subtotal": "241.92"
+            },
+            {
+              "material": "PTR 1' x 1' CAL 14",
+              "peso": "0",
+              "cantidad": "0",
+              "precio": "0",
+              "subtotal": "0"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Casa",
+              "precio": "1200",
+              "cantidad": "10",
+              "subtotal": "12000.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "20 dias",
+        "entregaEn": "SLP",
+        "terminos": "30 dias de crédito",
+        "comentarios": "Prueba "
+      },
+      "fechaCreacion": "2025-07-30T17:41:58.839145",
+      "timestamp": 1753918918839,
+      "version": "1.0.0",
+      "numeroCotizacion": "CWS-754",
+      "revision": "2",
+      "_id": "688aadc74ad19d2c5e844143",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-07-30T17:41:59.173982",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Rodolfo Moreno",
+        "proyecto": "Nuevo Formulario Prueba 2",
+        "cliente": "Nvo FORM",
+        "atencionA": "Roberto Gomes",
+        "contacto": "asddasdjh@velksj.com",
+        "numeroCotizacion": "NVO Formulario 800",
+        "revision": "2",
+        "actualizacionRevision": "Prueba de actualización"
+      },
+      "items": [
+        {
+          "descripcion": "Rack metalico",
+          "cantidad": "20",
+          "uom": "Pieza",
+          "costoUnidad": "125837.12",
+          "total": "2516742.48",
+          "transporte": "100000",
+          "instalacion": "2300",
+          "seguridad": "5",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "12.3",
+              "precio": "80",
+              "subtotal": "1416.96"
+            },
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "2.1",
+              "precio": "80",
+              "subtotal": "241.92"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage",
+              "precio": "1200",
+              "cantidad": "10",
+              "subtotal": "12000.00"
+            },
+            {
+              "descripcion": "Otro Dunnage",
+              "precio": "1943",
+              "cantidad": "2",
+              "subtotal": "3886.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "20",
+        "entregaEn": "SLP",
+        "terminos": "30 dias de crédito",
+        "comentarios": "PRUEBA FINAL DE FORMULARIO NVO"
+      },
+      "fechaCreacion": "2025-07-30T18:00:31.058176",
+      "timestamp": 1753920031058,
+      "version": "1.0.0",
+      "numeroCotizacion": "NVO Formulario 800",
+      "revision": "2",
+      "_id": "688ab21f4673e2361d1c9097",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-07-30T18:00:31.364685",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "1",
+        "proyecto": "1",
+        "cliente": "1",
+        "atencionA": "1",
+        "contacto": "1",
+        "numeroCotizacion": "1",
+        "revision": "1"
+      },
+      "items": [
+        {
+          "descripcion": "111",
+          "cantidad": "11",
+          "uom": "Pieza",
+          "costoUnidad": "932.80",
+          "total": "10260.80",
+          "transporte": "0",
+          "instalacion": "0",
+          "seguridad": "0",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 3/4 x 3/4 CAL 14",
+              "peso": "1.06",
+              "cantidad": "11",
+              "precio": "80",
+              "subtotal": "932.80"
+            }
+          ],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tipoCambio": "",
+        "tiempoEntrega": "30",
+        "entregaEn": "SLP",
+        "terminos": "30 dias",
+        "comentarios": ""
+      },
+      "fechaCreacion": "2025-07-30T18:10:03.358674",
+      "timestamp": 1753920603358,
+      "version": "1.0.0",
+      "numeroCotizacion": "1",
+      "revision": "1",
+      "_id": "688ab45be3ddad63d9732a8e",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-07-30T18:10:03.591993",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "1",
+        "proyecto": "1",
+        "cliente": "1",
+        "atencionA": "1",
+        "contacto": "1",
+        "numeroCotizacion": "2",
+        "revision": "1"
+      },
+      "items": [
+        {
+          "descripcion": "Rack",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "115.20",
+          "total": "1152.00",
+          "transporte": "0",
+          "instalacion": "0",
+          "seguridad": "0",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "1",
+              "precio": "80",
+              "subtotal": "115.20"
+            }
+          ],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "1",
+        "entregaEn": "1",
+        "terminos": "1",
+        "comentarios": "Todo bien "
+      },
+      "fechaCreacion": "2025-07-31T09:03:33.156718",
+      "timestamp": 1753974213156,
+      "version": "1.0.0",
+      "numeroCotizacion": "2",
+      "revision": "1",
+      "_id": "688b85c58f7d09ae66228289",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-07-31T09:03:33.368670",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "2",
+        "proyecto": "2",
+        "cliente": "2",
+        "atencionA": "2",
+        "contacto": "2",
+        "numeroCotizacion": "800-2",
+        "revision": "2",
+        "actualizacionRevision": "222"
+      },
+      "items": [
+        {
+          "descripcion": "kjgj",
+          "cantidad": "20",
+          "uom": "Pieza",
+          "costoUnidad": "12730.20",
+          "total": "254604.00",
+          "transporte": "2000",
+          "instalacion": "1200",
+          "seguridad": "5",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "20",
+              "precio": "80",
+              "subtotal": "2304.00"
+            },
+            {
+              "material": "PTR 1x1 CAL 13",
+              "peso": "1.71",
+              "cantidad": "25",
+              "precio": "80",
+              "subtotal": "3420.00"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage",
+              "precio": "1000",
+              "cantidad": "2",
+              "subtotal": "2000.00"
+            },
+            {
+              "descripcion": "JHGJHGD",
+              "precio": "120",
+              "cantidad": "10",
+              "subtotal": "1200.00"
+            }
+          ]
+        },
+        {
+          "descripcion": "Rack 2",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "3388.00",
+          "total": "33880.00",
+          "transporte": "0",
+          "instalacion": "2000",
+          "seguridad": "0",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 13",
+              "peso": "1.71",
+              "cantidad": "10",
+              "precio": "80",
+              "subtotal": "1368.00"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "kjkjh",
+              "precio": "2",
+              "cantidad": "10",
+              "subtotal": "20.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "20",
+        "entregaEn": "SLP",
+        "terminos": "30 dias ",
+        "comentarios": "Tod BIen "
+      },
+      "fechaCreacion": "2025-07-31T13:12:22.280398",
+      "timestamp": 1753989142280,
+      "version": "1.0.0",
+      "numeroCotizacion": "800-2",
+      "revision": "2",
+      "_id": "688bc017b1a633557bdea1ad",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-07-31T13:12:23.159854",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Rodolfo Moreno",
+        "proyecto": "Penthouse",
+        "cliente": "BMW",
+        "atencionA": "Yazmin Pereira",
+        "contacto": "Roberto Gomez",
+        "numeroCotizacion": "CWS-RM-900",
+        "revision": "2",
+        "actualizacionRevision": "Precio negociado"
+      },
+      "items": [
+        {
+          "descripcion": "Penthouse LID",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "30740.77",
+          "total": "307407.74",
+          "transporte": "550",
+          "instalacion": "10000",
+          "seguridad": "5",
+          "descuento": "10",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "2.1",
+              "precio": "80",
+              "subtotal": "241.92"
+            },
+            {
+              "material": "PTR 1x1 CAL 13",
+              "peso": "1.71",
+              "cantidad": "72",
+              "precio": "75",
+              "subtotal": "9234.00"
+            },
+            {
+              "material": "PTR 1x1 CAL 11",
+              "peso": "2.25",
+              "cantidad": "3.2",
+              "precio": "70",
+              "subtotal": "504.00"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage",
+              "precio": "1200",
+              "cantidad": "10",
+              "subtotal": "12000.00"
+            }
+          ]
+        },
+        {
+          "descripcion": "ZB",
+          "cantidad": "120",
+          "uom": "Pieza",
+          "costoUnidad": "18827.55",
+          "total": "2259305.59",
+          "transporte": "1000",
+          "instalacion": "0",
+          "seguridad": "8",
+          "descuento": "15",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 13",
+              "peso": "1.71",
+              "cantidad": ".45",
+              "precio": "80",
+              "subtotal": "61.56"
+            },
+            {
+              "material": "PTR 1x1 CAL 13",
+              "peso": "1.71",
+              "cantidad": "85",
+              "precio": "65",
+              "subtotal": "9447.75"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Llantas",
+              "precio": "1200",
+              "cantidad": "5",
+              "subtotal": "6000.00"
+            },
+            {
+              "descripcion": "Dunnage",
+              "precio": "1000",
+              "cantidad": "4",
+              "subtotal": "4000.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "30",
+        "entregaEn": "SLP, BMW",
+        "terminos": "30 días vredito",
+        "comentarios": "Todo bien "
+      },
+      "fechaCreacion": "2025-07-31T17:41:49.824575",
+      "timestamp": 1754005309824,
+      "version": "1.0.0",
+      "numeroCotizacion": "CWS-RM-900",
+      "revision": "2",
+      "_id": "9aa02bd8-9f22-4f8c-bd8b-675519323475",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "22",
+        "proyecto": "22",
+        "cliente": "22",
+        "atencionA": "22",
+        "contacto": "22",
+        "numeroCotizacion": "22",
+        "revision": "1"
+      },
+      "items": [
+        {
+          "descripcion": "jhg",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "5.76",
+          "total": "57.60",
+          "transporte": "0",
+          "instalacion": "0",
+          "seguridad": "0",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "2",
+              "precio": "2",
+              "subtotal": "5.76"
+            }
+          ],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tipoCambio": "",
+        "tiempoEntrega": "2",
+        "entregaEn": "2",
+        "terminos": "22",
+        "comentarios": ""
+      },
+      "fechaCreacion": "2025-08-01T08:49:42.282682",
+      "timestamp": 1754059782282,
+      "version": "1.0.0",
+      "numeroCotizacion": "22",
+      "revision": "1",
+      "_id": "688cd4063c291af58fcf816d",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-01T08:49:42.480080",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Rodolfo Moreno",
+        "proyecto": "Racks de Sidewalk",
+        "cliente": "Draexlmaier",
+        "atencionA": "Joel Ramirez",
+        "contacto": "Francisco Perez",
+        "numeroCotizacion": "CWS-RM-800",
+        "revision": "2",
+        "actualizacionRevision": "Precio optimizado"
+      },
+      "items": [
+        {
+          "descripcion": "Ralk Side 1",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "18390.18",
+          "total": "183901.82",
+          "transporte": "3000",
+          "instalacion": "460",
+          "seguridad": "10",
+          "descuento": "5",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "2.1",
+              "precio": "80",
+              "subtotal": "241.92"
+            },
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "3.7",
+              "precio": "75",
+              "subtotal": "399.60"
+            },
+            {
+              "material": "PTR 1x1 CAL 13",
+              "peso": "1.71",
+              "cantidad": "22",
+              "precio": "77",
+              "subtotal": "2896.74"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage grande",
+              "precio": "1200",
+              "cantidad": "2",
+              "subtotal": "2400.00"
+            },
+            {
+              "descripcion": "Dunnage chico",
+              "precio": "600",
+              "cantidad": "10",
+              "subtotal": "6000.00"
+            },
+            {
+              "descripcion": "Llantas",
+              "precio": "550",
+              "cantidad": "4",
+              "subtotal": "2200.00"
+            }
+          ]
+        },
+        {
+          "descripcion": "Rack 2",
+          "cantidad": "50",
+          "uom": "Pieza",
+          "costoUnidad": "21539.14",
+          "total": "1076957.15",
+          "transporte": "3200",
+          "instalacion": "0",
+          "seguridad": "10",
+          "descuento": "5",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "55",
+              "precio": "79",
+              "subtotal": "6256.80"
+            },
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "3.2",
+              "precio": "77",
+              "subtotal": "354.82"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage mediano",
+              "precio": "1200",
+              "cantidad": "4",
+              "subtotal": "4800.00"
+            },
+            {
+              "descripcion": "Llantas",
+              "precio": "1000",
+              "cantidad": "6",
+              "subtotal": "6000.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "30",
+        "entregaEn": "SLP Planta",
+        "terminos": "30 dias",
+        "comentarios": "Prueba de nuevo guardado"
+      },
+      "fechaCreacion": "2025-08-01T09:33:54.479825",
+      "timestamp": 1754062434479,
+      "version": "1.0.0",
+      "numeroCotizacion": "CWS-RM-800",
+      "revision": "2",
+      "_id": "688cde62f1f83cf9ab048ad6",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-01T09:33:54.754576",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "33",
+        "proyecto": "33",
+        "cliente": "33",
+        "atencionA": "33",
+        "contacto": "33",
+        "numeroCotizacion": "33",
+        "revision": "3",
+        "actualizacionRevision": "Rev 3"
+      },
+      "items": [
+        {
+          "descripcion": "Rack 3",
+          "cantidad": "22",
+          "uom": "Pieza",
+          "costoUnidad": "2943.37",
+          "total": "64754.20",
+          "transporte": "500",
+          "instalacion": "1200",
+          "seguridad": "5",
+          "descuento": "10",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 13",
+              "peso": "1.71",
+              "cantidad": "5.4",
+              "precio": "20",
+              "subtotal": "184.68"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage",
+              "precio": "123",
+              "cantidad": "10",
+              "subtotal": "1230.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "19",
+        "tiempoEntrega": "30",
+        "entregaEn": "SLP",
+        "terminos": "30 dias ",
+        "comentarios": "asldkjfjhasdfkljh"
+      },
+      "fechaCreacion": "2025-08-01T14:52:06.887599",
+      "timestamp": 1754081526887,
+      "version": "1.0.0",
+      "numeroCotizacion": "33",
+      "revision": "3",
+      "_id": "688d28f7d98939e8212ca4fa",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-01T14:52:07.278055",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "44",
+        "proyecto": "44",
+        "cliente": "44",
+        "atencionA": "44",
+        "contacto": "44",
+        "numeroCotizacion": "44",
+        "revision": "2",
+        "actualizacionRevision": "fdfsfdfs"
+      },
+      "items": [
+        {
+          "descripcion": "Racj 4",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "3693.97",
+          "total": "36939.67",
+          "transporte": "3200",
+          "instalacion": "444",
+          "seguridad": "5",
+          "descuento": "10",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "2.3",
+              "precio": "80",
+              "subtotal": "264.96"
+            }
+          ],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "20",
+        "tiempoEntrega": "30",
+        "entregaEn": "salp",
+        "terminos": "30 ",
+        "comentarios": "asdfsdf"
+      },
+      "fechaCreacion": "2025-08-01T15:00:22.676671",
+      "timestamp": 1754082022676,
+      "version": "1.0.0",
+      "numeroCotizacion": "44",
+      "revision": "2",
+      "_id": "688d2ae6d98939e8212ca4fb",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-01T15:00:22.995112",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "11",
+        "proyecto": "11",
+        "cliente": "11",
+        "atencionA": "11",
+        "contacto": "11",
+        "numeroCotizacion": "11",
+        "revision": "2",
+        "actualizacionRevision": "cdfdff"
+      },
+      "items": [
+        {
+          "descripcion": "Rack111",
+          "cantidad": "22",
+          "uom": "Pieza",
+          "costoUnidad": "290.08",
+          "total": "6381.70",
+          "transporte": "30",
+          "instalacion": "12",
+          "seguridad": "5",
+          "descuento": "10",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "2.3",
+              "precio": "80",
+              "subtotal": "264.96"
+            }
+          ],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "30",
+        "entregaEn": "SLP",
+        "terminos": "30 dias",
+        "comentarios": "asdlfhasjdfh"
+      },
+      "fechaCreacion": "2025-08-01T15:06:28.806311",
+      "timestamp": 1754082388806,
+      "version": "1.0.0",
+      "numeroCotizacion": "11",
+      "revision": "2",
+      "_id": "688d2c54d98939e8212ca4fc",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-01T15:06:29.049426",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "333",
+        "proyecto": "333",
+        "cliente": "333",
+        "atencionA": "333",
+        "contacto": "333",
+        "numeroCotizacion": "333",
+        "revision": "2",
+        "actualizacionRevision": "lkh"
+      },
+      "items": [
+        {
+          "descripcion": "Rack tres",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "8145.14",
+          "total": "81451.44",
+          "transporte": "1200",
+          "instalacion": "5000",
+          "seguridad": "5",
+          "descuento": "10",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "21",
+              "precio": "80",
+              "subtotal": "2419.20"
+            }
+          ],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "20",
+        "tiempoEntrega": "30",
+        "entregaEn": "sad",
+        "terminos": "sasda",
+        "comentarios": "asasda"
+      },
+      "fechaCreacion": "2025-08-01T15:36:26.216505",
+      "timestamp": 1754084186216,
+      "version": "1.0.0",
+      "numeroCotizacion": "333",
+      "revision": "2",
+      "_id": "688d335ad98939e8212ca4fd",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-01T15:36:26.426762",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "kjfhjkh",
+        "proyecto": "khhf",
+        "cliente": "hgf",
+        "atencionA": "jhf",
+        "contacto": "jhf",
+        "numeroCotizacion": "jhf",
+        "revision": "2",
+        "actualizacionRevision": ",mhmgjh"
+      },
+      "items": [
+        {
+          "descripcion": "nbbvbcn",
+          "cantidad": "20",
+          "uom": "Pieza",
+          "costoUnidad": "13729.79",
+          "total": "274595.79",
+          "transporte": "4578",
+          "instalacion": "431",
+          "seguridad": "5",
+          "descuento": "5",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "76",
+              "precio": "80",
+              "subtotal": "8755.20"
+            }
+          ],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "80",
+        "tiempoEntrega": "30",
+        "entregaEn": "bffdsfds",
+        "terminos": "gfsfds",
+        "comentarios": "mfgjhgf"
+      },
+      "fechaCreacion": "2025-08-01T16:02:50.060793",
+      "timestamp": 1754085770060,
+      "version": "1.0.0",
+      "numeroCotizacion": "jhf",
+      "revision": "2",
+      "_id": "688d398ad98939e8212ca4fe",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-01T16:02:51.458185",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Francisco Moreno",
+        "proyecto": "Instalacion de malla perimetral",
+        "cliente": "Valeo",
+        "atencionA": "Jorge Antonio",
+        "contacto": "guerrero@sadkjsdh.com",
+        "numeroCotizacion": "Valeo FM-900",
+        "revision": "2",
+        "actualizacionRevision": "Precio negociado"
+      },
+      "items": [
+        {
+          "descripcion": "Malla perimetral Zona 1",
+          "cantidad": "50",
+          "uom": "Pieza",
+          "costoUnidad": "46878.07",
+          "total": "2343903.55",
+          "transporte": "1200",
+          "instalacion": "34000",
+          "seguridad": "5",
+          "descuento": "5",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": ".45",
+              "precio": "120",
+              "subtotal": "77.76"
+            },
+            {
+              "material": "PTR 1x1 CAL 11",
+              "peso": "2.25",
+              "cantidad": ".21",
+              "precio": "80",
+              "subtotal": "37.80"
+            },
+            {
+              "material": "PTR 1x1 CAL 10",
+              "peso": "2.60",
+              "cantidad": "10",
+              "precio": "80",
+              "subtotal": "2080.00"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Llantas",
+              "precio": "120",
+              "cantidad": "80",
+              "subtotal": "9600.00"
+            }
+          ]
+        },
+        {
+          "descripcion": "Malla ZONA 2",
+          "cantidad": "13",
+          "uom": "Pieza",
+          "costoUnidad": "51972.35",
+          "total": "675640.49",
+          "transporte": "1200",
+          "instalacion": "32000",
+          "seguridad": "5",
+          "descuento": "8",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "78",
+              "precio": "80",
+              "subtotal": "8985.60"
+            },
+            {
+              "material": "PTR 1x1 CAL 11",
+              "peso": "2.25",
+              "cantidad": "18.2",
+              "precio": "80",
+              "subtotal": "3276.00"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Plasticos",
+              "precio": "210",
+              "cantidad": "24",
+              "subtotal": "5040.00"
+            },
+            {
+              "descripcion": "Chapa",
+              "precio": "1650",
+              "cantidad": "2",
+              "subtotal": "3300.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "30",
+        "entregaEn": "SLP",
+        "terminos": "30 dias de crédito",
+        "comentarios": "Todo Bien "
+      },
+      "fechaCreacion": "2025-08-01T16:14:08.314243",
+      "timestamp": 1754086448314,
+      "version": "1.0.0",
+      "numeroCotizacion": "Valeo FM-900",
+      "revision": "2",
+      "_id": "688d3c31d98939e8212ca4ff",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-01T16:14:09.586251",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Joel Ramirez",
+        "proyecto": "Realización de Rack Muestra",
+        "cliente": "Tu cola",
+        "atencionA": "Rafael Fuentes",
+        "contacto": "Lorenzo Perez",
+        "numeroCotizacion": "COLA JR-234",
+        "revision": "2",
+        "actualizacionRevision": "Rev 2: Negociación de precio"
+      },
+      "items": [
+        {
+          "descripcion": "Rack Muestra OPCION 1",
+          "cantidad": "1",
+          "uom": "Pieza",
+          "costoUnidad": "45658.32",
+          "total": "45658.32",
+          "transporte": "400",
+          "instalacion": "10000",
+          "seguridad": "5",
+          "descuento": "10",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "2.1",
+              "precio": "80",
+              "subtotal": "241.92"
+            },
+            {
+              "material": "PTR 1x1 CAL 13",
+              "peso": "1.71",
+              "cantidad": "23.2",
+              "precio": "80",
+              "subtotal": "3173.76"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Cualquier cosa",
+              "precio": "2300",
+              "cantidad": "15",
+              "subtotal": "34500.00"
+            }
+          ]
+        },
+        {
+          "descripcion": "Rack Muestra OPCION 2",
+          "cantidad": "2",
+          "uom": "Pieza",
+          "costoUnidad": "4428.59",
+          "total": "8857.18",
+          "transporte": "450",
+          "instalacion": "1200",
+          "seguridad": "3",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "1.44",
+              "cantidad": "23",
+              "precio": "80",
+              "subtotal": "2649.60"
+            }
+          ],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "30 Días habiles",
+        "entregaEn": "Planta de Cliente",
+        "terminos": "30 dias de crédito",
+        "comentarios": "Todo Bien "
+      },
+      "fechaCreacion": "2025-08-01T16:18:37.300526",
+      "timestamp": 1754086717300,
+      "version": "1.0.0",
+      "numeroCotizacion": "COLA JR-234",
+      "revision": "2",
+      "_id": "688d3d3dd98939e8212ca500",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-01T16:18:37.926346",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Rodolfo moreno",
+        "proyecto": "Primera cotización desde fueea",
+        "cliente": "CWS",
+        "atencionA": "Myself",
+        "contacto": "Frank moreno",
+        "numeroCotizacion": "Cws-my ip-123",
+        "revision": "2",
+        "actualizacionRevision": "Estoy muy emocionado"
+      },
+      "items": [
+        {
+          "descripcion": "Primera prueba",
+          "cantidad": "12",
+          "uom": "Pieza",
+          "costoUnidad": "31008.22",
+          "total": "372098.69",
+          "transporte": "5000",
+          "instalacion": "238",
+          "seguridad": "4",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 1\" x 1\" CAL 10",
+              "peso": "2.6",
+              "cantidad": "1.6",
+              "precio": "80",
+              "subtotal": "332.80"
+            },
+            {
+              "material": "PTR 1 1/2",
+              "peso": "3.89",
+              "cantidad": "4",
+              "precio": "80",
+              "subtotal": "1244.80"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage",
+              "precio": "2300",
+              "cantidad": "10",
+              "subtotal": "23000.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "30 días habiles",
+        "entregaEn": "SLP",
+        "terminos": "30 dias de credito",
+        "comentarios": "Ojalá guarde bien "
+      },
+      "fechaCreacion": "2025-08-01T17:53:33.286429",
+      "timestamp": 1754092413286,
+      "version": "1.0.0",
+      "numeroCotizacion": "Cws-my ip-123",
+      "revision": "2",
+      "_id": "688d537dba3f1a0e08e94070",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-01T17:53:33.716555",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-04T10:30:10.740441"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Francisco Moreno",
+        "proyecto": "Racks de Reparación",
+        "cliente": "Draexlmaier",
+        "atencionA": "Morin",
+        "contacto": "Mario Ibarra",
+        "numeroCotizacion": "CWS FJ-800",
+        "revision": "1"
+      },
+      "items": [
+        {
+          "descripcion": "Racks de reparación 1",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "9902.47",
+          "total": "99024.66",
+          "transporte": "2000",
+          "instalacion": "0",
+          "seguridad": "5",
+          "descuento": "10",
+          "materiales": [
+            {
+              "material": "PTR 1\" x 1\" CAL 13",
+              "peso": "1.71",
+              "cantidad": "4",
+              "precio": "70",
+              "subtotal": "478.80"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage",
+              "precio": "2000",
+              "cantidad": "4",
+              "subtotal": "8000.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "30",
+        "entregaEn": "SLP",
+        "terminos": "30 dias",
+        "comentarios": "PRueba de revision"
+      },
+      "fechaCreacion": "2025-08-04T10:50:17.883298",
+      "timestamp": 1754326217883,
+      "version": "1.0.0",
+      "numeroCotizacion": "CWS FJ-800",
+      "revision": "1",
+      "_id": "6890e4c94b0fc4f1f6c2c416",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-04T10:50:19.062170"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Francisco Moreno",
+        "proyecto": "Racks de reparacion",
+        "cliente": "Draexlmaier",
+        "atencionA": "Morin",
+        "contacto": "Mario Ibarra",
+        "numeroCotizacion": "CWS-FM-800",
+        "revision": "1"
+      },
+      "items": [
+        {
+          "descripcion": "Rack de repracion",
+          "cantidad": "20",
+          "uom": "Pieza",
+          "costoUnidad": "16959.60",
+          "total": "339192.00",
+          "transporte": "2000",
+          "instalacion": "1000",
+          "seguridad": "5",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 1\" x 1\" CAL 14",
+              "peso": "1.44",
+              "cantidad": "10",
+              "precio": "80",
+              "subtotal": "1152.00"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage",
+              "precio": "1200",
+              "cantidad": "10",
+              "subtotal": "12000.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "30",
+        "entregaEn": "SLP",
+        "terminos": "30 dias",
+        "comentarios": "Prueba de revision "
+      },
+      "fechaCreacion": "2025-08-04T10:56:51.676299",
+      "timestamp": 1754326611676,
+      "version": "1.0.0",
+      "numeroCotizacion": "CWS-FM-800",
+      "revision": "1",
+      "_id": "6890e6534b0fc4f1f6c2c417",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-04T10:56:51.934522"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Rodolfo",
+        "proyecto": "Rack Repair",
+        "cliente": "Draexlmaier",
+        "atencionA": "Morin",
+        "contacto": "Mario Ibarra",
+        "numeroCotizacion": "CWS-FM-801",
+        "revision": "1"
+      },
+      "items": [
+        {
+          "descripcion": "Rack Repair",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "5568.00",
+          "total": "55680.00",
+          "transporte": "1000",
+          "instalacion": "0",
+          "seguridad": "0",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 1\" x 1\" CAL 13",
+              "peso": "1.71",
+              "cantidad": "10",
+              "precio": "80",
+              "subtotal": "1368.00"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage",
+              "precio": "400",
+              "cantidad": "8",
+              "subtotal": "3200.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "30 dias",
+        "entregaEn": "SLP",
+        "terminos": "30 dias",
+        "comentarios": "Prueba 2 de Revision "
+      },
+      "fechaCreacion": "2025-08-04T11:02:47.327151",
+      "timestamp": 1754326967327,
+      "version": "1.0.0",
+      "numeroCotizacion": "CWS-FM-801",
+      "revision": "1",
+      "_id": "6890e7b8af21f2146f74dc73",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-04T11:02:49.040150"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Rodolfo Moreno",
+        "proyecto": "Racks de Sidewalk",
+        "cliente": "Draexlmaier",
+        "atencionA": "Joel Ramirez",
+        "contacto": "Francisco Perez",
+        "numeroCotizacion": "CWS-R3",
+        "revision": "3",
+        "actualizacionRevision": "Revisión 3 basada en CWS"
+      },
+      "items": [
+        {
+          "descripcion": "Ralk Side 1",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "14024.85",
+          "total": "140248.50",
+          "transporte": "3000",
+          "instalacion": "460",
+          "seguridad": "5",
+          "descuento": "5",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "0",
+              "cantidad": "2.1",
+              "precio": "80",
+              "subtotal": "0.00"
+            },
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "0",
+              "cantidad": "3.7",
+              "precio": "75",
+              "subtotal": "0.00"
+            },
+            {
+              "material": "PTR 1x1 CAL 13",
+              "peso": "0",
+              "cantidad": "22",
+              "precio": "77",
+              "subtotal": "0.00"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage grande",
+              "precio": "1200",
+              "cantidad": "2",
+              "subtotal": "2400.00"
+            },
+            {
+              "descripcion": "Dunnage chico",
+              "precio": "600",
+              "cantidad": "10",
+              "subtotal": "6000.00"
+            },
+            {
+              "descripcion": "Llantas",
+              "precio": "550",
+              "cantidad": "4",
+              "subtotal": "2200.00"
+            }
+          ]
+        },
+        {
+          "descripcion": "Rack 2",
+          "cantidad": "50",
+          "uom": "Pieza",
+          "costoUnidad": "13965.00",
+          "total": "698250.00",
+          "transporte": "3200",
+          "instalacion": "0",
+          "seguridad": "5",
+          "descuento": "5",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "0",
+              "cantidad": "55",
+              "precio": "79",
+              "subtotal": "0.00"
+            },
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "0",
+              "cantidad": "3.2",
+              "precio": "77",
+              "subtotal": "0.00"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage mediano",
+              "precio": "1200",
+              "cantidad": "4",
+              "subtotal": "4800.00"
+            },
+            {
+              "descripcion": "Llantas",
+              "precio": "1000",
+              "cantidad": "6",
+              "subtotal": "6000.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "30",
+        "entregaEn": "SLP Planta",
+        "terminos": "30 dias",
+        "comentarios": "Prueba de nuevo guardado"
+      },
+      "fechaCreacion": "2025-08-05T09:59:01.480827",
+      "timestamp": 1754409541480,
+      "version": "1.0.0",
+      "numeroCotizacion": "CWS-R3",
+      "revision": "3",
+      "_id": "68922a4625e724fe0b364082",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-05T09:59:02.400365"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Rodolfo Moreno",
+        "proyecto": "Racks de Sidewalk",
+        "cliente": "Draexlmaier",
+        "atencionA": "Joel Ramirez",
+        "contacto": "Francisco Perez",
+        "numeroCotizacion": "CWS-R4",
+        "revision": "4",
+        "actualizacionRevision": "Revisión 4 basada en CWS"
+      },
+      "items": [
+        {
+          "descripcion": "Ralk Side 1",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "13286.70",
+          "total": "132867.00",
+          "transporte": "3000",
+          "instalacion": "460",
+          "seguridad": "5",
+          "descuento": "10",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "0",
+              "cantidad": "2.1",
+              "precio": "80",
+              "subtotal": "0.00"
+            },
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "0",
+              "cantidad": "3.7",
+              "precio": "75",
+              "subtotal": "0.00"
+            },
+            {
+              "material": "PTR 1x1 CAL 13",
+              "peso": "0",
+              "cantidad": "22",
+              "precio": "77",
+              "subtotal": "0.00"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage grande",
+              "precio": "1200",
+              "cantidad": "2",
+              "subtotal": "2400.00"
+            },
+            {
+              "descripcion": "Dunnage chico",
+              "precio": "600",
+              "cantidad": "10",
+              "subtotal": "6000.00"
+            },
+            {
+              "descripcion": "Llantas",
+              "precio": "550",
+              "cantidad": "4",
+              "subtotal": "2200.00"
+            }
+          ]
+        },
+        {
+          "descripcion": "Rack 2",
+          "cantidad": "50",
+          "uom": "Pieza",
+          "costoUnidad": "13965.00",
+          "total": "698250.00",
+          "transporte": "3200",
+          "instalacion": "0",
+          "seguridad": "5",
+          "descuento": "5",
+          "materiales": [
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "0",
+              "cantidad": "55",
+              "precio": "79",
+              "subtotal": "0.00"
+            },
+            {
+              "material": "PTR 1x1 CAL 14",
+              "peso": "0",
+              "cantidad": "3.2",
+              "precio": "77",
+              "subtotal": "0.00"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage mediano",
+              "precio": "1200",
+              "cantidad": "4",
+              "subtotal": "4800.00"
+            },
+            {
+              "descripcion": "Llantas",
+              "precio": "1000",
+              "cantidad": "6",
+              "subtotal": "6000.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "30",
+        "entregaEn": "SLP Planta",
+        "terminos": "30 dias",
+        "comentarios": "Prueba de nuevo guardado"
+      },
+      "fechaCreacion": "2025-08-05T11:12:38.948384",
+      "timestamp": 1754413958948,
+      "version": "1.0.0",
+      "numeroCotizacion": "CWS-R4",
+      "revision": "4",
+      "_id": "68923b8725e724fe0b364083",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-05T11:12:39.497876"
+    }
+  ],
+  "metadata": {
+    "created": "2025-07-28T18:58:40.397575",
+    "version": "1.0.0",
+    "total_cotizaciones": 29,
+    "modo": "respaldo_automatico",
+    "last_updated": "2025-08-05T11:12:39.497876",
+    "ultimo_respaldo": "2025-08-05T11:12:39.497876",
+    "ultima_sincronizacion": "2025-08-04T10:30:10.740441",
+    "total_sincronizado": 24
+  }
+}

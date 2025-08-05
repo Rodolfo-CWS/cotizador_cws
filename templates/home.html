@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CWS - Cotizaciones</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #2c2c2c;
+        }
+        
+        .container {
+            background: #ffffff;
+            padding: 48px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+        
+        .logo {
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .logo img {
+            max-height: 80px;
+            max-width: 200px;
+            object-fit: contain;
+        }
+        
+        h1 {
+            color: #212529;
+            margin-bottom: 48px;
+            font-weight: 400;
+            font-size: 24px;
+            letter-spacing: -0.5px;
+        }
+        
+        .search-container {
+            position: relative;
+            margin-bottom: 32px;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 16px 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.2s ease;
+            background: #ffffff;
+            box-shadow: none;
+        }
+        
+        .search-input:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        
+        .search-input::placeholder {
+            color: #6c757d;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .icon-button {
+            width: 48px;
+            height: 48px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.2s ease;
+            position: relative;
+            background: #ffffff;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-search {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+        
+        .btn-new {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+        
+        .icon-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .icon-button:active {
+            transform: translateY(0);
+        }
+        
+        .icon-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .tooltip {
+            position: absolute;
+            bottom: -32px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #212529;
+            color: white;
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        
+        .icon-button:hover .tooltip {
+            opacity: 1;
+        }
+        
+        .results-container {
+            margin-top: 32px;
+            text-align: left;
+        }
+        
+        .result-item {
+            background: #ffffff;
+            border: 1px solid #e9ecef;
+            padding: 16px;
+            margin: 8px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .result-item:hover {
+            background: #f8f9fa;
+            border-color: #4f46e5;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .result-field {
+            margin: 4px 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .result-field strong {
+            color: #6c757d;
+            margin-right: 8px;
+            min-width: 80px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .result-field .value {
+            color: #212529;
+            font-size: 14px;
+        }
+        
+        .result-meta {
+            font-size: 11px;
+            color: #adb5bd;
+            margin-top: 12px;
+            text-align: center;
+            padding-top: 8px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .message {
+            text-align: center;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+        
+        .message.loading {
+            background: #f8f9fa;
+            color: #6c757d;
+            border: 1px solid #e9ecef;
+        }
+        
+        .message.error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        
+        .message.success {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+        
+        .stats {
+            text-align: center;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            color: #495057;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+            
+            .button-group {
+                gap: 15px;
+            }
+            
+            .icon-button {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .logo img {
+                max-height: 60px;
+                max-width: 150px;
+            }
+        }
+        
+        /* Animación de carga */
+        .btn-search.loading {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        /* Highlight para búsquedas */
+        mark {
+            background-color: #ffeb3b;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="/static/logo.png" alt="CWS Company">
+        </div>
+        <h1>CWS Sistema de Cotizaciones</h1>
+        
+        <div class="search-container">
+            <input type="text" 
+                   id="searchInput" 
+                   class="search-input"
+                   placeholder="Buscar por número, cliente, vendedor, proyecto...">
+        </div>
+        
+        <div class="button-group">
+            <button class="icon-button btn-search" 
+                    onclick="buscar()" 
+                    id="btnBuscar"
+                    title="Buscar cotizaciones">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+                <div class="tooltip">Buscar</div>
+            </button>
+            
+            <button class="icon-button btn-new" 
+                    onclick="nuevaCotizacion()"
+                    title="Nueva cotización">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
+                <div class="tooltip">Nueva Cotización</div>
+            </button>
+        </div>
+        
+        <div id="resultados" class="results-container"></div>
+    </div>
+
+    <script>
+        // Variables globales
+        let ultimaBusqueda = '';
+        
+        // Función de búsqueda
+        function buscar() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                mostrarMensaje('Ingresa un término de búsqueda', 'error');
+                return;
+            }
+
+            ultimaBusqueda = query;
+            const btnBuscar = document.getElementById('btnBuscar');
+            btnBuscar.disabled = true;
+            btnBuscar.classList.add('loading');
+            btnBuscar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>';
+            
+            mostrarMensaje('Buscando PDFs...', 'loading');
+
+            fetch('/buscar_pdfs', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ query: query })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('✅ Respuesta del servidor:', data);
+                
+                // Si no hay resultados de PDFs, usar fallback a cotizaciones
+                if (!data.resultados || data.resultados.length === 0) {
+                    console.log('🔄 No hay PDFs, buscando en cotizaciones...');
+                    
+                    return fetch('/buscar', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ query: query })
+                    })
+                    .then(response => response.json())
+                    .then(cotizacionesData => {
+                        console.log('✅ Resultados de cotizaciones:', cotizacionesData);
+                        procesarRespuesta({
+                            resultados: cotizacionesData.resultados || [],
+                            total: cotizacionesData.total || 0,
+                            modo: 'cotizaciones'
+                        });
+                    });
+                } else {
+                    procesarRespuesta(data);
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error en búsqueda de PDFs:', error);
+                console.log('🔄 Intentando búsqueda de cotizaciones como fallback...');
+                
+                // Fallback: buscar en cotizaciones
+                return fetch('/buscar', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('✅ Fallback exitoso - cotizaciones:', data);
+                    // Convertir formato de cotizaciones a formato de PDFs
+                    return {
+                        resultados: data.resultados || [],
+                        total: data.total || 0,
+                        modo: data.modo || 'fallback'
+                    };
+                })
+                .then(data => procesarRespuesta(data))
+                .catch(fallbackError => {
+                    console.error('❌ Error también en fallback:', fallbackError);
+                    mostrarMensaje(`Error al buscar: ${error.message}`, 'error');
+                });
+            })
+            .finally(() => {
+                btnBuscar.disabled = false;
+                btnBuscar.classList.remove('loading');
+                btnBuscar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>';
+            });
+        }
+
+        // Función para procesar respuesta
+        function procesarRespuesta(data) {
+            if (data.error) {
+                mostrarMensaje(`Error: ${data.error}`, 'error');
+                return;
+            }
+
+            let cotizaciones = [];
+            
+            if (data.resultados && Array.isArray(data.resultados)) {
+                cotizaciones = data.resultados;
+            } else if (Array.isArray(data)) {
+                cotizaciones = data;
+            } else {
+                mostrarMensaje('Formato de respuesta no válido', 'error');
+                return;
+            }
+
+            mostrarResultados(cotizaciones, data.total || cotizaciones.length);
+        }
+
+        // Función para mostrar resultados de PDFs
+        function mostrarResultados(pdfs, total) {
+            const div = document.getElementById('resultados');
+            
+            if (!pdfs || pdfs.length === 0) {
+                mostrarMensaje(`No se encontraron PDFs para "${ultimaBusqueda}"`, 'error');
+                return;
+            }
+
+            let html = `
+                <div class="stats">
+                    <strong>${pdfs.length}</strong> PDF(s) encontrado(s)
+                    ${ultimaBusqueda ? `para "<em>${ultimaBusqueda}</em>"` : ''}
+                </div>
+            `;
+            
+            pdfs.forEach((pdf, index) => {
+                // Detectar si es cotización (del fallback) o PDF real
+                const esCotizacion = pdf._id && !pdf.numero_cotizacion;
+                const identificador = esCotizacion ? pdf._id : (pdf.numero_cotizacion || `PDF-${index + 1}`);
+                const numeroDisplay = esCotizacion ? (pdf.numeroCotizacion || pdf.datosGenerales?.numeroCotizacion || identificador) : (pdf.numero_cotizacion || `PDF-${index + 1}`);
+                const clienteDisplay = esCotizacion ? (pdf.datosGenerales?.cliente || 'Cliente no especificado') : (pdf.cliente || 'Cliente no especificado');
+                const vendedorDisplay = esCotizacion ? (pdf.datosGenerales?.vendedor || 'Vendedor no especificado') : (pdf.vendedor || 'Vendedor no especificado');
+                const proyectoDisplay = esCotizacion ? (pdf.datosGenerales?.proyecto || 'Proyecto no especificado') : (pdf.proyecto || 'Proyecto no especificado');
+                const fechaDisplay = esCotizacion ? (pdf.datosGenerales?.fecha || pdf.fechaCreacion || 'Fecha no especificada') : (pdf.fecha || 'Fecha no especificada');
+                const tipoDisplay = pdf.tipo === 'nueva' ? 'Nueva' : 'Histórica';
+                const tieneDesglose = esCotizacion ? true : pdf.tiene_desglose;
+                
+                // Función para resaltar coincidencias
+                const resaltarTexto = (texto) => {
+                    if (!ultimaBusqueda) return texto;
+                    const regex = new RegExp(`(${ultimaBusqueda})`, 'gi');
+                    return texto.replace(regex, '<mark>$1</mark>');
+                };
+                
+                html += `
+                    <div class="result-item" style="cursor: default;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                            <div style="flex: 1;">
+                                <div class="result-field">
+                                    <strong>Número:</strong> 
+                                    <span class="value" style="color: #4f46e5; font-weight: bold;">${resaltarTexto(numeroDisplay)}</span>
+                                </div>
+                                <div class="result-field">
+                                    <strong>Cliente:</strong> 
+                                    <span class="value">${resaltarTexto(clienteDisplay)}</span>
+                                </div>
+                                <div class="result-field">
+                                    <strong>Vendedor:</strong> 
+                                    <span class="value">${resaltarTexto(vendedorDisplay)}</span>
+                                </div>
+                                <div class="result-field">
+                                    <strong>Proyecto:</strong> 
+                                    <span class="value">${resaltarTexto(proyectoDisplay)}</span>
+                                </div>
+                                <div class="result-field">
+                                    <strong>Fecha:</strong> 
+                                    <span class="value">${fechaDisplay}</span>
+                                </div>
+                                <div class="result-field">
+                                    <strong>Tipo:</strong> 
+                                    <span class="value" style="color: ${pdf.tipo === 'nueva' ? '#10b981' : '#f59e0b'};">${tipoDisplay}</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 8px; margin-left: 15px;">
+                                <button onclick="verPDF('${numeroDisplay}')" 
+                                        class="icon-button btn-search" 
+                                        style="width: auto; padding: 8px 12px; font-size: 12px;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                    </svg>
+                                    Ver PDF
+                                </button>
+                                ${tieneDesglose ? `
+                                <button onclick="verDesglose('${esCotizacion ? identificador : numeroDisplay}')" 
+                                        class="icon-button" 
+                                        style="width: auto; padding: 8px 12px; font-size: 12px; background: #10b981; color: white; border-color: #10b981;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M3,3H21V5H3V3M3,7H21V9H3V7M3,11H21V13H3V11M3,15H21V17H3V15M3,19H21V21H3V19Z"/>
+                                    </svg>
+                                    Desglose
+                                </button>
+                                ` : `
+                                <div style="font-size: 11px; color: #6c757d; text-align: center; padding: 8px;">
+                                    Sin desglose<br>disponible
+                                </div>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            div.innerHTML = html;
+        }
+
+        // Función para mostrar mensajes
+        function mostrarMensaje(texto, tipo = 'loading') {
+            const div = document.getElementById('resultados');
+            div.innerHTML = `<div class="message ${tipo}">${texto}</div>`;
+        }
+
+        // Función para ver PDF
+        function verPDF(numeroCotizacion) {
+            console.log(`Abriendo PDF: ${numeroCotizacion}`);
+            const identificadorCodificado = encodeURIComponent(numeroCotizacion);
+            window.open(`/pdf/${identificadorCodificado}`, '_blank');
+        }
+
+        // Función para ver desglose
+        function verDesglose(numeroCotizacion) {
+            console.log(`Abriendo desglose: ${numeroCotizacion}`);
+            const identificadorCodificado = encodeURIComponent(numeroCotizacion);
+            window.location.href = `/desglose/${identificadorCodificado}`;
+        }
+
+        // Función para nueva cotización
+        function nuevaCotizacion() {
+            window.location.href = '/formulario';
+        }
+
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                buscar();
+            }
+        });
+
+        // Limpiar resultados al vaciar input
+        document.getElementById('searchInput').addEventListener('input', function() {
+            if (this.value.trim() === '') {
+                document.getElementById('resultados').innerHTML = '';
+                ultimaBusqueda = '';
+            }
+        });
+
+        // Auto-focus en el input al cargar
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Sistema CWS iniciado');
+            document.getElementById('searchInput').focus();
+        });
+    </script>
+</body>
+</html>

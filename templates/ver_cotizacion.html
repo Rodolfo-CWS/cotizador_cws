@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotización {{ cotizacion.numeroCotizacion or 'Sin número' }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+        .container {
+            background: white;
+            padding: 32px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+            border: 1px solid #e9ecef;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 20px;
+        }
+        .header h1 {
+            color: #495057;
+            font-weight: 600;
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 16px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            background-color: #ffffff;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #495057;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 8px;
+            font-weight: 500;
+        }
+        .field {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: flex-start;
+        }
+        .field strong {
+            width: 150px;
+            display: inline-block;
+            flex-shrink: 0;
+            color: #6c757d;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .field span {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            flex: 1;
+            word-wrap: break-word;
+            color: #212529;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
+        .btn {
+            padding: 12px 16px;
+            margin: 0 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #ffffff;
+            color: #495057;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            text-decoration: none;
+            color: #495057;
+        }
+        .btn.primary {
+            background-color: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+        .btn.primary:hover {
+            color: white;
+        }
+        .item-container {
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        .item-header {
+            color: #495057;
+            margin-top: 0;
+            margin-bottom: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 8px;
+        }
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .total-value {
+            background: #f8f9fa;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            color: #495057;
+            border: 1px solid #e9ecef;
+        }
+        .costo-value {
+            background: #f8f9fa;
+            padding: 10px 16px;
+            border-radius: 6px;
+            color: #495057;
+            border: 1px solid #e9ecef;
+            font-weight: 600;
+        }
+        
+        @media print {
+            .actions {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .grid-4 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div style="display: flex; justify-content: center; margin-bottom: 16px;">
+                <img src="/static/logo.png" alt="CWS Company" style="max-height: 60px; max-width: 150px; object-fit: contain;">
+            </div>
+            <h1>Cotización {{ cotizacion.numeroCotizacion or 'Sin número' }}</h1>
+            {% if cotizacion.revision %}
+            <p><strong>Revisión:</strong> {{ cotizacion.revision }}</p>
+            {% endif %}
+        </div>
+
+        <!-- Datos Generales -->
+        <div class="section">
+            <h3>Información General</h3>
+            
+            <div class="field">
+                <strong>Número:</strong>
+                <span>{{ cotizacion.numeroCotizacion or 'N/A' }}</span>
+            </div>
+            <div class="field">
+                <strong>Revisión:</strong>
+                <span>{{ cotizacion.revision or 'N/A' }}</span>
+            </div>
+            
+            {% if cotizacion.datosGenerales %}
+            <div class="field">
+                <strong>Vendedor:</strong>
+                <span>{{ cotizacion.datosGenerales.vendedor or 'N/A' }}</span>
+            </div>
+            <div class="field">
+                <strong>Proyecto:</strong>
+                <span>{{ cotizacion.datosGenerales.proyecto or 'N/A' }}</span>
+            </div>
+            <div class="field">
+                <strong>Cliente:</strong>
+                <span>{{ cotizacion.datosGenerales.cliente or 'N/A' }}</span>
+            </div>
+            <div class="field">
+                <strong>Atención a:</strong>
+                <span>{{ cotizacion.datosGenerales.atencionA or 'N/A' }}</span>
+            </div>
+            <div class="field">
+                <strong>Contacto:</strong>
+                <span>{{ cotizacion.datosGenerales.contacto or 'N/A' }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Items -->
+        {% if cotizacion.get('items') %}
+        <div class="section">
+            <h3>Items de Cotización</h3>
+            
+            {% for item in cotizacion.get('items', []) %}
+            <div class="item-container">
+                <h4 class="item-header">Item {{ loop.index }}: {{ item.descripcion or 'Sin descripción' }}</h4>
+                
+                <!-- Información básica del item -->
+                <div class="grid-4">
+                    <div class="field">
+                        <strong>UOM:</strong>
+                        <span>{{ item.uom or 'N/A' }}</span>
+                    </div>
+                    <div class="field">
+                        <strong>Cantidad:</strong>
+                        <span>{{ item.cantidad or '0' }}</span>
+                    </div>
+                    <div class="field">
+                        <strong>Costo/Unidad:</strong>
+                        <span class="costo-value">${{ item.costoUnidad or '0.00' }}</span>
+                    </div>
+                    <div class="field">
+                        <strong>Total Item:</strong>
+                        <span class="total-value">${{ item.total or '0.00' }}</span>
+                    </div>
+                </div>
+
+                <!-- Costos Adicionales -->
+                <div style="margin-top: 15px;">
+                    <h5 style="color: #6c757d; margin: 10px 0; font-weight: 600;">Costos y Ajustes:</h5>
+                    <div class="grid-4">
+                        <div class="field">
+                            <strong>Transporte:</strong>
+                            <span>${{ item.transporte or '0.00' }}</span>
+                        </div>
+                        <div class="field">
+                            <strong>Instalación:</strong>
+                            <span>${{ item.instalacion or '0.00' }}</span>
+                        </div>
+                        <div class="field">
+                            <strong>% Seguridad:</strong>
+                            <span>{{ item.seguridad or '0' }}%</span>
+                        </div>
+                        <div class="field">
+                            <strong>% Descuento:</strong>
+                            <span>{{ item.descuento or '0' }}%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Materiales del Item -->
+                {% if item.get('materiales') %}
+                <div style="margin-top: 15px;">
+                    <h5 style="color: #dc3545; margin: 10px 0; font-weight: 600;">🔩 Materiales:</h5>
+                    
+                    <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px;">
+                        <thead>
+                            <tr style="background: #e5e7eb; color: #374151;">
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Descripción</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Precio</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Cantidad</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for material in item.get('materiales', []) %}
+                            <tr style="border-bottom: 1px solid #ddd;">
+                                <td style="border: 1px solid #ddd; padding: 6px; font-weight: bold;">{{ material.get('material') or 'Sin descripción' }}</td>
+                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${{ material.get('precio', '0.00') }}</td>
+                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">{{ material.get('cantidad', '0') }}</td>
+                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center; font-weight: bold; color: #dc3545;">${{ material.get('subtotal', '0.00') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                <!-- Otros Materiales del Item -->
+                {% if item.get('otrosMateriales') %}
+                <div style="margin-top: 15px;">
+                    <h5 style="color: #17a2b8; margin: 10px 0; font-weight: 600;">🔧 Otros Materiales:</h5>
+                    <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px;">
+                        <thead>
+                            <tr style="background: #e5e7eb; color: #374151;">
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Descripción</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Precio</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Cantidad</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for otro in item.get('otrosMateriales', []) %}
+                            <tr style="border-bottom: 1px solid #ddd;">
+                                <td style="border: 1px solid #ddd; padding: 6px; font-weight: bold;">{{ otro.get('descripcion', 'Sin descripción') }}</td>
+                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${{ otro.get('precio', '0.00') }}</td>
+                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">{{ otro.get('cantidad', '0') }}</td>
+                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center; font-weight: bold; color: #17a2b8;">${{ otro.get('subtotal', '0.00') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Condiciones -->
+        {% if cotizacion.condiciones %}
+        <div class="section">
+            <h3>Términos y Condiciones</h3>
+            
+            <div class="field">
+                <strong>Moneda:</strong>
+                <span>{{ cotizacion.condiciones.moneda or 'N/A' }}</span>
+            </div>
+            {% if cotizacion.condiciones.tipoCambio %}
+            <div class="field">
+                <strong>Tipo de Cambio:</strong>
+                <span>{{ cotizacion.condiciones.tipoCambio }}</span>
+            </div>
+            {% endif %}
+            <div class="field">
+                <strong>Tiempo de Entrega:</strong>
+                <span>{{ cotizacion.condiciones.tiempoEntrega or 'N/A' }} días hábiles</span>
+            </div>
+            <div class="field">
+                <strong>Entrega en:</strong>
+                <span>{{ cotizacion.condiciones.entregaEn or 'N/A' }}</span>
+            </div>
+            <div class="field">
+                <strong>Términos de Pago:</strong>
+                <span>{{ cotizacion.condiciones.terminosPago or cotizacion.condiciones.terminos or 'N/A' }}</span>
+            </div>
+            {% if cotizacion.condiciones.comentarios %}
+            <div class="field">
+                <strong>Comentarios:</strong>
+                <span style="font-style: italic;">{{ cotizacion.condiciones.comentarios }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Información del sistema -->
+        <div class="section">
+            <h3>Información del Sistema</h3>
+            <div class="field">
+                <strong>ID:</strong>
+                <span style="font-family: monospace; font-size: 12px;">{{ cotizacion._id or 'N/A' }}</span>
+            </div>
+            <div class="field">
+                <strong>Fecha de Creación:</strong>
+                <span>{{ cotizacion.fechaCreacion or 'N/A' }}</span>
+            </div>
+            {% if cotizacion.version %}
+            <div class="field">
+                <strong>Versión del Sistema:</strong>
+                <span>{{ cotizacion.version }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        
+        <!-- Acciones -->
+        <div class="actions">
+            <a href="/" class="btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/>
+                </svg>
+                Inicio
+            </a>
+            <a href="/formulario" class="btn primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
+                Nueva Cotización
+            </a>
+            {% set revision_id = cotizacion.get('_id') %}
+            {% if revision_id %}
+            <a href="/formulario?revision={{ revision_id }}" class="btn" style="background-color: #10b981; color: white; border-color: #10b981;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17,13H13V17H11V13H7V11H11V7H13V11H17M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/>
+                </svg>
+                Nueva Revisión
+            </a>
+            {% endif %}
+            <button onclick="window.print()" class="btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18,3H6V7H18M19,12A1,1 0 0,1 18,11A1,1 0 0,1 19,10A1,1 0 0,1 20,11A1,1 0 0,1 19,12M16,19H8V14H16M19,8H5A3,3 0 0,0 2,11V17H6V21H18V17H22V11A3,3 0 0,0 19,8Z"/>
+                </svg>
+                Imprimir
+            </button>
+        </div>
+    </div>
+</body>
+</html>

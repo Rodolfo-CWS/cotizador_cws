@@ -1,0 +1,47 @@
+# ====================================
+# DEPENDENCIAS DEL COTIZADOR CWS
+# ====================================
+
+# Framework web principal
+Flask==3.0.0
+Werkzeug==3.0.1
+
+# Manejo de variables de entorno
+python-dotenv==1.0.0
+
+# Base de datos MongoDB (opcional - funciona sin esto en modo offline)
+pymongo==4.6.0
+
+# Manejo de fechas y tiempo
+python-dateutil==2.8.2
+
+# Generación de PDFs (opcional pero recomendado)
+weasyprint==61.2
+
+# Dependencias de WeasyPrint (se instalan automáticamente)
+# cffi==1.16.0
+# Pillow==10.2.0
+# pycairo==1.25.1
+# pyphen==0.14.0
+# cssselect2==0.7.0
+# html5lib==1.1
+# tinycss2==1.2.1
+
+# Utilidades adicionales
+requests==2.31.0
+
+# Servidor web para producción (REQUERIDO PARA LA NUBE)
+gunicorn==21.2.0
+
+# Manejo de archivos CSV (incluido en Python estándar)
+# csv - Built-in module
+
+# Manejo de JSON (incluido en Python estándar)  
+# json - Built-in module
+
+# Otros módulos estándar necesarios:
+# datetime - Built-in module
+# os - Built-in module
+# io - Built-in module
+# atexit - Built-in module
+# copy - Built-in module

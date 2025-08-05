@@ -1,0 +1,74 @@
+# ====================================
+# ARCHIVO .gitignore para Cotizador CWS
+# ====================================
+
+# ❌ CARPETA ENV (MUY PESADA - 3000+ archivos)
+env/
+venv/
+.venv/
+.env
+
+# ❌ ARCHIVOS TEMPORALES DE PYTHON
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+
+# ❌ ARCHIVOS DE SISTEMA WINDOWS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# ❌ LOGS Y ARCHIVOS TEMPORALES
+*.log
+*.tmp
+*.temp
+.DS_Store
+
+# ❌ ARCHIVOS DE BACKUP
+*.bak
+*.backup
+*.old
+
+# ❌ IDE/EDITOR FILES
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ✅ MANTENER ESTOS ARCHIVOS IMPORTANTES:
+# - *.py (código Python)
+# - *.html (templates)  
+# - *.csv (datos)
+# - *.json (cotizaciones)
+# - *.md (documentación)
+# - *.bat (scripts de instalación y ejecución)
+# - *.txt (requirements.txt y documentación)
+# - static/ (archivos web)
+# - templates/ (interfaz web)
+
+# ✅ ARCHIVOS DE PORTABILIDAD INCLUIDOS:
+# - requirements.txt (dependencias)
+# - INSTALAR_AUTOMATICO.bat (instalación)
+# - EJECUTAR_RAPIDO.bat (ejecución)
+# - COMO_USAR_EN_OTRA_COMPUTADORA.md (manual)
+
+# ✅ ARCHIVOS PARA LA NUBE INCLUIDOS:
+# - Procfile (configuración servidor web)
+# - runtime.txt (versión Python)
+# - .env.example (variables de entorno)
+# - DEPLOY_RAILWAY.md (guía Railway)
+# - DEPLOY_HEROKU.md (guía Heroku)
+
+# ❌ ARCHIVOS TEMPORALES LOCALES:
+ip_actual.txt
+direccion_movil.txt

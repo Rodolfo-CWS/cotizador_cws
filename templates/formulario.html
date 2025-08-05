@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotizador CWS - Nuevo Formulario</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #10b981;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --gray-50: #f8f9fa;
+            --gray-100: #f1f3f4;
+            --gray-200: #e9ecef;
+            --gray-300: #dee2e6;
+            --gray-400: #ced4da;
+            --gray-500: #adb5bd;
+            --gray-600: #6c757d;
+            --gray-700: #495057;
+            --gray-800: #343a40;
+            --gray-900: #212529;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--gray-50) !important;
+            color: var(--gray-800);
+        }
+        
+        .btn-loading { opacity: 0.6; cursor: wait !important; }
+        .item-block { transition: all 0.2s ease; }
+        .item-block:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        details[open] summary ~ * { animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Override Tailwind colors with minimalist grayscale */
+        .bg-gradient-to-r { background: var(--gray-800) !important; }
+        .text-white { color: white !important; }
+        .text-blue-200 { color: var(--gray-400) !important; }
+        .text-blue-700 { color: var(--gray-700) !important; }
+        .bg-white { background: white !important; }
+        .shadow-lg { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24) !important; }
+        .rounded-lg { border-radius: 8px !important; }
+        .border-gray-300 { border-color: var(--gray-300) !important; }
+        .focus\:ring-blue-500:focus { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important; }
+        .focus\:border-blue-500:focus { border-color: var(--primary) !important; }
+        .text-gray-700 { color: var(--gray-700) !important; }
+        
+        /* Icon buttons styles */
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+            background: white;
+            color: var(--gray-600);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .icon-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .icon-btn.primary {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .icon-btn.success {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+        
+        .icon-btn.danger {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+        }
+    </style>
+</head>
+<body class="min-h-screen py-6">
+
+<!-- ENCABEZADO -->
+<header class="bg-gradient-to-r from-blue-700 to-blue-800 text-white shadow-lg mb-6">
+    <div class="container mx-auto px-4 py-6">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <img src="/static/logo.png" alt="CWS Company" style="max-height: 50px; max-width: 120px; object-fit: contain;">
+                <div>
+                    <h1 class="text-3xl font-bold">Cotizador CWS</h1>
+                    <p class="text-blue-200 mt-1">Sistema de Cotizaciones - Nuevo Formulario</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="text-sm"><span id="fecha-actual"></span></p>
+                <p class="text-xs text-blue-200">Versión 2.0</p>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="container mx-auto px-4">
+    <!-- FORMULARIO PRINCIPAL -->
+    <form id="cotizacion-form" class="space-y-6">
+        
+        <!-- DATOS GENERALES -->
+        <section class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold text-blue-700 mb-4 flex items-center">
+                Datos Generales
+            </h2>
+            
+            <div id="datos-generales-form">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Vendedor:</label>
+                        <input type="text" name="vendedor" required 
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Proyecto:</label>
+                        <input type="text" name="proyecto" required 
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Cliente:</label>
+                        <input type="text" name="cliente" required 
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Atención A:</label>
+                        <input type="text" name="atencionA" required 
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Contacto:</label>
+                        <input type="text" name="contacto" required 
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">No. Cotización:</label>
+                        <input type="text" name="numeroCotizacion" required 
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Revisión:</label>
+                        <input type="number" name="revision" id="revision" min="1" value="1" onchange="manejarRevision()"
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div id="actualizacion-container" style="display: none;" class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Justificación de Actualización:</label>
+                        <textarea name="actualizacionRevision" rows="2" 
+                                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="Describa los cambios realizados en esta revisión..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- ITEMS DINÁMICOS -->
+        <section class="bg-white rounded-lg shadow-lg p-6">
+            <div class="mb-4">
+                <h2 class="text-2xl font-bold text-blue-700 flex items-center">
+                    Items de Cotización
+                </h2>
+            </div>
+            
+            <div id="items-container" class="space-y-4">
+                <!-- Los items se agregan dinámicamente aquí -->
+            </div>
+            
+            <div class="mt-6 text-center">
+                <button type="button" onclick="agregarItem()" 
+                        class="icon-btn success flex items-center gap-2 px-4 py-2 w-auto h-auto rounded-lg">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                    Agregar Item
+                </button>
+            </div>
+        </section>
+
+        <!-- TÉRMINOS Y CONDICIONES -->
+        <section class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold text-blue-700 mb-4 flex items-center">
+                Términos y Condiciones
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Moneda:</label>
+                    <select name="moneda" id="moneda" required onchange="toggleTipoCambio()" 
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Seleccione moneda</option>
+                        <option value="MXN">MXN - Peso Mexicano</option>
+                        <option value="USD">USD - Dólar Americano</option>
+                    </select>
+                </div>
+                
+                <div id="tipo-cambio-container" style="display: none;">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cambio:</label>
+                    <input type="number" name="tipoCambio" id="tipo-cambio" step="0.01" 
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tiempo de Entrega:</label>
+                    <input type="text" name="tiempoEntrega" required 
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="Ej. 15 días hábiles">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Entregar En:</label>
+                    <input type="text" name="entregaEn" required 
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="Ubicación de entrega">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Términos de Pago:</label>
+                    <input type="text" name="terminos" required 
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="Ej. 50% anticipo, 50% contra entrega">
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Comentarios Adicionales:</label>
+                <textarea name="comentarios" rows="3" 
+                          class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Comentarios o notas adicionales..."></textarea>
+            </div>
+        </section>
+
+        <!-- RESUMEN FINANCIERO DESGLOSADO -->
+        <section class="bg-white rounded-lg shadow-lg p-6 border border-gray-300">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4 flex items-center">
+                Resumen Financiero
+            </h2>
+            
+            <!-- Desglose por Items -->
+            <div id="resumen-items" class="mb-6">
+                <!-- Se genera dinámicamente -->
+            </div>
+            
+            <!-- Totales Generales -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-300">
+                <div class="bg-gray-50 p-4 rounded-lg border">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Subtotal Items:</h3>
+                    <p id="subtotal-items" class="text-2xl font-bold text-gray-800">$0.00</p>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded-lg border">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">IVA (16%):</h3>
+                    <p id="iva-total" class="text-2xl font-bold text-gray-800">$0.00</p>
+                </div>
+                
+                <div class="bg-gray-100 p-4 rounded-lg border-2 border-gray-400">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">GRAN TOTAL:</h3>
+                    <p id="gran-total" class="text-3xl font-bold text-gray-900">$0.00</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- BOTONES DE ACCIÓN -->
+        <section class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button type="button" id="btn-guardar" onclick="guardarCotizacion()" 
+                        class="icon-btn primary flex items-center gap-2 px-6 py-3 w-auto h-auto rounded-lg font-medium transition-all duration-200">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+                    </svg>
+                    Guardar
+                </button>
+                
+                <button type="button" id="btn-generar" onclick="intentarGenerarCotizacion()" disabled
+                        class="icon-btn flex items-center gap-2 px-6 py-3 w-auto h-auto rounded-lg font-medium opacity-50 cursor-not-allowed">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                    </svg>
+                    PDF
+                </button>
+                
+                <button type="button" onclick="location.reload()" 
+                        class="icon-btn flex items-center gap-2 px-6 py-3 w-auto h-auto rounded-lg font-medium">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/>
+                    </svg>
+                    Limpiar
+                </button>
+                
+                <a href="/" 
+                   class="icon-btn primary flex items-center gap-2 px-6 py-3 w-auto h-auto rounded-lg font-medium text-center no-underline">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/>
+                    </svg>
+                    Home
+                </a>
+            </div>
+        </section>
+    </form>
+</div>
+<script>
+// Lista de materiales cargada desde el servidor
+const LISTA_MATERIALES = {{ materiales | tojson }};
+
+// Datos precargados (para nueva revisión)
+const DATOS_PRECARGADOS = {{ datos_precargados | tojson if datos_precargados else 'null' }};
+
+// Función para generar opciones de materiales
+function generarOpcionesMateriales() {
+    let opciones = '<option value="" data-peso="0" data-uom="">Seleccione Material</option>';
+    LISTA_MATERIALES.forEach(material => {
+        opciones += `<option value="${material.descripcion}" data-peso="${material.peso}" data-uom="${material.uom}">${material.descripcion}</option>`;
+    });
+    return opciones;
+}
+
+let cotizacionGuardada = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const fechaElement = document.getElementById('fecha-actual');
+    if (fechaElement) {
+        fechaElement.textContent = new Date().toLocaleDateString('es-MX', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+    }
+    
+    // Cargar datos precargados si existen
+    if (DATOS_PRECARGADOS) {
+        cargarDatosPrecargados();
+    }
+    setTimeout(() => { agregarItem(); }, 500);
+    configurarEventListeners();
+});
+
+function manejarRevision() {
+    const revisionInput = document.getElementById('revision');
+    const actualizacionContainer = document.getElementById('actualizacion-container');
+    const actualizacionTextarea = document.querySelector('textarea[name="actualizacionRevision"]');
+    const revision = parseInt(revisionInput.value) || 1;
+    
+    if (revision >= 2) {
+        actualizacionContainer.style.display = 'block';
+        actualizacionTextarea.required = true;
+    } else {
+        actualizacionContainer.style.display = 'none';
+        actualizacionTextarea.required = false;
+        actualizacionTextarea.value = '';
+    }
+}
+
+function configurarEventListeners() {
+    document.addEventListener('input', function(e) {
+        const itemElement = e.target.closest('.item-block');
+        if (itemElement) {
+            if (e.target.matches('.cantidad-input, .precio-input')) {
+                calcularSubtotalMaterial(e.target);
+            }
+            if (e.target.matches('.precio-otro, .cantidad-otro')) {
+                calcularSubtotalOtro(e.target);
+            }
+            if (e.target.matches('.cantidad-item, .transporte, .instalacion, .seguridad, .descuento')) {
+                setTimeout(() => {
+                    calcularCostosItem(itemElement);
+                    actualizarTodosLosCalculos();
+                }, 100);
+            }
+        }
+        
+        if (e.target.matches('input[placeholder="Ej. Rack Metálico"]')) {
+            setTimeout(() => { actualizarTodosLosCalculos(); }, 100);
+        }
+    });
+
+    document.addEventListener('change', function(e) {
+        if (e.target.matches('.material-select')) {
+            const pesoInput = e.target.closest('.material-row').querySelector('.peso-input');
+            const selectedOption = e.target.selectedOptions[0];
+            const peso = selectedOption?.getAttribute('data-peso') || 0;
+            if (pesoInput) pesoInput.value = peso;
+            
+            const itemElement = e.target.closest('.item-block');
+            if (itemElement) {
+                calcularCostosItem(itemElement);
+                actualizarTodosLosCalculos();
+            }
+        }
+    });
+}
+
+function cargarDatosPrecargados() {
+    if (!DATOS_PRECARGADOS) return;
+    
+    
+    try {
+        // Cargar datos generales
+        const datosGenerales = DATOS_PRECARGADOS.datosGenerales || {};
+        
+        // Campos de datos generales
+        const campos = {
+            'cliente': datosGenerales.cliente,
+            'atencionA': datosGenerales.atencionA,
+            'contacto': datosGenerales.contacto,
+            'vendedor': datosGenerales.vendedor,
+            'numeroCotizacion': datosGenerales.numeroCotizacion,
+            'revision': datosGenerales.revision,
+            'proyecto': datosGenerales.proyecto,
+            'fecha': datosGenerales.fecha,
+            'moneda': datosGenerales.moneda,
+            'tipoCambio': datosGenerales.tipoCambio,
+            'tiempoEntrega': datosGenerales.tiempoEntrega,
+            'entregaEn': datosGenerales.entregaEn,
+            'terminos': datosGenerales.terminos,
+            'comentarios': datosGenerales.comentarios,
+            'actualizacionRevision': datosGenerales.actualizacionRevision
+        };
+        
+        // Llenar campos del formulario
+        Object.entries(campos).forEach(([campo, valor]) => {
+            if (valor !== undefined && valor !== null) {
+                const elemento = document.getElementById(campo) || document.querySelector(`[name="${campo}"]`);
+                if (elemento) {
+                    elemento.value = valor;
+                }
+            }
+        });
+        
+        // Cargar condiciones/términos
+        if (DATOS_PRECARGADOS.condiciones) {
+            const condiciones = DATOS_PRECARGADOS.condiciones;
+            const camposCondiciones = {
+                'moneda': condiciones.moneda,
+                'tipoCambio': condiciones.tipoCambio,
+                'tiempoEntrega': condiciones.tiempoEntrega,
+                'entregaEn': condiciones.entregaEn,
+                'terminos': condiciones.terminos || condiciones.terminosPago,
+                'comentarios': condiciones.comentarios
+            };
+            
+            Object.entries(camposCondiciones).forEach(([campo, valor]) => {
+                if (valor !== undefined && valor !== null) {
+                    const elemento = document.querySelector(`[name="${campo}"]`);
+                    if (elemento) {
+                        elemento.value = valor;
+                    }
+                }
+            });
+        }
+        
+        // Mostrar campo de justificación si es revisión >= 2
+        setTimeout(() => {
+            manejarRevision();
+        }, 100);
+        
+        // Cargar items
+        if (DATOS_PRECARGADOS.items && DATOS_PRECARGADOS.items.length > 0) {
+            // Limpiar items existentes
+            const container = document.getElementById('items-container');
+            if (container) {
+                container.innerHTML = '';
+            }
+            
+            // Agregar cada item
+            DATOS_PRECARGADOS.items.forEach((item, index) => {
+                setTimeout(() => {
+                    agregarItem();
+                    cargarDatosItem(item, index);
+                }, index * 100);
+            });
+        }
+        
+        // Mostrar mensaje de éxito
+        setTimeout(() => {
+            mostrarNotificacion('Datos cargados para nueva revisión', 'success');
+        }, 500);
+        
+    } catch (error) {
+        console.error('Error cargando datos precargados:', error);
+        mostrarNotificacion('Error cargando algunos datos', 'warning');
+    }
+}
+
+function cargarDatosItem(itemData, index) {
+    try {
+        const items = document.querySelectorAll('.item-block');
+        const item = items[index];
+        
+        if (!item) return;
+        
+        // Cargar descripción
+        const descripcion = item.querySelector('.descripcion-item');
+        if (descripcion && itemData.descripcion) {
+            descripcion.value = itemData.descripcion;
+        }
+        
+        // Cargar cantidad
+        const cantidad = item.querySelector('.cantidad-item');
+        if (cantidad && itemData.cantidad !== undefined) {
+            cantidad.value = itemData.cantidad;
+        }
+        
+        // Cargar UOM
+        const uom = item.querySelector('.uom-item');
+        if (uom && itemData.uom) {
+            uom.value = itemData.uom;
+        }
+        
+        // Cargar costos adicionales
+        const campos_costos = ['transporte', 'instalacion', 'seguridad', 'descuento'];
+        campos_costos.forEach(campo => {
+            const elemento = item.querySelector(`.${campo}`);
+            if (elemento && itemData[campo] !== undefined) {
+                elemento.value = itemData[campo];
+            }
+        });
+        
+        // Cargar materiales
+        if (itemData.materiales && itemData.materiales.length > 0) {
+            setTimeout(() => {
+                cargarMaterialesItem(item, itemData.materiales, 'materiales');
+            }, 500);
+        }
+        
+        // Cargar otros materiales
+        if (itemData.otrosMateriales && itemData.otrosMateriales.length > 0) {
+            setTimeout(() => {
+                cargarMaterialesItem(item, itemData.otrosMateriales, 'otrosMateriales');
+            }, 800);
+        }
+        
+    } catch (error) {
+        console.error(`Error cargando item ${index}:`, error);
+    }
+}
+
+function cargarMaterialesItem(itemElement, materiales, tipo) {
+    try {
+        
+        // Buscar botón de agregar material de forma más flexible
+        let botonAgregar;
+        if (tipo === 'materiales') {
+            botonAgregar = itemElement.querySelector('[onclick*="agregarFila"][onclick*="material"]');
+        } else {
+            botonAgregar = itemElement.querySelector('[onclick*="agregarFila"][onclick*="otro"]');
+        }
+        
+        if (!botonAgregar) {
+            // Intentar encontrar por texto del botón
+            const botones = itemElement.querySelectorAll('button');
+            
+            for (let btn of botones) {
+                const onclick = btn.getAttribute('onclick') || '';
+                
+                if (tipo === 'materiales' && onclick.includes('agregarFila') && onclick.includes('material')) {
+                    botonAgregar = btn;
+                    break;
+                } else if (tipo === 'otrosMateriales' && onclick.includes('agregarFila') && onclick.includes('otro')) {
+                    botonAgregar = btn;
+                    break;
+                }
+            }
+        }
+        
+        if (!botonAgregar) {
+            console.error(`No se pudo encontrar botón para ${tipo}`);
+            return;
+        }
+        
+        // Agregar cada material
+        materiales.forEach((material, index) => {
+            
+            setTimeout(() => {
+                // Verificar si necesitamos agregar una nueva fila o usar una existente vacía
+                let necesitaClick = true;
+                
+                if (index === 0) {
+                    // Para el primer material, verificar si ya hay una fila vacía
+                    const filasExistentes = tipo === 'materiales' ? 
+                        itemElement.querySelectorAll('.material-row, [class*="material-row"]:not([class*="otro"])') :
+                        itemElement.querySelectorAll('.otro-material-row, [class*="otro-material"]');
+                    
+                    if (filasExistentes.length > 0) {
+                        const primeraFila = filasExistentes[0];
+                        const inputs = primeraFila.querySelectorAll('input');
+                        const estaVacia = Array.from(inputs).every(input => !input.value.trim());
+                        
+                        if (estaVacia) {
+                            necesitaClick = false;
+                        }
+                    }
+                }
+                
+                if (necesitaClick) {
+                    // Simular click en botón agregar material
+                    botonAgregar.click();
+                }
+                
+                // Llenar datos del material recién agregado
+                setTimeout(() => {
+                    // Buscar la fila correcta según el tipo de material
+                    let ultimoMaterial = null;
+                    let todasLasFilas = [];
+                    
+                    if (tipo === 'materiales') {
+                        // Buscar en filas de materiales normales (que NO contengan "otro")
+                        todasLasFilas = itemElement.querySelectorAll('.material-row:not(.otro-material-row), [class*="material-row"]:not([class*="otro"])');
+                        
+                        // Si no encuentra, intentar selector más específico
+                        if (todasLasFilas.length === 0) {
+                            // Buscar por filas que contengan inputs que NO sean .descripcion-otro
+                            const todasFilas = itemElement.querySelectorAll('[class*="material"], [class*="row"]');
+                            todasLasFilas = Array.from(todasFilas).filter(fila => {
+                                const tieneInputOtro = fila.querySelector('.descripcion-otro');
+                                return !tieneInputOtro; // Solo filas que NO tengan inputs de otros materiales
+                            });
+                        }
+                    } else {
+                        // Buscar en filas de otros materiales
+                        todasLasFilas = itemElement.querySelectorAll('.otro-material-row, [class*="otro-material"]');
+                    }
+                    
+                    
+                    // Usar la fila correspondiente al índice del material
+                    if (todasLasFilas.length > index) {
+                        ultimoMaterial = todasLasFilas[index];
+                    } else {
+                        // Si no hay suficientes filas, usar la última disponible
+                        ultimoMaterial = todasLasFilas[todasLasFilas.length - 1];
+                    }
+                    
+                    if (ultimoMaterial) {
+                        // Buscar campos de forma más específica según la estructura del formulario
+                        const inputs = ultimoMaterial.querySelectorAll('input');
+                        
+                        let descripcion, precio, cantidad;
+                        
+                        // Identificar campos según el tipo de material
+                        if (tipo === 'materiales') {
+                            // Para materiales normales: buscar dropdown y campos específicos
+                            descripcion = ultimoMaterial.querySelector('.material-select');
+                            precio = ultimoMaterial.querySelector('.precio-input');
+                            cantidad = ultimoMaterial.querySelector('.cantidad-input');
+                        } else {
+                            // Para otros materiales: usar la lógica original
+                            inputs.forEach((input, idx) => {
+                                const placeholder = input.placeholder?.toLowerCase() || '';
+                                const type = input.type;
+                                
+                                if (type === 'text' || placeholder.includes('descripción')) {
+                                    descripcion = input;
+                                } else if (type === 'number' && (placeholder.includes('precio') || idx === 1)) {
+                                    precio = input;
+                                } else if (type === 'number' && (placeholder.includes('cantidad') || idx === 2)) {
+                                    cantidad = input;
+                                }
+                            });
+                        }
+                        
+                        // Verificar que tenemos datos válidos antes de continuar
+                        const tieneDescripcion = material.material || material.descripcion || material.desc;
+                        if (!tieneDescripcion) {
+                            return;
+                        }
+                        
+                        // Cargar datos - manejar diferentes formatos de descripción según el tipo
+                        let desc = '';
+                        if (tipo === 'materiales') {
+                            // Para materiales normales, la descripción está en 'material'
+                            desc = material.material || '';
+                        } else {
+                            // Para otros materiales, la descripción está en 'descripcion'
+                            desc = material.descripcion || '';
+                        }
+                        
+                        if (descripcion && desc) {
+                            if (tipo === 'materiales') {
+                                // Para materiales normales: seleccionar opción en dropdown
+                                const opciones = descripcion.querySelectorAll('option');
+                                let opcionEncontrada = false;
+                                
+                                // Función para normalizar texto (quitar espacios extra, mayúsculas, etc.)
+                                function normalizar(texto) {
+                                    return texto.trim().toLowerCase().replace(/\s+/g, ' ');
+                                }
+                                
+                                const descNormalizado = normalizar(desc);
+                                
+                                // 1. Buscar coincidencia exacta por valor
+                                for (let opcion of opciones) {
+                                    if (opcion.value === desc) {
+                                        descripcion.value = opcion.value;
+                                        opcionEncontrada = true;
+                                        break;
+                                    }
+                                }
+                                
+                                // 2. Buscar coincidencia normalizada
+                                if (!opcionEncontrada) {
+                                    for (let opcion of opciones) {
+                                        if (normalizar(opcion.value) === descNormalizado || 
+                                            normalizar(opcion.textContent) === descNormalizado) {
+                                            descripcion.value = opcion.value;
+                                            opcionEncontrada = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                // 3. Buscar coincidencia parcial flexible
+                                if (!opcionEncontrada) {
+                                    for (let opcion of opciones) {
+                                        const opcionNormalizada = normalizar(opcion.textContent);
+                                        if (opcionNormalizada.includes(descNormalizado) || 
+                                            descNormalizado.includes(opcionNormalizada)) {
+                                            descripcion.value = opcion.value;
+                                            opcionEncontrada = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                // 4. Fallback: crear opción dinámica si no existe
+                                if (!opcionEncontrada && desc.trim()) {
+                                    const nuevaOpcion = document.createElement('option');
+                                    nuevaOpcion.value = desc;
+                                    nuevaOpcion.textContent = desc;
+                                    nuevaOpcion.setAttribute('data-peso', '0');
+                                    nuevaOpcion.setAttribute('data-uom', '');
+                                    descripcion.appendChild(nuevaOpcion);
+                                    descripcion.value = desc;
+                                    opcionEncontrada = true;
+                                }
+                            } else {
+                                // Para otros materiales: asignar a input de texto
+                                descripcion.value = desc;
+                            }
+                        }
+                        
+                        if (precio && material.precio !== undefined) {
+                            precio.value = material.precio;
+                            // Disparar eventos para recálculo
+                            precio.dispatchEvent(new Event('input', { bubbles: true }));
+                            precio.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        
+                        if (cantidad && material.cantidad !== undefined) {
+                            cantidad.value = material.cantidad;
+                            // Disparar eventos para recálculo
+                            cantidad.dispatchEvent(new Event('input', { bubbles: true }));
+                            cantidad.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                }, 200);
+            }, index * 500); // Más tiempo entre materiales para evitar solapamientos
+        });
+        
+    } catch (error) {
+        console.error(`Error cargando ${tipo}:`, error);
+    }
+}
+
+function mostrarNotificacion(mensaje, tipo = 'info') {
+    const notif = document.createElement('div');
+    notif.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        z-index: 9999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    const colores = {
+        'success': '#10b981',
+        'warning': '#f59e0b',
+        'error': '#dc2626',
+        'info': '#4f46e5'
+    };
+    
+    notif.style.backgroundColor = colores[tipo] || colores.info;
+    notif.textContent = mensaje;
+    
+    document.body.appendChild(notif);
+    
+    setTimeout(() => {
+        if (notif.parentNode) {
+            notif.parentNode.removeChild(notif);
+        }
+    }, 3000);
+}
+
+function agregarItem() {
+    const container = document.getElementById('items-container');
+    if (!container) return;
+    
+    const itemCount = container.children.length + 1;
+    const template = crearTemplateItem(itemCount);
+    container.insertAdjacentHTML('beforeend', template);
+    setTimeout(() => { actualizarTodosLosCalculos(); }, 100);
+}
+
+function crearTemplateItem(numero) {
+    return `
+    <details class="item-block border rounded-lg p-4 bg-gray-50" open>
+        <summary class="cursor-pointer font-semibold text-lg text-blue-700 hover:text-blue-800">📋 Item ${numero}</summary>
+        
+        <div class="mt-4 space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium mb-1">Descripción:</label>
+                    <input type="text" class="descripcion-item w-full p-2 border rounded text-sm" placeholder="Ej. Rack Metálico">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">UOM:</label>
+                        <select class="uom-item w-full p-2 border rounded text-sm">
+                            <option value="Pieza">Pieza</option>
+                            <option value="Servicio">Servicio</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Cantidad:</label>
+                        <input type="number" step="0.01" class="cantidad-item w-full p-2 border rounded text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t pt-4">
+                <h3 class="text-lg font-semibold text-blue-600 mb-3">🔧 Materiales</h3>
+                <div class="materiales-container space-y-2">
+                    <div class="material-row grid grid-cols-12 gap-2 items-end">
+                        <div class="col-span-4">
+                            <label class="block text-xs mb-1">Material:</label>
+                            <select class="material-select w-full p-2 border rounded text-sm">
+                                <option value="" data-peso="0" data-uom="">Seleccione Material</option>
+                                {% for material in materiales %}
+                                <option value="{{ material.descripcion }}" data-peso="{{ material.peso }}" data-uom="{{ material.uom }}">{{ material.descripcion }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs mb-1">Peso/Kg:</label>
+                            <input type="number" step="0.01" class="peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs mb-1">Cantidad:</label>
+                            <input type="number" step="0.01" class="cantidad-input w-full p-2 border rounded text-sm">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs mb-1">$/Kg:</label>
+                            <input type="number" step="0.01" class="precio-input w-full p-2 border rounded text-sm">
+                        </div>
+                        <div class="col-span-1">
+                            <label class="block text-xs mb-1">Subtotal ($):</label>
+                            <input type="number" step="0.01" class="subtotal-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+                        </div>
+                        <div class="col-span-1 flex justify-center">
+                            <button type="button" onclick="eliminarFila(this, 'material')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" onclick="agregarFila(this, 'material')" class="icon-btn success mt-2 text-sm">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="border-t pt-4">
+                <h3 class="text-lg font-semibold text-blue-600 mb-3">Otros Materiales</h3>
+                <div class="otros-materiales-container space-y-2">
+                    <div class="otro-material-row grid grid-cols-12 gap-2 items-end">
+                        <div class="col-span-5">
+                            <label class="block text-xs mb-1">Descripción:</label>
+                            <input type="text" class="descripcion-otro w-full p-2 border rounded text-sm" placeholder="Descripción del material">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs mb-1">Precio ($):</label>
+                            <input type="number" step="0.01" class="precio-otro w-full p-2 border rounded text-sm">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs mb-1">Cantidad:</label>
+                            <input type="number" step="0.01" class="cantidad-otro w-full p-2 border rounded text-sm">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs mb-1">Subtotal ($):</label>
+                            <input type="number" step="0.01" class="subtotal-otro w-full p-2 border rounded text-sm bg-gray-100" readonly>
+                        </div>
+                        <div class="col-span-1 flex justify-center">
+                            <button type="button" onclick="eliminarFila(this, 'otro')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" onclick="agregarFila(this, 'otro')" class="icon-btn success mt-2 text-sm">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="border-t pt-4">
+                <h3 class="text-lg font-semibold text-blue-600 mb-3">Costos y Totales</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Transporte ($):</label>
+                        <input type="number" step="0.01" class="transporte w-full p-2 border rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Instalación ($):</label>
+                        <input type="number" step="0.01" class="instalacion w-full p-2 border rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Seguridad (%):</label>
+                        <input type="number" step="0.01" class="seguridad w-full p-2 border rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Descuento (%):</label>
+                        <input type="number" step="0.01" class="descuento w-full p-2 border rounded text-sm">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Costo por Unidad ($):</label>
+                        <input type="number" step="0.01" class="costo-unidad w-full p-2 border rounded text-sm bg-green-50 font-semibold" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Total del Item ($):</label>
+                        <input type="number" step="0.01" class="total-item w-full p-2 border rounded text-sm bg-blue-50 font-semibold" readonly>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </details>`;
+}
+function agregarFila(button, tipo) {
+    const itemBlock = button.closest('.item-block');
+    const container = tipo === 'material' 
+        ? itemBlock.querySelector('.materiales-container')
+        : itemBlock.querySelector('.otros-materiales-container');
+    
+    let nuevaFila = document.createElement('div');
+    
+    if (tipo === 'material') {
+        nuevaFila.className = 'material-row grid grid-cols-12 gap-2 items-end';
+        nuevaFila.innerHTML = `
+            <div class="col-span-4">
+                <label class="block text-xs mb-1">Material:</label>
+                <select class="material-select w-full p-2 border rounded text-sm">
+                    ${generarOpcionesMateriales()}
+                </select>
+            </div>
+            <div class="col-span-2">
+                <label class="block text-xs mb-1">Peso/Kg:</label>
+                <input type="number" step="0.01" class="peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+            </div>
+            <div class="col-span-2">
+                <label class="block text-xs mb-1">Cantidad:</label>
+                <input type="number" step="0.01" class="cantidad-input w-full p-2 border rounded text-sm">
+            </div>
+            <div class="col-span-2">
+                <label class="block text-xs mb-1">$/Kg:</label>
+                <input type="number" step="0.01" class="precio-input w-full p-2 border rounded text-sm">
+            </div>
+            <div class="col-span-1">
+                <label class="block text-xs mb-1">Subtotal ($):</label>
+                <input type="number" step="0.01" class="subtotal-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+            </div>
+            <div class="col-span-1 flex justify-center">
+                <button type="button" onclick="eliminarFila(this, 'material')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
+            </div>
+        `;
+    } else {
+        nuevaFila.className = 'otro-material-row grid grid-cols-12 gap-2 items-end';
+        nuevaFila.innerHTML = `
+            <div class="col-span-5">
+                <label class="block text-xs mb-1">Descripción:</label>
+                <input type="text" class="descripcion-otro w-full p-2 border rounded text-sm" placeholder="Descripción del material">
+            </div>
+            <div class="col-span-2">
+                <label class="block text-xs mb-1">Precio ($):</label>
+                <input type="number" step="0.01" class="precio-otro w-full p-2 border rounded text-sm">
+            </div>
+            <div class="col-span-2">
+                <label class="block text-xs mb-1">Cantidad:</label>
+                <input type="number" step="0.01" class="cantidad-otro w-full p-2 border rounded text-sm">
+            </div>
+            <div class="col-span-2">
+                <label class="block text-xs mb-1">Subtotal ($):</label>
+                <input type="number" step="0.01" class="subtotal-otro w-full p-2 border rounded text-sm bg-gray-100" readonly>
+            </div>
+            <div class="col-span-1 flex justify-center">
+                <button type="button" onclick="eliminarFila(this, 'otro')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
+            </div>
+        `;
+    }
+    
+    container.appendChild(nuevaFila);
+}
+
+function eliminarFila(button, tipo) {
+    if (!button) return;
+    const fila = button.parentElement.parentElement;
+    const itemElement = button.closest('.item-block');
+    if (fila) fila.remove();
+    if (itemElement) {
+        setTimeout(() => {
+            calcularCostosItem(itemElement);
+            actualizarTodosLosCalculos();
+        }, 10);
+    }
+}
+
+function calcularSubtotalMaterial(input) {
+    const row = input.closest('.material-row');
+    if (!row) return;
+    const peso = parseFloat(row.querySelector('.peso-input')?.value || 0);
+    const cantidad = parseFloat(row.querySelector('.cantidad-input')?.value || 0);
+    const precio = parseFloat(row.querySelector('.precio-input')?.value || 0);
+    const subtotalInput = row.querySelector('.subtotal-input');
+    const subtotal = peso * cantidad * precio;
+    if (subtotalInput) subtotalInput.value = subtotal.toFixed(2);
+    const itemElement = row.closest('.item-block');
+    if (itemElement) {
+        setTimeout(() => {
+            calcularCostosItem(itemElement);
+            actualizarTodosLosCalculos();
+        }, 10);
+    }
+}
+
+function calcularSubtotalOtro(input) {
+    const row = input.closest('.otro-material-row');
+    if (!row) return;
+    const precio = parseFloat(row.querySelector('.precio-otro')?.value || 0);
+    const cantidad = parseFloat(row.querySelector('.cantidad-otro')?.value || 0);
+    const subtotalInput = row.querySelector('.subtotal-otro');
+    const subtotal = precio * cantidad;
+    if (subtotalInput) subtotalInput.value = subtotal.toFixed(2);
+    const itemElement = row.closest('.item-block');
+    if (itemElement) {
+        setTimeout(() => {
+            calcularCostosItem(itemElement);
+            actualizarTodosLosCalculos();
+        }, 10);
+    }
+}
+
+function calcularCostosItem(itemElement) {
+    if (!itemElement) return;
+    let totalMateriales = 0;
+    itemElement.querySelectorAll('.subtotal-input').forEach(input => {
+        totalMateriales += parseFloat(input.value || 0);
+    });
+    let totalOtros = 0;
+    itemElement.querySelectorAll('.subtotal-otro').forEach(input => {
+        totalOtros += parseFloat(input.value || 0);
+    });
+    const transporte = parseFloat(itemElement.querySelector('.transporte')?.value || 0);
+    const instalacion = parseFloat(itemElement.querySelector('.instalacion')?.value || 0);
+    const subtotalBase = totalMateriales + totalOtros + transporte + instalacion;
+    const seguridad = parseFloat(itemElement.querySelector('.seguridad')?.value || 0);
+    const descuento = parseFloat(itemElement.querySelector('.descuento')?.value || 0);
+    const aumentoSeguridad = subtotalBase * (seguridad / 100);
+    const subtotalConSeguridad = subtotalBase + aumentoSeguridad;
+    const reduccionDescuento = subtotalConSeguridad * (descuento / 100);
+    const costoUnidad = subtotalConSeguridad - reduccionDescuento;
+    const cantidad = parseFloat(itemElement.querySelector('.cantidad-item')?.value || 1);
+    const totalItem = costoUnidad * cantidad;
+    const costoUnidadInput = itemElement.querySelector('.costo-unidad');
+    const totalItemInput = itemElement.querySelector('.total-item');
+    if (costoUnidadInput) costoUnidadInput.value = costoUnidad.toFixed(2);
+    if (totalItemInput) totalItemInput.value = totalItem.toFixed(2);
+}
+
+function actualizarTodosLosCalculos() {
+    let subtotalGeneral = 0;
+    const resumenContainer = document.getElementById('resumen-items');
+    resumenContainer.innerHTML = '';
+    document.querySelectorAll('.item-block').forEach((item, index) => {
+        calcularCostosItem(item);
+        const descripcion = item.querySelector('.descripcion-item')?.value?.trim() || `Item ${index + 1}`;
+        const totalItem = parseFloat(item.querySelector('.total-item')?.value || 0);
+        const cantidad = parseFloat(item.querySelector('.cantidad-item')?.value || 0);
+        const uom = item.querySelector('.uom-item')?.value || 'Pieza';
+        subtotalGeneral += totalItem;
+        if (totalItem > 0 || descripcion !== `Item ${index + 1}`) {
+            const itemResumen = document.createElement('div');
+            itemResumen.className = 'bg-white p-3 rounded-lg shadow border-l-4 border-blue-500 mb-2';
+            itemResumen.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h4 class="font-semibold text-gray-800">${descripcion}</h4>
+                        <p class="text-sm text-gray-600">${cantidad} ${uom} × $${(totalItem/cantidad || 0).toFixed(2)} c/u</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-bold text-blue-600">$${totalItem.toFixed(2)}</p>
+                    </div>
+                </div>
+            `;
+            resumenContainer.appendChild(itemResumen);
+        }
+    });
+    const iva = subtotalGeneral * 0.16;
+    const granTotal = subtotalGeneral + iva;
+    const subtotalElement = document.getElementById('subtotal-items');
+    const ivaElement = document.getElementById('iva-total');
+    const granTotalElement = document.getElementById('gran-total');
+    if (subtotalElement) subtotalElement.textContent = `$${subtotalGeneral.toFixed(2)}`;
+    if (ivaElement) ivaElement.textContent = `$${iva.toFixed(2)}`;
+    if (granTotalElement) granTotalElement.textContent = `$${granTotal.toFixed(2)}`;
+}
+
+function toggleTipoCambio() {
+    const moneda = document.getElementById('moneda')?.value;
+    const container = document.getElementById('tipo-cambio-container');
+    const tipoCambioInput = document.getElementById('tipo-cambio');
+    if (moneda === 'USD') {
+        container.style.display = 'block';
+        tipoCambioInput.required = true;
+    } else {
+        container.style.display = 'none';
+        tipoCambioInput.required = false;
+        tipoCambioInput.value = '';
+    }
+}
+
+async function guardarCotizacion() {
+    const btnGuardar = document.getElementById('btn-guardar');
+    const textoOriginal = btnGuardar.innerHTML;
+    btnGuardar.disabled = true;
+    btnGuardar.classList.add('btn-loading');
+    btnGuardar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg> Guardando...';
+    
+    try {
+        const camposRequeridos = ['vendedor', 'proyecto', 'cliente', 'atencionA', 'contacto', 'numeroCotizacion'];
+        for (let campo of camposRequeridos) {
+            const elemento = document.querySelector(`[name="${campo}"]`);
+            if (!elemento || !elemento.value.trim()) {
+                alert(`El campo "${campo}" es obligatorio.`);
+                elemento?.focus();
+                return;
+            }
+        }
+
+        const revision = parseInt(document.querySelector('[name="revision"]')?.value || 1);
+        if (revision >= 2) {
+            const actualizacion = document.querySelector('[name="actualizacionRevision"]')?.value?.trim();
+            if (!actualizacion) {
+                alert('Debe proporcionar una justificación para revisiones 2 o superiores.');
+                document.querySelector('[name="actualizacionRevision"]')?.focus();
+                return;
+            }
+        }
+
+        const datosGenerales = {};
+        const campos = ['vendedor', 'proyecto', 'cliente', 'atencionA', 'contacto', 'numeroCotizacion', 'revision'];
+        campos.forEach(campo => {
+            const elemento = document.querySelector(`[name="${campo}"]`);
+            if (elemento) {
+                datosGenerales[campo] = elemento.value.trim();
+            }
+        });
+
+        const actualizacionElement = document.querySelector('[name="actualizacionRevision"]');
+        if (actualizacionElement && actualizacionElement.value.trim()) {
+            datosGenerales.actualizacionRevision = actualizacionElement.value.trim();
+        }
+
+        const items = [];
+        const itemsBlocks = document.querySelectorAll('.item-block');
+        
+        if (itemsBlocks.length === 0) {
+            alert('Debe agregar al menos un item a la cotización.');
+            return;
+        }
+
+        itemsBlocks.forEach((item, index) => {
+            const descripcion = item.querySelector('.descripcion-item')?.value?.trim() || "";
+            const cantidad = item.querySelector('.cantidad-item')?.value || "0";
+            const uom = item.querySelector('.uom-item')?.value || "Pieza";
+            const costoUnidad = item.querySelector('.costo-unidad')?.value || "0";
+            const totalItem = item.querySelector('.total-item')?.value || "0";
+            const transporte = item.querySelector('.transporte')?.value || "0";
+            const instalacion = item.querySelector('.instalacion')?.value || "0";
+            const seguridad = item.querySelector('.seguridad')?.value || "0";
+            const descuento = item.querySelector('.descuento')?.value || "0";
+
+            const materiales = [];
+            item.querySelectorAll('.materiales-container .material-row').forEach(row => {
+                const material = row.querySelector('.material-select')?.value;
+                const peso = row.querySelector('.peso-input')?.value || "0";
+                const cantidadMat = row.querySelector('.cantidad-input')?.value || "0";
+                const precio = row.querySelector('.precio-input')?.value || "0";
+                const subtotal = row.querySelector('.subtotal-input')?.value || "0";
+                
+                if (material && material.trim() !== "") {
+                    materiales.push({
+                        material: material,
+                        peso: peso,
+                        cantidad: cantidadMat,
+                        precio: precio,
+                        subtotal: subtotal
+                    });
+                }
+            });
+
+            const otrosMateriales = [];
+            item.querySelectorAll('.otros-materiales-container .otro-material-row').forEach(row => {
+                const descripcionOtro = row.querySelector('.descripcion-otro')?.value?.trim();
+                const precioOtro = row.querySelector('.precio-otro')?.value || "0";
+                const cantidadOtro = row.querySelector('.cantidad-otro')?.value || "0";
+                const subtotalOtro = row.querySelector('.subtotal-otro')?.value || "0";
+                
+                if (descripcionOtro && descripcionOtro !== "") {
+                    otrosMateriales.push({
+                        descripcion: descripcionOtro,
+                        precio: precioOtro,
+                        cantidad: cantidadOtro,
+                        subtotal: subtotalOtro
+                    });
+                }
+            });
+
+            if (descripcion !== "" || materiales.length > 0 || otrosMateriales.length > 0) {
+                items.push({
+                    descripcion: descripcion,
+                    cantidad: cantidad,
+                    uom: uom,
+                    costoUnidad: costoUnidad,
+                    total: totalItem,
+                    transporte: transporte,
+                    instalacion: instalacion,
+                    seguridad: seguridad,
+                    descuento: descuento,
+                    materiales: materiales,
+                    otrosMateriales: otrosMateriales
+                });
+            }
+        });
+
+        if (items.length === 0) {
+            alert('Debe completar al menos un item con información válida.');
+            return;
+        }
+
+        const condiciones = {
+            moneda: document.querySelector('select[name="moneda"]')?.value || "",
+            tipoCambio: document.querySelector('input[name="tipoCambio"]')?.value || "",
+            tiempoEntrega: document.querySelector('input[name="tiempoEntrega"]')?.value || "",
+            entregaEn: document.querySelector('input[name="entregaEn"]')?.value || "",
+            terminos: document.querySelector('input[name="terminos"]')?.value || "",
+            comentarios: document.querySelector('textarea[name="comentarios"]')?.value || ""
+        };
+
+        const condicionesRequeridas = ['moneda', 'tiempoEntrega', 'entregaEn', 'terminos'];
+        for (let campo of condicionesRequeridas) {
+            if (!condiciones[campo] || condiciones[campo].trim() === "") {
+                alert(`El campo "${campo}" en Términos y Condiciones es obligatorio.`);
+                document.querySelector(`[name="${campo}"]`)?.focus();
+                return;
+            }
+        }
+
+        if (condiciones.moneda === 'USD' && (!condiciones.tipoCambio || parseFloat(condiciones.tipoCambio) <= 0)) {
+            alert('El tipo de cambio es obligatorio para USD y debe ser mayor a 0.');
+            document.getElementById('tipo-cambio')?.focus();
+            return;
+        }
+
+        const datosCompletos = {
+            datosGenerales: datosGenerales,
+            items: items,
+            condiciones: condiciones
+        };
+
+        const respuesta = await fetch("/formulario", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify(datosCompletos)
+        });
+
+        if (!respuesta.ok) {
+            throw new Error(`Error HTTP ${respuesta.status}: ${respuesta.statusText}`);
+        }
+
+        const resultado = await respuesta.json();
+        
+        if (resultado.success || resultado.mensaje) {
+            const mensaje = `¡Cotización guardada exitosamente!\n\nNúmero: ${resultado.numeroCotizacion || datosGenerales.numeroCotizacion}\nRevisión: ${datosGenerales.revision}\nID: ${resultado.id || 'Generado automáticamente'}\nCliente: ${datosGenerales.cliente}\nVendedor: ${datosGenerales.vendedor}\nItems procesados: ${items.length}\nTotal: ${document.getElementById('gran-total')?.textContent || 'N/A'}`;
+            
+            alert(mensaje);
+            cotizacionGuardada = true;
+            
+            const botonGenerar = document.getElementById("btn-generar");
+            if (botonGenerar) {
+                botonGenerar.disabled = false;
+                botonGenerar.classList.remove("bg-gray-400", "cursor-not-allowed");
+                botonGenerar.classList.add("bg-green-600", "hover:bg-green-700");
+                botonGenerar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg> PDF';
+            }
+            
+            btnGuardar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/></svg> Guardado';
+            btnGuardar.classList.remove("bg-blue-600", "hover:bg-blue-700");
+            btnGuardar.classList.add("bg-green-600");
+            
+        } else {
+            const errorMensaje = resultado.error || resultado.detalle || "Error desconocido del servidor";
+            alert(`Error al guardar la cotización:\n\n${errorMensaje}\n\nPor favor, verifica los datos e intenta nuevamente.`);
+            throw new Error(errorMensaje);
+        }
+
+    } catch (error) {
+        let mensajeError = "Error inesperado al guardar la cotización:\n\n";
+        
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            mensajeError += "Problema de conexión con el servidor. Verifica tu conexión a internet.";
+        } else if (error.message.includes('JSON')) {
+            mensajeError += "Error al procesar la respuesta del servidor.";
+        } else {
+            mensajeError += error.message;
+        }
+        
+        alert(`${mensajeError}\n\nIntenta nuevamente o contacta al administrador del sistema.`);
+        cotizacionGuardada = false;
+    } finally {
+        if (!cotizacionGuardada) {
+            btnGuardar.disabled = false;
+            btnGuardar.classList.remove('btn-loading');
+            btnGuardar.innerHTML = textoOriginal;
+        }
+    }
+}
+
+async function intentarGenerarCotizacion() {
+    if (!cotizacionGuardada) {
+        alert("Primero debes guardar la cotización antes de generar el PDF.\n\nHaz clic en 'Guardar Cotización' para continuar.");
+        return;
+    }
+    
+    const numeroCotizacion = document.querySelector('[name="numeroCotizacion"]')?.value?.trim();
+    
+    if (!numeroCotizacion) {
+        alert('No se encontró el número de cotización. Asegúrate de que la cotización esté guardada correctamente.');
+        return;
+    }
+    
+    const btnGenerar = document.getElementById('btn-generar');
+    const textoOriginal = btnGenerar.innerHTML;
+    
+    try {
+        btnGenerar.disabled = true;
+        btnGenerar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg> Generando PDF...';
+        
+        const response = await fetch('/generar_pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                numeroCotizacion: numeroCotizacion
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || errorData.detalle || `Error HTTP ${response.status}`);
+        }
+        
+        const pdfBlob = await response.blob();
+        const pdfUrl = window.URL.createObjectURL(pdfBlob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = pdfUrl;
+        downloadLink.download = `Cotizacion_${numeroCotizacion.replace('/', '_')}.pdf`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        window.URL.revokeObjectURL(pdfUrl);
+        
+        alert(`PDF generado exitosamente para la cotización ${numeroCotizacion}\n\nEl archivo se ha descargado automáticamente.`);
+        
+        btnGenerar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/></svg> PDF Generado';
+        btnGenerar.classList.remove('bg-green-600', 'hover:bg-green-700');
+        btnGenerar.classList.add('bg-blue-600');
+        
+    } catch (error) {
+        let mensajeError = 'Error al generar el PDF:\n\n';
+        
+        if (error.message.includes('WeasyPrint no está instalado')) {
+            mensajeError += 'WeasyPrint no está instalado en el servidor.\n\nPara habilitar la generación de PDF:\n1. Ejecuta: pip install weasyprint\n2. Reinicia el servidor\n3. Consulta INSTRUCCIONES_PDF.md para más detalles';
+        } else if (error.message.includes('weasyprint')) {
+            mensajeError += 'El servidor no tiene WeasyPrint instalado. Contacta al administrador para instalar las dependencias necesarias.';
+        } else if (error.message.includes('no encontrada')) {
+            mensajeError += 'La cotización no fue encontrada en la base de datos. Asegúrate de que esté guardada correctamente.';
+        } else {
+            mensajeError += error.message;
+        }
+        
+        alert(`${mensajeError}\n\nIntenta nuevamente o contacta al soporte técnico.`);
+        
+    } finally {
+        if (btnGenerar.innerHTML.includes('Generando')) {
+            btnGenerar.disabled = false;
+            btnGenerar.innerHTML = textoOriginal;
+        }
+    }
+}
+</script>
+
+</body>
+</html>

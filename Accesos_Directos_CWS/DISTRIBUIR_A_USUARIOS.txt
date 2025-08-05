@@ -1,0 +1,29 @@
+==========================================
+   CWS COTIZACIONES - PARA DISTRIBUIR
+==========================================
+
+📤 CÓMO COMPARTIR:
+
+1. Comparte esta carpeta completa con tus usuarios
+2. Los usuarios copian "CWS_Cotizaciones.bat" a su escritorio
+3. ¡Listo! Tendrán acceso directo al sistema
+
+📋 ARCHIVOS INCLUIDOS:
+
+✅ CWS_Cotizaciones.bat - Ejecutable principal
+✅ INSTRUCCIONES.md - Guía para usuarios  
+✅ Este archivo de distribución
+
+🌐 INFORMACIÓN DEL SERVIDOR:
+
+URL: http://192.168.0.120:5000
+Red: WiFi local
+Estado: Requiere servidor ejecutándose
+
+⚠️ IMPORTANTE:
+
+- El servidor debe estar encendido y ejecutando "iniciar_servidor.bat"
+- Usuarios deben estar en la misma red WiFi
+- Si cambia la IP, actualizar los archivos .bat
+
+==========================================
