@@ -49,6 +49,17 @@ class PDFManager:
         """Detecta automáticamente la ruta de Google Drive"""
         usuario = os.getenv('USERNAME') or os.getenv('USER')
         
+        # Verificar si estamos en un entorno en la nube (Render, Heroku, etc.)
+        es_nube = os.getenv('RENDER') or os.getenv('DYNO') or os.getenv('PORT')
+        
+        if es_nube:
+            # En la nube, usar carpeta local temporal
+            print("Entorno en la nube detectado - usando almacenamiento temporal")
+            fallback = Path("./pdfs_cotizaciones")
+            fallback.mkdir(parents=True, exist_ok=True)
+            print(f"Usando ruta para nube: {fallback.absolute()}")
+            return fallback
+        
         # Rutas comunes de Google Drive en Windows
         rutas_posibles = [
             "G:/Mi unidad/CWS/CWS_Cotizaciones_PDF",  # Nueva ruta preferida
