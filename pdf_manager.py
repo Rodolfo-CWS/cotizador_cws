@@ -54,15 +54,16 @@ class PDFManager:
             print("PDF Manager en modo offline - colección no disponible")
     
     def _verificar_conexion_mongodb(self):
-        """Verifica y reinicia conexión MongoDB si es necesario"""
+        """Verifica conexión MongoDB - no intenta reconectar para evitar errores"""
+        # Simplemente verificar el estado actual
         if self.db_manager.modo_offline:
-            # Intentar reconectar
-            print("Intentando reconectar a MongoDB...")
-            self.db_manager._conectar_mongodb()
-            if not self.db_manager.modo_offline:
+            print("MongoDB en modo offline - usando búsqueda offline")
+            return False
+        else:
+            # Verificar que tengamos colección inicializada
+            if not hasattr(self, 'pdf_collection') or not self.pdf_collection:
                 self._inicializar_coleccion()
-                print("PDF Manager reconectado a MongoDB")
-        return not self.db_manager.modo_offline
+            return True
     
     def _detectar_google_drive(self) -> Path:
         """Detecta automáticamente la ruta de Google Drive"""
@@ -239,8 +240,12 @@ class PDFManager:
             Dict con resultados de la búsqueda
         """
         try:
+            print(f"[BUSCAR PDFs] Iniciando búsqueda: '{query}'")
+            print(f"[BUSCAR PDFs] Modo offline actual: {self.db_manager.modo_offline}")
+            
             # Verificar y reinicializar conexión si es necesario
             if not self._verificar_conexion_mongodb():
+                print(f"[BUSCAR PDFs] Usando búsqueda offline")
                 return self._buscar_pdfs_offline(query, page, per_page)
             
             # Verificar que pdf_collection existe
@@ -286,11 +291,11 @@ class PDFManager:
             }
             
         except Exception as e:
-            return {
-                "error": f"Error en búsqueda de PDFs: {str(e)}",
-                "resultados": [],
-                "total": 0
-            }
+            print(f"[BUSCAR PDFs] ERROR en búsqueda principal: {e}")
+            import traceback
+            traceback.print_exc()
+            # En caso de cualquier error, usar búsqueda offline
+            return self._buscar_pdfs_offline(query, page, per_page)
     
     def _buscar_pdfs_offline(self, query: str, page: int, per_page: int) -> Dict:
         """Búsqueda de PDFs en modo offline"""
