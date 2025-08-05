@@ -361,6 +361,53 @@ class PDFManager:
                 "error": f"Error en búsqueda offline: {str(e)}"
             }
     
+    def _obtener_pdf_offline(self, numero_cotizacion: str) -> Dict:
+        """Obtiene información de un PDF en modo offline"""
+        print(f"Buscando PDF offline: '{numero_cotizacion}'")
+        
+        try:
+            # Buscar en carpeta de PDFs nuevos
+            pdf_nuevos = self.nuevas_path / f"{numero_cotizacion}.pdf"
+            if pdf_nuevos.exists():
+                return {
+                    "encontrado": True,
+                    "ruta_completa": str(pdf_nuevos),
+                    "registro": {
+                        "numero_cotizacion": numero_cotizacion,
+                        "cliente": "Cliente (modo offline)",
+                        "fecha_creacion": "N/A",
+                        "tipo": "nuevo",
+                        "tiene_desglose": False
+                    }
+                }
+            
+            # Buscar en carpeta de PDFs antiguos
+            pdf_antiguos = self.antiguas_path / f"{numero_cotizacion}.pdf"
+            if pdf_antiguos.exists():
+                return {
+                    "encontrado": True,
+                    "ruta_completa": str(pdf_antiguos),
+                    "registro": {
+                        "numero_cotizacion": numero_cotizacion,
+                        "cliente": "Cliente histórico (modo offline)",
+                        "fecha_creacion": "N/A", 
+                        "tipo": "historico",
+                        "tiene_desglose": False
+                    }
+                }
+            
+            # No encontrado
+            return {
+                "encontrado": False,
+                "error": f"PDF '{numero_cotizacion}' no encontrado en modo offline"
+            }
+            
+        except Exception as e:
+            return {
+                "encontrado": False,
+                "error": f"Error buscando PDF offline: {str(e)}"
+            }
+    
     def obtener_pdf(self, numero_cotizacion: str) -> Dict:
         """
         Obtiene información de un PDF específico
@@ -373,7 +420,8 @@ class PDFManager:
         """
         try:
             if self.db_manager.modo_offline:
-                return {"error": "No disponible en modo offline"}
+                # Buscar PDF físicamente en las carpetas
+                return self._obtener_pdf_offline(numero_cotizacion)
             
             # Buscar en índice
             registro = self.pdf_collection.find_one({"numero_cotizacion": numero_cotizacion})
