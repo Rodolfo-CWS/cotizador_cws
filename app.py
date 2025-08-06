@@ -475,12 +475,38 @@ def servir_pdf(numero_cotizacion):
         # Servir el archivo PDF
         ruta_completa = resultado["ruta_completa"]
         
-        return send_file(
-            ruta_completa,
-            mimetype='application/pdf',
-            as_attachment=False,  # Para mostrar en navegador, no descargar
-            download_name=resultado["registro"]["nombre_archivo"]
-        )
+        # Si es un PDF de Google Drive, descargar y servir
+        if ruta_completa.startswith("gdrive://"):
+            drive_id = resultado.get("drive_id")
+            if not drive_id:
+                return jsonify({"error": "ID de Google Drive no encontrado"}), 500
+            
+            # Descargar PDF desde Google Drive
+            contenido_pdf = pdf_manager.drive_client.obtener_pdf(numero_cotizacion)
+            
+            if not contenido_pdf:
+                return jsonify({"error": "No se pudo descargar PDF desde Google Drive"}), 500
+            
+            # Crear buffer con el contenido
+            from io import BytesIO
+            pdf_buffer = BytesIO(contenido_pdf)
+            pdf_buffer.seek(0)
+            
+            return send_file(
+                pdf_buffer,
+                mimetype='application/pdf',
+                as_attachment=False,
+                download_name=f"{numero_cotizacion}.pdf"
+            )
+        
+        # Si es un archivo local
+        else:
+            return send_file(
+                ruta_completa,
+                mimetype='application/pdf',
+                as_attachment=False,
+                download_name=f"{numero_cotizacion}.pdf"
+            )
         
     except Exception as e:
         print(f"Error sirviendo PDF: {e}")

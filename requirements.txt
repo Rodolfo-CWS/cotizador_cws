@@ -33,6 +33,10 @@ requests==2.31.0
 # Servidor web para producción (REQUERIDO PARA LA NUBE)
 gunicorn==21.2.0
 
+# Google Drive API (para acceso a PDFs en la nube)
+google-api-python-client==2.144.0
+google-auth==2.27.0
+
 # Manejo de archivos CSV (incluido en Python estándar)
 # csv - Built-in module
 

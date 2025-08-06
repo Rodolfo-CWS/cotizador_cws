@@ -9,6 +9,7 @@ import datetime
 from pathlib import Path
 import shutil
 from typing import Dict, List, Optional, Tuple
+from google_drive_client import GoogleDriveClient
 
 class PDFManager:
     def __init__(self, database_manager, base_pdf_path: str = None):
@@ -34,6 +35,9 @@ class PDFManager:
         
         # Crear carpetas si no existen
         self._crear_estructura_carpetas()
+        
+        # Inicializar cliente Google Drive
+        self.drive_client = GoogleDriveClient()
         
         # Colección para índice de PDFs
         self._inicializar_coleccion()
@@ -298,13 +302,30 @@ class PDFManager:
             return self._buscar_pdfs_offline(query, page, per_page)
     
     def _buscar_pdfs_offline(self, query: str, page: int, per_page: int) -> Dict:
-        """Búsqueda de PDFs en modo offline"""
+        """Búsqueda de PDFs en modo offline (incluye Google Drive)"""
         print(f"Búsqueda de PDFs en modo offline: '{query}'")
         
         try:
-            # Buscar archivos PDF físicamente en las carpetas
             resultados = []
             
+            # 1. Buscar en Google Drive (prioritario)
+            if self.drive_client.is_available():
+                print("Buscando PDFs en Google Drive...")
+                drive_pdfs = self.drive_client.buscar_pdfs(query)
+                
+                for pdf in drive_pdfs:
+                    resultados.append({
+                        "numero_cotizacion": pdf['numero_cotizacion'],
+                        "cliente": "Google Drive",
+                        "fecha_creacion": pdf.get('fecha_modificacion', 'N/A'),
+                        "ruta_completa": f"gdrive://{pdf['id']}",
+                        "tipo": "google_drive",
+                        "tiene_desglose": True,
+                        "drive_id": pdf['id'],
+                        "tamaño": pdf.get('tamaño', '0')
+                    })
+            
+            # 2. Buscar en carpetas locales (fallback)
             # Buscar en carpeta de PDFs nuevos
             if self.nuevas_path.exists():
                 for pdf_file in self.nuevas_path.glob("*.pdf"):
@@ -312,7 +333,7 @@ class PDFManager:
                     if not query or query.lower() in nombre.lower():
                         resultados.append({
                             "numero_cotizacion": nombre,
-                            "cliente": "Cliente (modo offline)",
+                            "cliente": "Local (nuevos)",
                             "fecha_creacion": "N/A",
                             "ruta_completa": str(pdf_file),
                             "tipo": "nuevo",
@@ -326,7 +347,7 @@ class PDFManager:
                     if not query or query.lower() in nombre.lower():
                         resultados.append({
                             "numero_cotizacion": nombre,
-                            "cliente": "Cliente histórico (modo offline)",
+                            "cliente": "Local (históricos)",
                             "fecha_creacion": "N/A", 
                             "ruta_completa": str(pdf_file),
                             "tipo": "historico",
@@ -362,19 +383,43 @@ class PDFManager:
             }
     
     def _obtener_pdf_offline(self, numero_cotizacion: str) -> Dict:
-        """Obtiene información de un PDF en modo offline"""
+        """Obtiene información de un PDF en modo offline (incluye Google Drive)"""
         print(f"Buscando PDF offline: '{numero_cotizacion}'")
         
         try:
+            # 1. Buscar en Google Drive (prioritario)
+            if self.drive_client.is_available():
+                print("Buscando en Google Drive...")
+                drive_pdfs = self.drive_client.buscar_pdfs(numero_cotizacion)
+                
+                # Buscar coincidencia exacta
+                for pdf in drive_pdfs:
+                    if pdf['numero_cotizacion'] == numero_cotizacion:
+                        return {
+                            "encontrado": True,
+                            "ruta_completa": f"gdrive://{pdf['id']}",
+                            "tipo_fuente": "google_drive",
+                            "drive_id": pdf['id'],
+                            "registro": {
+                                "numero_cotizacion": numero_cotizacion,
+                                "cliente": "Google Drive",
+                                "fecha_creacion": pdf.get('fecha_modificacion', 'N/A'),
+                                "tipo": "google_drive",
+                                "tiene_desglose": True
+                            }
+                        }
+            
+            # 2. Buscar en carpetas locales (fallback)
             # Buscar en carpeta de PDFs nuevos
             pdf_nuevos = self.nuevas_path / f"{numero_cotizacion}.pdf"
             if pdf_nuevos.exists():
                 return {
                     "encontrado": True,
                     "ruta_completa": str(pdf_nuevos),
+                    "tipo_fuente": "local",
                     "registro": {
                         "numero_cotizacion": numero_cotizacion,
-                        "cliente": "Cliente (modo offline)",
+                        "cliente": "Local (nuevos)",
                         "fecha_creacion": "N/A",
                         "tipo": "nuevo",
                         "tiene_desglose": False
@@ -387,19 +432,20 @@ class PDFManager:
                 return {
                     "encontrado": True,
                     "ruta_completa": str(pdf_antiguos),
+                    "tipo_fuente": "local",
                     "registro": {
                         "numero_cotizacion": numero_cotizacion,
-                        "cliente": "Cliente histórico (modo offline)",
+                        "cliente": "Local (históricos)",
                         "fecha_creacion": "N/A", 
                         "tipo": "historico",
                         "tiene_desglose": False
                     }
                 }
             
-            # No encontrado
+            # No encontrado en ningún lado
             return {
                 "encontrado": False,
-                "error": f"PDF '{numero_cotizacion}' no encontrado en modo offline"
+                "error": f"PDF '{numero_cotizacion}' no encontrado en Google Drive ni localmente"
             }
             
         except Exception as e:

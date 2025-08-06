@@ -14,7 +14,10 @@
       "Bash(cmd /c:*)",
       "Bash(git commit:*)",
       "Bash(git config:*)",
-      "Bash(heroku:*)"
+      "Bash(heroku:*)",
+      "Bash(git push:*)",
+      "Bash(git remote remove:*)",
+      "Bash(git remote add:*)"
     ],
     "deny": []
   }
