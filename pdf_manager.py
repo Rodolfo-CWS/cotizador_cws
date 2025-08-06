@@ -114,28 +114,47 @@ class PDFManager:
     def _crear_estructura_carpetas(self):
         """Crea la estructura de carpetas necesaria"""
         try:
+            print(f"Creando estructura de carpetas en: {self.base_pdf_path}")
+            
+            # Verificar que la ruta base sea accesible
+            if not self.base_pdf_path.exists():
+                print(f"Creando ruta base: {self.base_pdf_path}")
+                self.base_pdf_path.mkdir(parents=True, exist_ok=True)
+            
             self.nuevas_path.mkdir(parents=True, exist_ok=True)
             self.antiguas_path.mkdir(parents=True, exist_ok=True)
             
-            # Crear archivo README en cada carpeta
-            readme_nuevas = self.nuevas_path / "README.txt"
-            if not readme_nuevas.exists():
-                readme_nuevas.write_text(
-                    "Esta carpeta contiene PDFs generados automáticamente por el sistema CWS.\n"
-                    "Estos PDFs tienen desglose completo disponible en la base de datos.\n"
-                    f"Generado: {datetime.datetime.now()}"
-                )
+            print(f"✅ Carpetas creadas exitosamente:")
+            print(f"   📁 Base: {self.base_pdf_path} (existe: {self.base_pdf_path.exists()})")
+            print(f"   📁 Nuevas: {self.nuevas_path} (existe: {self.nuevas_path.exists()})")
+            print(f"   📁 Antiguas: {self.antiguas_path} (existe: {self.antiguas_path.exists()})")
             
-            readme_antiguas = self.antiguas_path / "README.txt"
-            if not readme_antiguas.exists():
-                readme_antiguas.write_text(
-                    "Esta carpeta contiene PDFs históricos importados manualmente.\n"
-                    "Estos PDFs solo están disponibles para visualización.\n"
-                    f"Configurado: {datetime.datetime.now()}"
-                )
+            # Crear archivo README en cada carpeta
+            try:
+                readme_nuevas = self.nuevas_path / "README.txt"
+                if not readme_nuevas.exists():
+                    readme_nuevas.write_text(
+                        "Esta carpeta contiene PDFs generados automáticamente por el sistema CWS.\n"
+                        "Estos PDFs tienen desglose completo disponible en la base de datos.\n"
+                        f"Generado: {datetime.datetime.now()}"
+                    )
+                
+                readme_antiguas = self.antiguas_path / "README.txt"
+                if not readme_antiguas.exists():
+                    readme_antiguas.write_text(
+                        "Esta carpeta contiene PDFs históricos importados manualmente.\n"
+                        "Estos PDFs solo están disponibles para visualización.\n"
+                        f"Configurado: {datetime.datetime.now()}"
+                    )
+                print("✅ Archivos README creados")
+            except Exception as readme_error:
+                print(f"⚠️ Error creando README: {readme_error}")
                 
         except Exception as e:
-            print(f"Error creando estructura de carpetas: {e}")
+            print(f"❌ Error creando estructura de carpetas: {e}")
+            print(f"   Ruta base: {self.base_pdf_path}")
+            print(f"   Error tipo: {type(e).__name__}")
+            print(f"   Verificar permisos en la ruta")
     
     def _crear_indices_pdf(self):
         """Crea índices para optimizar búsquedas de PDFs"""
@@ -304,6 +323,8 @@ class PDFManager:
     def _buscar_pdfs_offline(self, query: str, page: int, per_page: int) -> Dict:
         """Búsqueda de PDFs en modo offline (incluye Google Drive)"""
         print(f"Búsqueda de PDFs en modo offline: '{query}'")
+        print(f"Ruta base configurada: {self.base_pdf_path}")
+        print(f"Drive disponible: {self.drive_client.is_available()}")
         
         try:
             resultados = []
@@ -311,7 +332,12 @@ class PDFManager:
             # 1. Buscar en Google Drive (prioritario)
             if self.drive_client.is_available():
                 print("Buscando PDFs en Google Drive...")
-                drive_pdfs = self.drive_client.buscar_pdfs(query)
+                try:
+                    drive_pdfs = self.drive_client.buscar_pdfs(query)
+                    print(f"PDFs encontrados en Google Drive: {len(drive_pdfs)}")
+                except Exception as e:
+                    print(f"Error buscando en Google Drive: {e}")
+                    drive_pdfs = []
                 
                 for pdf in drive_pdfs:
                     resultados.append({
@@ -326,11 +352,18 @@ class PDFManager:
                     })
             
             # 2. Buscar en carpetas locales (fallback)
+            print(f"Buscando PDFs locales en: {self.nuevas_path}")
+            print(f"Carpeta nuevas existe: {self.nuevas_path.exists()}")
+            
             # Buscar en carpeta de PDFs nuevos
             if self.nuevas_path.exists():
-                for pdf_file in self.nuevas_path.glob("*.pdf"):
+                archivos_nuevos = list(self.nuevas_path.glob("*.pdf"))
+                print(f"Archivos PDF en nuevas: {len(archivos_nuevos)}")
+                for pdf_file in archivos_nuevos:
                     nombre = pdf_file.stem
+                    print(f"Revisando archivo nuevo: {nombre}")
                     if not query or query.lower() in nombre.lower():
+                        print(f"Coincidencia encontrada en nuevos: {nombre}")
                         resultados.append({
                             "numero_cotizacion": nombre,
                             "cliente": "Local (nuevos)",
@@ -339,12 +372,19 @@ class PDFManager:
                             "tipo": "nuevo",
                             "tiene_desglose": False
                         })
+            else:
+                print(f"Carpeta nuevas no existe: {self.nuevas_path}")
             
             # Buscar en carpeta de PDFs antiguos  
+            print(f"Carpeta antiguas existe: {self.antiguas_path.exists()}")
             if self.antiguas_path.exists():
-                for pdf_file in self.antiguas_path.glob("*.pdf"):
+                archivos_antiguos = list(self.antiguas_path.glob("*.pdf"))
+                print(f"Archivos PDF en antiguas: {len(archivos_antiguos)}")
+                for pdf_file in archivos_antiguos:
                     nombre = pdf_file.stem
+                    print(f"Revisando archivo antiguo: {nombre}")
                     if not query or query.lower() in nombre.lower():
+                        print(f"Coincidencia encontrada en antiguos: {nombre}")
                         resultados.append({
                             "numero_cotizacion": nombre,
                             "cliente": "Local (históricos)",
@@ -353,6 +393,8 @@ class PDFManager:
                             "tipo": "historico",
                             "tiene_desglose": False
                         })
+            else:
+                print(f"Carpeta antiguas no existe: {self.antiguas_path}")
             
             # Paginar resultados
             start = (page - 1) * per_page
@@ -385,20 +427,50 @@ class PDFManager:
     def _obtener_pdf_offline(self, numero_cotizacion: str) -> Dict:
         """Obtiene información de un PDF en modo offline (incluye Google Drive)"""
         print(f"Buscando PDF offline: '{numero_cotizacion}'")
+        print(f"Ruta base configurada: {self.base_pdf_path}")
+        
+        # Variaciones del nombre a buscar (incluyendo prefijo "Cotizacion_")
+        variaciones_base = [
+            numero_cotizacion,
+            numero_cotizacion.replace(' ', '-'),  # Espacios -> guiones
+            numero_cotizacion.replace('-', ' '),  # Guiones -> espacios
+            numero_cotizacion.upper(),
+            numero_cotizacion.lower()
+        ]
+        
+        # Crear variaciones con y sin prefijo "Cotizacion_"
+        variaciones_nombre = []
+        for variacion in variaciones_base:
+            variaciones_nombre.append(variacion)  # Sin prefijo
+            variaciones_nombre.append(f"Cotizacion_{variacion}")  # Con prefijo
+        
+        # Eliminar duplicados
+        variaciones_nombre = list(set(variaciones_nombre))
+        print(f"Variaciones a buscar: {variaciones_nombre}")
         
         try:
             # 1. Buscar en Google Drive (prioritario)
             if self.drive_client.is_available():
                 print("Buscando en Google Drive...")
-                drive_pdfs = self.drive_client.buscar_pdfs(numero_cotizacion)
+                try:
+                    drive_pdfs = self.drive_client.buscar_pdfs(numero_cotizacion)
+                    print(f"PDFs encontrados en Drive para '{numero_cotizacion}': {len(drive_pdfs)}")
+                except Exception as e:
+                    print(f"Error buscando en Google Drive: {e}")
+                    drive_pdfs = []
                 
-                # Buscar coincidencia exacta
+                # Buscar coincidencia exacta con variaciones
+                print(f"   Comparando variaciones con {len(drive_pdfs)} archivos:")
                 for pdf in drive_pdfs:
-                    if pdf['numero_cotizacion'] == numero_cotizacion:
-                        return {
-                            "encontrado": True,
-                            "ruta_completa": f"gdrive://{pdf['id']}",
-                            "tipo_fuente": "google_drive",
+                    pdf_nombre = pdf['numero_cotizacion']
+                    for variacion in variaciones_nombre:
+                        coincide = pdf_nombre == variacion
+                        if coincide:
+                            print(f"     ✅ MATCH: '{pdf_nombre}' == '{variacion}'")
+                            return {
+                                "encontrado": True,
+                                "ruta_completa": f"gdrive://{pdf['id']}",
+                                "tipo_fuente": "google_drive",
                             "drive_id": pdf['id'],
                             "registro": {
                                 "numero_cotizacion": numero_cotizacion,
@@ -410,37 +482,47 @@ class PDFManager:
                         }
             
             # 2. Buscar en carpetas locales (fallback)
-            # Buscar en carpeta de PDFs nuevos
-            pdf_nuevos = self.nuevas_path / f"{numero_cotizacion}.pdf"
-            if pdf_nuevos.exists():
-                return {
-                    "encontrado": True,
-                    "ruta_completa": str(pdf_nuevos),
-                    "tipo_fuente": "local",
-                    "registro": {
-                        "numero_cotizacion": numero_cotizacion,
-                        "cliente": "Local (nuevos)",
-                        "fecha_creacion": "N/A",
-                        "tipo": "nuevo",
-                        "tiene_desglose": False
-                    }
-                }
+            print(f"Buscando archivos locales...")
+            print(f"Carpeta nuevas: {self.nuevas_path} (existe: {self.nuevas_path.exists()})")
+            print(f"Carpeta antiguas: {self.antiguas_path} (existe: {self.antiguas_path.exists()})")
             
-            # Buscar en carpeta de PDFs antiguos
-            pdf_antiguos = self.antiguas_path / f"{numero_cotizacion}.pdf"
-            if pdf_antiguos.exists():
-                return {
-                    "encontrado": True,
-                    "ruta_completa": str(pdf_antiguos),
-                    "tipo_fuente": "local",
-                    "registro": {
-                        "numero_cotizacion": numero_cotizacion,
-                        "cliente": "Local (históricos)",
-                        "fecha_creacion": "N/A", 
-                        "tipo": "historico",
-                        "tiene_desglose": False
+            # Buscar en carpeta de PDFs nuevos con todas las variaciones
+            for variacion in variaciones_nombre:
+                pdf_nuevos = self.nuevas_path / f"{variacion}.pdf"
+                print(f"Buscando archivo nuevo: {pdf_nuevos}")
+                if pdf_nuevos.exists():
+                    print(f"✅ Encontrado en nuevos: {variacion}")
+                    return {
+                        "encontrado": True,
+                        "ruta_completa": str(pdf_nuevos),
+                        "tipo_fuente": "local",
+                        "registro": {
+                            "numero_cotizacion": variacion,
+                            "cliente": "Local (nuevos)",
+                            "fecha_creacion": "N/A",
+                            "tipo": "nuevo",
+                            "tiene_desglose": False
+                        }
                     }
-                }
+            
+            # Buscar en carpeta de PDFs antiguos con todas las variaciones
+            for variacion in variaciones_nombre:
+                pdf_antiguos = self.antiguas_path / f"{variacion}.pdf"
+                print(f"Buscando archivo antiguo: {pdf_antiguos}")
+                if pdf_antiguos.exists():
+                    print(f"✅ Encontrado en antiguos: {variacion}")
+                    return {
+                        "encontrado": True,
+                        "ruta_completa": str(pdf_antiguos),
+                        "tipo_fuente": "local",
+                        "registro": {
+                            "numero_cotizacion": variacion,
+                            "cliente": "Local (históricos)",
+                            "fecha_creacion": "N/A", 
+                            "tipo": "historico",
+                            "tiene_desglose": False
+                        }
+                    }
             
             # No encontrado en ningún lado
             return {

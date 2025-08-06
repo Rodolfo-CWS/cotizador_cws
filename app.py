@@ -459,12 +459,29 @@ def servir_pdf(numero_cotizacion):
     """Servir PDF almacenado para visualización"""
     try:
         from urllib.parse import unquote
+        numero_original = numero_cotizacion
         numero_cotizacion = unquote(numero_cotizacion)
         
-        print(f"Sirviendo PDF: '{numero_cotizacion}'")
+        print(f"📄 Sirviendo PDF:")
+        print(f"   URL original: '{numero_original}'")
+        print(f"   Después de unquote: '{numero_cotizacion}'")
         
-        # Obtener información del PDF
+        # Si tiene espacios, intentar reemplazar con guiones
+        if ' ' in numero_cotizacion:
+            numero_alternativo = numero_cotizacion.replace(' ', '-')
+            print(f"   Variación con guiones: '{numero_alternativo}'")
+        else:
+            numero_alternativo = None
+        
+        # Obtener información del PDF - intentar versión principal primero
         resultado = pdf_manager.obtener_pdf(numero_cotizacion)
+        
+        # Si no lo encuentra y hay una versión alternativa, intentar con esa
+        if not resultado.get("encontrado", False) and numero_alternativo:
+            print(f"   No encontrado con espacios, intentando con guiones...")
+            resultado = pdf_manager.obtener_pdf(numero_alternativo)
+            if resultado.get("encontrado", False):
+                numero_cotizacion = numero_alternativo  # Usar la versión que funcionó
         
         if "error" in resultado:
             return jsonify({"error": resultado["error"]}), 500
@@ -481,11 +498,21 @@ def servir_pdf(numero_cotizacion):
             if not drive_id:
                 return jsonify({"error": "ID de Google Drive no encontrado"}), 500
             
-            # Descargar PDF desde Google Drive
-            contenido_pdf = pdf_manager.drive_client.obtener_pdf(numero_cotizacion)
+            print(f"📄 Sirviendo PDF desde Google Drive: {numero_cotizacion} (ID: {drive_id})")
+            
+            # Descargar PDF desde Google Drive usando ID (más eficiente)
+            if drive_id:
+                contenido_pdf = pdf_manager.drive_client.obtener_pdf_por_id(drive_id, numero_cotizacion)
+            else:
+                # Fallback: buscar por nombre
+                contenido_pdf = pdf_manager.drive_client.obtener_pdf(numero_cotizacion)
             
             if not contenido_pdf:
-                return jsonify({"error": "No se pudo descargar PDF desde Google Drive"}), 500
+                return jsonify({
+                    "error": "No se pudo descargar PDF desde Google Drive",
+                    "drive_id": drive_id,
+                    "numero_cotizacion": numero_cotizacion
+                }), 500
             
             # Crear buffer con el contenido
             from io import BytesIO
@@ -1544,19 +1571,285 @@ def stats_sistema():
 @app.route("/info")
 def info_sistema():
     """Información del sistema y configuración (sin datos sensibles)"""
+    
+    # Información de PDFs
+    pdf_info = {
+        "ruta_base": str(pdf_manager.base_pdf_path),
+        "carpeta_nuevas": str(pdf_manager.nuevas_path),
+        "carpeta_antiguas": str(pdf_manager.antiguas_path),
+        "nuevas_existe": pdf_manager.nuevas_path.exists(),
+        "antiguas_existe": pdf_manager.antiguas_path.exists(),
+        "google_drive_disponible": pdf_manager.drive_client.is_available() if pdf_manager.drive_client else False
+    }
+    
+    # Contar archivos si las carpetas existen
+    try:
+        if pdf_manager.nuevas_path.exists():
+            pdf_info["archivos_nuevos"] = len(list(pdf_manager.nuevas_path.glob("*.pdf")))
+        else:
+            pdf_info["archivos_nuevos"] = "Carpeta no existe"
+            
+        if pdf_manager.antiguas_path.exists():
+            pdf_info["archivos_antiguos"] = len(list(pdf_manager.antiguas_path.glob("*.pdf")))
+        else:
+            pdf_info["archivos_antiguos"] = "Carpeta no existe"
+    except Exception as e:
+        pdf_info["error_conteo"] = str(e)
+    
+    # DEBUG: Información de Google Drive
+    try:
+        pdf_info["google_drive_debug"] = {
+            "client_exists": pdf_manager.drive_client is not None,
+            "is_available": pdf_manager.drive_client.is_available() if pdf_manager.drive_client else False,
+            "folder_nuevas": getattr(pdf_manager.drive_client, 'folder_nuevas', 'No configurado'),
+            "folder_antiguas": getattr(pdf_manager.drive_client, 'folder_antiguas', 'No configurado'),
+            "env_vars_status": {
+                "GOOGLE_SERVICE_ACCOUNT_JSON": "SI" if os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON') else "NO",
+                "GOOGLE_DRIVE_FOLDER_NUEVAS": os.getenv('GOOGLE_DRIVE_FOLDER_NUEVAS', 'NO'),
+                "GOOGLE_DRIVE_FOLDER_ANTIGUAS": os.getenv('GOOGLE_DRIVE_FOLDER_ANTIGUAS', 'NO')
+            }
+        }
+        
+        # Test de búsqueda básica
+        if pdf_info["google_drive_debug"]["is_available"]:
+            try:
+                test_pdfs = pdf_manager.drive_client.buscar_pdfs("")
+                pdf_info["google_drive_debug"]["test_busqueda"] = {
+                    "exitoso": True,
+                    "total": len(test_pdfs),
+                    "archivos": [pdf.get('nombre', 'N/A') for pdf in test_pdfs[:3]]
+                }
+            except Exception as search_error:
+                pdf_info["google_drive_debug"]["test_busqueda"] = {
+                    "exitoso": False,
+                    "error": str(search_error)
+                }
+                
+    except Exception as debug_error:
+        pdf_info["google_drive_debug"] = {"error": str(debug_error)}
+    
     return jsonify({
         "app": os.getenv('APP_NAME', 'CWS Cotizaciones'),
         "version": os.getenv('APP_VERSION', '1.0.0'),
         "environment": os.getenv('FLASK_ENV', 'development'),
         "debug": app.config.get('DEBUG', False),
         "database": os.getenv('MONGO_DATABASE', 'cotizaciones'),
+        "modo_offline": db_manager.modo_offline,
         "weasyprint_disponible": WEASYPRINT_AVAILABLE,
         "generacion_pdf": "Habilitada" if WEASYPRINT_AVAILABLE else "Deshabilitada - Instalar WeasyPrint",
         "limits": {
             "max_results_per_page": int(os.getenv('MAX_RESULTS_PER_PAGE', '50')),
             "default_page_size": int(os.getenv('DEFAULT_PAGE_SIZE', '20'))
-        }
+        },
+        "pdfs": pdf_info
     })
+
+@app.route("/debug-pdfs")
+def debug_pdfs_simple():
+    """Debug simple para ver PDFs en Google Drive"""
+    try:
+        if not pdf_manager.drive_client or not pdf_manager.drive_client.is_available():
+            return jsonify({
+                "error": "Google Drive no disponible",
+                "available": False
+            })
+        
+        # Buscar TODOS los PDFs
+        todos_pdfs = pdf_manager.drive_client.buscar_pdfs("")
+        
+        resultado = {
+            "total_pdfs": len(todos_pdfs),
+            "archivos": []
+        }
+        
+        for pdf in todos_pdfs:
+            resultado["archivos"].append({
+                "nombre_real": pdf.get('nombre', 'N/A'),
+                "numero_extraido": pdf.get('numero_cotizacion', 'N/A'),
+                "id": pdf.get('id', 'N/A')
+            })
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e)
+        })
+
+@app.route("/test-drive")
+def test_drive():
+    """Test super simple de Google Drive"""
+    try:
+        info = {
+            "drive_client_exists": pdf_manager.drive_client is not None,
+            "drive_available": pdf_manager.drive_client.is_available() if pdf_manager.drive_client else False,
+            "folder_nuevas": getattr(pdf_manager.drive_client, 'folder_nuevas', 'No configurado'),
+            "folder_antiguas": getattr(pdf_manager.drive_client, 'folder_antiguas', 'No configurado'),
+            "env_vars": {
+                "GOOGLE_SERVICE_ACCOUNT_JSON": "Configurado" if os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON') else "NO configurado",
+                "GOOGLE_DRIVE_FOLDER_NUEVAS": os.getenv('GOOGLE_DRIVE_FOLDER_NUEVAS', 'NO configurado'),
+                "GOOGLE_DRIVE_FOLDER_ANTIGUAS": os.getenv('GOOGLE_DRIVE_FOLDER_ANTIGUAS', 'NO configurado')
+            }
+        }
+        
+        # Si Google Drive está disponible, intentar una búsqueda básica
+        if info["drive_available"]:
+            try:
+                todos_pdfs = pdf_manager.drive_client.buscar_pdfs("")
+                info["test_busqueda"] = {
+                    "exitoso": True,
+                    "total_encontrados": len(todos_pdfs),
+                    "primeros_5": [pdf.get('nombre', 'N/A') for pdf in todos_pdfs[:5]]
+                }
+            except Exception as e:
+                info["test_busqueda"] = {
+                    "exitoso": False,
+                    "error": str(e)
+                }
+        else:
+            info["test_busqueda"] = "Drive no disponible"
+            
+        return jsonify(info)
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "tipo": type(e).__name__
+        })
+
+@app.route("/debug/google-drive")
+def debug_google_drive():
+    """Debug específico para Google Drive"""
+    try:
+        debug_info = {
+            "disponible": pdf_manager.drive_client.is_available() if pdf_manager.drive_client else False,
+            "folder_id": pdf_manager.drive_client.folder_id if pdf_manager.drive_client else None,
+            "credenciales_configuradas": bool(os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')),
+            "variables_entorno": {
+                "GOOGLE_DRIVE_FOLDER_ID": os.getenv('GOOGLE_DRIVE_FOLDER_ID', 'No configurado'),
+                "GOOGLE_SERVICE_ACCOUNT_JSON": "Configurado" if os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON') else "No configurado"
+            }
+        }
+        
+        # Test de búsqueda si está disponible
+        if debug_info["disponible"]:
+            try:
+                test_pdfs = pdf_manager.drive_client.buscar_pdfs()
+                debug_info["test_busqueda"] = {
+                    "exitoso": True,
+                    "cantidad_pdfs": len(test_pdfs),
+                    "archivos": [pdf['nombre'] for pdf in test_pdfs[:5]]  # Solo mostrar 5
+                }
+            except Exception as e:
+                debug_info["test_busqueda"] = {
+                    "exitoso": False,
+                    "error": str(e)
+                }
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "tipo": type(e).__name__
+        }), 500
+
+@app.route("/debug/buscar-pdf/<numero_cotizacion>")
+def debug_buscar_pdf_especifico(numero_cotizacion):
+    """Debug para buscar un PDF específico"""
+    try:
+        print(f"🔍 DEBUG: Buscando PDF específico: '{numero_cotizacion}'")
+        
+        # Búsqueda general en Google Drive
+        if pdf_manager.drive_client and pdf_manager.drive_client.is_available():
+            # Buscar sin query (todos los PDFs)
+            todos_pdfs = pdf_manager.drive_client.buscar_pdfs()
+            
+            # Buscar con query específico  
+            pdfs_query = pdf_manager.drive_client.buscar_pdfs(numero_cotizacion)
+            
+            # Intentar obtener el PDF
+            resultado = pdf_manager.obtener_pdf(numero_cotizacion)
+            
+            debug_info = {
+                "numero_buscado": numero_cotizacion,
+                "total_pdfs_drive": len(todos_pdfs),
+                "pdfs_con_query": len(pdfs_query),
+                "nombres_encontrados": [pdf['nombre'] for pdf in todos_pdfs[:10]],  # Primeros 10
+                "coincidencias_query": [pdf['nombre'] for pdf in pdfs_query],
+                "resultado_busqueda": {
+                    "encontrado": resultado.get("encontrado", False),
+                    "error": resultado.get("error", "Sin error"),
+                    "tipo_fuente": resultado.get("tipo_fuente", "N/A")
+                },
+                "variaciones_testeo": {
+                    f"{numero_cotizacion}": "Búsqueda original",
+                    f"{numero_cotizacion}.pdf": "Con extensión",
+                    numero_cotizacion.upper(): "Mayúsculas",
+                    numero_cotizacion.lower(): "Minúsculas"
+                }
+            }
+            
+            return jsonify(debug_info)
+        else:
+            return jsonify({
+                "error": "Google Drive no disponible",
+                "numero_buscado": numero_cotizacion
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "numero_buscado": numero_cotizacion,
+            "tipo": type(e).__name__
+        }), 500
+
+@app.route("/debug/listar-pdfs-drive")
+def debug_listar_todos_pdfs():
+    """Lista TODOS los PDFs disponibles en Google Drive"""
+    try:
+        if not pdf_manager.drive_client or not pdf_manager.drive_client.is_available():
+            return jsonify({
+                "error": "Google Drive no disponible",
+                "disponible": False
+            }), 500
+        
+        # Buscar TODOS los PDFs (sin filtro)
+        todos_pdfs = pdf_manager.drive_client.buscar_pdfs("")
+        
+        debug_info = {
+            "drive_disponible": True,
+            "total_pdfs_encontrados": len(todos_pdfs),
+            "folder_id": pdf_manager.drive_client.folder_id,
+            "archivos": []
+        }
+        
+        # Mostrar información detallada de cada PDF
+        for pdf in todos_pdfs:
+            debug_info["archivos"].append({
+                "nombre_archivo": pdf.get('nombre', 'N/A'),
+                "numero_cotizacion": pdf.get('numero_cotizacion', 'N/A'),
+                "drive_id": pdf.get('id', 'N/A'),
+                "tamaño": pdf.get('tamaño', '0'),
+                "fecha": pdf.get('fecha_modificacion', 'N/A')
+            })
+        
+        # Buscar específicamente CWS-RM-800
+        buscando = "CWS-RM-800"
+        pdfs_especifico = pdf_manager.drive_client.buscar_pdfs(buscando)
+        debug_info["busqueda_especifica"] = {
+            "termino": buscando,
+            "encontrados": len(pdfs_especifico),
+            "resultados": [pdf.get('nombre', 'N/A') for pdf in pdfs_especifico]
+        }
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "tipo": type(e).__name__
+        }), 500
 
 # ============================================
 # FUNCIONES AUXILIARES
