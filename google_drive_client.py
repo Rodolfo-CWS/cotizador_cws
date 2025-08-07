@@ -30,11 +30,11 @@ class GoogleDriveClient:
             credentials_json = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
             
             if not credentials_json:
-                print("🔴 Google Drive: No hay credenciales configuradas")
+                print("[ERROR] Google Drive: No hay credenciales configuradas")
                 print("   Variable requerida: GOOGLE_SERVICE_ACCOUNT_JSON")
                 return
             
-            print("🔄 Google Drive: Inicializando cliente...")
+            print("[INIT] Google Drive: Inicializando cliente...")
             print(f"   Folder ID: {self.folder_id}")
             
             # Parsear JSON de credenciales
@@ -45,7 +45,7 @@ class GoogleDriveClient:
             missing_fields = [field for field in required_fields if field not in credentials_info]
             
             if missing_fields:
-                print(f"🔴 Google Drive: Faltan campos en credenciales: {missing_fields}")
+                print(f"[ERROR] Google Drive: Faltan campos en credenciales: {missing_fields}")
                 return
             
             # Crear credenciales desde el JSON
@@ -61,17 +61,17 @@ class GoogleDriveClient:
             try:
                 # Test simple para verificar acceso
                 self.service.files().list(pageSize=1).execute()
-                print("✅ Google Drive: Cliente inicializado correctamente")
+                print("[OK] Google Drive: Cliente inicializado correctamente")
                 print(f"   Email de servicio: {credentials_info.get('client_email', 'N/A')}")
             except Exception as test_error:
-                print(f"🔴 Google Drive: Error en test de acceso: {test_error}")
+                print(f"[ERROR] Google Drive: Error en test de acceso: {test_error}")
                 self.service = None
             
         except json.JSONDecodeError as e:
-            print(f"🔴 Google Drive: JSON inválido en credenciales: {e}")
+            print(f"[ERROR] Google Drive: JSON inválido en credenciales: {e}")
             self.service = None
         except Exception as e:
-            print(f"🔴 Google Drive: Error inicializando: {e}")
+            print(f"[ERROR] Google Drive: Error inicializando: {e}")
             print(f"   Tipo de error: {type(e).__name__}")
             self.service = None
     
@@ -90,7 +90,7 @@ class GoogleDriveClient:
             Lista de archivos PDF encontrados
         """
         if not self.is_available():
-            print("🔴 Google Drive: Cliente no disponible para búsqueda")
+            print("[ERROR] Google Drive: Cliente no disponible para búsqueda")
             return []
         
         try:
@@ -157,11 +157,11 @@ class GoogleDriveClient:
                     'carpeta_origen': carpeta
                 })
             
-            print(f"✅ Google Drive: Procesados {len(pdfs)} PDFs exitosamente")
+            print(f"[OK] Google Drive: Procesados {len(pdfs)} PDFs exitosamente")
             return pdfs
             
         except Exception as e:
-            print(f"🔴 Google Drive: Error buscando PDFs: {e}")
+            print(f"[ERROR] Google Drive: Error buscando PDFs: {e}")
             print(f"   Tipo de error: {type(e).__name__}")
             if hasattr(e, 'resp'):
                 print(f"   Código HTTP: {e.resp.status if e.resp else 'N/A'}")
@@ -229,14 +229,14 @@ class GoogleDriveClient:
                         file_id = files[0]['id']
                         nombre_encontrado = files[0]['name']
                         carpeta_encontrada = nombre_carpeta
-                        print(f"   ✅ Archivo encontrado: '{nombre_encontrado}' (ID: {file_id}) en {carpeta_encontrada}")
+                        print(f"   [FOUND] Archivo encontrado: '{nombre_encontrado}' (ID: {file_id}) en {carpeta_encontrada}")
                         break
                 
                 if file_id:  # Si ya encontramos el archivo, salir del loop exterior
                     break
             
             if not file_id:
-                print(f"🔴 Google Drive: No se encontró el archivo con ninguna variación")
+                print(f"[ERROR] Google Drive: No se encontró el archivo con ninguna variación")
                 # Búsqueda con 'contains' como último recurso
                 nombre_base = nombre_archivo.replace('.pdf', '')
                 print(f"   Intentando búsqueda con 'contains': '{nombre_base}'")
@@ -266,11 +266,11 @@ class GoogleDriveClient:
             file_buffer.seek(0)
             contenido = file_buffer.read()
             
-            print(f"✅ Google Drive: Descarga completa de '{nombre_archivo}' ({len(contenido)} bytes)")
+            print(f"[OK] Google Drive: Descarga completa de '{nombre_archivo}' ({len(contenido)} bytes)")
             return contenido
             
         except Exception as e:
-            print(f"🔴 Google Drive: Error descargando PDF: {e}")
+            print(f"[ERROR] Google Drive: Error descargando PDF: {e}")
             print(f"   Tipo de error: {type(e).__name__}")
             if hasattr(e, 'resp'):
                 print(f"   Código HTTP: {e.resp.status if e.resp else 'N/A'}")
@@ -288,7 +288,7 @@ class GoogleDriveClient:
             Contenido del archivo en bytes o None si hay error
         """
         if not self.is_available():
-            print("🔴 Google Drive: Cliente no disponible")
+            print("[ERROR] Google Drive: Cliente no disponible")
             return None
         
         try:
@@ -311,11 +311,11 @@ class GoogleDriveClient:
             file_buffer.seek(0)
             contenido = file_buffer.read()
             
-            print(f"✅ Google Drive: Descarga por ID completa ({len(contenido)} bytes)")
+            print(f"[OK] Google Drive: Descarga por ID completa ({len(contenido)} bytes)")
             return contenido
             
         except Exception as e:
-            print(f"🔴 Google Drive: Error descargando por ID: {e}")
+            print(f"[ERROR] Google Drive: Error descargando por ID: {e}")
             print(f"   File ID: {file_id}")
             print(f"   Tipo de error: {type(e).__name__}")
             if hasattr(e, 'resp'):

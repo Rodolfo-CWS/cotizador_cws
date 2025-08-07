@@ -145,10 +145,64 @@ def generar_pdf_reportlab(datos_cotizacion):
     items = datos_cotizacion.get('items', [])
     condiciones = datos_cotizacion.get('condiciones', {})
     
-    # ENCABEZADO PRINCIPAL
-    story.append(Paragraph("COTIZACIÓN CWS", header_style))
-    story.append(Paragraph(f"No. {datos_generales.get('numeroCotizacion', 'N/A')}", subtitle_style))
-    story.append(Spacer(1, 20))
+    # ENCABEZADO CON LOGO Y INFORMACIÓN DE EMPRESA
+    # Crear tabla para encabezado con logo y datos de empresa
+    logo_path = "static/logo.png"
+    from reportlab.platypus import Image
+    
+    # Intentar cargar logo, si no existe usar texto
+    try:
+        if os.path.exists(logo_path):
+            logo = Image(logo_path, width=1.2*inch, height=0.8*inch)
+        else:
+            logo = Paragraph("CWS<br/>COMPANY", header_style)
+    except:
+        logo = Paragraph("CWS<br/>COMPANY", header_style)
+    
+    # Información de la empresa
+    empresa_info = Paragraph("""
+        <b>CWS COMPANY SA DE CV</b><br/>
+        Puerta de los monos 250<br/>
+        78421 Villa de Pozos, SLP, México<br/>
+        <b>COTIZACIÓN OFICIAL</b>
+    """, ParagraphStyle(
+        'EmpresaInfo',
+        parent=styles['Normal'],
+        fontSize=10,
+        fontName='Helvetica',
+        textColor=colors.HexColor('#2D3748'),
+        alignment=0  # Izquierda
+    ))
+    
+    # Información de cotización (derecha)
+    fecha_actual = datetime.datetime.now().strftime('%d/%m/%Y')
+    cotizacion_info = Paragraph(f"""
+        <b>COTIZACIÓN</b><br/>
+        <b>No. {datos_generales.get('numeroCotizacion', 'N/A')}</b><br/>
+        Fecha: {fecha_actual}<br/>
+        Rev. {datos_generales.get('revision', '1')}
+    """, ParagraphStyle(
+        'CotizacionInfo',
+        parent=styles['Normal'],
+        fontSize=10,
+        fontName='Helvetica-Bold',
+        textColor=colors.HexColor('#2C5282'),
+        alignment=2  # Derecha
+    ))
+    
+    # Tabla de encabezado con 3 columnas
+    header_data = [[logo, empresa_info, cotizacion_info]]
+    header_table = Table(header_data, colWidths=[1.5*inch, 3.5*inch, 2*inch])
+    header_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),  # Logo centrado
+        ('ALIGN', (1, 0), (1, 0), 'LEFT'),    # Empresa a la izquierda
+        ('ALIGN', (2, 0), (2, 0), 'RIGHT'),   # Cotización a la derecha
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+    ]))
+    
+    story.append(header_table)
+    story.append(Spacer(1, 10))
     
     # Línea separadora
     from reportlab.graphics.shapes import Drawing, Line as GraphicsLine
@@ -157,53 +211,105 @@ def generar_pdf_reportlab(datos_cotizacion):
     story.append(line_drawing)
     story.append(Spacer(1, 15))
     
-    # INFORMACIÓN GENERAL - Diseño profesional en dos columnas
-    story.append(Paragraph("INFORMACIÓN GENERAL", subtitle_style))
+    # INFORMACIÓN DEL CLIENTE - Diseño profesional en formato de tarjeta
+    story.append(Paragraph("INFORMACIÓN DEL CLIENTE", subtitle_style))
+    story.append(Spacer(1, 5))
     
-    # Datos en dos columnas
+    # Crear sección destacada para el proyecto
+    if datos_generales.get('proyecto'):
+        proyecto_style = ParagraphStyle(
+            'ProyectoDestacado',
+            parent=styles['Normal'],
+            fontSize=12,
+            fontName='Helvetica-Bold',
+            textColor=colors.white,
+            backColor=colors.HexColor('#2C5282'),
+            borderPadding=8,
+            alignment=1  # Centro
+        )
+        story.append(Paragraph(f"PROYECTO: {datos_generales.get('proyecto', '')}", proyecto_style))
+        story.append(Spacer(1, 15))
+    
+    # Datos del cliente en formato mejorado
     info_data = [
-        ['Cliente:', datos_generales.get('cliente', ''), 'Proyecto:', datos_generales.get('proyecto', '')],
-        ['Atención A:', datos_generales.get('atencionA', ''), 'Vendedor:', datos_generales.get('vendedor', '')],
-        ['Contacto:', datos_generales.get('contacto', ''), 'Revisión:', f"Rev. {datos_generales.get('revision', '1')}"],
-        ['Fecha:', datetime.datetime.now().strftime('%d/%m/%Y'), '', '']
+        ['Cliente:', datos_generales.get('cliente', ''), 'Vendedor:', datos_generales.get('vendedor', '')],
+        ['Atención A:', datos_generales.get('atencionA', ''), 'Contacto:', datos_generales.get('contacto', '')],
     ]
     
-    info_table = Table(info_data, colWidths=[1.2*inch, 2.3*inch, 1.2*inch, 2.3*inch])
+    # Agregar información de revisión si existe
+    if datos_generales.get('revision', '1') != '1':
+        info_data.append(['Revisión:', f"Rev. {datos_generales.get('revision', '1')}", 
+                         'Actualización:', datos_generales.get('actualizacionRevision', '')])
+    
+    info_table = Table(info_data, colWidths=[1.2*inch, 2.8*inch, 1.2*inch, 2.8*inch])
     info_table.setStyle(TableStyle([
         # Estilo general
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
         
-        # Labels (columnas 0 y 2)
+        # Labels (columnas 0 y 2) - Estilo destacado
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2D3748')),
-        ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor('#2D3748')),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2C5282')),
+        ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor('#2C5282')),
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#EDF2F7')),
+        ('BACKGROUND', (2, 0), (2, -1), colors.HexColor('#EDF2F7')),
         
         # Valores (columnas 1 y 3)
         ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
         ('FONTNAME', (3, 0), (3, -1), 'Helvetica'),
+        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#2D3748')),
+        ('TEXTCOLOR', (3, 0), (3, -1), colors.HexColor('#2D3748')),
         
         # Alineación
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         
-        # Borde sutil
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F7FAFC'))
+        # Bordes elegantes
+        ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#2C5282')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E0')),
+        ('BACKGROUND', (1, 0), (1, -1), colors.white),
+        ('BACKGROUND', (3, 0), (3, -1), colors.white),
     ]))
     
     story.append(info_table)
-    story.append(Spacer(1, 25))
+    story.append(Spacer(1, 20))
     
-    # ITEMS - Tabla profesional
+    # TEXTO INTRODUCTORIO PROFESIONAL
+    intro_style = ParagraphStyle(
+        'IntroText',
+        parent=styles['Normal'],
+        fontSize=9,
+        fontName='Helvetica',
+        textColor=colors.HexColor('#2D3748'),
+        alignment=4,  # Justificado
+        spaceAfter=15,
+        borderPadding=10,
+        backColor=colors.HexColor('#F7FAFC'),
+        borderColor=colors.HexColor('#E2E8F0'),
+        borderWidth=0.5
+    )
+    
+    intro_text = """Estimado Cliente,<br/><br/>
+    Agradeciendo de antemano la oportunidad de participar en este proyecto y de acuerdo con su solicitud, 
+    CWS Company se complace en presentar para su consideración esta propuesta económica relacionada con 
+    el proyecto mencionado anteriormente.<br/><br/>
+    Esperando haber entendido sus requerimientos correctamente y en su totalidad, permaneceremos a la 
+    espera de su respuesta, mientras le enviamos nuestro más cordial saludo."""
+    
+    story.append(Paragraph(intro_text, intro_style))
+    story.append(Spacer(1, 15))
+    
+    # ITEMS - Tabla profesional mejorada
     if items:
         story.append(Paragraph("ITEMS DE COTIZACIÓN", subtitle_style))
         story.append(Spacer(1, 10))
         
-        # Encabezado de tabla con estilo profesional
-        items_data = [['DESCRIPCIÓN', 'CANT.', 'UOM', 'PRECIO UNITARIO', 'TOTAL']]
+        # Encabezado de tabla mejorado
+        items_data = [['ITEM', 'DESCRIPCIÓN', 'CANT.', 'UOM', 'PRECIO UNITARIO', 'TOTAL']]
         subtotal = 0
         
         for i, item in enumerate(items):
@@ -211,8 +317,9 @@ def generar_pdf_reportlab(datos_cotizacion):
             total = float(item.get('total', 0))
             precio_unitario = total / cantidad if cantidad > 0 else 0
             
-            # Alternar colores de fila
+            # Agregar número de item y formatear datos
             items_data.append([
+                str(i + 1),  # Número de item
                 item.get('descripcion', ''),
                 f"{cantidad:,.0f}",
                 item.get('uom', ''),
@@ -221,34 +328,42 @@ def generar_pdf_reportlab(datos_cotizacion):
             ])
             subtotal += total
         
-        items_table = Table(items_data, colWidths=[2.8*inch, 0.8*inch, 0.8*inch, 1.2*inch, 1.2*inch])
+        items_table = Table(items_data, colWidths=[0.5*inch, 2.5*inch, 0.7*inch, 0.6*inch, 1.1*inch, 1.1*inch])
         items_table.setStyle(TableStyle([
-            # Encabezado
+            # Encabezado mejorado
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2C5282')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('ALIGN', (0, 0), (0, 0), 'CENTER'),  # ITEM
+            ('ALIGN', (1, 0), (1, 0), 'CENTER'),  # DESCRIPCIÓN
+            ('ALIGN', (2, 0), (-1, 0), 'CENTER'), # CANT, UOM, PRECIO, TOTAL
             
-            # Contenido
+            # Contenido con mejor alineación
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('ALIGN', (0, 1), (0, -1), 'LEFT'),  # Descripción a la izquierda
-            ('ALIGN', (1, 1), (-1, -1), 'CENTER'),  # Resto centrado
-            ('ALIGN', (-2, 1), (-1, -1), 'RIGHT'),  # Precios a la derecha
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),   # ITEM número centrado
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),     # Descripción a la izquierda
+            ('ALIGN', (2, 1), (3, -1), 'CENTER'),   # CANT y UOM centrados
+            ('ALIGN', (4, 1), (-1, -1), 'RIGHT'),   # Precios a la derecha
             
-            # Padding
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            # Estilo de fuentes para precios
+            ('FONTNAME', (4, 1), (-1, -1), 'Helvetica-Bold'),
+            ('TEXTCOLOR', (4, 1), (-1, -1), colors.HexColor('#2C5282')),
             
-            # Bordes y colores alternados
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E0')),
+            # Padding mejorado
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            
+            # Bordes profesionales
+            ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#2C5282')),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E0')),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F7FAFC')]),
             
-            # Línea más gruesa debajo del encabezado
-            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#2C5282')),
+            # Línea destacada debajo del encabezado
+            ('LINEBELOW', (0, 0), (-1, 0), 3, colors.HexColor('#1A365D')),
         ]))
         
         story.append(items_table)
@@ -351,19 +466,64 @@ def generar_pdf_reportlab(datos_cotizacion):
             
             story.append(terminos_table)
         
-    # Pie de página con información de CWS
-    story.append(Spacer(1, 30))
+    # PIE DE PÁGINA PROFESIONAL
+    story.append(Spacer(1, 25))
     
-    footer_style = ParagraphStyle(
-        'Footer',
+    # Línea separadora
+    footer_line = Drawing(400, 1)
+    footer_line.add(GraphicsLine(0, 0, 400, 0, strokeColor=colors.HexColor('#2C5282'), strokeWidth=1))
+    story.append(footer_line)
+    story.append(Spacer(1, 10))
+    
+    # Saludo de cierre
+    closing_style = ParagraphStyle(
+        'ClosingText',
         parent=styles['Normal'],
-        fontSize=8,
-        alignment=1,  # Centro
-        textColor=colors.HexColor('#718096')
+        fontSize=10,
+        fontName='Helvetica',
+        textColor=colors.HexColor('#2D3748'),
+        alignment=0  # Izquierda
     )
     
-    story.append(Paragraph("CWS Company - Soluciones Integrales", footer_style))
-    story.append(Paragraph("Cotización generada automáticamente", footer_style))
+    closing_text = """Atentamente,<br/><br/>"""
+    story.append(Paragraph(closing_text, closing_style))
+    
+    # Información del vendedor
+    vendedor = datos_generales.get('vendedor', 'Equipo CWS')
+    vendor_style = ParagraphStyle(
+        'VendorInfo',
+        parent=styles['Normal'],
+        fontSize=11,
+        fontName='Helvetica-Bold',
+        textColor=colors.HexColor('#2C5282'),
+        alignment=0
+    )
+    
+    story.append(Paragraph(f"{vendedor}", vendor_style))
+    story.append(Paragraph("CWS Company SA de CV", vendor_style))
+    story.append(Spacer(1, 15))
+    
+    # Footer corporativo mejorado
+    footer_style = ParagraphStyle(
+        'FooterText',
+        parent=styles['Normal'],
+        fontSize=8,
+        fontName='Helvetica',
+        textColor=colors.HexColor('#718096'),
+        alignment=1,  # Centro
+        borderPadding=8,
+        backColor=colors.HexColor('#F7FAFC'),
+        borderColor=colors.HexColor('#E2E8F0'),
+        borderWidth=0.5
+    )
+    
+    footer_text = """
+    <b>CWS Company SA de CV</b> | Puerta de los monos 250, 78421 Villa de Pozos, SLP, México<br/>
+    Esta cotización es válida por 30 días a partir de la fecha de emisión<br/>
+    <b>¡Gracias por confiar en CWS Company!</b>
+    """
+    
+    story.append(Paragraph(footer_text, footer_style))
     
     # Construir PDF
     doc.build(story)
@@ -737,6 +897,28 @@ def generar_pdf():
         filename = f"Cotizacion_{numero_cotizacion.replace('/', '_').replace('-', '_')}.pdf"
         
         print(f"PDF generado exitosamente: {filename}")
+        
+        # IMPORTANTE: Almacenar el PDF en el sistema antes de enviarlo
+        if pdf_manager:
+            try:
+                pdf_content = pdf_buffer.getvalue()  # Obtener contenido binario
+                resultado_almacenamiento = pdf_manager.almacenar_pdf_nuevo(
+                    pdf_content=pdf_content,
+                    cotizacion_data=cotizacion
+                )
+                
+                if resultado_almacenamiento.get("success"):
+                    print(f"PDF almacenado exitosamente: {resultado_almacenamiento.get('mensaje')}")
+                    print(f"Ruta: {resultado_almacenamiento.get('ruta')}")
+                else:
+                    print(f"Error almacenando PDF: {resultado_almacenamiento.get('error')}")
+                    
+            except Exception as e:
+                print(f"Error en almacenamiento de PDF: {e}")
+                # No fallar la descarga por error de almacenamiento
+        
+        # Regresar el buffer al inicio para la descarga
+        pdf_buffer.seek(0)
         
         return send_file(
             pdf_buffer,

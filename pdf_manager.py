@@ -65,7 +65,7 @@ class PDFManager:
             return False
         else:
             # Verificar que tengamos colección inicializada
-            if not hasattr(self, 'pdf_collection') or not self.pdf_collection:
+            if not hasattr(self, 'pdf_collection') or self.pdf_collection is None:
                 self._inicializar_coleccion()
             return True
     
@@ -124,10 +124,10 @@ class PDFManager:
             self.nuevas_path.mkdir(parents=True, exist_ok=True)
             self.antiguas_path.mkdir(parents=True, exist_ok=True)
             
-            print(f"✅ Carpetas creadas exitosamente:")
-            print(f"   📁 Base: {self.base_pdf_path} (existe: {self.base_pdf_path.exists()})")
-            print(f"   📁 Nuevas: {self.nuevas_path} (existe: {self.nuevas_path.exists()})")
-            print(f"   📁 Antiguas: {self.antiguas_path} (existe: {self.antiguas_path.exists()})")
+            print(f"[OK] Carpetas creadas exitosamente:")
+            print(f"   [DIR] Base: {self.base_pdf_path} (existe: {self.base_pdf_path.exists()})")
+            print(f"   [DIR] Nuevas: {self.nuevas_path} (existe: {self.nuevas_path.exists()})")
+            print(f"   [DIR] Antiguas: {self.antiguas_path} (existe: {self.antiguas_path.exists()})")
             
             # Crear archivo README en cada carpeta
             try:
@@ -146,12 +146,12 @@ class PDFManager:
                         "Estos PDFs solo están disponibles para visualización.\n"
                         f"Configurado: {datetime.datetime.now()}"
                     )
-                print("✅ Archivos README creados")
+                print("[OK] Archivos README creados")
             except Exception as readme_error:
                 print(f"⚠️ Error creando README: {readme_error}")
                 
         except Exception as e:
-            print(f"❌ Error creando estructura de carpetas: {e}")
+            print(f"[ERROR] Error creando estructura de carpetas: {e}")
             print(f"   Ruta base: {self.base_pdf_path}")
             print(f"   Error tipo: {type(e).__name__}")
             print(f"   Verificar permisos en la ruta")
@@ -272,7 +272,7 @@ class PDFManager:
                 return self._buscar_pdfs_offline(query, page, per_page)
             
             # Verificar que pdf_collection existe
-            if not self.pdf_collection:
+            if self.pdf_collection is None:
                 return self._buscar_pdfs_offline(query, page, per_page)
             
             # Búsqueda en MongoDB
@@ -466,7 +466,7 @@ class PDFManager:
                     for variacion in variaciones_nombre:
                         coincide = pdf_nombre == variacion
                         if coincide:
-                            print(f"     ✅ MATCH: '{pdf_nombre}' == '{variacion}'")
+                            print(f"     [MATCH] MATCH: '{pdf_nombre}' == '{variacion}'")
                             return {
                                 "encontrado": True,
                                 "ruta_completa": f"gdrive://{pdf['id']}",
@@ -491,7 +491,7 @@ class PDFManager:
                 pdf_nuevos = self.nuevas_path / f"{variacion}.pdf"
                 print(f"Buscando archivo nuevo: {pdf_nuevos}")
                 if pdf_nuevos.exists():
-                    print(f"✅ Encontrado en nuevos: {variacion}")
+                    print(f"[FOUND] Encontrado en nuevos: {variacion}")
                     return {
                         "encontrado": True,
                         "ruta_completa": str(pdf_nuevos),
@@ -510,7 +510,7 @@ class PDFManager:
                 pdf_antiguos = self.antiguas_path / f"{variacion}.pdf"
                 print(f"Buscando archivo antiguo: {pdf_antiguos}")
                 if pdf_antiguos.exists():
-                    print(f"✅ Encontrado en antiguos: {variacion}")
+                    print(f"[FOUND] Encontrado en antiguos: {variacion}")
                     return {
                         "encontrado": True,
                         "ruta_completa": str(pdf_antiguos),
