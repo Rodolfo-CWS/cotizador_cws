@@ -622,7 +622,7 @@ class DatabaseManager:
                         
                         # Insertar en MongoDB
                         resultado = self.collection.insert_one(cotizacion_limpia)
-                        print(f"✅ Sincronizada cotización offline: {numero}")
+                        print(f"[SYNC] Sincronizada cotización offline: {numero}")
                         sincronizadas += 1
                         
                     else:
@@ -641,24 +641,24 @@ class DatabaseManager:
                                 {"numeroCotizacion": numero},
                                 cotizacion_limpia
                             )
-                            print(f"🔄 Actualizada cotización: {numero} (versión offline más reciente)")
+                            print(f"[SYNC] Actualizada cotización: {numero} (versión offline más reciente)")
                             sincronizadas += 1
                         
                 except Exception as e:
-                    print(f"❌ Error sincronizando {numero}: {e}")
+                    print(f"[ERROR] Error sincronizando {numero}: {e}")
                     errores += 1
                     continue
             
             if sincronizadas > 0:
-                print(f"🔄 Sincronización completada: {sincronizadas} cotizaciones sincronizadas")
+                print(f"[SYNC] Sincronización completada: {sincronizadas} cotizaciones sincronizadas")
                 if errores > 0:
-                    print(f"⚠️  {errores} errores durante la sincronización")
+                    print(f"[WARN] {errores} errores durante la sincronización")
                 
                 # Opcional: Marcar cotizaciones como sincronizadas en lugar de eliminarlas
                 self._marcar_cotizaciones_sincronizadas(datos_offline)
             
         except Exception as e:
-            print(f"❌ Error en sincronización automática: {e}")
+            print(f"[ERROR] Error en sincronización automática: {e}")
     
     def _marcar_cotizaciones_sincronizadas(self, datos_offline):
         """Marca las cotizaciones como sincronizadas sin eliminarlas"""
@@ -681,7 +681,7 @@ class DatabaseManager:
             self._guardar_datos_offline(datos_offline)
             
         except Exception as e:
-            print(f"❌ Error marcando cotizaciones como sincronizadas: {e}")
+            print(f"[ERROR] Error marcando cotizaciones como sincronizadas: {e}")
     
     def obtener_estado_sincronizacion(self):
         """Obtiene información del estado de sincronización"""

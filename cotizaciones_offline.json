@@ -2231,15 +2231,43 @@
       "_id": "6894c26775fefbe4e40c3674",
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-07T09:12:39.813949"
+    },
+    {
+      "numeroCotizacion": "CLIENTETES-CWS-VT-001-R1-PROYECTOTE",
+      "datosGenerales": {
+        "cliente": "Cliente Test",
+        "vendedor": "Vendedor Test",
+        "proyecto": "Proyecto Test",
+        "numeroCotizacion": "CLIENTETES-CWS-VT-001-R1-PROYECTOTE"
+      },
+      "items": [
+        {
+          "descripcion": "Item test",
+          "cantidad": 1,
+          "costoUnidad": 100
+        }
+      ],
+      "totales": {
+        "subtotal": 100,
+        "iva": 16,
+        "total": 116
+      },
+      "fechaCreacion": "2025-08-07T14:09:30.038731",
+      "timestamp": 1754597370038,
+      "version": "1.0.0",
+      "revision": 1,
+      "_id": "689507fa40e703d851a5a70c",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-07T14:09:30.801189"
     }
   ],
   "metadata": {
     "created": "2025-07-28T18:58:40.397575",
     "version": "1.0.0",
-    "total_cotizaciones": 32,
+    "total_cotizaciones": 33,
     "modo": "respaldo_automatico",
-    "last_updated": "2025-08-07T09:12:39.813949",
-    "ultimo_respaldo": "2025-08-07T09:12:39.813949",
+    "last_updated": "2025-08-07T14:09:30.801189",
+    "ultimo_respaldo": "2025-08-07T14:09:30.801189",
     "ultima_sincronizacion": "2025-08-06T12:13:01.544792",
     "total_sincronizado": 29
   }
