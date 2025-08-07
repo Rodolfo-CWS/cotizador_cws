@@ -89,25 +89,55 @@ LISTA_MATERIALES = cargar_materiales_csv()
 print(f"✅ Cargados {len(LISTA_MATERIALES)} materiales desde CSV")
 
 def generar_pdf_reportlab(datos_cotizacion):
-    """Genera PDF usando ReportLab como alternativa a WeasyPrint"""
+    """Genera PDF usando ReportLab con formato profesional CWS"""
     if not REPORTLAB_AVAILABLE:
         raise ImportError("ReportLab no está disponible")
     
     # Crear buffer en memoria
     buffer = io.BytesIO()
     
-    # Crear documento PDF
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    # Crear documento PDF con márgenes profesionales
+    doc = SimpleDocTemplate(
+        buffer, 
+        pagesize=letter,
+        rightMargin=0.75*inch,
+        leftMargin=0.75*inch,
+        topMargin=0.75*inch,
+        bottomMargin=0.75*inch
+    )
     story = []
     
-    # Estilos
+    # Estilos profesionales
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=16,
-        spaceAfter=30,
-        alignment=1  # Centro
+    
+    # Estilo para el encabezado principal
+    header_style = ParagraphStyle(
+        'CustomHeader',
+        parent=styles['Normal'],
+        fontSize=20,
+        spaceAfter=10,
+        alignment=1,  # Centro
+        textColor=colors.HexColor('#2C5282'),  # Azul corporativo
+        fontName='Helvetica-Bold'
+    )
+    
+    # Estilo para subtítulos
+    subtitle_style = ParagraphStyle(
+        'SubTitle',
+        parent=styles['Normal'],
+        fontSize=12,
+        spaceAfter=15,
+        spaceBefore=10,
+        fontName='Helvetica-Bold',
+        textColor=colors.HexColor('#2D3748')
+    )
+    
+    # Estilo para texto normal
+    normal_style = ParagraphStyle(
+        'CustomNormal',
+        parent=styles['Normal'],
+        fontSize=10,
+        fontName='Helvetica'
     )
     
     # Extraer datos
@@ -115,111 +145,225 @@ def generar_pdf_reportlab(datos_cotizacion):
     items = datos_cotizacion.get('items', [])
     condiciones = datos_cotizacion.get('condiciones', {})
     
-    # Título
-    titulo = f"COTIZACIÓN CWS - {datos_generales.get('numeroCotizacion', 'N/A')}"
-    story.append(Paragraph(titulo, title_style))
+    # ENCABEZADO PRINCIPAL
+    story.append(Paragraph("COTIZACIÓN CWS", header_style))
+    story.append(Paragraph(f"No. {datos_generales.get('numeroCotizacion', 'N/A')}", subtitle_style))
     story.append(Spacer(1, 20))
     
-    # Información general
+    # Línea separadora
+    from reportlab.platypus import Drawing, Line
+    line_drawing = Drawing(400, 1)
+    line_drawing.add(Line(0, 0, 400, 0, strokeColor=colors.HexColor('#2C5282'), strokeWidth=2))
+    story.append(line_drawing)
+    story.append(Spacer(1, 15))
+    
+    # INFORMACIÓN GENERAL - Diseño profesional en dos columnas
+    story.append(Paragraph("INFORMACIÓN GENERAL", subtitle_style))
+    
+    # Datos en dos columnas
     info_data = [
-        ['Cliente:', datos_generales.get('cliente', '')],
-        ['Atención A:', datos_generales.get('atencionA', '')],
-        ['Contacto:', datos_generales.get('contacto', '')],
-        ['Proyecto:', datos_generales.get('proyecto', '')],
-        ['Vendedor:', datos_generales.get('vendedor', '')],
-        ['Revisión:', datos_generales.get('revision', '1')],
-        ['Fecha:', datetime.datetime.now().strftime('%Y-%m-%d')]
+        ['Cliente:', datos_generales.get('cliente', ''), 'Proyecto:', datos_generales.get('proyecto', '')],
+        ['Atención A:', datos_generales.get('atencionA', ''), 'Vendedor:', datos_generales.get('vendedor', '')],
+        ['Contacto:', datos_generales.get('contacto', ''), 'Revisión:', f"Rev. {datos_generales.get('revision', '1')}"],
+        ['Fecha:', datetime.datetime.now().strftime('%d/%m/%Y'), '', '']
     ]
     
-    info_table = Table(info_data, colWidths=[2*inch, 4*inch])
+    info_table = Table(info_data, colWidths=[1.2*inch, 2.3*inch, 1.2*inch, 2.3*inch])
     info_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        # Estilo general
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        
+        # Labels (columnas 0 y 2)
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2D3748')),
+        ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor('#2D3748')),
+        
+        # Valores (columnas 1 y 3)
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTNAME', (3, 0), (3, -1), 'Helvetica'),
+        
+        # Alineación
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        
+        # Borde sutil
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F7FAFC'))
     ]))
     
     story.append(info_table)
-    story.append(Spacer(1, 30))
+    story.append(Spacer(1, 25))
     
-    # Items
+    # ITEMS - Tabla profesional
     if items:
-        story.append(Paragraph("ITEMS DE COTIZACIÓN", styles['Heading2']))
+        story.append(Paragraph("ITEMS DE COTIZACIÓN", subtitle_style))
         story.append(Spacer(1, 10))
         
-        # Tabla de items
-        items_data = [['Descripción', 'Cantidad', 'UOM', 'Total']]
+        # Encabezado de tabla con estilo profesional
+        items_data = [['DESCRIPCIÓN', 'CANT.', 'UOM', 'PRECIO UNITARIO', 'TOTAL']]
         subtotal = 0
         
-        for item in items:
+        for i, item in enumerate(items):
+            cantidad = float(item.get('cantidad', 0))
+            total = float(item.get('total', 0))
+            precio_unitario = total / cantidad if cantidad > 0 else 0
+            
+            # Alternar colores de fila
             items_data.append([
                 item.get('descripcion', ''),
-                item.get('cantidad', ''),
+                f"{cantidad:,.0f}",
                 item.get('uom', ''),
-                f"${float(item.get('total', 0)):,.2f}"
+                f"${precio_unitario:,.2f}",
+                f"${total:,.2f}"
             ])
-            subtotal += float(item.get('total', 0))
+            subtotal += total
         
-        items_table = Table(items_data, colWidths=[3*inch, 1*inch, 1*inch, 1.5*inch])
+        items_table = Table(items_data, colWidths=[2.8*inch, 0.8*inch, 0.8*inch, 1.2*inch, 1.2*inch])
         items_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            # Encabezado
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2C5282')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            
+            # Contenido
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('ALIGN', (0, 1), (0, -1), 'LEFT'),  # Descripción a la izquierda
+            ('ALIGN', (1, 1), (-1, -1), 'CENTER'),  # Resto centrado
+            ('ALIGN', (-2, 1), (-1, -1), 'RIGHT'),  # Precios a la derecha
+            
+            # Padding
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            
+            # Bordes y colores alternados
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E0')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F7FAFC')]),
+            
+            # Línea más gruesa debajo del encabezado
+            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#2C5282')),
         ]))
         
         story.append(items_table)
-        story.append(Spacer(1, 20))
+        story.append(Spacer(1, 15))
         
-        # Totales
+        # TOTALES - Caja profesional alineada a la derecha
         iva = subtotal * 0.16
         total = subtotal + iva
         
+        # Crear tabla de totales con mejor diseño
         totales_data = [
             ['Subtotal:', f"${subtotal:,.2f}"],
             ['IVA (16%):', f"${iva:,.2f}"],
             ['TOTAL:', f"${total:,.2f}"]
         ]
         
-        totales_table = Table(totales_data, colWidths=[1.5*inch, 1.5*inch])
+        # Tabla con ancho fijo alineada a la derecha
+        totales_table = Table(totales_data, colWidths=[1.8*inch, 1.5*inch])
         totales_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            # Alineación
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),  # Labels a la derecha
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),  # Valores a la derecha
+            
+            # Fuentes
+            ('FONTNAME', (0, 0), (-1, -2), 'Helvetica'),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),  # Total en bold
+            ('FONTSIZE', (0, 0), (-1, -1), 11),
+            
+            # Colores
+            ('TEXTCOLOR', (0, 0), (-1, -2), colors.HexColor('#2D3748')),
+            ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#2C5282')),
+            
+            # Padding
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            
+            # Bordes
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#CBD5E0')),
+            ('LINEABOVE', (0, -1), (-1, -1), 2, colors.HexColor('#2C5282')),
+            ('BACKGROUND', (0, 0), (-1, -2), colors.HexColor('#F7FAFC')),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#EDF2F7')),
         ]))
         
-        story.append(totales_table)
+        # Contenedor para alinear la tabla a la derecha
+        from reportlab.platypus import KeepTogether
+        totales_container = Table([[totales_table]], colWidths=[7*inch])
+        totales_container.setStyle(TableStyle([('ALIGN', (0, 0), (0, 0), 'RIGHT')]))
+        
+        story.append(totales_container)
     
-    # Términos y condiciones
+    # TÉRMINOS Y CONDICIONES - Sección profesional
     if condiciones:
-        story.append(Spacer(1, 30))
-        story.append(Paragraph("TÉRMINOS Y CONDICIONES", styles['Heading2']))
+        story.append(Spacer(1, 25))
+        story.append(Paragraph("TÉRMINOS Y CONDICIONES", subtitle_style))
         story.append(Spacer(1, 10))
         
-        terminos_data = [
-            ['Moneda:', condiciones.get('moneda', 'MXN')],
-            ['Tiempo de Entrega:', condiciones.get('tiempoEntrega', '')],
-            ['Entregar En:', condiciones.get('entregaEn', '')],
-            ['Términos de Pago:', condiciones.get('terminos', '')],
+        # Preparar datos de términos
+        terminos_data = []
+        
+        # Solo agregar campos que tengan contenido
+        campos_terminos = [
+            ('Moneda:', condiciones.get('moneda', 'MXN')),
+            ('Tiempo de Entrega:', condiciones.get('tiempoEntrega', '')),
+            ('Entregar En:', condiciones.get('entregaEn', '')),
+            ('Términos de Pago:', condiciones.get('terminos', '')),
+            ('Comentarios:', condiciones.get('comentarios', ''))
         ]
         
-        if condiciones.get('comentarios'):
-            terminos_data.append(['Comentarios:', condiciones.get('comentarios', '')])
+        for label, value in campos_terminos:
+            if value and value.strip():  # Solo agregar si tiene contenido
+                terminos_data.append([label, value])
         
-        terminos_table = Table(terminos_data, colWidths=[2*inch, 4*inch])
-        terminos_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ]))
+        if terminos_data:  # Solo crear tabla si hay datos
+            terminos_table = Table(terminos_data, colWidths=[2*inch, 5*inch])
+            terminos_table.setStyle(TableStyle([
+                # Fuentes y tamaños
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                
+                # Colores
+                ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2D3748')),
+                ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#4A5568')),
+                
+                # Alineación y padding
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                
+                # Fondo y bordes sutiles
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F7FAFC')),
+                ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
+                ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#E2E8F0')),
+            ]))
+            
+            story.append(terminos_table)
         
-        story.append(terminos_table)
+    # Pie de página con información de CWS
+    story.append(Spacer(1, 30))
+    
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        alignment=1,  # Centro
+        textColor=colors.HexColor('#718096')
+    )
+    
+    story.append(Paragraph("CWS Company - Soluciones Integrales", footer_style))
+    story.append(Paragraph("Cotización generada automáticamente", footer_style))
     
     # Construir PDF
     doc.build(story)
