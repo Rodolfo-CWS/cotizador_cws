@@ -418,14 +418,38 @@ def generar_pdf():
             print("Iniciando generación de PDF con WeasyPrint")
             print(f"WeasyPrint version: {weasyprint.__version__}")
             
-            # Usar un enfoque más simple y compatible
-            from weasyprint import HTML
-            
-            # Crear el objeto HTML de WeasyPrint de forma explícita
-            html_doc = HTML(string=html_content)
-            
-            # Generar PDF sin argumentos adicionales
-            pdf_file = html_doc.write_pdf()
+            # Intentar diferentes enfoques de inicialización
+            try:
+                # Enfoque 1: Inicialización directa
+                html_doc = weasyprint.HTML(string=html_content)
+                pdf_file = html_doc.write_pdf()
+                print("PDF generado con enfoque 1")
+                
+            except Exception as e1:
+                print(f"Enfoque 1 falló: {e1}")
+                
+                try:
+                    # Enfoque 2: Sin argumentos con nombre
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
+                        f.write(html_content)
+                        temp_html_path = f.name
+                    
+                    html_doc = weasyprint.HTML(filename=temp_html_path)
+                    pdf_file = html_doc.write_pdf()
+                    
+                    # Limpiar archivo temporal
+                    import os
+                    os.unlink(temp_html_path)
+                    print("PDF generado con enfoque 2 (archivo temporal)")
+                    
+                except Exception as e2:
+                    print(f"Enfoque 2 falló: {e2}")
+                    
+                    # Enfoque 3: Usando solo argumentos posicionales
+                    html_doc = weasyprint.HTML(html_content)
+                    pdf_file = html_doc.write_pdf()
+                    print("PDF generado con enfoque 3 (solo posicional)")
             
             print("PDF generado exitosamente por WeasyPrint")
             
