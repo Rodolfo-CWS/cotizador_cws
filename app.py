@@ -1,14 +1,30 @@
 from flask import Flask, render_template, request, jsonify, send_file
 
-# Intentar importar weasyprint, usar fallback si no está disponible
+# Intentar importar generadores de PDF
+WEASYPRINT_AVAILABLE = False
+REPORTLAB_AVAILABLE = False
+
 try:
     import weasyprint
     WEASYPRINT_AVAILABLE = True
-    print("WeasyPrint disponible - Generacion de PDF habilitada")
+    print("WeasyPrint disponible")
 except ImportError:
-    WEASYPRINT_AVAILABLE = False
-    print("WeasyPrint no encontrado - Generacion de PDF deshabilitada")
-    print("Consulta INSTRUCCIONES_PDF.md para instalar WeasyPrint")
+    print("WeasyPrint no disponible")
+
+try:
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    REPORTLAB_AVAILABLE = True
+    print("ReportLab disponible - Generacion de PDF habilitada con ReportLab")
+except ImportError:
+    print("ReportLab no disponible")
+
+if not WEASYPRINT_AVAILABLE and not REPORTLAB_AVAILABLE:
+    print("ADVERTENCIA: Ningún generador de PDF disponible")
 
 import io
 import datetime
@@ -33,9 +49,14 @@ app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
 # Crear instancia de base de datos
 db_manager = DatabaseManager()
 
-# TEMPORALMENTE DESHABILITADO PARA DEBUG
-# pdf_manager = PDFManager(db_manager)
-pdf_manager = None
+# Crear instancia de gestor de PDFs
+try:
+    from pdf_manager import PDFManager
+    pdf_manager = PDFManager(db_manager)
+    print("PDFManager inicializado exitosamente")
+except Exception as e:
+    print(f"Error inicializando PDFManager: {e}")
+    pdf_manager = None
 
 # Cargar lista de materiales desde CSV
 def cargar_materiales_csv():
@@ -66,6 +87,145 @@ def cargar_materiales_csv():
 # Cargar materiales al iniciar la aplicación
 LISTA_MATERIALES = cargar_materiales_csv()
 print(f"✅ Cargados {len(LISTA_MATERIALES)} materiales desde CSV")
+
+def generar_pdf_reportlab(datos_cotizacion):
+    """Genera PDF usando ReportLab como alternativa a WeasyPrint"""
+    if not REPORTLAB_AVAILABLE:
+        raise ImportError("ReportLab no está disponible")
+    
+    # Crear buffer en memoria
+    buffer = io.BytesIO()
+    
+    # Crear documento PDF
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    story = []
+    
+    # Estilos
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        spaceAfter=30,
+        alignment=1  # Centro
+    )
+    
+    # Extraer datos
+    datos_generales = datos_cotizacion.get('datosGenerales', {})
+    items = datos_cotizacion.get('items', [])
+    condiciones = datos_cotizacion.get('condiciones', {})
+    
+    # Título
+    titulo = f"COTIZACIÓN CWS - {datos_generales.get('numeroCotizacion', 'N/A')}"
+    story.append(Paragraph(titulo, title_style))
+    story.append(Spacer(1, 20))
+    
+    # Información general
+    info_data = [
+        ['Cliente:', datos_generales.get('cliente', '')],
+        ['Atención A:', datos_generales.get('atencionA', '')],
+        ['Contacto:', datos_generales.get('contacto', '')],
+        ['Proyecto:', datos_generales.get('proyecto', '')],
+        ['Vendedor:', datos_generales.get('vendedor', '')],
+        ['Revisión:', datos_generales.get('revision', '1')],
+        ['Fecha:', datetime.datetime.now().strftime('%Y-%m-%d')]
+    ]
+    
+    info_table = Table(info_data, colWidths=[2*inch, 4*inch])
+    info_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    
+    story.append(info_table)
+    story.append(Spacer(1, 30))
+    
+    # Items
+    if items:
+        story.append(Paragraph("ITEMS DE COTIZACIÓN", styles['Heading2']))
+        story.append(Spacer(1, 10))
+        
+        # Tabla de items
+        items_data = [['Descripción', 'Cantidad', 'UOM', 'Total']]
+        subtotal = 0
+        
+        for item in items:
+            items_data.append([
+                item.get('descripcion', ''),
+                item.get('cantidad', ''),
+                item.get('uom', ''),
+                f"${float(item.get('total', 0)):,.2f}"
+            ])
+            subtotal += float(item.get('total', 0))
+        
+        items_table = Table(items_data, colWidths=[3*inch, 1*inch, 1*inch, 1.5*inch])
+        items_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        story.append(items_table)
+        story.append(Spacer(1, 20))
+        
+        # Totales
+        iva = subtotal * 0.16
+        total = subtotal + iva
+        
+        totales_data = [
+            ['Subtotal:', f"${subtotal:,.2f}"],
+            ['IVA (16%):', f"${iva:,.2f}"],
+            ['TOTAL:', f"${total:,.2f}"]
+        ]
+        
+        totales_table = Table(totales_data, colWidths=[1.5*inch, 1.5*inch])
+        totales_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        
+        story.append(totales_table)
+    
+    # Términos y condiciones
+    if condiciones:
+        story.append(Spacer(1, 30))
+        story.append(Paragraph("TÉRMINOS Y CONDICIONES", styles['Heading2']))
+        story.append(Spacer(1, 10))
+        
+        terminos_data = [
+            ['Moneda:', condiciones.get('moneda', 'MXN')],
+            ['Tiempo de Entrega:', condiciones.get('tiempoEntrega', '')],
+            ['Entregar En:', condiciones.get('entregaEn', '')],
+            ['Términos de Pago:', condiciones.get('terminos', '')],
+        ]
+        
+        if condiciones.get('comentarios'):
+            terminos_data.append(['Comentarios:', condiciones.get('comentarios', '')])
+        
+        terminos_table = Table(terminos_data, colWidths=[2*inch, 4*inch])
+        terminos_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        
+        story.append(terminos_table)
+    
+    # Construir PDF
+    doc.build(story)
+    buffer.seek(0)
+    
+    return buffer.getvalue()
 
 def preparar_datos_nueva_revision(cotizacion_original):
     """Prepara los datos de una cotización para crear una nueva revisión"""
@@ -328,12 +488,12 @@ def listar_cotizaciones():
 @app.route("/generar_pdf", methods=["POST"])
 def generar_pdf():
     """Genera PDF de la cotización usando el formato CWS oficial"""
-    # Verificar si WeasyPrint está disponible
-    if not WEASYPRINT_AVAILABLE:
+    # Verificar si hay generadores de PDF disponibles
+    if not WEASYPRINT_AVAILABLE and not REPORTLAB_AVAILABLE:
         return jsonify({
-            "error": "WeasyPrint no está instalado",
-            "mensaje": "Para habilitar la generación de PDF, instala WeasyPrint siguiendo las instrucciones en INSTRUCCIONES_PDF.md",
-            "solucion": "Ejecuta: pip install weasyprint"
+            "error": "Ningún generador de PDF disponible",
+            "mensaje": "Para habilitar la generación de PDF, instala ReportLab o WeasyPrint",
+            "solucion": "Ejecuta: pip install reportlab"
         }), 503
     
     try:
@@ -400,49 +560,39 @@ def generar_pdf():
             'logo_path': os.path.abspath(os.path.join('static', 'logo.png'))
         }
         
-        # Renderizar el HTML
-        print(f"Renderizando template PDF para: {numero_cotizacion}")
+        print(f"Generando PDF para: {numero_cotizacion}")
         print(f"Items count: {len(items)}")
         print(f"Cliente: {datos_generales.get('cliente', 'No encontrado')}")
         
-        html_content = render_template('formato_pdf_cws.html', **template_data)
+        # Intentar con ReportLab primero (más estable)
+        if REPORTLAB_AVAILABLE:
+            print("Generando PDF con ReportLab")
+            pdf_data = generar_pdf_reportlab(cotizacion)
+            pdf_buffer = io.BytesIO(pdf_data)
+            
+        elif WEASYPRINT_AVAILABLE:
+            print("Generando PDF con WeasyPrint (fallback)")
+            # Lógica WeasyPrint como fallback
+            html_content = render_template('formato_pdf_cws.html', **template_data)
+            
+            import tempfile
+            import os
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
+                f.write(html_content)
+                temp_html_path = f.name
+            
+            html_obj = weasyprint.HTML(filename=temp_html_path)
+            pdf_file = html_obj.write_pdf()
+            os.unlink(temp_html_path)
+            
+            pdf_buffer = io.BytesIO(pdf_file)
+        else:
+            raise Exception("Ningún generador de PDF disponible")
         
-        # Generar PDF - método más simple posible
-        print("Iniciando generación PDF simple")
-        
-        # Crear archivo temporal HTML
-        import tempfile
-        import os
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
-            f.write(html_content)
-            temp_html_path = f.name
-        
-        print(f"Archivo temporal creado: {temp_html_path}")
-        
-        # Generar PDF desde archivo (método más compatible)
-        print("Creando objeto HTML de WeasyPrint")
-        html_obj = weasyprint.HTML(filename=temp_html_path)
-        print("Objeto HTML creado exitosamente")
-        
-        print("Invocando write_pdf()")
-        # El error puede estar aquí - algunos argumentos implícitos
-        pdf_file = html_obj.write_pdf()
-        print("write_pdf() completado")
-        
-        # Limpiar archivo temporal
-        os.unlink(temp_html_path)
-        print("PDF generado exitosamente desde archivo temporal")
-        
-        # Temporalmente deshabilitar almacenamiento para debug
-        # resultado_almacenamiento = pdf_manager.almacenar_pdf_nuevo(pdf_file, cotizacion)
-        print("Almacenamiento de PDF deshabilitado temporalmente para debug")
-        
-        # Crear respuesta para descarga
-        pdf_buffer = io.BytesIO(pdf_file)
         pdf_buffer.seek(0)
-        
         filename = f"Cotizacion_{numero_cotizacion.replace('/', '_').replace('-', '_')}.pdf"
+        
+        print(f"PDF generado exitosamente: {filename}")
         
         return send_file(
             pdf_buffer,

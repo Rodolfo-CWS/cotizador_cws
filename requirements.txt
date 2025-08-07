@@ -15,7 +15,10 @@ pymongo==4.6.0
 # Manejo de fechas y tiempo
 python-dateutil==2.8.2
 
-# Generación de PDFs (opcional pero recomendado)
+# Generación de PDFs (ReportLab es más estable)
+reportlab==4.0.7
+
+# WeasyPrint como alternativa (opcional - puede tener problemas en algunos servidores)
 weasyprint==61.2
 
 # Dependencias de WeasyPrint (se instalan automáticamente)
