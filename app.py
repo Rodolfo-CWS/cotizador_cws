@@ -88,15 +88,18 @@ def preparar_datos_nueva_revision(cotizacion_original):
         datos['datosGenerales']['revision'] = nueva_revision
         datos['datosGenerales']['fecha'] = datetime.datetime.now().strftime('%Y-%m-%d')
         
-        # Generar nuevo número de cotización con revisión
-        numero_base = datos['datosGenerales'].get('numeroCotizacion', '')
-        if numero_base:
-            # Remover revisión anterior si existe (ej: CWS-001-R2 -> CWS-001)
-            if '-R' in numero_base:
-                numero_base = numero_base.split('-R')[0]
-            
-            # Agregar nueva revisión
-            nuevo_numero = f"{numero_base}-R{nueva_revision}"
+        # Generar nuevo número de cotización con revisión usando el sistema automático
+        numero_original = datos['datosGenerales'].get('numeroCotizacion', '')
+        if numero_original:
+            # Usar la función del DatabaseManager para generar el número de revisión
+            nuevo_numero = db_manager.generar_numero_revision(numero_original, nueva_revision)
+            datos['datosGenerales']['numeroCotizacion'] = nuevo_numero
+        else:
+            # Si no hay número original, generar uno nuevo completo
+            cliente = datos['datosGenerales'].get('cliente', '')
+            vendedor = datos['datosGenerales'].get('vendedor', '')
+            proyecto = datos['datosGenerales'].get('proyecto', '')
+            nuevo_numero = db_manager.generar_numero_cotizacion(cliente, vendedor, proyecto, int(nueva_revision))
             datos['datosGenerales']['numeroCotizacion'] = nuevo_numero
         
         # Limpiar campos que no deben copiarse
@@ -105,7 +108,7 @@ def preparar_datos_nueva_revision(cotizacion_original):
             datos.pop(campo, None)
         
         # Agregar campo de actualización
-        datos['datosGenerales']['actualizacionRevision'] = f"Revisión {nueva_revision} basada en {numero_base}"
+        datos['datosGenerales']['actualizacionRevision'] = f"Revisión {nueva_revision} basada en cotización original"
         
         print(f"✅ Datos preparados para nueva revisión: {nuevo_numero}")
         return datos

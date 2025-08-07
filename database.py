@@ -110,6 +110,122 @@ class DatabaseManager:
             print(f"Error guardando datos offline: {e}")
             return False
     
+    def generar_numero_cotizacion(self, cliente, vendedor, proyecto, revision=1):
+        """
+        Genera un número de cotización automáticamente con el formato:
+        Cliente+CWS+IniciajesVendedor+Consecutivo+Revision+Proyecto
+        """
+        try:
+            # Normalizar datos de entrada
+            cliente = cliente.upper().replace(" ", "")[:10] if cliente else "CLIENTE"
+            proyecto = proyecto.upper().replace(" ", "")[:10] if proyecto else "PROYECTO"
+            
+            # Obtener las dos primeras iniciales del vendedor
+            iniciales_vendedor = ""
+            if vendedor:
+                palabras = vendedor.strip().split()
+                for palabra in palabras[:2]:  # Máximo 2 palabras
+                    if palabra and palabra[0].isalpha():
+                        iniciales_vendedor += palabra[0].upper()
+                if len(iniciales_vendedor) < 2 and len(palabras) > 0:
+                    # Si solo hay una palabra, tomar las primeras 2 letras
+                    primera_palabra = palabras[0]
+                    iniciales_vendedor = primera_palabra[:2].upper()
+            
+            if not iniciales_vendedor:
+                iniciales_vendedor = "XX"
+            
+            # Buscar el siguiente número consecutivo
+            patron_base = f"{cliente}CWS{iniciales_vendedor}"
+            numero_consecutivo = self._obtener_siguiente_consecutivo(patron_base)
+            
+            # Formatear el número completo
+            numero_cotizacion = f"{patron_base}{numero_consecutivo:03d}R{revision}{proyecto}"
+            
+            return numero_cotizacion
+            
+        except Exception as e:
+            print(f"Error generando número de cotización: {e}")
+            # Fallback a número único basado en timestamp
+            timestamp = int(datetime.datetime.now().timestamp())
+            return f"CWS{timestamp}R{revision}"
+    
+    def _obtener_siguiente_consecutivo(self, patron_base):
+        """Obtiene el siguiente número consecutivo para un patrón base dado"""
+        try:
+            if self.modo_offline:
+                # Buscar en archivo offline
+                datos_offline = self._cargar_datos_offline()
+                cotizaciones = datos_offline.get("cotizaciones", [])
+            else:
+                # Buscar en MongoDB
+                try:
+                    # Buscar todas las cotizaciones que coincidan con el patrón
+                    regex_pattern = f"^{patron_base}\\d{{3}}R\\d+"
+                    cursor = self.collection.find({"numeroCotizacion": {"$regex": regex_pattern}})
+                    cotizaciones = list(cursor)
+                except Exception as e:
+                    print(f"Error accediendo a MongoDB para consecutivo: {e}")
+                    # Fallback a modo offline
+                    datos_offline = self._cargar_datos_offline()
+                    cotizaciones = datos_offline.get("cotizaciones", [])
+            
+            # Extraer números consecutivos existentes
+            numeros_existentes = []
+            for cotizacion in cotizaciones:
+                numero_cot = cotizacion.get("numeroCotizacion", "")
+                if numero_cot.startswith(patron_base):
+                    try:
+                        # Extraer el número consecutivo del formato: PatronBaseXXXRYProyecto
+                        parte_despues_patron = numero_cot[len(patron_base):]
+                        if len(parte_despues_patron) >= 4 and parte_despues_patron[3] == 'R':
+                            num_consecutivo = int(parte_despues_patron[:3])
+                            numeros_existentes.append(num_consecutivo)
+                    except (ValueError, IndexError):
+                        continue
+            
+            # Encontrar el siguiente número disponible
+            if not numeros_existentes:
+                return 1
+            
+            return max(numeros_existentes) + 1
+            
+        except Exception as e:
+            print(f"Error obteniendo consecutivo: {e}")
+            return 1
+
+    def generar_numero_revision(self, numero_cotizacion_original, nueva_revision):
+        """
+        Genera un número de cotización para una nueva revisión manteniendo 
+        el mismo número base pero actualizando la revisión
+        Formato: ClienteCWSIniciales###RRevisionProyecto
+        """
+        try:
+            # Buscar la posición de 'R' seguida de números
+            import re
+            
+            # Patrón para encontrar la revisión: R seguida de uno o más dígitos
+            patron = r'R\d+'
+            match = re.search(patron, numero_cotizacion_original)
+            
+            if match:
+                # Extraer la parte antes de la R y después del número de revisión
+                inicio_revision = match.start()
+                final_revision = match.end()
+                
+                base = numero_cotizacion_original[:inicio_revision]
+                proyecto_parte = numero_cotizacion_original[final_revision:]
+                
+                # Generar nuevo número con la nueva revisión
+                return f"{base}R{nueva_revision}{proyecto_parte}"
+            else:
+                # Si no tiene el formato esperado, agregar la revisión al final
+                return f"{numero_cotizacion_original}R{nueva_revision}"
+                
+        except Exception as e:
+            print(f"Error generando número de revisión: {e}")
+            return f"{numero_cotizacion_original}R{nueva_revision}"
+
     def guardar_cotizacion(self, datos):
         """Guarda una cotización con respaldo automático"""
         try:
@@ -124,24 +240,41 @@ class DatabaseManager:
             
             # Extraer campos clave para índices
             numero = datos.get("datosGenerales", {}).get("numeroCotizacion")
-            revision = datos.get("datosGenerales", {}).get("revision")
+            revision = int(datos.get("datosGenerales", {}).get("revision", 1))
             cliente = datos.get("datosGenerales", {}).get("cliente")
             vendedor = datos.get("datosGenerales", {}).get("vendedor")
+            proyecto = datos.get("datosGenerales", {}).get("proyecto", "")
             
-            print(f"Numero: {numero}")
+            # Validaciones de campos obligatorios
+            if not cliente:
+                return {"success": False, "error": "Cliente es obligatorio"}
+            if not vendedor:
+                return {"success": False, "error": "Vendedor es obligatorio"}
+            if not proyecto:
+                return {"success": False, "error": "Proyecto es obligatorio"}
+            
+            # GENERAR NÚMERO DE COTIZACIÓN AUTOMÁTICAMENTE
+            if not numero or numero.strip() == "":
+                # Generar número nuevo
+                numero = self.generar_numero_cotizacion(cliente, vendedor, proyecto, revision)
+                datos["datosGenerales"]["numeroCotizacion"] = numero
+                print(f"Número generado automáticamente: {numero}")
+            else:
+                # Si el usuario proporcionó un número, verificar si es una nueva revisión
+                if revision > 1:
+                    numero = self.generar_numero_revision(numero, revision)
+                    datos["datosGenerales"]["numeroCotizacion"] = numero
+                    print(f"Número actualizado para revisión {revision}: {numero}")
+            
+            print(f"Numero final: {numero}")
             print(f"Cliente: {cliente}")
             print(f"Vendedor: {vendedor}")
+            print(f"Proyecto: {proyecto}")
+            print(f"Revisión: {revision}")
             
             # Inyectar al nivel raíz para búsquedas fáciles
             datos["numeroCotizacion"] = numero
             datos["revision"] = revision
-            
-            # Validaciones básicas
-            if not numero:
-                return {
-                    "success": False,
-                    "error": "Número de cotización es obligatorio"
-                }
             
             if self.modo_offline:
                 # MODO OFFLINE: Guardar en archivo JSON

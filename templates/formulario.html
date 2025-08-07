@@ -151,8 +151,10 @@
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">No. Cotización:</label>
-                        <input type="text" name="numeroCotizacion" required 
-                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <input type="text" name="numeroCotizacion" id="numeroCotizacion" disabled 
+                               class="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed text-gray-600"
+                               placeholder="Se generará automáticamente" tabindex="-1">
+                        <input type="hidden" name="numeroCotizacionHidden" id="numeroCotizacionHidden">
                     </div>
                     
                     <div>
@@ -338,6 +340,14 @@ document.addEventListener('DOMContentLoaded', function() {
         fechaElement.textContent = new Date().toLocaleDateString('es-MX', {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
+    }
+    
+    // FORZAR: Asegurar que el campo numeroCotizacion NO sea required y esté disabled
+    const campoNumeroCotizacion = document.querySelector('[name="numeroCotizacion"]');
+    if (campoNumeroCotizacion) {
+        campoNumeroCotizacion.removeAttribute('required');
+        campoNumeroCotizacion.setAttribute('disabled', 'disabled');
+        console.log('Campo numeroCotizacion configurado como disabled sin required');
     }
     
     // Cargar datos precargados si existen
@@ -1151,7 +1161,7 @@ async function guardarCotizacion() {
     btnGuardar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg> Guardando...';
     
     try {
-        const camposRequeridos = ['vendedor', 'proyecto', 'cliente', 'atencionA', 'contacto', 'numeroCotizacion'];
+        const camposRequeridos = ['vendedor', 'proyecto', 'cliente', 'atencionA', 'contacto'];
         for (let campo of camposRequeridos) {
             const elemento = document.querySelector(`[name="${campo}"]`);
             if (!elemento || !elemento.value.trim()) {
@@ -1172,7 +1182,7 @@ async function guardarCotizacion() {
         }
 
         const datosGenerales = {};
-        const campos = ['vendedor', 'proyecto', 'cliente', 'atencionA', 'contacto', 'numeroCotizacion', 'revision'];
+        const campos = ['vendedor', 'proyecto', 'cliente', 'atencionA', 'contacto', 'revision'];
         campos.forEach(campo => {
             const elemento = document.querySelector(`[name="${campo}"]`);
             if (elemento) {
@@ -1308,7 +1318,37 @@ async function guardarCotizacion() {
         const resultado = await respuesta.json();
         
         if (resultado.success || resultado.mensaje) {
-            const mensaje = `¡Cotización guardada exitosamente!\n\nNúmero: ${resultado.numeroCotizacion || datosGenerales.numeroCotizacion}\nRevisión: ${datosGenerales.revision}\nID: ${resultado.id || 'Generado automáticamente'}\nCliente: ${datosGenerales.cliente}\nVendedor: ${datosGenerales.vendedor}\nItems procesados: ${items.length}\nTotal: ${document.getElementById('gran-total')?.textContent || 'N/A'}`;
+            // Actualizar el campo No. Cotización con el número generado automáticamente
+            const numeroGenerado = resultado.numeroCotizacion;
+            console.log('Número generado recibido:', numeroGenerado);
+            
+            if (numeroGenerado) {
+                // Actualizar campo visible (disabled)
+                const campoNumeroCotizacion = document.querySelector('[name="numeroCotizacion"]');
+                console.log('Campo encontrado:', campoNumeroCotizacion);
+                
+                if (campoNumeroCotizacion) {
+                    // Habilitar temporalmente para actualizar
+                    campoNumeroCotizacion.removeAttribute('disabled');
+                    campoNumeroCotizacion.value = numeroGenerado;
+                    // Volver a deshabilitar
+                    campoNumeroCotizacion.setAttribute('disabled', 'disabled');
+                    console.log('Campo visible actualizado con:', numeroGenerado);
+                }
+                
+                // Actualizar campo hidden para envío del formulario
+                const campoHidden = document.querySelector('[name="numeroCotizacionHidden"]');
+                if (campoHidden) {
+                    campoHidden.value = numeroGenerado;
+                    console.log('Campo hidden actualizado con:', numeroGenerado);
+                }
+                
+                // Guardar en variables auxiliares para uso posterior (como PDF)
+                window.ultimoNumeroCotizacion = numeroGenerado;
+                sessionStorage.setItem('ultimoNumeroCotizacion', numeroGenerado);
+            }
+            
+            const mensaje = `¡Cotización guardada exitosamente!\n\nNúmero: ${numeroGenerado || datosGenerales.numeroCotizacion}\nRevisión: ${datosGenerales.revision}\nID: ${resultado.id || 'Generado automáticamente'}\nCliente: ${datosGenerales.cliente}\nVendedor: ${datosGenerales.vendedor}\nItems procesados: ${items.length}\nTotal: ${document.getElementById('gran-total')?.textContent || 'N/A'}`;
             
             alert(mensaje);
             cotizacionGuardada = true;
@@ -1359,7 +1399,18 @@ async function intentarGenerarCotizacion() {
         return;
     }
     
-    const numeroCotizacion = document.querySelector('[name="numeroCotizacion"]')?.value?.trim();
+    // Intentar obtener el número de varias fuentes
+    let numeroCotizacion = document.querySelector('[name="numeroCotizacion"]')?.value?.trim();
+    
+    // Si el campo visible está vacío (por estar disabled), intentar el campo hidden
+    if (!numeroCotizacion) {
+        numeroCotizacion = document.querySelector('[name="numeroCotizacionHidden"]')?.value?.trim();
+    }
+    
+    // Si aún no hay número, intentar obtenerlo de variables auxiliares
+    if (!numeroCotizacion) {
+        numeroCotizacion = window.ultimoNumeroCotizacion || sessionStorage.getItem('ultimoNumeroCotizacion');
+    }
     
     if (!numeroCotizacion) {
         alert('No se encontró el número de cotización. Asegúrate de que la cotización esté guardada correctamente.');
