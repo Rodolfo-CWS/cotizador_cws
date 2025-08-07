@@ -346,7 +346,13 @@ def generar_pdf():
         resultado = db_manager.obtener_cotizacion(numero_cotizacion)
         
         if not resultado["encontrado"]:
-            return jsonify({"error": f"Cotización '{numero_cotizacion}' no encontrada"}), 404
+            mensaje_detallado = resultado.get("mensaje", "Sin detalles")
+            return jsonify({
+                "error": f"Cotización '{numero_cotizacion}' no encontrada",
+                "detalle": mensaje_detallado,
+                "numero_buscado": numero_cotizacion,
+                "modo_busqueda": resultado.get("modo", "desconocido")
+            }), 404
         
         cotizacion = resultado["item"]
         

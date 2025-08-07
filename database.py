@@ -139,8 +139,8 @@ class DatabaseManager:
             patron_base = f"{cliente}CWS{iniciales_vendedor}"
             numero_consecutivo = self._obtener_siguiente_consecutivo(patron_base)
             
-            # Formatear el número completo
-            numero_cotizacion = f"{patron_base}{numero_consecutivo:03d}R{revision}{proyecto}"
+            # Formatear el número completo con guiones
+            numero_cotizacion = f"{cliente}-CWS-{iniciales_vendedor}-{numero_consecutivo:03d}-R{revision}-{proyecto}"
             
             return numero_cotizacion
             
@@ -198,18 +198,18 @@ class DatabaseManager:
         """
         Genera un número de cotización para una nueva revisión manteniendo 
         el mismo número base pero actualizando la revisión
-        Formato: ClienteCWSIniciales###RRevisionProyecto
+        Formato: Cliente-CWS-Iniciales-###-R#-Proyecto
         """
         try:
-            # Buscar la posición de 'R' seguida de números
+            # Buscar la posición de '-R' seguida de números
             import re
             
-            # Patrón para encontrar la revisión: R seguida de uno o más dígitos
-            patron = r'R\d+'
+            # Patrón para encontrar la revisión: -R seguida de uno o más dígitos-
+            patron = r'-R\d+-'
             match = re.search(patron, numero_cotizacion_original)
             
             if match:
-                # Extraer la parte antes de la R y después del número de revisión
+                # Extraer la parte antes de -R y después de -R#-
                 inicio_revision = match.start()
                 final_revision = match.end()
                 
@@ -217,14 +217,28 @@ class DatabaseManager:
                 proyecto_parte = numero_cotizacion_original[final_revision:]
                 
                 # Generar nuevo número con la nueva revisión
-                return f"{base}R{nueva_revision}{proyecto_parte}"
+                return f"{base}-R{nueva_revision}-{proyecto_parte}"
             else:
-                # Si no tiene el formato esperado, agregar la revisión al final
-                return f"{numero_cotizacion_original}R{nueva_revision}"
+                # Si no tiene el formato esperado, intentar agregar la revisión
+                if '-R' in numero_cotizacion_original:
+                    # Formato anterior sin guiones finales
+                    partes = numero_cotizacion_original.split('-R')
+                    base = partes[0]
+                    resto = '-R'.join(partes[1:])
+                    
+                    # Separar revisión de proyecto
+                    i = 0
+                    while i < len(resto) and resto[i].isdigit():
+                        i += 1
+                    
+                    proyecto_parte = resto[i:] if i < len(resto) else ""
+                    return f"{base}-R{nueva_revision}{proyecto_parte}"
+                else:
+                    return f"{numero_cotizacion_original}-R{nueva_revision}"
                 
         except Exception as e:
             print(f"Error generando número de revisión: {e}")
-            return f"{numero_cotizacion_original}R{nueva_revision}"
+            return f"{numero_cotizacion_original}-R{nueva_revision}"
 
     def guardar_cotizacion(self, datos):
         """Guarda una cotización con respaldo automático"""

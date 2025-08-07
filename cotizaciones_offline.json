@@ -2123,15 +2123,123 @@
       "fecha_respaldo": "2025-08-05T11:12:39.497876",
       "sincronizada": true,
       "fecha_sincronizacion": "2025-08-06T12:13:01.544792"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "ACME Corporation",
+        "vendedor": "Juan Perez",
+        "proyecto": "Torre Residencial",
+        "atencionA": "Luis Gomez",
+        "contacto": "luis@acme.com",
+        "revision": "1",
+        "numeroCotizacion": "ACMECORPORCWSJP001R1TORRERESID"
+      },
+      "items": [
+        {
+          "descripcion": "Rack Metalico",
+          "cantidad": "2",
+          "uom": "Pieza",
+          "materiales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tiempoEntrega": "15 dias",
+        "entregaEn": "Planta ACME",
+        "terminos": "50% anticipo"
+      },
+      "fechaCreacion": "2025-08-07T08:46:38.348346",
+      "timestamp": 1754577998348,
+      "version": "1.0.0",
+      "numeroCotizacion": "ACMECORPORCWSJP001R1TORRERESID",
+      "revision": 1,
+      "_id": "6894bc4e64b52ee9d3299982",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-07T08:46:38.772521"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "ACME Corporation",
+        "vendedor": "Juan Pérez",
+        "proyecto": "Torre Residencial",
+        "atencionA": "Luis Gómez",
+        "contacto": "luis@acme.com",
+        "revision": "1",
+        "numeroCotizacion": "ACMECORPORCWSJP002R1TORRERESID"
+      },
+      "items": [
+        {
+          "descripcion": "Rack Metálico",
+          "cantidad": "2",
+          "uom": "Pieza",
+          "costoUnidad": "1500.00",
+          "total": "3000.00",
+          "materiales": [],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tiempoEntrega": "15 días hábiles",
+        "entregaEn": "Planta ACME",
+        "terminos": "50% anticipo, 50% contra entrega"
+      },
+      "fechaCreacion": "2025-08-07T08:49:22.465734",
+      "timestamp": 1754578162465,
+      "version": "1.0.0",
+      "numeroCotizacion": "ACMECORPORCWSJP002R1TORRERESID",
+      "revision": 1,
+      "_id": "6894bcf2f36dc84df3251738",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-07T08:49:22.951197"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "ACME Corporation",
+        "vendedor": "Juan Perez",
+        "proyecto": "Torre Residencial",
+        "atencionA": "Luis Gomez",
+        "contacto": "luis@acme.com",
+        "revision": "1",
+        "numeroCotizacion": "ACMECORPOR-CWS-JP-003-R1-TORRERESID"
+      },
+      "items": [
+        {
+          "descripcion": "Rack Metalico",
+          "cantidad": "2",
+          "uom": "Pieza",
+          "costoUnidad": "1500.00",
+          "total": "3000.00",
+          "transporte": "200.00",
+          "instalacion": "300.00",
+          "materiales": [],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tiempoEntrega": "15 dias habiles",
+        "entregaEn": "Planta ACME",
+        "terminos": "50% anticipo, 50% contra entrega",
+        "comentarios": "Instalacion incluida"
+      },
+      "fechaCreacion": "2025-08-07T09:12:38.544303",
+      "timestamp": 1754579558544,
+      "version": "1.0.0",
+      "numeroCotizacion": "ACMECORPOR-CWS-JP-003-R1-TORRERESID",
+      "revision": 1,
+      "_id": "6894c26775fefbe4e40c3674",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-07T09:12:39.813949"
     }
   ],
   "metadata": {
     "created": "2025-07-28T18:58:40.397575",
     "version": "1.0.0",
-    "total_cotizaciones": 29,
+    "total_cotizaciones": 32,
     "modo": "respaldo_automatico",
-    "last_updated": "2025-08-06T12:13:01.544792",
-    "ultimo_respaldo": "2025-08-05T11:12:39.497876",
+    "last_updated": "2025-08-07T09:12:39.813949",
+    "ultimo_respaldo": "2025-08-07T09:12:39.813949",
     "ultima_sincronizacion": "2025-08-06T12:13:01.544792",
     "total_sincronizado": 29
   }

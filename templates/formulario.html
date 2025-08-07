@@ -1399,23 +1399,28 @@ async function intentarGenerarCotizacion() {
         return;
     }
     
-    // Intentar obtener el número de varias fuentes
+    // Intentar obtener el número de varias fuentes con debug
     let numeroCotizacion = document.querySelector('[name="numeroCotizacion"]')?.value?.trim();
+    console.log('Campo visible:', numeroCotizacion);
     
     // Si el campo visible está vacío (por estar disabled), intentar el campo hidden
     if (!numeroCotizacion) {
         numeroCotizacion = document.querySelector('[name="numeroCotizacionHidden"]')?.value?.trim();
+        console.log('Campo hidden:', numeroCotizacion);
     }
     
     // Si aún no hay número, intentar obtenerlo de variables auxiliares
     if (!numeroCotizacion) {
         numeroCotizacion = window.ultimoNumeroCotizacion || sessionStorage.getItem('ultimoNumeroCotizacion');
+        console.log('Variables auxiliares:', numeroCotizacion);
     }
     
     if (!numeroCotizacion) {
-        alert('No se encontró el número de cotización. Asegúrate de que la cotización esté guardada correctamente.');
+        alert('No se encontró el número de cotización. Asegúrate de que la cotización esté guardada correctamente.\n\nVerifica la consola del navegador (F12) para más detalles.');
         return;
     }
+    
+    console.log('Numero final para PDF:', numeroCotizacion);
     
     const btnGenerar = document.getElementById('btn-generar');
     const textoOriginal = btnGenerar.innerHTML;
@@ -1436,7 +1441,15 @@ async function intentarGenerarCotizacion() {
         
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error || errorData.detalle || `Error HTTP ${response.status}`);
+            console.error('Error del servidor PDF:', errorData);
+            console.error('Status:', response.status);
+            console.error('StatusText:', response.statusText);
+            
+            let errorMsg = errorData.error || errorData.detalle || `Error HTTP ${response.status}`;
+            if (errorData.mensaje) {
+                errorMsg += '\n' + errorData.mensaje;
+            }
+            throw new Error(errorMsg);
         }
         
         const pdfBlob = await response.blob();
