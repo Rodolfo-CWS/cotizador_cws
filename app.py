@@ -406,8 +406,34 @@ def generar_pdf():
         
         html_content = render_template('formato_pdf_cws.html', **template_data)
         
-        # Generar PDF (método original que funcionaba)
-        pdf_file = weasyprint.HTML(string=html_content).write_pdf()
+        # Generar PDF - compatible con diferentes versiones de WeasyPrint
+        try:
+            # Método para versiones más nuevas
+            pdf_file = weasyprint.HTML(string=html_content).write_pdf()
+        except TypeError as version_error:
+            print(f"Error de versión WeasyPrint: {version_error}")
+            try:
+                # Método para versiones más antiguas - crear archivo temporal
+                import tempfile
+                import os
+                
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
+                    f.write(html_content)
+                    temp_html_path = f.name
+                
+                # Usar archivo en lugar de string
+                pdf_file = weasyprint.HTML(filename=temp_html_path).write_pdf()
+                
+                # Limpiar archivo temporal
+                os.unlink(temp_html_path)
+                print("PDF generado usando archivo temporal")
+                
+            except Exception as fallback_error:
+                print(f"Error en método de fallback: {fallback_error}")
+                # Último intento - método más básico
+                html_doc = weasyprint.HTML(string=html_content)
+                pdf_file = html_doc.write_pdf()
+                print("PDF generado con método básico")
         
         # Almacenar PDF en el sistema de archivos
         resultado_almacenamiento = pdf_manager.almacenar_pdf_nuevo(pdf_file, cotizacion)
