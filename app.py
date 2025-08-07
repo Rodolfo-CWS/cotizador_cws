@@ -399,33 +399,68 @@ def generar_pdf():
             'logo_path': os.path.abspath(os.path.join('static', 'logo.png'))
         }
         
-        # Renderizar el HTML
-        html_content = render_template('formato_pdf_cws.html', **template_data)
+        try:
+            # Renderizar el HTML
+            print(f"Renderizando template PDF para: {numero_cotizacion}")
+            html_content = render_template('formato_pdf_cws.html', **template_data)
+            print("Template HTML renderizado exitosamente")
+            
+        except Exception as template_error:
+            print(f"Error renderizando template: {template_error}")
+            return jsonify({
+                "error": "Error renderizando template HTML",
+                "detalle": str(template_error),
+                "numero_cotizacion": numero_cotizacion
+            }), 500
         
-        # Generar PDF
-        pdf_file = weasyprint.HTML(string=html_content).write_pdf()
+        try:
+            # Generar PDF
+            print("Iniciando generación de PDF con WeasyPrint")
+            pdf_file = weasyprint.HTML(string=html_content).write_pdf()
+            print("PDF generado exitosamente por WeasyPrint")
+            
+        except Exception as weasyprint_error:
+            print(f"Error en WeasyPrint: {weasyprint_error}")
+            return jsonify({
+                "error": "Error en generación PDF (WeasyPrint)",
+                "detalle": str(weasyprint_error),
+                "numero_cotizacion": numero_cotizacion
+            }), 500
         
-        # Almacenar PDF en el sistema de archivos
-        resultado_almacenamiento = pdf_manager.almacenar_pdf_nuevo(pdf_file, cotizacion)
-        
-        if not resultado_almacenamiento["success"]:
-            print(f"Advertencia: No se pudo almacenar PDF: {resultado_almacenamiento.get('error')}")
+        try:
+            # Almacenar PDF en el sistema de archivos
+            resultado_almacenamiento = pdf_manager.almacenar_pdf_nuevo(pdf_file, cotizacion)
+            
+            if not resultado_almacenamiento["success"]:
+                print(f"Advertencia: No se pudo almacenar PDF: {resultado_almacenamiento.get('error')}")
+                # Continuar con la descarga aunque el almacenamiento falle
+            else:
+                print(f"PDF almacenado exitosamente: {resultado_almacenamiento['nombre_archivo']}")
+        except Exception as storage_error:
+            print(f"Error en almacenamiento PDF: {storage_error}")
             # Continuar con la descarga aunque el almacenamiento falle
-        else:
-            print(f"PDF almacenado exitosamente: {resultado_almacenamiento['nombre_archivo']}")
         
-        # Crear respuesta para descarga
-        pdf_buffer = io.BytesIO(pdf_file)
-        pdf_buffer.seek(0)
-        
-        filename = f"Cotizacion_{numero_cotizacion.replace('/', '_')}.pdf"
-        
-        return send_file(
-            pdf_buffer,
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=filename
-        )
+        try:
+            # Crear respuesta para descarga
+            pdf_buffer = io.BytesIO(pdf_file)
+            pdf_buffer.seek(0)
+            
+            filename = f"Cotizacion_{numero_cotizacion.replace('/', '_').replace('-', '_')}.pdf"
+            print(f"Enviando PDF: {filename}")
+            
+            return send_file(
+                pdf_buffer,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=filename
+            )
+        except Exception as send_error:
+            print(f"Error enviando archivo PDF: {send_error}")
+            return jsonify({
+                "error": "Error enviando archivo PDF",
+                "detalle": str(send_error),
+                "numero_cotizacion": numero_cotizacion
+            }), 500
         
     except Exception as e:
         print(f"Error generando PDF: {e}")
