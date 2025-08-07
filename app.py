@@ -416,7 +416,17 @@ def generar_pdf():
         try:
             # Generar PDF
             print("Iniciando generación de PDF con WeasyPrint")
-            pdf_file = weasyprint.HTML(string=html_content).write_pdf()
+            print(f"WeasyPrint version: {weasyprint.__version__}")
+            
+            # Usar un enfoque más simple y compatible
+            from weasyprint import HTML
+            
+            # Crear el objeto HTML de WeasyPrint de forma explícita
+            html_doc = HTML(string=html_content)
+            
+            # Generar PDF sin argumentos adicionales
+            pdf_file = html_doc.write_pdf()
+            
             print("PDF generado exitosamente por WeasyPrint")
             
         except Exception as weasyprint_error:
