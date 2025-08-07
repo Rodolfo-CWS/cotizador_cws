@@ -151,9 +151,9 @@ def generar_pdf_reportlab(datos_cotizacion):
     story.append(Spacer(1, 20))
     
     # Línea separadora
-    from reportlab.platypus import Drawing, Line
+    from reportlab.graphics.shapes import Drawing, Line as GraphicsLine
     line_drawing = Drawing(400, 1)
-    line_drawing.add(Line(0, 0, 400, 0, strokeColor=colors.HexColor('#2C5282'), strokeWidth=2))
+    line_drawing.add(GraphicsLine(0, 0, 400, 0, strokeColor=colors.HexColor('#2C5282'), strokeWidth=2))
     story.append(line_drawing)
     story.append(Spacer(1, 15))
     
