@@ -33,8 +33,9 @@ app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
 # Crear instancia de base de datos
 db_manager = DatabaseManager()
 
-# Crear instancia de gestor de PDFs
-pdf_manager = PDFManager(db_manager)
+# TEMPORALMENTE DESHABILITADO PARA DEBUG
+# pdf_manager = PDFManager(db_manager)
+pdf_manager = None
 
 # Cargar lista de materiales desde CSV
 def cargar_materiales_csv():
@@ -420,7 +421,14 @@ def generar_pdf():
         print(f"Archivo temporal creado: {temp_html_path}")
         
         # Generar PDF desde archivo (método más compatible)
-        pdf_file = weasyprint.HTML(filename=temp_html_path).write_pdf()
+        print("Creando objeto HTML de WeasyPrint")
+        html_obj = weasyprint.HTML(filename=temp_html_path)
+        print("Objeto HTML creado exitosamente")
+        
+        print("Invocando write_pdf()")
+        # El error puede estar aquí - algunos argumentos implícitos
+        pdf_file = html_obj.write_pdf()
+        print("write_pdf() completado")
         
         # Limpiar archivo temporal
         os.unlink(temp_html_path)
