@@ -556,8 +556,8 @@ def generar_pdf():
             'iva': f"{iva:.2f}",
             'total': f"{total:.2f}",
             
-            # Logo path for PDF
-            'logo_path': os.path.abspath(os.path.join('static', 'logo.png'))
+            # Logo path for PDF (solo para WeasyPrint)
+            'logo_path': 'static/logo.png'
         }
         
         print(f"Generando PDF para: {numero_cotizacion}")
@@ -573,10 +573,10 @@ def generar_pdf():
         elif WEASYPRINT_AVAILABLE:
             print("Generando PDF con WeasyPrint (fallback)")
             # Lógica WeasyPrint como fallback
+            import tempfile
+            
             html_content = render_template('formato_pdf_cws.html', **template_data)
             
-            import tempfile
-            import os
             with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
                 f.write(html_content)
                 temp_html_path = f.name
