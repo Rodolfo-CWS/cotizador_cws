@@ -86,7 +86,7 @@ def cargar_materiales_csv():
 
 # Cargar materiales al iniciar la aplicación
 LISTA_MATERIALES = cargar_materiales_csv()
-print(f"✅ Cargados {len(LISTA_MATERIALES)} materiales desde CSV")
+print(f"[OK] Cargados {len(LISTA_MATERIALES)} materiales desde CSV")
 
 def generar_pdf_reportlab(datos_cotizacion):
     """Genera PDF usando ReportLab con formato profesional CWS"""
@@ -575,11 +575,11 @@ def preparar_datos_nueva_revision(cotizacion_original):
         # Agregar campo de actualización
         datos['datosGenerales']['actualizacionRevision'] = f"Revisión {nueva_revision} basada en cotización original"
         
-        print(f"✅ Datos preparados para nueva revisión: {nuevo_numero}")
+        print(f"[OK] Datos preparados para nueva revisión: {nuevo_numero}")
         return datos
         
     except Exception as e:
-        print(f"❌ Error preparando nueva revisión: {e}")
+        print(f"[ERROR] Error preparando nueva revisión: {e}")
         return None
 
 # Registrar cierre de conexión al salir

@@ -2259,15 +2259,62 @@
       "_id": "689507fa40e703d851a5a70c",
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-07T14:09:30.801189"
+    },
+    {
+      "numeroCotizacion": "CLIENTEPRU-CWS-TC-001-R1-PRUEBACOMP",
+      "datosGenerales": {
+        "cliente": "Cliente Prueba Flujo",
+        "vendedor": "Test Completo",
+        "proyecto": "Prueba Completa Sistema",
+        "atencionA": "Ing. Test",
+        "contacto": "test@prueba.com",
+        "revision": "1",
+        "numeroCotizacion": "CLIENTEPRU-CWS-TC-001-R1-PRUEBACOMP"
+      },
+      "items": [
+        {
+          "descripcion": "Item de prueba 1",
+          "cantidad": 2,
+          "uom": "PZA",
+          "costoUnidad": 150.0,
+          "total": 300.0
+        },
+        {
+          "descripcion": "Item de prueba 2",
+          "cantidad": 1,
+          "uom": "PZA",
+          "costoUnidad": 250.0,
+          "total": 250.0
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tiempoEntrega": "10",
+        "entregaEn": "Planta CWS",
+        "terminos": "Neto 30 días",
+        "comentarios": "Cotización de prueba para validar flujo completo"
+      },
+      "totales": {
+        "subtotal": 550.0,
+        "iva": 88.0,
+        "total": 638.0
+      },
+      "fechaCreacion": "2025-08-07T18:06:49.187905",
+      "timestamp": 1754611609187,
+      "version": "1.0.0",
+      "revision": 1,
+      "_id": "68953f9974b0d907a79921b2",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-07T18:06:49.596439"
     }
   ],
   "metadata": {
     "created": "2025-07-28T18:58:40.397575",
     "version": "1.0.0",
-    "total_cotizaciones": 33,
+    "total_cotizaciones": 34,
     "modo": "respaldo_automatico",
-    "last_updated": "2025-08-07T14:09:30.801189",
-    "ultimo_respaldo": "2025-08-07T14:09:30.801189",
+    "last_updated": "2025-08-07T18:06:49.596439",
+    "ultimo_respaldo": "2025-08-07T18:06:49.596439",
     "ultima_sincronizacion": "2025-08-06T12:13:01.544792",
     "total_sincronizado": 29
   }
