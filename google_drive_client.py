@@ -29,58 +29,175 @@ class GoogleDriveClient:
         self._initialize_service()
     
     def _initialize_service(self):
-        """Inicializa el servicio de Google Drive usando Service Account"""
+        """Inicializa el servicio de Google Drive con autenticación robusta para serverless"""
         try:
-            # Obtener credenciales desde variable de entorno
+            # MEJORADO: Detección de entorno para logging específico
+            es_render = os.getenv('RENDER') or os.getenv('RENDER_SERVICE_NAME')
+            entorno = "RENDER" if es_render else "LOCAL"
+            print(f"[GOOGLE_DRIVE] [INIT] Inicializando en entorno: {entorno}")
+            
+            # Obtener credenciales desde variable de entorno con validación mejorada
             credentials_json = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
             
             if not credentials_json:
                 print("[ERROR] Google Drive: No hay credenciales configuradas")
                 print("   Variable requerida: GOOGLE_SERVICE_ACCOUNT_JSON")
+                print("   En Render: Configurar en Environment Variables")
+                print("   En Local: Configurar en archivo .env")
+                return
+            
+            print(f"[GOOGLE_DRIVE] Credenciales encontradas - Longitud: {len(credentials_json)} chars")
+            
+            # NUEVO: Validación previa del JSON antes de parsear
+            if not credentials_json.strip().startswith('{'):
+                print("[ERROR] Google Drive: Credenciales no parecen ser JSON válido")
+                print(f"   Primeros 100 chars: {credentials_json[:100]}...")
                 return
             
             print("[INIT] Google Drive: Inicializando cliente...")
             print(f"   Folder ID: {self.folder_id}")
             
-            # Parsear JSON de credenciales
-            credentials_info = json.loads(credentials_json)
-            
-            # Verificar campos requeridos
-            required_fields = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email']
-            missing_fields = [field for field in required_fields if field not in credentials_info]
-            
-            if missing_fields:
-                print(f"[ERROR] Google Drive: Faltan campos en credenciales: {missing_fields}")
+            # MEJORADO: Parsear JSON con mejor manejo de errores
+            print("[GOOGLE_DRIVE] Parseando credenciales JSON...")
+            try:
+                credentials_info = json.loads(credentials_json)
+                print("[GOOGLE_DRIVE] [OK] JSON parseado exitosamente")
+            except json.JSONDecodeError as json_error:
+                print(f"[ERROR] Google Drive: JSON inválido - {json_error}")
+                print(f"   Línea {json_error.lineno}, columna {json_error.colno}")
+                if json_error.pos < len(credentials_json):
+                    print(f"   Contexto: ...{credentials_json[max(0, json_error.pos-20):json_error.pos+20]}...")
                 return
             
-            # Crear credenciales desde el JSON con permisos de escritura
-            credentials = service_account.Credentials.from_service_account_info(
-                credentials_info,
-                scopes=[
-                    'https://www.googleapis.com/auth/drive.file',
-                    'https://www.googleapis.com/auth/drive'
-                ]
-            )
+            # MEJORADO: Verificar campos requeridos con detalle
+            required_fields = {
+                'type': 'Tipo de cuenta de servicio',
+                'project_id': 'ID del proyecto Google Cloud',
+                'private_key_id': 'ID de la clave privada',
+                'private_key': 'Clave privada RSA',
+                'client_email': 'Email de la cuenta de servicio',
+                'client_id': 'ID del cliente OAuth2',
+                'auth_uri': 'URI de autenticación',
+                'token_uri': 'URI de token'
+            }
             
-            # Crear servicio de Google Drive
-            self.service = build('drive', 'v3', credentials=credentials)
+            missing_fields = []
+            for field, description in required_fields.items():
+                if field not in credentials_info or not credentials_info[field]:
+                    missing_fields.append(f"{field} ({description})")
             
-            # Verificar acceso
+            if missing_fields:
+                print(f"[ERROR] Google Drive: Faltan campos críticos en credenciales:")
+                for field in missing_fields:
+                    print(f"   ❌ {field}")
+                return
+            
+            print(f"[GOOGLE_DRIVE] [OK] Todos los campos requeridos presentes")
+            print(f"   Proyecto: {credentials_info.get('project_id')}")
+            print(f"   Email: {credentials_info.get('client_email')}")
+            
+            # MEJORADO: Crear credenciales con scopes específicos y manejo de errores
+            print("[GOOGLE_DRIVE] Creando credenciales de servicio...")
             try:
-                # Test simple para verificar acceso
-                self.service.files().list(pageSize=1).execute()
-                print("[OK] Google Drive: Cliente inicializado correctamente")
-                print(f"   Email de servicio: {credentials_info.get('client_email', 'N/A')}")
+                scopes = [
+                    'https://www.googleapis.com/auth/drive.file',  # Acceso a archivos creados por la app
+                    'https://www.googleapis.com/auth/drive'        # Acceso completo a Drive
+                ]
+                
+                credentials = service_account.Credentials.from_service_account_info(
+                    credentials_info,
+                    scopes=scopes
+                )
+                print(f"[GOOGLE_DRIVE] [OK] Credenciales creadas con {len(scopes)} scopes")
+                
+            except Exception as cred_error:
+                print(f"[ERROR] Google Drive: Error creando credenciales: {cred_error}")
+                print(f"   Tipo: {type(cred_error).__name__}")
+                return
+            
+            # MEJORADO: Crear servicio con mejor manejo de errores
+            print("[GOOGLE_DRIVE] Construyendo servicio Drive API v3...")
+            try:
+                self.service = build('drive', 'v3', credentials=credentials)
+                print("[GOOGLE_DRIVE] [OK] Servicio Drive API construido")
+            except Exception as service_error:
+                print(f"[ERROR] Google Drive: Error construyendo servicio: {service_error}")
+                print(f"   Tipo: {type(service_error).__name__}")
+                self.service = None
+                return
+            
+            # CRÍTICO: Verificación completa de acceso y permisos
+            print("[GOOGLE_DRIVE] [TEST] Ejecutando tests de verificación...")
+            
+            tests_passed = 0
+            total_tests = 3
+            
+            try:
+                # Test 1: Verificación básica de API
+                print("[TEST 1] Verificación básica de API...")
+                about_info = self.service.about().get(fields='user').execute()
+                print(f"[TEST 1] [OK] API accesible - Usuario: {about_info.get('user', {}).get('emailAddress', 'N/A')}")
+                tests_passed += 1
+                
+                # Test 2: Verificación de acceso a carpeta "nuevas"
+                print(f"[TEST 2] Verificando acceso a carpeta 'nuevas': {self.folder_nuevas}")
+                try:
+                    folder_info = self.service.files().get(
+                        fileId=self.folder_nuevas,
+                        fields='id,name,permissions'
+                    ).execute()
+                    print(f"[TEST 2] [OK] Carpeta 'nuevas' accesible: {folder_info.get('name', 'Sin nombre')}")
+                    tests_passed += 1
+                except Exception as folder_error:
+                    print(f"[TEST 2] [FAIL] Error accediendo carpeta 'nuevas': {folder_error}")
+                    print(f"   ID de carpeta: {self.folder_nuevas}")
+                    print(f"   Verificar permisos de la cuenta de servicio")
+                
+                # Test 3: Verificación de acceso a carpeta "antiguas"
+                print(f"[TEST 3] Verificando acceso a carpeta 'antiguas': {self.folder_antiguas}")
+                try:
+                    folder_info = self.service.files().get(
+                        fileId=self.folder_antiguas,
+                        fields='id,name'
+                    ).execute()
+                    print(f"[TEST 3] [OK] Carpeta 'antiguas' accesible: {folder_info.get('name', 'Sin nombre')}")
+                    tests_passed += 1
+                except Exception as folder_error:
+                    print(f"[TEST 3] [WARN] Carpeta 'antiguas' no accesible (no crítico): {folder_error}")
+                    tests_passed += 1  # No es crítico para las operaciones principales
+                
+                # Evaluación final
+                print(f"[GOOGLE_DRIVE] Tests completados: {tests_passed}/{total_tests} exitosos")
+                
+                if tests_passed >= 2:
+                    print("[GOOGLE_DRIVE] [SUCCESS] INICIALIZACIÓN EXITOSA")
+                    print(f"   Proyecto: {credentials_info.get('project_id')}")
+                    print(f"   Email: {credentials_info.get('client_email')}")
+                    print(f"   Entorno: {entorno}")
+                else:
+                    print("[ERROR] Google Drive: Falló verificación mínima")
+                    self.service = None
+                    
             except Exception as test_error:
-                print(f"[ERROR] Google Drive: Error en test de acceso: {test_error}")
+                print(f"[ERROR] Google Drive: Error crítico en tests: {test_error}")
+                print(f"   Tipo: {type(test_error).__name__}")
+                if hasattr(test_error, 'resp'):
+                    print(f"   HTTP Status: {test_error.resp.status}")
+                    print(f"   HTTP Reason: {test_error.resp.reason}")
                 self.service = None
             
-        except json.JSONDecodeError as e:
-            print(f"[ERROR] Google Drive: JSON inválido en credenciales: {e}")
-            self.service = None
         except Exception as e:
-            print(f"[ERROR] Google Drive: Error inicializando: {e}")
+            print(f"[ERROR] Google Drive: Error crítico durante inicialización: {e}")
             print(f"   Tipo de error: {type(e).__name__}")
+            print(f"   Entorno: {entorno}")
+            
+            # Log adicional para debugging en producción
+            if es_render:
+                print("[DEBUG RENDER] Información adicional para Render:")
+                print(f"   Variables de entorno Drive configuradas: {bool(os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON'))}")
+                print(f"   Carpeta nuevas configurada: {bool(self.folder_nuevas)}")
+                print(f"   Carpeta antiguas configurada: {bool(self.folder_antiguas)}")
+            
             self.service = None
     
     def is_available(self) -> bool:

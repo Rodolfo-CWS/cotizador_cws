@@ -715,6 +715,12 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                                     if (opcion.value === desc) {
                                         descripcion.value = opcion.value;
                                         opcionEncontrada = true;
+                                        // CRÍTICO: Actualizar peso inmediatamente después de seleccionar
+                                        const pesoValor = opcion.getAttribute('data-peso') || 1;
+                                        const pesoInput = ultimoMaterial.querySelector('.peso-input');
+                                        if (pesoInput) {
+                                            pesoInput.value = pesoValor;
+                                        }
                                         break;
                                     }
                                 }
@@ -726,6 +732,12 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                                             normalizar(opcion.textContent) === descNormalizado) {
                                             descripcion.value = opcion.value;
                                             opcionEncontrada = true;
+                                            // CRÍTICO: Actualizar peso inmediatamente
+                                            const pesoValor = opcion.getAttribute('data-peso') || 1;
+                                            const pesoInput = ultimoMaterial.querySelector('.peso-input');
+                                            if (pesoInput) {
+                                                pesoInput.value = pesoValor;
+                                            }
                                             break;
                                         }
                                     }
@@ -739,6 +751,12 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                                             descNormalizado.includes(opcionNormalizada)) {
                                             descripcion.value = opcion.value;
                                             opcionEncontrada = true;
+                                            // CRÍTICO: Actualizar peso inmediatamente
+                                            const pesoValor = opcion.getAttribute('data-peso') || 1;
+                                            const pesoInput = ultimoMaterial.querySelector('.peso-input');
+                                            if (pesoInput) {
+                                                pesoInput.value = pesoValor;
+                                            }
                                             break;
                                         }
                                     }
@@ -749,11 +767,16 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                                     const nuevaOpcion = document.createElement('option');
                                     nuevaOpcion.value = desc;
                                     nuevaOpcion.textContent = desc;
-                                    nuevaOpcion.setAttribute('data-peso', '0');
-                                    nuevaOpcion.setAttribute('data-uom', '');
+                                    nuevaOpcion.setAttribute('data-peso', material.peso || '1');
+                                    nuevaOpcion.setAttribute('data-uom', material.uom || '');
                                     descripcion.appendChild(nuevaOpcion);
                                     descripcion.value = desc;
                                     opcionEncontrada = true;
+                                    // Actualizar peso para opciones dinámicas
+                                    const pesoInput = ultimoMaterial.querySelector('.peso-input');
+                                    if (pesoInput) {
+                                        pesoInput.value = material.peso || '1';
+                                    }
                                 }
                             } else {
                                 // Para otros materiales: asignar a input de texto
@@ -774,10 +797,97 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                             cantidad.dispatchEvent(new Event('input', { bubbles: true }));
                             cantidad.dispatchEvent(new Event('change', { bubbles: true }));
                         }
+                        
+                        // CRÍTICO: Forzar recálculo después de cargar todos los datos
+                        setTimeout(() => {
+                            // Asegurar que todos los valores están disponibles antes del cálculo
+                            if (tipo === 'materiales') {
+                                // Para materiales, usar cualquier input de la fila para trigger
+                                const triggerInput = cantidad || precio || ultimoMaterial.querySelector('.cantidad-input, .precio-input');
+                                if (triggerInput) {
+                                    calcularSubtotalMaterial(triggerInput);
+                                }
+                            } else {
+                                // Para otros materiales
+                                const triggerInput = cantidad || precio || ultimoMaterial.querySelector('.cantidad-otro, .precio-otro');
+                                if (triggerInput) {
+                                    calcularSubtotalOtro(triggerInput);
+                                }
+                            }
+                            
+                            // Asegurar que se recalculan los totales del item
+                            const itemElement = ultimoMaterial.closest('.item-block');
+                            if (itemElement) {
+                                calcularCostosItem(itemElement);
+                                actualizarTodosLosCalculos();
+                            }
+                        }, 200); // Más tiempo para asegurar que todos los valores están establecidos
                     }
                 }, 200);
             }, index * 500); // Más tiempo entre materiales para evitar solapamientos
         });
+        
+        // CRÍTICO: Forzar recálculo completo después de cargar todos los materiales
+        setTimeout(() => {
+            console.log(`Recalculando totales después de cargar ${tipo}`);
+            
+            // Buscar todos los campos de materiales cargados y forzar recálculo
+            const materialesRows = itemElement.querySelectorAll('.material-row, .otro-material-row');
+            materialesRows.forEach(row => {
+                const inputsNumericos = row.querySelectorAll('input[type="number"]');
+                if (inputsNumericos.length > 0) {
+                    // Disparar recálculo en el primer input numérico encontrado
+                    const primerInput = inputsNumericos[0];
+                    if (tipo === 'materiales') {
+                        calcularSubtotalMaterial(primerInput);
+                    } else {
+                        calcularSubtotalOtro(primerInput);
+                    }
+                }
+            });
+            
+            // CRÍTICO: Configurar event listeners para todos los inputs de materiales recién cargados
+            const filasRecienCargadas = tipo === 'materiales' ? 
+                itemElement.querySelectorAll('.material-row, [class*="material-row"]:not([class*="otro"])') :
+                itemElement.querySelectorAll('.otro-material-row, [class*="otro-material"]');
+                
+            filasRecienCargadas.forEach(fila => {
+                const inputs = fila.querySelectorAll('input[type="number"]');
+                inputs.forEach(input => {
+                    // Remover listeners previos para evitar duplicados
+                    input.removeEventListener('input', calcularSubtotalMaterial);
+                    input.removeEventListener('input', calcularSubtotalOtro);
+                    
+                    // Agregar listeners según el tipo
+                    if (tipo === 'materiales') {
+                        input.addEventListener('input', function() {
+                            calcularSubtotalMaterial(this);
+                        });
+                    } else {
+                        input.addEventListener('input', function() {
+                            calcularSubtotalOtro(this);
+                        });
+                    }
+                });
+            });
+            
+            // Forzar recálculo inicial de todos los subtotales
+            filasRecienCargadas.forEach(fila => {
+                const primerInput = fila.querySelector('input[type="number"]');
+                if (primerInput) {
+                    if (tipo === 'materiales') {
+                        calcularSubtotalMaterial(primerInput);
+                    } else {
+                        calcularSubtotalOtro(primerInput);
+                    }
+                }
+            });
+            
+            // Recálculo final del item completo
+            calcularCostosItem(itemElement);
+            actualizarTodosLosCalculos();
+            
+        }, (materiales.length * 500) + 1000); // Esperar que terminen todos los materiales
         
     } catch (error) {
         console.error(`Error cargando ${tipo}:`, error);
@@ -1042,12 +1152,63 @@ function eliminarFila(button, tipo) {
 function calcularSubtotalMaterial(input) {
     const row = input.closest('.material-row');
     if (!row) return;
-    const peso = parseFloat(row.querySelector('.peso-input')?.value || 0);
-    const cantidad = parseFloat(row.querySelector('.cantidad-input')?.value || 0);
-    const precio = parseFloat(row.querySelector('.precio-input')?.value || 0);
-    const subtotalInput = row.querySelector('.subtotal-input');
+    
+    // Buscar campos de forma más flexible
+    const pesoInput = row.querySelector('.peso-input') || row.querySelector('input[placeholder*="peso"]') || row.querySelector('input[placeholder*="Peso"]');
+    const cantidadInput = row.querySelector('.cantidad-input') || row.querySelector('input[placeholder*="cantidad"]') || row.querySelector('input[placeholder*="Cantidad"]');
+    const precioInput = row.querySelector('.precio-input') || row.querySelector('input[placeholder*="precio"]') || row.querySelector('input[placeholder*="Precio"]');
+    const subtotalInput = row.querySelector('.subtotal-input') || row.querySelector('input[placeholder*="subtotal"]') || row.querySelector('input[placeholder*="Subtotal"]');
+    
+    // Obtener valores con mejor manejo de casos edge
+    let peso = 1; // Default peso = 1 si no existe campo peso
+    let cantidad = 0;
+    let precio = 0;
+    
+    if (pesoInput) {
+        const pesoValue = parseFloat(pesoInput.value);
+        // CRÍTICO: Si peso es 0 o NaN, usar 1 como default para materiales válidos
+        peso = (isNaN(pesoValue) || pesoValue <= 0) ? 1 : pesoValue;
+    }
+    
+    if (cantidadInput) {
+        cantidad = parseFloat(cantidadInput.value) || 0;
+    }
+    
+    if (precioInput) {
+        precio = parseFloat(precioInput.value) || 0;
+    }
+    
+    // FIJO: Calcular subtotal siempre como peso * cantidad * precio
+    // No usar fallback que ignore peso, ya que peso=1 es válido
     const subtotal = peso * cantidad * precio;
-    if (subtotalInput) subtotalInput.value = subtotal.toFixed(2);
+    
+    // Actualizar campo de subtotal
+    if (subtotalInput) {
+        subtotalInput.value = subtotal.toFixed(2);
+    }
+    
+    // Debug mejorado para identificar problemas
+    console.log('Cálculo material:', {
+        peso: peso,
+        cantidad: cantidad,
+        precio: precio,
+        subtotal: subtotal,
+        formula: `${peso} * ${cantidad} * ${precio} = ${subtotal}`,
+        campos: {
+            tienePeso: !!pesoInput,
+            tieneCantidad: !!cantidadInput,
+            tienePrecio: !!precioInput,
+            tieneSubtotal: !!subtotalInput
+        },
+        valores_originales: {
+            peso_input: pesoInput?.value,
+            cantidad_input: cantidadInput?.value,
+            precio_input: precioInput?.value
+        },
+        es_revision: !!DATOS_PRECARGADOS
+    });
+    
+    // Recalcular totales del item
     const itemElement = row.closest('.item-block');
     if (itemElement) {
         setTimeout(() => {
@@ -1060,11 +1221,33 @@ function calcularSubtotalMaterial(input) {
 function calcularSubtotalOtro(input) {
     const row = input.closest('.otro-material-row');
     if (!row) return;
-    const precio = parseFloat(row.querySelector('.precio-otro')?.value || 0);
-    const cantidad = parseFloat(row.querySelector('.cantidad-otro')?.value || 0);
-    const subtotalInput = row.querySelector('.subtotal-otro');
+    
+    // Buscar campos de forma más flexible
+    const precioInput = row.querySelector('.precio-otro') || row.querySelector('input[placeholder*="precio"]') || row.querySelector('input[placeholder*="Precio"]');
+    const cantidadInput = row.querySelector('.cantidad-otro') || row.querySelector('input[placeholder*="cantidad"]') || row.querySelector('input[placeholder*="Cantidad"]');
+    const subtotalInput = row.querySelector('.subtotal-otro') || row.querySelector('input[placeholder*="subtotal"]') || row.querySelector('input[placeholder*="Subtotal"]');
+    
+    // Obtener valores
+    const precio = parseFloat(precioInput?.value || 0);
+    const cantidad = parseFloat(cantidadInput?.value || 0);
     const subtotal = precio * cantidad;
-    if (subtotalInput) subtotalInput.value = subtotal.toFixed(2);
+    
+    // Actualizar campo de subtotal
+    if (subtotalInput) {
+        subtotalInput.value = subtotal.toFixed(2);
+    }
+    
+    // Debug para identificar problemas
+    console.log('Cálculo otro material:', {
+        precio: precio,
+        cantidad: cantidad,
+        subtotal: subtotal,
+        tienePrecio: !!precioInput,
+        tieneCantidad: !!cantidadInput,
+        tieneSubtotal: !!subtotalInput
+    });
+    
+    // Recalcular totales del item
     const itemElement = row.closest('.item-block');
     if (itemElement) {
         setTimeout(() => {

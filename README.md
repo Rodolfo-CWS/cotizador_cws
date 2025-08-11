@@ -2,6 +2,12 @@
 
 Sistema completo de cotizaciones para CWS Company con generación de PDFs en formato oficial.
 
+## 🌐 Aplicación en Producción
+
+**URL:** https://cotizador-cws.onrender.com/
+
+La aplicación está desplegada y disponible en línea para uso inmediato.
+
 ## ✅ Correcciones Implementadas
 
 ### 1. **Botón Home Agregado**
@@ -190,7 +196,13 @@ pip install -r requirements.txt
 python app.py
 ```
 
-La aplicación estará disponible en: `http://127.0.0.1:5000`
+La aplicación está disponible en: `https://cotizador-cws.onrender.com/`
+
+### Para desarrollo local:
+```bash
+python app.py
+```
+La aplicación local estará disponible en: `http://127.0.0.1:5000`
 
 ## 💡 Notas Importantes
 

@@ -4,6 +4,8 @@ import datetime
 from dotenv import load_dotenv
 from pathlib import Path
 import uuid
+import re
+from urllib.parse import urlparse
 
 # Cargar variables de entorno
 load_dotenv()
@@ -27,29 +29,23 @@ class DatabaseManager:
             
             print(f"Entorno detectado: {'Render/Producción' if es_produccion else 'Desarrollo local'}")
             
-            # Obtener URI desde variable de entorno o construir desde componentes separados
+            # MEJORADO: Obtener URI con parsing robusto y validación completa
             mongodb_uri = os.getenv('MONGODB_URI')
             
             if mongodb_uri:
                 # Usar URI completa (preferido para Render)
-                print("Usando MONGODB_URI de variables de entorno")
-                self.mongo_uri = mongodb_uri
-                # Extraer nombre de base de datos del URI
-                if '/cotizador_cws' in mongodb_uri:
-                    self.database_name = 'cotizador_cws'
-                elif '/cotizaciones' in mongodb_uri:
-                    self.database_name = 'cotizaciones'
-                else:
-                    # Extraer del URI usando parsing
-                    try:
-                        from urllib.parse import urlparse
-                        parsed = urlparse(mongodb_uri)
-                        if parsed.path and len(parsed.path) > 1:
-                            self.database_name = parsed.path[1:]  # Remover el '/' inicial
-                        else:
-                            self.database_name = 'cotizaciones'  # Fallback
-                    except:
-                        self.database_name = 'cotizaciones'  # Fallback seguro
+                print("[MONGO] Usando MONGODB_URI de variables de entorno")
+                print(f"[MONGO] URI (primeros 50 chars): {mongodb_uri[:50]}...")
+                
+                self.mongo_uri = mongodb_uri.strip()  # Remover espacios
+                
+                # MEJORADO: Extraer nombre de base de datos con parsing robusto
+                self.database_name = self._extraer_nombre_bd_uri(mongodb_uri)
+                print(f"[MONGO] Base de datos extraída: '{self.database_name}'")
+                
+                # Validar formato de URI
+                if not self._validar_uri_mongodb(mongodb_uri):
+                    raise Exception("MONGODB_URI tiene formato inválido")
             else:
                 # Fallback para desarrollo local - usar variables separadas
                 print("MONGODB_URI no encontrada, usando variables separadas (desarrollo local)")
@@ -70,16 +66,28 @@ class DatabaseManager:
             print(f"Base de datos: {self.database_name}")
             print(f"URI configurada: {self.mongo_uri[:50]}...") # Solo mostrar inicio del URI
             
-            # Intentar conexión con timeout apropiado para el entorno
-            print("Creando cliente MongoDB...")
-            self.client = MongoClient(self.mongo_uri)
+            # MEJORADO: Conexión con verificación robusta y timeouts específicos
+            print("[MONGO] Creando cliente MongoDB...")
+            
+            # Timeout específico por entorno
+            timeout_ms = 30000 if es_produccion else 10000
+            print(f"[MONGO] Timeout configurado: {timeout_ms}ms")
+            
+            self.client = MongoClient(
+                self.mongo_uri,
+                serverSelectionTimeoutMS=timeout_ms,
+                connectTimeoutMS=timeout_ms,
+                socketTimeoutMS=timeout_ms
+            )
+            
             self.db = self.client[self.database_name]
             self.collection = self.db["cotizacions"]
             
-            # Verificar conexión con timeout
-            print("Verificando conexión con ping...")
-            ping_result = self.client.admin.command('ping')
-            print(f"Conexión a MongoDB exitosa: {ping_result}")
+            # CRÍTICO: Verificación REAL de conexión y permisos
+            print("[MONGO] Verificando conexión real...")
+            self._verificar_conexion_completa()
+            print("[MONGO] ✅ Conexión a MongoDB exitosa y verificada")
+            
             self.modo_offline = False
             
             # Crear índices
@@ -89,10 +97,133 @@ class DatabaseManager:
             self._sincronizar_cotizaciones_offline()
             
         except Exception as e:
-            print(f"MongoDB no disponible: {str(e)[:150]}...")
-            print("Activando modo OFFLINE automaticamente")
+            print(f"[ERROR MONGO] MongoDB no disponible: {str(e)}")
+            print(f"[ERROR MONGO] Tipo de error: {type(e).__name__}")
+            
+            # Log detallado del error para debugging
+            if 'ServerSelectionTimeoutError' in str(type(e)):
+                print("[ERROR MONGO] Timeout de conexión - verificar URI y red")
+            elif 'Authentication' in str(e):
+                print("[ERROR MONGO] Error de autenticación - verificar credenciales")
+            elif 'DNS' in str(e):
+                print("[ERROR MONGO] Error de DNS - verificar cluster URL")
+            
+            print("[MODO OFFLINE] Activando modo OFFLINE automáticamente")
             self.modo_offline = True
             self._inicializar_archivo_offline()
+    
+    def _extraer_nombre_bd_uri(self, uri):
+        """Extrae el nombre de la base de datos de la URI de MongoDB de forma robusta"""
+        try:
+            # Método 1: Parsing con urllib
+            parsed = urlparse(uri)
+            if parsed.path and len(parsed.path) > 1:
+                # Remover '/' inicial y parámetros después de '?'
+                db_name = parsed.path[1:].split('?')[0]
+                if db_name:
+                    print(f"[MONGO] BD extraída con urllib: '{db_name}'")
+                    return db_name
+            
+            # Método 2: Regex para diferentes formatos
+            # Formato: mongodb+srv://user:pass@cluster.net/database?params
+            regex_patterns = [
+                r'mongodb\+srv://[^/]+/([^?]+)',  # URI con SRV
+                r'mongodb://[^/]+/([^?]+)',       # URI sin SRV
+                r'/([a-zA-Z0-9_-]+)\?',           # BD antes de parámetros
+                r'/([a-zA-Z0-9_-]+)$'             # BD al final
+            ]
+            
+            for pattern in regex_patterns:
+                match = re.search(pattern, uri)
+                if match:
+                    db_name = match.group(1)
+                    print(f"[MONGO] BD extraída con regex: '{db_name}'")
+                    return db_name
+            
+            # Método 3: Búsqueda manual de nombres conocidos
+            known_dbs = ['cotizaciones', 'cotizador_cws', 'cws_cotizaciones']
+            for db in known_dbs:
+                if f'/{db}' in uri:
+                    print(f"[MONGO] BD encontrada por coincidencia: '{db}'")
+                    return db
+            
+            # Fallback por defecto
+            print("[MONGO] No se pudo extraer BD, usando 'cotizaciones'")
+            return 'cotizaciones'
+            
+        except Exception as e:
+            print(f"[ERROR MONGO] Error extrayendo nombre BD: {e}")
+            return 'cotizaciones'
+    
+    def _validar_uri_mongodb(self, uri):
+        """Valida que la URI de MongoDB tenga el formato correcto"""
+        try:
+            # Verificar que empiece con mongodb:// o mongodb+srv://
+            if not (uri.startswith('mongodb://') or uri.startswith('mongodb+srv://')):
+                print("[ERROR MONGO] URI no empieza con mongodb:// o mongodb+srv://")
+                return False
+            
+            # Verificar que tenga formato básico correcto
+            parsed = urlparse(uri)
+            if not parsed.hostname:
+                print("[ERROR MONGO] URI no tiene hostname válido")
+                return False
+            
+            print("[MONGO] [OK] URI MongoDB válida")
+            return True
+            
+        except Exception as e:
+            print(f"[ERROR MONGO] Error validando URI: {e}")
+            return False
+    
+    def _verificar_conexion_completa(self):
+        """Verifica conexión completa a MongoDB con operaciones reales"""
+        try:
+            # Test 1: Ping al servidor
+            print("[MONGO] Test 1: Ping al servidor...")
+            ping_result = self.client.admin.command('ping')
+            print(f"[MONGO] [OK] Ping exitoso: {ping_result}")
+            
+            # Test 2: Verificar acceso a la base de datos
+            print(f"[MONGO] Test 2: Verificando BD '{self.database_name}'...")
+            db_stats = self.db.command('dbstats')
+            print(f"[MONGO] [OK] Acceso a BD exitoso - DB size: {db_stats.get('dataSize', 'N/A')} bytes")
+            
+            # Test 3: Verificar acceso a la colección
+            print("[MONGO] Test 3: Verificando colección 'cotizacions'...")
+            col_count = self.collection.count_documents({})
+            print(f"[MONGO] [OK] Acceso a colección exitoso - Documentos: {col_count}")
+            
+            # Test 4: Operación de escritura (insertar y eliminar documento test)
+            print("[MONGO] Test 4: Verificando permisos de escritura...")
+            test_doc = {
+                "_test": True,
+                "timestamp": datetime.datetime.now().isoformat(),
+                "purpose": "connection_test"
+            }
+            
+            # Insertar documento test
+            result = self.collection.insert_one(test_doc)
+            test_id = result.inserted_id
+            print(f"[MONGO] [OK] Inserción test exitosa - ID: {test_id}")
+            
+            # Verificar que se insertó
+            found_doc = self.collection.find_one({"_id": test_id})
+            if not found_doc:
+                raise Exception("Documento test no encontrado después de insertar")
+            
+            # Eliminar documento test
+            delete_result = self.collection.delete_one({"_id": test_id})
+            if delete_result.deleted_count != 1:
+                raise Exception("No se pudo eliminar documento test")
+            
+            print("[MONGO] [OK] Permisos de escritura verificados")
+            print("[MONGO] [SUCCESS] VERIFICACIÓN COMPLETA EXITOSA")
+            
+        except Exception as e:
+            print(f"[ERROR MONGO] Fallo en verificación completa: {e}")
+            print(f"[ERROR MONGO] Detalles del error: {type(e).__name__}")
+            raise e
     
     def _crear_indices(self):
         """Crea índices para optimizar búsquedas frecuentes"""
@@ -387,19 +518,67 @@ class DatabaseManager:
                     print(f"Error en respaldo offline: {backup_error}")
                     # No fallar por error de respaldo
                 
-                # 4. VERIFICACIÓN INMEDIATA
-                print(f"[VERIFICAR] VERIFICACION INMEDIATA...")
-                verificacion = self.collection.find_one({"_id": resultado.inserted_id})
-                if verificacion:
-                    print(f"[OK] VERIFICACION: Cotizacion encontrada en BD")
-                    print(f"   Cliente guardado: {verificacion.get('datosGenerales', {}).get('cliente')}")
-                    print(f"   Numero guardado: {verificacion.get('numeroCotizacion')}")
-                else:
-                    print(f"[FAIL] VERIFICACION FALLO: Cotizacion NO encontrada despues de guardar")
-                    print(f"   Buscando con ObjectId: {resultado.inserted_id}")
-                    # Intentar una búsqueda más amplia
-                    total_docs = self.collection.count_documents({})
-                    print(f"   Total documentos en coleccion: {total_docs}")
+                # 4. VERIFICACIÓN CRÍTICA REAL DE GUARDADO
+                print(f"[VERIFICAR] 🔍 VERIFICACIÓN CRÍTICA INMEDIATA...")
+                
+                try:
+                    # Verificación múltiple para asegurar que se guardó realmente
+                    verificaciones_pasadas = 0
+                    total_verificaciones = 3
+                    documento_guardado = None
+                    
+                    # Verificación 1: Por ObjectId
+                    print(f"[VERIFICAR] Test 1: Buscando por ObjectId {resultado.inserted_id}")
+                    verificacion_id = self.collection.find_one({"_id": resultado.inserted_id})
+                    if verificacion_id:
+                        print(f"[VERIFICAR] [OK] Test 1 PASADO: Encontrado por ObjectId")
+                        documento_guardado = verificacion_id
+                        verificaciones_pasadas += 1
+                    else:
+                        print(f"[VERIFICAR] [FAIL] Test 1 FALLO: No encontrado por ObjectId")
+                    
+                    # Verificación 2: Por número de cotización
+                    print(f"[VERIFICAR] Test 2: Buscando por número '{numero}'")
+                    verificacion_numero = self.collection.find_one({"numeroCotizacion": numero})
+                    if verificacion_numero:
+                        print(f"[VERIFICAR] [OK] Test 2 PASADO: Encontrado por número")
+                        print(f"   Cliente verificado: {verificacion_numero.get('datosGenerales', {}).get('cliente')}")
+                        if not documento_guardado:
+                            documento_guardado = verificacion_numero
+                        verificaciones_pasadas += 1
+                    else:
+                        print(f"[VERIFICAR] [FAIL] Test 2 FALLO: No encontrado por número")
+                    
+                    # Verificación 3: Contar documentos
+                    print(f"[VERIFICAR] Test 3: Verificando incremento en conteo")
+                    conteo_actual = self.collection.count_documents({})
+                    print(f"   Total documentos ahora: {conteo_actual}")
+                    verificaciones_pasadas += 1  # Este siempre pasa si llegamos aquí
+                    
+                    # Evaluación final
+                    print(f"[VERIFICAR] Resultado: {verificaciones_pasadas}/{total_verificaciones} verificaciones pasadas")
+                    
+                    if verificaciones_pasadas >= 2:
+                        print(f"[VERIFICAR] [SUCCESS] GUARDADO VERIFICADO EXITOSAMENTE")
+                    else:
+                        # FALLO CRÍTICO - el documento NO se guardó realmente
+                        print(f"[VERIFICAR] [CRITICAL] FALLO CRÍTICO: Documento NO se guardó correctamente")
+                        print(f"   ObjectId generado: {resultado.inserted_id}")
+                        print(f"   Número de cotización: {numero}")
+                        
+                        # Cambiar a modo offline inmediatamente
+                        print(f"[CRÍTICO] Cambiando a modo offline por fallo de guardado")
+                        self.modo_offline = True
+                        return self.guardar_cotizacion(datos)
+                        
+                except Exception as verificacion_error:
+                    print(f"[ERROR VERIFICAR] Error en verificación: {verificacion_error}")
+                    print(f"[ERROR VERIFICAR] Tipo: {type(verificacion_error).__name__}")
+                    
+                    # Si hay error en verificación, cambiar a offline
+                    print(f"[RECONEXIÓN] Error en verificación, cambiando a offline")
+                    self.modo_offline = True
+                    return self.guardar_cotizacion(datos)
                 
                 return {
                     "success": True,

@@ -58,6 +58,138 @@ except Exception as e:
     print(f"Error inicializando PDFManager: {e}")
     pdf_manager = None
 
+# ===========================================
+# FUNCIONES AUXILIARES PARA CONVERSIÓN ROBUSTA
+# ===========================================
+
+def safe_float(value, default=0.0):
+    """
+    Convierte un valor a float de forma robusta, manejando strings, 
+    comas decimales europeas, y valores nulos.
+    
+    Args:
+        value: Valor a convertir
+        default: Valor por defecto si la conversión falla
+    
+    Returns:
+        float: Valor convertido o default
+    """
+    if value is None:
+        return default
+    
+    # Si ya es un número, devolverlo
+    if isinstance(value, (int, float)):
+        return float(value)
+    
+    # Convertir a string para procesamiento
+    try:
+        str_value = str(value).strip()
+        
+        # Manejar valores vacíos
+        if not str_value or str_value.lower() in ['', 'none', 'null', 'n/a']:
+            return default
+        
+        # Reemplazar comas por puntos (formato europeo vs americano)
+        # Pero solo si hay una sola coma y está seguida de 1-3 dígitos
+        if ',' in str_value:
+            parts = str_value.split(',')
+            if len(parts) == 2 and len(parts[1]) <= 3 and parts[1].isdigit():
+                # Es formato europeo: 123,45 -> 123.45
+                str_value = f"{parts[0]}.{parts[1]}"
+            else:
+                # Múltiples comas, probablemente separadores de miles: 1,234,567
+                str_value = str_value.replace(',', '')
+        
+        # Remover caracteres no numéricos excepto punto y signo menos
+        cleaned = ''
+        for char in str_value:
+            if char.isdigit() or char in ['.', '-']:
+                cleaned += char
+        
+        if not cleaned or cleaned == '-':
+            return default
+        
+        result = float(cleaned)
+        
+        # Validar que el resultado es razonable
+        if abs(result) > 1e10:  # Muy grande
+            print(f"[SAFE_FLOAT] Valor muy grande detectado: {result}, usando default")
+            return default
+        
+        return result
+        
+    except (ValueError, TypeError, AttributeError) as e:
+        print(f"[SAFE_FLOAT] Error convirtiendo '{value}' a float: {e}")
+        return default
+
+def safe_int(value, default=0):
+    """Convierte un valor a int de forma robusta"""
+    return int(safe_float(value, default))
+
+def validate_material_data(material, item_index=0, material_index=0):
+    """
+    Valida y limpia los datos de un material, asegurando tipos correctos
+    
+    Args:
+        material: Diccionario con datos del material
+        item_index: Índice del item (para logging)
+        material_index: Índice del material (para logging)
+    
+    Returns:
+        dict: Material validado y limpio
+    """
+    if not isinstance(material, dict):
+        print(f"[VALIDATE] Item {item_index}, Material {material_index}: No es dict válido")
+        return {
+            'descripcion': 'Material inválido',
+            'peso': 1.0,
+            'cantidad': 0.0,
+            'precio': 0.0,
+            'subtotal': 0.0
+        }
+    
+    # Obtener descripción
+    descripcion = material.get('descripcion') or material.get('material', 'Sin descripción')
+    
+    # Convertir valores numéricos con validación
+    peso = safe_float(material.get('peso'), 1.0)
+    cantidad = safe_float(material.get('cantidad'), 0.0)
+    precio = safe_float(material.get('precio'), 0.0)
+    
+    # Validaciones específicas
+    if peso <= 0 and (cantidad > 0 or precio > 0):
+        peso = 1.0  # Peso mínimo para materiales válidos
+        
+    if cantidad < 0:
+        print(f"[VALIDATE] Cantidad negativa detectada: {cantidad}, corrigiendo a 0")
+        cantidad = 0.0
+        
+    if precio < 0:
+        print(f"[VALIDATE] Precio negativo detectado: {precio}, corrigiendo a 0")
+        precio = 0.0
+    
+    # Calcular subtotal
+    subtotal = round(peso * cantidad * precio, 2)
+    
+    # Log de conversión para debugging
+    print(f"[VALIDATE] Item {item_index}, Material {material_index}: {descripcion}")
+    print(f"   Peso: {material.get('peso')} -> {peso}")
+    print(f"   Cantidad: {material.get('cantidad')} -> {cantidad}")
+    print(f"   Precio: {material.get('precio')} -> {precio}")
+    print(f"   Subtotal calculado: {subtotal}")
+    
+    return {
+        'descripcion': descripcion,
+        'peso': peso,
+        'cantidad': cantidad,
+        'precio': precio,
+        'subtotal': subtotal
+    }
+
+# ===========================================
+# CARGA DE MATERIALES DESDE CSV
+# ===========================================
+
 # Cargar lista de materiales desde CSV
 def cargar_materiales_csv():
     """Carga la lista de materiales desde el archivo CSV con manejo robusto para producción"""
@@ -676,48 +808,33 @@ def preparar_datos_nueva_revision(cotizacion_original):
                             print(f"    Material {j+1}: Estructura inválida, saltando")
                             continue
                         
-                        # Obtener valores con validación mejorada
-                        try:
-                            peso_str = material.get('peso', '1.0')
-                            cantidad_str = material.get('cantidad', '0')
-                            precio_str = material.get('precio', '0')
-                            
-                            # Convertir strings a números, manejando comas decimales
-                            peso = float(str(peso_str).replace(',', '.')) if peso_str else 1.0
-                            cantidad = float(str(cantidad_str).replace(',', '.')) if cantidad_str else 0.0
-                            precio = float(str(precio_str).replace(',', '.')) if precio_str else 0.0
-                        except (ValueError, TypeError) as e:
-                            print(f"    Material {j+1}: Error convirtiendo valores - {e}")
-                            peso, cantidad, precio = 1.0, 0.0, 0.0
+                        # MEJORADO: Usar validación robusta de datos de material
+                        material_validado = validate_material_data(material, i, j)
                         
-                        # Asegurar que peso mínimo sea 1 para materiales válidos
-                        if peso <= 0 and (cantidad > 0 or precio > 0):
-                            peso = 1.0
+                        # Actualizar el material con los datos validados
+                        material.update(material_validado)
                         
-                        subtotal_calculado = peso * cantidad * precio
-                        material['subtotal'] = round(subtotal_calculado, 2)
-                        
-                        desc = material.get('descripcion') or material.get('material', 'Sin descripción')
-                        print(f"    Material {j+1} recalculado: {desc} = {peso} * {cantidad} * {precio} = {subtotal_calculado}")
+                        print(f"    Material {j+1} validado y recalculado: {material_validado['descripcion']} = {material_validado['peso']} * {material_validado['cantidad']} * {material_validado['precio']} = {material_validado['subtotal']}")
                 
-                # Recalcular total del item con validación mejorada
+                # MEJORADO: Recalcular total del item con conversión robusta
                 try:
                     materiales_list = item.get('materiales', [])
                     if isinstance(materiales_list, list):
-                        total_materiales = sum(float(m.get('subtotal', 0)) for m in materiales_list if isinstance(m, dict))
+                        total_materiales = sum(safe_float(m.get('subtotal', 0)) for m in materiales_list if isinstance(m, dict))
                     else:
                         total_materiales = 0.0
                     
-                    otros = float(str(item.get('otros', 0)).replace(',', '.')) if item.get('otros') else 0.0
-                    transporte = float(str(item.get('transporte', 0)).replace(',', '.')) if item.get('transporte') else 0.0
-                    instalacion = float(str(item.get('instalacion', 0)).replace(',', '.')) if item.get('instalacion') else 0.0
+                    # Usar safe_float para conversión robusta de otros campos
+                    otros = safe_float(item.get('otros', 0))
+                    transporte = safe_float(item.get('transporte', 0))
+                    instalacion = safe_float(item.get('instalacion', 0))
                     
                     total_item = total_materiales + otros + transporte + instalacion
                     item['total'] = round(total_item, 2)
                     
-                    print(f"  Item total recalculado: {item.get('descripcion', 'Sin desc')} = {total_materiales} + {otros} + {transporte} + {instalacion} = {total_item}")
-                except (ValueError, TypeError) as e:
-                    print(f"  Error calculando total del item: {e}")
+                    print(f"  [RECALC] Item total: {item.get('descripcion', 'Sin desc')} = {total_materiales} + {otros} + {transporte} + {instalacion} = {total_item}")
+                except Exception as e:
+                    print(f"  [ERROR] Error calculando total del item: {e}")
                     item['total'] = 0.0
         
         # Limpiar campos que no deben copiarse
@@ -865,6 +982,84 @@ def admin_forzar_sincronizacion():
     """Fuerza sincronización manual"""
     resultado = db_manager.forzar_sincronizacion()
     return jsonify(resultado)
+
+@app.route("/diagnostico-completo")
+def diagnostico_completo():
+    """Diagnóstico completo del sistema para debugging de producción"""
+    import sys
+    
+    es_render = os.getenv('RENDER') or os.getenv('RENDER_SERVICE_NAME')
+    entorno = "RENDER" if es_render else "LOCAL"
+    
+    diagnostico = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "entorno": entorno,
+        "sistema": {
+            "es_render": bool(es_render),
+            "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+            "working_directory": os.getcwd(),
+            "flask_debug": app.config.get('DEBUG'),
+            "app_version": os.getenv('APP_VERSION', '1.0.0')
+        },
+        "mongodb": {
+            "estado": "offline" if db_manager.modo_offline else "online",
+            "uri_configurada": bool(os.getenv('MONGODB_URI')),
+            "variables_componentes": {
+                "username": bool(os.getenv('MONGO_USERNAME')),
+                "password": bool(os.getenv('MONGO_PASSWORD')),
+                "cluster": bool(os.getenv('MONGO_CLUSTER')),
+                "database": bool(os.getenv('MONGO_DATABASE'))
+            }
+        },
+        "google_drive": {
+            "disponible": bool(pdf_manager and pdf_manager.drive_client and pdf_manager.drive_client.is_available()),
+            "credenciales_configuradas": bool(os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')),
+            "carpeta_nuevas": os.getenv('GOOGLE_DRIVE_FOLDER_NUEVAS'),
+            "carpeta_antiguas": os.getenv('GOOGLE_DRIVE_FOLDER_ANTIGUAS')
+        },
+        "materiales": {
+            "total_cargados": len(LISTA_MATERIALES),
+            "archivo_csv_existe": os.path.exists(os.path.join(os.getcwd(), 'Lista de materiales.csv'))
+        },
+        "pdf": {
+            "reportlab_disponible": REPORTLAB_AVAILABLE,
+            "weasyprint_disponible": WEASYPRINT_AVAILABLE,
+            "pdf_manager_inicializado": pdf_manager is not None
+        }
+    }
+    
+    # Tests adicionales si están disponibles
+    if not db_manager.modo_offline:
+        try:
+            # Test rápido de MongoDB
+            test_ping = db_manager.client.admin.command('ping')
+            diagnostico["mongodb"]["test_ping"] = "exitoso"
+            diagnostico["mongodb"]["database_name"] = db_manager.database_name
+            diagnostico["mongodb"]["total_cotizaciones"] = db_manager.collection.count_documents({})
+        except Exception as e:
+            diagnostico["mongodb"]["test_ping"] = f"fallo: {str(e)[:100]}"
+    
+    if pdf_manager and pdf_manager.drive_client and pdf_manager.drive_client.is_available():
+        try:
+            # Test rápido de Google Drive
+            about_info = pdf_manager.drive_client.service.about().get(fields='user').execute()
+            diagnostico["google_drive"]["test_api"] = "exitoso"
+            diagnostico["google_drive"]["email_servicio"] = about_info.get('user', {}).get('emailAddress', 'N/A')
+        except Exception as e:
+            diagnostico["google_drive"]["test_api"] = f"fallo: {str(e)[:100]}"
+    
+    return jsonify(diagnostico)
+
+@app.route("/diagnostico-entorno")
+def diagnostico_entorno():
+    """Diagnóstico de variables de entorno para Render (mantenido por compatibilidad)"""
+    es_render = os.getenv('RENDER') or os.getenv('RENDER_SERVICE_NAME')
+    return jsonify({
+        'render_detected': bool(es_render),
+        'mongodb_uri_set': bool(os.getenv('MONGODB_URI')),
+        'google_credentials_set': bool(os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')),
+        'entorno': 'RENDER' if es_render else 'LOCAL'
+    })
 
 # ============================================
 # RUTAS DE BÚSQUEDA Y CONSULTA
