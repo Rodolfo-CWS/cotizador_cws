@@ -20,33 +20,66 @@ class DatabaseManager:
         # Intentar conectar a MongoDB primero
         try:
             from pymongo import MongoClient
-            import urllib.parse
             
-            # Obtener credenciales desde variables de entorno
-            usuario = os.getenv('MONGO_USERNAME', 'admin')
-            contraseña = os.getenv('MONGO_PASSWORD', 'ADMIN123')
-            cluster = os.getenv('MONGO_CLUSTER', 'cluster0.t4e0tp8.mongodb.net')
-            database = os.getenv('MONGO_DATABASE', 'cotizaciones')
+            # Detectar entorno: Render/producción vs desarrollo local
+            es_render = os.getenv('RENDER') or os.getenv('RENDER_SERVICE_NAME')
+            es_produccion = os.getenv('FLASK_ENV') == 'production' or es_render
             
-            # Codificar credenciales para URL
-            usuario_encoded = urllib.parse.quote_plus(usuario)
-            contraseña_encoded = urllib.parse.quote_plus(contraseña)
+            print(f"Entorno detectado: {'Render/Producción' if es_produccion else 'Desarrollo local'}")
             
-            # Construir URI con timeout muy corto para prueba rápida
-            self.mongo_uri = f"mongodb+srv://{usuario_encoded}:{contraseña_encoded}@{cluster}/{database}?retryWrites=true&w=majority&appName=Cluster0&connectTimeoutMS=3000&serverSelectionTimeoutMS=3000"
-            self.database_name = database
+            # Obtener URI desde variable de entorno o construir desde componentes separados
+            mongodb_uri = os.getenv('MONGODB_URI')
             
-            print(f"Base de datos: {database}")
-            print(f"Cluster: {cluster}")
+            if mongodb_uri:
+                # Usar URI completa (preferido para Render)
+                print("Usando MONGODB_URI de variables de entorno")
+                self.mongo_uri = mongodb_uri
+                # Extraer nombre de base de datos del URI
+                if '/cotizador_cws' in mongodb_uri:
+                    self.database_name = 'cotizador_cws'
+                elif '/cotizaciones' in mongodb_uri:
+                    self.database_name = 'cotizaciones'
+                else:
+                    # Extraer del URI usando parsing
+                    try:
+                        from urllib.parse import urlparse
+                        parsed = urlparse(mongodb_uri)
+                        if parsed.path and len(parsed.path) > 1:
+                            self.database_name = parsed.path[1:]  # Remover el '/' inicial
+                        else:
+                            self.database_name = 'cotizaciones'  # Fallback
+                    except:
+                        self.database_name = 'cotizaciones'  # Fallback seguro
+            else:
+                # Fallback para desarrollo local - usar variables separadas
+                print("MONGODB_URI no encontrada, usando variables separadas (desarrollo local)")
+                import urllib.parse
+                usuario = os.getenv('MONGO_USERNAME', 'admin')
+                contraseña = os.getenv('MONGO_PASSWORD', 'ADMIN123')
+                cluster = os.getenv('MONGO_CLUSTER', 'cluster0.t4e0tp8.mongodb.net')
+                database = os.getenv('MONGO_DATABASE', 'cotizaciones')
+                
+                usuario_encoded = urllib.parse.quote_plus(usuario)
+                contraseña_encoded = urllib.parse.quote_plus(contraseña)
+                
+                # Usar timeouts más largos en producción, cortos en desarrollo
+                timeout = "30000" if es_produccion else "5000"
+                self.mongo_uri = f"mongodb+srv://{usuario_encoded}:{contraseña_encoded}@{cluster}/{database}?retryWrites=true&w=majority&appName=Cluster0&connectTimeoutMS={timeout}&serverSelectionTimeoutMS={timeout}"
+                self.database_name = database
             
-            # Intentar conexión con timeout muy corto
+            print(f"Base de datos: {self.database_name}")
+            print(f"URI configurada: {self.mongo_uri[:50]}...") # Solo mostrar inicio del URI
+            
+            # Intentar conexión con timeout apropiado para el entorno
+            print("Creando cliente MongoDB...")
             self.client = MongoClient(self.mongo_uri)
-            self.db = self.client[database]
+            self.db = self.client[self.database_name]
             self.collection = self.db["cotizacions"]
             
             # Verificar conexión con timeout
-            self.client.admin.command('ping')
-            print("Conexion a MongoDB exitosa")
+            print("Verificando conexión con ping...")
+            ping_result = self.client.admin.command('ping')
+            print(f"Conexión a MongoDB exitosa: {ping_result}")
             self.modo_offline = False
             
             # Crear índices
@@ -243,8 +276,9 @@ class DatabaseManager:
     def guardar_cotizacion(self, datos):
         """Guarda una cotización con respaldo automático"""
         try:
-            print("INICIO GUARDADO DE COTIZACION")
-            print(f"Datos recibidos: {json.dumps(datos, indent=2, ensure_ascii=False)[:500]}...")
+            print("[INICIO] GUARDADO DE COTIZACION")
+            print(f"[DATOS] Recibidos: {json.dumps(datos, indent=2, ensure_ascii=False)[:500]}...")
+            print(f"[MODO] Actual: {'OFFLINE' if self.modo_offline else 'ONLINE'}")
             
             # Agregar metadata del sistema
             ahora = datetime.datetime.now()
@@ -260,11 +294,15 @@ class DatabaseManager:
             proyecto = datos.get("datosGenerales", {}).get("proyecto", "")
             
             # Validaciones de campos obligatorios
+            print(f"[VALIDACION] Cliente: '{cliente}' | Vendedor: '{vendedor}' | Proyecto: '{proyecto}'")
             if not cliente:
+                print("[ERROR] Cliente es obligatorio")
                 return {"success": False, "error": "Cliente es obligatorio"}
             if not vendedor:
+                print("[ERROR] Vendedor es obligatorio")
                 return {"success": False, "error": "Vendedor es obligatorio"}
             if not proyecto:
+                print("[ERROR] Proyecto es obligatorio")
                 return {"success": False, "error": "Proyecto es obligatorio"}
             
             # GENERAR NÚMERO DE COTIZACIÓN AUTOMÁTICAMENTE
@@ -318,7 +356,7 @@ class DatabaseManager:
                     return {"success": False, "error": "Error guardando en archivo"}
             else:
                 # MODO ONLINE: Guardar en MongoDB + Respaldo automático
-                print("Guardando en modo ONLINE (MongoDB + respaldo)")
+                print("[ONLINE] Guardando en modo ONLINE (MongoDB + respaldo)")
                 
                 # 1. Verificar conexión antes de guardar
                 try:
@@ -333,10 +371,13 @@ class DatabaseManager:
                     return self.guardar_cotizacion(datos)
                 
                 # 2. Guardar en MongoDB
+                print(f"[MONGODB] INTENTANDO GUARDAR EN MONGODB...")
+                print(f"   Collection: {self.collection}")
+                print(f"   Numero cotizacion: {numero}")
                 resultado = self.collection.insert_one(datos)
                 inserted_id = str(resultado.inserted_id)
                 
-                print(f"Cotizacion guardada en MongoDB - ID: {inserted_id}")
+                print(f"[SUCCESS] Cotizacion guardada en MongoDB - ID: {inserted_id}")
                 
                 # 3. RESPALDO AUTOMÁTICO: También guardar en archivo offline
                 try:
@@ -347,12 +388,18 @@ class DatabaseManager:
                     # No fallar por error de respaldo
                 
                 # 4. VERIFICACIÓN INMEDIATA
+                print(f"[VERIFICAR] VERIFICACION INMEDIATA...")
                 verificacion = self.collection.find_one({"_id": resultado.inserted_id})
                 if verificacion:
-                    print(f"VERIFICACION: Cotizacion encontrada en BD")
+                    print(f"[OK] VERIFICACION: Cotizacion encontrada en BD")
                     print(f"   Cliente guardado: {verificacion.get('datosGenerales', {}).get('cliente')}")
+                    print(f"   Numero guardado: {verificacion.get('numeroCotizacion')}")
                 else:
-                    print(f"VERIFICACION FALLO: Cotizacion NO encontrada despues de guardar")
+                    print(f"[FAIL] VERIFICACION FALLO: Cotizacion NO encontrada despues de guardar")
+                    print(f"   Buscando con ObjectId: {resultado.inserted_id}")
+                    # Intentar una búsqueda más amplia
+                    total_docs = self.collection.count_documents({})
+                    print(f"   Total documentos en coleccion: {total_docs}")
                 
                 return {
                     "success": True,

@@ -189,9 +189,16 @@ class PDFManager:
             Dict con resultado de la operación
         """
         try:
-            # Extraer información de la cotización
-            numero_cotizacion = cotizacion_data.get('numeroCotizacion', 'Sin_Numero')
+            # Extraer información de la cotización - verificar múltiples ubicaciones posibles
+            numero_cotizacion = (
+                cotizacion_data.get('numeroCotizacion') or 
+                cotizacion_data.get('datosGenerales', {}).get('numeroCotizacion') or 
+                'Sin_Numero'
+            )
             datos_generales = cotizacion_data.get('datosGenerales', {})
+            
+            print(f"[ALMACENAR_PDF] Número de cotización extraído: '{numero_cotizacion}'")
+            print(f"[ALMACENAR_PDF] Datos generales disponibles: {list(datos_generales.keys())}")
             
             # Generar nombre de archivo seguro
             nombre_archivo = self._generar_nombre_archivo(numero_cotizacion)
@@ -224,12 +231,96 @@ class PDFManager:
                     upsert=True
                 )
             
+            # MEJORADO: Integración con Google Drive - Subir PDF a carpeta "nuevas"
+            google_drive_result = None
+            
+            # Verificar disponibilidad de Google Drive con más detalle
+            es_render = os.getenv('RENDER') or os.getenv('RENDER_SERVICE_NAME')
+            print(f"[PDF Manager] Entorno Render detectado: {bool(es_render)}")
+            print(f"[PDF Manager] Drive client disponible: {self.drive_client is not None}")
+            print(f"[PDF Manager] Drive service disponible: {hasattr(self.drive_client, 'service') and self.drive_client.service is not None if self.drive_client else False}")
+            
+            if self.drive_client and self.drive_client.is_available():
+                try:
+                    print(f"[PDF Manager] Subiendo PDF a Google Drive: {nombre_archivo}")
+                    print(f"[PDF Manager] Carpeta destino (nuevas): {self.drive_client.folder_nuevas}")
+                    
+                    # Preparar metadata del archivo para Google Drive
+                    file_metadata = {
+                        'name': nombre_archivo,
+                        'parents': [self.drive_client.folder_nuevas]  # Carpeta "nuevas"
+                    }
+                    
+                    from googleapiclient.http import MediaIoBaseUpload
+                    import io
+                    
+                    # Crear media upload desde el contenido binario
+                    media_body = MediaIoBaseUpload(
+                        io.BytesIO(pdf_content),
+                        mimetype='application/pdf',
+                        resumable=True
+                    )
+                    
+                    print(f"[PDF Manager] Iniciando upload de {len(pdf_content)} bytes...")
+                    
+                    # Subir archivo a Google Drive con manejo de errores mejorado
+                    uploaded_file = self.drive_client.service.files().create(
+                        body=file_metadata,
+                        media_body=media_body,
+                        fields='id,name,size,createdTime,parents'
+                    ).execute()
+                    
+                    google_drive_result = {
+                        "success": True,
+                        "file_id": uploaded_file.get('id'),
+                        "nombre": uploaded_file.get('name'),
+                        "tamaño_drive": uploaded_file.get('size'),
+                        "fecha_subida": uploaded_file.get('createdTime'),
+                        "carpeta_id": self.drive_client.folder_nuevas
+                    }
+                    
+                    print(f"[PDF Manager] PDF subido exitosamente a Google Drive:")
+                    print(f"  - File ID: {uploaded_file.get('id')}")
+                    print(f"  - Nombre: {uploaded_file.get('name')}")
+                    print(f"  - Tamaño: {uploaded_file.get('size')} bytes")
+                    
+                except Exception as drive_error:
+                    print(f"[PDF Manager] Error subiendo a Google Drive: {drive_error}")
+                    print(f"[PDF Manager] Tipo de error: {type(drive_error).__name__}")
+                    if hasattr(drive_error, 'resp'):
+                        print(f"[PDF Manager] Código HTTP: {getattr(drive_error.resp, 'status', 'N/A')}")
+                    
+                    google_drive_result = {
+                        "success": False,
+                        "error": str(drive_error),
+                        "error_type": type(drive_error).__name__
+                    }
+            else:
+                # Log detallado de por qué no está disponible
+                motivo = "Google Drive no disponible:"
+                if not self.drive_client:
+                    motivo += " Cliente no inicializado"
+                elif not hasattr(self.drive_client, 'service'):
+                    motivo += " Servicio no encontrado"
+                elif not self.drive_client.service:
+                    motivo += " Servicio es None"
+                else:
+                    motivo += " Razón desconocida"
+                
+                print(f"[PDF Manager] {motivo}")
+                google_drive_result = {
+                    "success": False,
+                    "error": motivo,
+                    "local_only": True
+                }
+            
             return {
                 "success": True,
                 "mensaje": f"PDF almacenado exitosamente: {nombre_archivo}",
                 "ruta": str(ruta_completa),
                 "nombre_archivo": nombre_archivo,
-                "tamaño": len(pdf_content)
+                "tamaño": len(pdf_content),
+                "google_drive": google_drive_result  # Incluir resultado de Google Drive
             }
             
         except Exception as e:
@@ -239,16 +330,39 @@ class PDFManager:
             }
     
     def _generar_nombre_archivo(self, numero_cotizacion: str) -> str:
-        """Genera un nombre de archivo seguro para el PDF"""
-        # Limpiar caracteres especiales
-        nombre_limpio = numero_cotizacion.replace('/', '_').replace('\\', '_')
-        nombre_limpio = ''.join(c for c in nombre_limpio if c.isalnum() or c in '._-')
+        """Genera un nombre de archivo seguro para el PDF usando EXACTAMENTE el nombre de la cotización"""
+        print(f"[PDF_NAME] Generando nombre para cotización: '{numero_cotizacion}'")
         
-        # Asegurar que no esté vacío
-        if not nombre_limpio:
-            nombre_limpio = f"Cotizacion_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        # Verificar que el número de cotización no esté vacío
+        if not numero_cotizacion or numero_cotizacion.strip() == "":
+            print("[PDF_NAME] ERROR: Número de cotización vacío - usando fallback temporal")
+            nombre_limpio = f"SIN_NUMERO_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        else:
+            # IMPORTANTE: NO agregar prefijo "Cotización_" - usar EXACTAMENTE el nombre del formulario
+            nombre_limpio = numero_cotizacion.strip()
+            
+            # Solo limpiar caracteres que son problemáticos para nombres de archivo
+            # Mantener la estructura original lo más intacta posible
+            nombre_limpio = nombre_limpio.replace('/', '-').replace('\\', '-')
+            nombre_limpio = nombre_limpio.replace(':', '-').replace('*', '')
+            nombre_limpio = nombre_limpio.replace('?', '').replace('"', '').replace('<', '').replace('>', '').replace('|', '-')
+            
+            # NO reemplazar espacios con guiones bajos - mantener el formato original
+            # Solo reemplazar espacios si causan problemas específicos
+            # nombre_limpio = nombre_limpio.replace(' ', '_')  # REMOVIDO
+            
+            print(f"[PDF_NAME] Nombre limpiado (sin prefijo): '{nombre_limpio}'")
         
-        return f"Cotizacion_{nombre_limpio}.pdf"
+        # Verificar que el nombre final no esté vacío después de la limpieza
+        if not nombre_limpio or len(nombre_limpio.replace('-', '').replace(' ', '')) == 0:
+            print("[PDF_NAME] ERROR: Nombre vacío después de limpieza - usando fallback")
+            nombre_limpio = f"COTIZACION_ERROR_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # IMPORTANTE: El nombre final es EXACTAMENTE el nombre de la cotización + .pdf
+        nombre_final = f"{nombre_limpio}.pdf"
+        print(f"[PDF_NAME] Nombre final generado (sin prefijo 'Cotización_'): '{nombre_final}'")
+        
+        return nombre_final
     
     def buscar_pdfs(self, query: str, page: int = 1, per_page: int = 20) -> Dict:
         """

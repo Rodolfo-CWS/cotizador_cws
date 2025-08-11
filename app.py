@@ -60,28 +60,127 @@ except Exception as e:
 
 # Cargar lista de materiales desde CSV
 def cargar_materiales_csv():
-    """Carga la lista de materiales desde el archivo CSV"""
+    """Carga la lista de materiales desde el archivo CSV con manejo robusto para producción"""
     materiales = []
+    
+    # Detectar entorno
+    es_render = os.getenv('RENDER') or os.getenv('RENDER_SERVICE_NAME')
+    print(f"[MATERIALES] Entorno Render detectado: {bool(es_render)}")
+    print(f"[MATERIALES] Directorio actual: {os.getcwd()}")
+    print(f"[MATERIALES] __file__ path: {__file__}")
+    
     try:
-        ruta_csv = os.path.join(os.path.dirname(__file__), 'Lista de materiales.csv')
-        with open(ruta_csv, 'r', encoding='utf-8-sig') as archivo:
+        # Intentar múltiples rutas posibles
+        rutas_posibles = [
+            os.path.join(os.path.dirname(__file__), 'Lista de materiales.csv'),
+            os.path.join(os.getcwd(), 'Lista de materiales.csv'),
+            './Lista de materiales.csv',
+            'Lista de materiales.csv'
+        ]
+        
+        archivo_encontrado = None
+        for ruta_csv in rutas_posibles:
+            print(f"[MATERIALES] Intentando cargar CSV desde: {ruta_csv}")
+            if os.path.exists(ruta_csv):
+                archivo_encontrado = ruta_csv
+                print(f"[MATERIALES] Archivo CSV encontrado en: {ruta_csv}")
+                break
+            else:
+                print(f"[MATERIALES] No encontrado en: {ruta_csv}")
+        
+        if not archivo_encontrado:
+            raise FileNotFoundError("No se encontró el archivo 'Lista de materiales.csv' en ninguna ubicación")
+        
+        # Cargar el CSV
+        print(f"[MATERIALES] Cargando CSV desde: {archivo_encontrado}")
+        with open(archivo_encontrado, 'r', encoding='utf-8-sig') as archivo:
+            contenido = archivo.read()
+            print(f"[MATERIALES] Tamaño del archivo: {len(contenido)} caracteres")
+            print(f"[MATERIALES] Primeras 200 caracteres: {contenido[:200]}")
+            
+            # Resetear puntero del archivo
+            archivo.seek(0)
             reader = csv.DictReader(archivo)
-            for fila in reader:
-                # Limpiar los headers que pueden tener espacios
-                headers_limpios = {k.strip(): v for k, v in fila.items()}
-                material = {
-                    'descripcion': headers_limpios['Tipo de material'].strip(),
-                    'peso': float(headers_limpios['Peso']),
-                    'uom': headers_limpios['Ref de Peso'].strip()
-                }
-                materiales.append(material)
-        print(f"Cargados {len(materiales)} materiales desde CSV")
+            
+            # Verificar headers
+            headers = reader.fieldnames
+            print(f"[MATERIALES] Headers encontrados: {headers}")
+            
+            for i, fila in enumerate(reader):
+                try:
+                    # Limpiar los headers que pueden tener espacios
+                    headers_limpios = {k.strip() if k else f'col_{i}': v for k, v in fila.items()}
+                    
+                    # Buscar columnas por diferentes nombres posibles
+                    descripcion = (
+                        headers_limpios.get('Tipo de material') or
+                        headers_limpios.get('tipo_material') or 
+                        headers_limpios.get('material') or
+                        headers_limpios.get('descripcion') or
+                        f'Material {i+1}'
+                    )
+                    
+                    peso_str = (
+                        headers_limpios.get('Peso') or
+                        headers_limpios.get('peso') or
+                        headers_limpios.get('weight') or
+                        '1.0'
+                    )
+                    
+                    uom = (
+                        headers_limpios.get('Ref de Peso') or
+                        headers_limpios.get('uom') or
+                        headers_limpios.get('unidad') or
+                        'kg/m2'
+                    )
+                    
+                    # Convertir peso manejando errores
+                    try:
+                        peso = float(str(peso_str).replace(',', '.'))
+                    except (ValueError, TypeError):
+                        peso = 1.0
+                    
+                    material = {
+                        'descripcion': str(descripcion).strip(),
+                        'peso': peso,
+                        'uom': str(uom).strip()
+                    }
+                    materiales.append(material)
+                    
+                except Exception as fila_error:
+                    print(f"[MATERIALES] Error procesando fila {i+1}: {fila_error}")
+                    continue
+                    
+        print(f"[MATERIALES] Cargados {len(materiales)} materiales desde CSV")
+        
+        # Mostrar algunos ejemplos
+        if materiales:
+            print(f"[MATERIALES] Ejemplos cargados:")
+            for i, mat in enumerate(materiales[:3]):
+                print(f"  {i+1}. {mat['descripcion']} - {mat['peso']} {mat['uom']}")
+        
     except Exception as e:
-        print(f"Error cargando materiales: {e}")
+        print(f"[MATERIALES] Error cargando materiales: {e}")
+        print(f"[MATERIALES] Tipo de error: {type(e).__name__}")
+        
+        # Lista archivos del directorio para debug
+        try:
+            archivos = os.listdir(os.path.dirname(__file__) or '.')
+            print(f"[MATERIALES] Archivos en directorio: {archivos}")
+        except:
+            pass
+        
         # Materiales por defecto si falla la carga
         materiales = [
-            {'descripcion': 'Material personalizado', 'peso': 0, 'uom': 'Especificar'}
+            {'descripcion': 'Acero estructural', 'peso': 7850.0, 'uom': 'kg/m3'},
+            {'descripcion': 'Concreto armado', 'peso': 2400.0, 'uom': 'kg/m3'},
+            {'descripcion': 'Lamina galvanizada', 'peso': 7.85, 'uom': 'kg/m2'},
+            {'descripcion': 'Perfil IPR', 'peso': 1.0, 'uom': 'kg/ml'},
+            {'descripcion': 'Tubo estructural', 'peso': 1.0, 'uom': 'kg/ml'},
+            {'descripcion': 'Material personalizado', 'peso': 1.0, 'uom': 'Especificar'}
         ]
+        print(f"[MATERIALES] Usando {len(materiales)} materiales por defecto")
+    
     return materiales
 
 # Cargar materiales al iniciar la aplicación
@@ -96,47 +195,47 @@ def generar_pdf_reportlab(datos_cotizacion):
     # Crear buffer en memoria
     buffer = io.BytesIO()
     
-    # Crear documento PDF con márgenes profesionales
+    # Crear documento PDF con márgenes reducidos para página única
     doc = SimpleDocTemplate(
         buffer, 
         pagesize=letter,
-        rightMargin=0.75*inch,
-        leftMargin=0.75*inch,
-        topMargin=0.75*inch,
-        bottomMargin=0.75*inch
+        rightMargin=0.5*inch,
+        leftMargin=0.5*inch,
+        topMargin=0.5*inch,
+        bottomMargin=0.4*inch
     )
     story = []
     
     # Estilos profesionales
     styles = getSampleStyleSheet()
     
-    # Estilo para el encabezado principal
+    # Estilo para el encabezado principal - reducido
     header_style = ParagraphStyle(
         'CustomHeader',
         parent=styles['Normal'],
-        fontSize=20,
-        spaceAfter=10,
+        fontSize=14,
+        spaceAfter=6,
         alignment=1,  # Centro
         textColor=colors.HexColor('#2C5282'),  # Azul corporativo
         fontName='Helvetica-Bold'
     )
     
-    # Estilo para subtítulos
+    # Estilo para subtítulos - reducido
     subtitle_style = ParagraphStyle(
         'SubTitle',
         parent=styles['Normal'],
-        fontSize=12,
-        spaceAfter=15,
-        spaceBefore=10,
+        fontSize=10,
+        spaceAfter=8,
+        spaceBefore=6,
         fontName='Helvetica-Bold',
         textColor=colors.HexColor('#2D3748')
     )
     
-    # Estilo para texto normal
+    # Estilo para texto normal - reducido
     normal_style = ParagraphStyle(
         'CustomNormal',
         parent=styles['Normal'],
-        fontSize=10,
+        fontSize=8,
         fontName='Helvetica'
     )
     
@@ -150,16 +249,16 @@ def generar_pdf_reportlab(datos_cotizacion):
     logo_path = "static/logo.png"
     from reportlab.platypus import Image
     
-    # Intentar cargar logo, si no existe usar texto
+    # Intentar cargar logo, si no existe usar texto - tamaño reducido
     try:
         if os.path.exists(logo_path):
-            logo = Image(logo_path, width=1.2*inch, height=0.8*inch)
+            logo = Image(logo_path, width=0.8*inch, height=0.5*inch)
         else:
             logo = Paragraph("CWS<br/>COMPANY", header_style)
     except:
         logo = Paragraph("CWS<br/>COMPANY", header_style)
     
-    # Información de la empresa
+    # Información de la empresa - reducida
     empresa_info = Paragraph("""
         <b>CWS COMPANY SA DE CV</b><br/>
         Puerta de los monos 250<br/>
@@ -168,13 +267,13 @@ def generar_pdf_reportlab(datos_cotizacion):
     """, ParagraphStyle(
         'EmpresaInfo',
         parent=styles['Normal'],
-        fontSize=10,
+        fontSize=8,
         fontName='Helvetica',
         textColor=colors.HexColor('#2D3748'),
         alignment=0  # Izquierda
     ))
     
-    # Información de cotización (derecha)
+    # Información de cotización (derecha) - reducida
     fecha_actual = datetime.datetime.now().strftime('%d/%m/%Y')
     cotizacion_info = Paragraph(f"""
         <b>COTIZACIÓN</b><br/>
@@ -184,7 +283,7 @@ def generar_pdf_reportlab(datos_cotizacion):
     """, ParagraphStyle(
         'CotizacionInfo',
         parent=styles['Normal'],
-        fontSize=10,
+        fontSize=8,
         fontName='Helvetica-Bold',
         textColor=colors.HexColor('#2C5282'),
         alignment=2  # Derecha
@@ -198,37 +297,37 @@ def generar_pdf_reportlab(datos_cotizacion):
         ('ALIGN', (1, 0), (1, 0), 'LEFT'),    # Empresa a la izquierda
         ('ALIGN', (2, 0), (2, 0), 'RIGHT'),   # Cotización a la derecha
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
     ]))
     
     story.append(header_table)
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 6))
     
     # Línea separadora
     from reportlab.graphics.shapes import Drawing, Line as GraphicsLine
     line_drawing = Drawing(400, 1)
     line_drawing.add(GraphicsLine(0, 0, 400, 0, strokeColor=colors.HexColor('#2C5282'), strokeWidth=2))
     story.append(line_drawing)
-    story.append(Spacer(1, 15))
+    story.append(Spacer(1, 8))
     
     # INFORMACIÓN DEL CLIENTE - Diseño profesional en formato de tarjeta
     story.append(Paragraph("INFORMACIÓN DEL CLIENTE", subtitle_style))
-    story.append(Spacer(1, 5))
+    story.append(Spacer(1, 3))
     
-    # Crear sección destacada para el proyecto
+    # Crear sección destacada para el proyecto - reducida
     if datos_generales.get('proyecto'):
         proyecto_style = ParagraphStyle(
             'ProyectoDestacado',
             parent=styles['Normal'],
-            fontSize=12,
+            fontSize=9,
             fontName='Helvetica-Bold',
             textColor=colors.white,
             backColor=colors.HexColor('#2C5282'),
-            borderPadding=8,
+            borderPadding=5,
             alignment=1  # Centro
         )
         story.append(Paragraph(f"PROYECTO: {datos_generales.get('proyecto', '')}", proyecto_style))
-        story.append(Spacer(1, 15))
+        story.append(Spacer(1, 8))
     
     # Datos del cliente en formato mejorado
     info_data = [
@@ -243,12 +342,12 @@ def generar_pdf_reportlab(datos_cotizacion):
     
     info_table = Table(info_data, colWidths=[1.2*inch, 2.8*inch, 1.2*inch, 2.8*inch])
     info_table.setStyle(TableStyle([
-        # Estilo general
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('LEFTPADDING', (0, 0), (-1, -1), 12),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+        # Estilo general - reducido
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
         
         # Labels (columnas 0 y 2) - Estilo destacado
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
@@ -276,37 +375,34 @@ def generar_pdf_reportlab(datos_cotizacion):
     ]))
     
     story.append(info_table)
-    story.append(Spacer(1, 20))
+    story.append(Spacer(1, 10))
     
-    # TEXTO INTRODUCTORIO PROFESIONAL
+    # TEXTO INTRODUCTORIO PROFESIONAL - reducido
     intro_style = ParagraphStyle(
         'IntroText',
         parent=styles['Normal'],
-        fontSize=9,
+        fontSize=7,
         fontName='Helvetica',
         textColor=colors.HexColor('#2D3748'),
         alignment=4,  # Justificado
-        spaceAfter=15,
-        borderPadding=10,
+        spaceAfter=8,
+        borderPadding=6,
         backColor=colors.HexColor('#F7FAFC'),
         borderColor=colors.HexColor('#E2E8F0'),
         borderWidth=0.5
     )
     
-    intro_text = """Estimado Cliente,<br/><br/>
-    Agradeciendo de antemano la oportunidad de participar en este proyecto y de acuerdo con su solicitud, 
-    CWS Company se complace en presentar para su consideración esta propuesta económica relacionada con 
-    el proyecto mencionado anteriormente.<br/><br/>
-    Esperando haber entendido sus requerimientos correctamente y en su totalidad, permaneceremos a la 
-    espera de su respuesta, mientras le enviamos nuestro más cordial saludo."""
+    intro_text = """Estimado Cliente,<br/>
+    CWS Company se complace en presentar esta propuesta económica para el proyecto solicitado. 
+    Esperamos haber entendido sus requerimientos y permanecemos a la espera de su respuesta."""
     
     story.append(Paragraph(intro_text, intro_style))
-    story.append(Spacer(1, 15))
+    story.append(Spacer(1, 8))
     
     # ITEMS - Tabla profesional mejorada
     if items:
         story.append(Paragraph("ITEMS DE COTIZACIÓN", subtitle_style))
-        story.append(Spacer(1, 10))
+        story.append(Spacer(1, 5))
         
         # Encabezado de tabla mejorado
         items_data = [['ITEM', 'DESCRIPCIÓN', 'CANT.', 'UOM', 'PRECIO UNITARIO', 'TOTAL']]
@@ -330,18 +426,18 @@ def generar_pdf_reportlab(datos_cotizacion):
         
         items_table = Table(items_data, colWidths=[0.5*inch, 2.5*inch, 0.7*inch, 0.6*inch, 1.1*inch, 1.1*inch])
         items_table.setStyle(TableStyle([
-            # Encabezado mejorado
+            # Encabezado mejorado - reducido
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2C5282')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('FONTSIZE', (0, 0), (-1, 0), 8),
             ('ALIGN', (0, 0), (0, 0), 'CENTER'),  # ITEM
             ('ALIGN', (1, 0), (1, 0), 'CENTER'),  # DESCRIPCIÓN
             ('ALIGN', (2, 0), (-1, 0), 'CENTER'), # CANT, UOM, PRECIO, TOTAL
             
-            # Contenido con mejor alineación
+            # Contenido con mejor alineación - reducido
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('FONTSIZE', (0, 1), (-1, -1), 7),
             ('ALIGN', (0, 1), (0, -1), 'CENTER'),   # ITEM número centrado
             ('ALIGN', (1, 1), (1, -1), 'LEFT'),     # Descripción a la izquierda
             ('ALIGN', (2, 1), (3, -1), 'CENTER'),   # CANT y UOM centrados
@@ -351,11 +447,11 @@ def generar_pdf_reportlab(datos_cotizacion):
             ('FONTNAME', (4, 1), (-1, -1), 'Helvetica-Bold'),
             ('TEXTCOLOR', (4, 1), (-1, -1), colors.HexColor('#2C5282')),
             
-            # Padding mejorado
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('LEFTPADDING', (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            # Padding mejorado - reducido
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
             
             # Bordes profesionales
             ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#2C5282')),
@@ -367,7 +463,7 @@ def generar_pdf_reportlab(datos_cotizacion):
         ]))
         
         story.append(items_table)
-        story.append(Spacer(1, 15))
+        story.append(Spacer(1, 8))
         
         # TOTALES - Caja profesional alineada a la derecha
         iva = subtotal * 0.16
@@ -387,20 +483,20 @@ def generar_pdf_reportlab(datos_cotizacion):
             ('ALIGN', (0, 0), (0, -1), 'RIGHT'),  # Labels a la derecha
             ('ALIGN', (1, 0), (1, -1), 'RIGHT'),  # Valores a la derecha
             
-            # Fuentes
+            # Fuentes - reducidas
             ('FONTNAME', (0, 0), (-1, -2), 'Helvetica'),
             ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),  # Total en bold
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
             
             # Colores
             ('TEXTCOLOR', (0, 0), (-1, -2), colors.HexColor('#2D3748')),
             ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#2C5282')),
             
-            # Padding
-            ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            ('LEFTPADDING', (0, 0), (-1, -1), 10),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            # Padding - reducido
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
             
             # Bordes
             ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#CBD5E0')),
@@ -418,9 +514,9 @@ def generar_pdf_reportlab(datos_cotizacion):
     
     # TÉRMINOS Y CONDICIONES - Sección profesional
     if condiciones:
-        story.append(Spacer(1, 25))
+        story.append(Spacer(1, 12))
         story.append(Paragraph("TÉRMINOS Y CONDICIONES", subtitle_style))
-        story.append(Spacer(1, 10))
+        story.append(Spacer(1, 5))
         
         # Preparar datos de términos
         terminos_data = []
@@ -441,22 +537,22 @@ def generar_pdf_reportlab(datos_cotizacion):
         if terminos_data:  # Solo crear tabla si hay datos
             terminos_table = Table(terminos_data, colWidths=[2*inch, 5*inch])
             terminos_table.setStyle(TableStyle([
-                # Fuentes y tamaños
+                # Fuentes y tamaños - reducidas
                 ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
                 ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
                 
                 # Colores
                 ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2D3748')),
                 ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#4A5568')),
                 
-                # Alineación y padding
+                # Alineación y padding - reducido
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('TOPPADDING', (0, 0), (-1, -1), 6),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                ('LEFTPADDING', (0, 0), (-1, -1), 8),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
                 
                 # Fondo y bordes sutiles
                 ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F7FAFC')),
@@ -466,34 +562,34 @@ def generar_pdf_reportlab(datos_cotizacion):
             
             story.append(terminos_table)
         
-    # PIE DE PÁGINA PROFESIONAL
-    story.append(Spacer(1, 25))
+    # PIE DE PÁGINA PROFESIONAL - reducido
+    story.append(Spacer(1, 12))
     
     # Línea separadora
     footer_line = Drawing(400, 1)
     footer_line.add(GraphicsLine(0, 0, 400, 0, strokeColor=colors.HexColor('#2C5282'), strokeWidth=1))
     story.append(footer_line)
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 6))
     
-    # Saludo de cierre
+    # Saludo de cierre - reducido
     closing_style = ParagraphStyle(
         'ClosingText',
         parent=styles['Normal'],
-        fontSize=10,
+        fontSize=8,
         fontName='Helvetica',
         textColor=colors.HexColor('#2D3748'),
         alignment=0  # Izquierda
     )
     
-    closing_text = """Atentamente,<br/><br/>"""
+    closing_text = """Atentamente,<br/>"""
     story.append(Paragraph(closing_text, closing_style))
     
-    # Información del vendedor
+    # Información del vendedor - reducida
     vendedor = datos_generales.get('vendedor', 'Equipo CWS')
     vendor_style = ParagraphStyle(
         'VendorInfo',
         parent=styles['Normal'],
-        fontSize=11,
+        fontSize=9,
         fontName='Helvetica-Bold',
         textColor=colors.HexColor('#2C5282'),
         alignment=0
@@ -501,17 +597,17 @@ def generar_pdf_reportlab(datos_cotizacion):
     
     story.append(Paragraph(f"{vendedor}", vendor_style))
     story.append(Paragraph("CWS Company SA de CV", vendor_style))
-    story.append(Spacer(1, 15))
+    story.append(Spacer(1, 8))
     
-    # Footer corporativo mejorado
+    # Footer corporativo mejorado - reducido
     footer_style = ParagraphStyle(
         'FooterText',
         parent=styles['Normal'],
-        fontSize=8,
+        fontSize=7,
         fontName='Helvetica',
         textColor=colors.HexColor('#718096'),
         alignment=1,  # Centro
-        borderPadding=8,
+        borderPadding=4,
         backColor=colors.HexColor('#F7FAFC'),
         borderColor=colors.HexColor('#E2E8F0'),
         borderWidth=0.5
@@ -567,6 +663,63 @@ def preparar_datos_nueva_revision(cotizacion_original):
             nuevo_numero = db_manager.generar_numero_cotizacion(cliente, vendedor, proyecto, int(nueva_revision))
             datos['datosGenerales']['numeroCotizacion'] = nuevo_numero
         
+        # NUEVO: Recalcular subtotales de materiales para asegurar consistencia
+        if 'items' in datos:
+            print("[REVISION] Recalculando subtotales de materiales...")
+            for i, item in enumerate(datos['items']):
+                print(f"  Procesando item {i+1}: {item.get('descripcion', 'Sin descripción')}")
+                
+                if 'materiales' in item and isinstance(item['materiales'], list):
+                    for j, material in enumerate(item['materiales']):
+                        # Validar que el material tenga los campos necesarios
+                        if not material or not isinstance(material, dict):
+                            print(f"    Material {j+1}: Estructura inválida, saltando")
+                            continue
+                        
+                        # Obtener valores con validación mejorada
+                        try:
+                            peso_str = material.get('peso', '1.0')
+                            cantidad_str = material.get('cantidad', '0')
+                            precio_str = material.get('precio', '0')
+                            
+                            # Convertir strings a números, manejando comas decimales
+                            peso = float(str(peso_str).replace(',', '.')) if peso_str else 1.0
+                            cantidad = float(str(cantidad_str).replace(',', '.')) if cantidad_str else 0.0
+                            precio = float(str(precio_str).replace(',', '.')) if precio_str else 0.0
+                        except (ValueError, TypeError) as e:
+                            print(f"    Material {j+1}: Error convirtiendo valores - {e}")
+                            peso, cantidad, precio = 1.0, 0.0, 0.0
+                        
+                        # Asegurar que peso mínimo sea 1 para materiales válidos
+                        if peso <= 0 and (cantidad > 0 or precio > 0):
+                            peso = 1.0
+                        
+                        subtotal_calculado = peso * cantidad * precio
+                        material['subtotal'] = round(subtotal_calculado, 2)
+                        
+                        desc = material.get('descripcion') or material.get('material', 'Sin descripción')
+                        print(f"    Material {j+1} recalculado: {desc} = {peso} * {cantidad} * {precio} = {subtotal_calculado}")
+                
+                # Recalcular total del item con validación mejorada
+                try:
+                    materiales_list = item.get('materiales', [])
+                    if isinstance(materiales_list, list):
+                        total_materiales = sum(float(m.get('subtotal', 0)) for m in materiales_list if isinstance(m, dict))
+                    else:
+                        total_materiales = 0.0
+                    
+                    otros = float(str(item.get('otros', 0)).replace(',', '.')) if item.get('otros') else 0.0
+                    transporte = float(str(item.get('transporte', 0)).replace(',', '.')) if item.get('transporte') else 0.0
+                    instalacion = float(str(item.get('instalacion', 0)).replace(',', '.')) if item.get('instalacion') else 0.0
+                    
+                    total_item = total_materiales + otros + transporte + instalacion
+                    item['total'] = round(total_item, 2)
+                    
+                    print(f"  Item total recalculado: {item.get('descripcion', 'Sin desc')} = {total_materiales} + {otros} + {transporte} + {instalacion} = {total_item}")
+                except (ValueError, TypeError) as e:
+                    print(f"  Error calculando total del item: {e}")
+                    item['total'] = 0.0
+        
         # Limpiar campos que no deben copiarse
         campos_a_limpiar = ['_id', 'fechaCreacion', 'timestamp', 'version']
         for campo in campos_a_limpiar:
@@ -580,6 +733,8 @@ def preparar_datos_nueva_revision(cotizacion_original):
         
     except Exception as e:
         print(f"[ERROR] Error preparando nueva revisión: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 # Registrar cierre de conexión al salir
@@ -641,12 +796,16 @@ def formulario():
     if request.method == "POST":
         try:
             datos = request.get_json()
-            print("Datos del formulario recibidos")
+            print("[FORM] FORMULARIO: Datos del formulario recibidos")
+            print(f"[FORM] FORMULARIO: Cliente='{datos.get('datosGenerales', {}).get('cliente', 'N/A')}' | Items={len(datos.get('items', []))}")
             
             # Guardar usando DatabaseManager
+            print("[FORM] FORMULARIO: Llamando a guardar_cotizacion...")
             resultado = db_manager.guardar_cotizacion(datos)
+            print(f"[FORM] FORMULARIO: Resultado guardado = {resultado}")
             
             if resultado["success"]:
+                print(f"[OK] FORMULARIO: Guardado exitoso - Numero: {resultado.get('numeroCotizacion')}")
                 return jsonify({
                     "success": True,
                     "mensaje": "Cotización guardada correctamente",
@@ -654,6 +813,7 @@ def formulario():
                     "numeroCotizacion": resultado["numeroCotizacion"]
                 })
             else:
+                print(f"[ERROR] FORMULARIO: Error al guardar - {resultado.get('error')}")
                 return jsonify({
                     "success": False,
                     "error": "Error al guardar",
@@ -661,7 +821,9 @@ def formulario():
                 }), 500
                 
         except Exception as e:
-            print(f"Error en formulario: {e}")
+            print(f"[CRITICAL] FORMULARIO: ERROR CRITICO - {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({
                 "success": False,
                 "error": "Error del servidor",
@@ -894,7 +1056,7 @@ def generar_pdf():
             raise Exception("Ningún generador de PDF disponible")
         
         pdf_buffer.seek(0)
-        filename = f"Cotizacion_{numero_cotizacion.replace('/', '_').replace('-', '_')}.pdf"
+        filename = f"{numero_cotizacion.replace('/', '_').replace('-', '_')}.pdf"
         
         print(f"PDF generado exitosamente: {filename}")
         
@@ -1996,6 +2158,39 @@ def debug_pdf_especifico(numero_cotizacion):
         
     except Exception as e:
         return jsonify({"error": f"Error en debug: {str(e)}"}), 500
+
+@app.route("/debug-env")
+def debug_env():
+    """Diagnostico de variables de entorno para Render"""
+    import os
+    
+    # Verificar variables criticas
+    mongodb_uri = os.getenv('MONGODB_URI')
+    env_check = {
+        'SECRET_KEY': 'CONFIGURADO' if os.getenv('SECRET_KEY') else 'FALTA',
+        'MONGODB_URI': 'CONFIGURADO' if mongodb_uri else 'FALTA',
+        'MONGODB_URI_PREVIEW': f"{mongodb_uri[:50]}..." if mongodb_uri else 'N/A',
+        'RENDER': 'SI' if os.getenv('RENDER') else 'NO',
+        'PORT': os.getenv('PORT', 'No configurado'),
+        'entorno': 'RENDER' if os.getenv('RENDER') else 'LOCAL'
+    }
+    
+    # Estado de MongoDB
+    env_check['mongodb_modo_offline'] = db_manager.modo_offline
+    
+    # Intentar contar cotizaciones
+    try:
+        if not db_manager.modo_offline:
+            env_check['mongodb_total_cotizaciones'] = db_manager.collection.count_documents({})
+            env_check['mongodb_conexion'] = 'EXITOSA'
+        else:
+            env_check['mongodb_total_cotizaciones'] = 'N/A'
+            env_check['mongodb_conexion'] = 'FALLO - MODO OFFLINE'
+    except Exception as e:
+        env_check['mongodb_total_cotizaciones'] = 'ERROR'
+        env_check['mongodb_conexion'] = f'ERROR: {str(e)}'
+    
+    return jsonify(env_check)
 
 @app.route("/stats")
 def stats_sistema():

@@ -16,11 +16,16 @@ class GoogleDriveClient:
     def __init__(self):
         """Inicializa el cliente de Google Drive"""
         self.service = None
-        # Folder IDs para búsqueda en múltiples carpetas
+        # Folder IDs para búsqueda en múltiples carpetas - configurable desde variables de entorno
         self.folder_nuevas = os.getenv('GOOGLE_DRIVE_FOLDER_NUEVAS', '1h4Df0bdInRU5GUh9n7g8aXgZA4Kyt2Nf')  # Carpeta nuevas
         self.folder_antiguas = os.getenv('GOOGLE_DRIVE_FOLDER_ANTIGUAS', '1GqM9yfwUKd9n8nN97IUiBSUrWUZ1Vida')  # Carpeta antiguas/raíz
         # Mantener compatibilidad hacia atrás
         self.folder_id = self.folder_nuevas  # Por defecto usar nuevas
+        
+        print(f"[GOOGLE_DRIVE] Configuración de carpetas:")
+        print(f"  Carpeta nuevas: {self.folder_nuevas}")
+        print(f"  Carpeta antiguas: {self.folder_antiguas}")
+        print(f"  Carpeta por defecto: {self.folder_id}")
         self._initialize_service()
     
     def _initialize_service(self):
@@ -48,10 +53,13 @@ class GoogleDriveClient:
                 print(f"[ERROR] Google Drive: Faltan campos en credenciales: {missing_fields}")
                 return
             
-            # Crear credenciales desde el JSON
+            # Crear credenciales desde el JSON con permisos de escritura
             credentials = service_account.Credentials.from_service_account_info(
                 credentials_info,
-                scopes=['https://www.googleapis.com/auth/drive.readonly']
+                scopes=[
+                    'https://www.googleapis.com/auth/drive.file',
+                    'https://www.googleapis.com/auth/drive'
+                ]
             )
             
             # Crear servicio de Google Drive
