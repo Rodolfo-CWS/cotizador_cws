@@ -815,101 +815,175 @@ class DatabaseManager:
         """Obtiene todas las cotizaciones (online o offline)"""
         return self.buscar_cotizaciones("", page, per_page)
     
-    def _sincronizar_cotizaciones_offline(self):
-        """Sincroniza cotizaciones guardadas offline cuando MongoDB vuelve a estar disponible"""
+    def sincronizar_bidireccional(self) -> dict:
+        """
+        Sincronización bidireccional mejorada: JSON ↔ MongoDB
+        
+        Estrategia:
+        1. JSON → MongoDB: Subir cambios locales
+        2. MongoDB → JSON: Descargar cambios remotos  
+        3. Resolución de conflictos: Last-write-wins basado en timestamp
+        
+        Returns:
+            Dict con resultado detallado de la sincronización
+        """
+        if self.modo_offline:
+            return {
+                "success": False,
+                "error": "MongoDB no disponible - en modo offline",
+                "subidas": 0,
+                "descargas": 0,
+                "conflictos": 0
+            }
+        
+        print("🔄 [SYNC_BIDIRECCIONAL] Iniciando sincronización bidireccional...")
+        
         try:
-            if self.modo_offline:
-                return  # No sincronizar si estamos offline
-            
-            # Cargar datos offline
+            # Cargar datos JSON local
             datos_offline = self._cargar_datos_offline()
-            cotizaciones_offline = datos_offline.get("cotizaciones", [])
+            cotizaciones_json = {cot.get("numeroCotizacion"): cot for cot in datos_offline.get("cotizaciones", []) if cot.get("numeroCotizacion")}
             
-            if not cotizaciones_offline:
-                return  # No hay nada que sincronizar
+            # Obtener todas las cotizaciones de MongoDB
+            cotizaciones_mongo = {}
+            try:
+                for doc in self.collection.find({}):
+                    numero = doc.get("numeroCotizacion")
+                    if numero:
+                        cotizaciones_mongo[numero] = doc
+                print(f"📊 [SYNC] MongoDB: {len(cotizaciones_mongo)} cotizaciones")
+            except Exception as e:
+                print(f"❌ [SYNC] Error leyendo MongoDB: {e}")
+                return {"success": False, "error": str(e)}
             
-            sincronizadas = 0
+            print(f"📊 [SYNC] JSON local: {len(cotizaciones_json)} cotizaciones")
+            
+            # Contadores
+            subidas = 0      # JSON → MongoDB
+            descargas = 0    # MongoDB → JSON  
+            conflictos = 0   # Resueltos por timestamp
             errores = 0
             
-            for cotizacion in cotizaciones_offline:
+            # FASE 1: JSON → MongoDB (subir cambios locales)
+            print("⬆️ [SYNC_FASE_1] JSON → MongoDB")
+            
+            for numero, cot_json in cotizaciones_json.items():
                 try:
-                    # Verificar si ya existe en MongoDB
-                    numero = cotizacion.get("numeroCotizacion")
-                    if not numero:
-                        continue
+                    cot_mongo = cotizaciones_mongo.get(numero)
                     
-                    existe = self.collection.find_one({"numeroCotizacion": numero})
-                    
-                    if not existe:
-                        # No existe en MongoDB, sincronizar
-                        # Remover campos específicos del archivo offline
-                        cotizacion_limpia = cotizacion.copy()
-                        cotizacion_limpia.pop("_id", None)  # MongoDB generará nuevo ID
-                        cotizacion_limpia.pop("respaldo_de_mongodb", None)
-                        cotizacion_limpia.pop("fecha_respaldo", None)
-                        
-                        # Insertar en MongoDB
-                        resultado = self.collection.insert_one(cotizacion_limpia)
-                        print(f"[SYNC] Sincronizada cotización offline: {numero}")
-                        sincronizadas += 1
+                    if not cot_mongo:
+                        # No existe en MongoDB, subir
+                        cot_limpia = self._limpiar_cotizacion_para_mongo(cot_json)
+                        self.collection.insert_one(cot_limpia)
+                        subidas += 1
+                        print(f"⬆️ [SUBIDA] Nueva: {numero}")
                         
                     else:
-                        # Ya existe, verificar si la versión offline es más reciente
-                        timestamp_offline = cotizacion.get("timestamp", 0)
-                        timestamp_online = existe.get("timestamp", 0)
+                        # Existe en ambos, verificar timestamps
+                        ts_json = cot_json.get("timestamp", 0)
+                        ts_mongo = cot_mongo.get("timestamp", 0)
                         
-                        if timestamp_offline > timestamp_online:
-                            # La versión offline es más reciente, actualizar
-                            cotizacion_limpia = cotizacion.copy()
-                            cotizacion_limpia.pop("_id", None)
-                            cotizacion_limpia.pop("respaldo_de_mongodb", None)
-                            cotizacion_limpia.pop("fecha_respaldo", None)
-                            
+                        if ts_json > ts_mongo:
+                            # JSON más reciente, actualizar MongoDB
+                            cot_limpia = self._limpiar_cotizacion_para_mongo(cot_json)
                             self.collection.replace_one(
                                 {"numeroCotizacion": numero},
-                                cotizacion_limpia
+                                cot_limpia
                             )
-                            print(f"[SYNC] Actualizada cotización: {numero} (versión offline más reciente)")
-                            sincronizadas += 1
-                        
+                            subidas += 1
+                            conflictos += 1
+                            print(f"⬆️ [CONFLICTO] JSON más reciente: {numero}")
+                            
                 except Exception as e:
-                    print(f"[ERROR] Error sincronizando {numero}: {e}")
+                    print(f"❌ [SUBIDA_ERROR] {numero}: {e}")
                     errores += 1
-                    continue
             
-            if sincronizadas > 0:
-                print(f"[SYNC] Sincronización completada: {sincronizadas} cotizaciones sincronizadas")
-                if errores > 0:
-                    print(f"[WARN] {errores} errores durante la sincronización")
+            # FASE 2: MongoDB → JSON (descargar cambios remotos)  
+            print("⬇️ [SYNC_FASE_2] MongoDB → JSON")
+            
+            cotizaciones_json_actualizadas = cotizaciones_json.copy()
+            
+            for numero, cot_mongo in cotizaciones_mongo.items():
+                try:
+                    cot_json = cotizaciones_json.get(numero)
+                    
+                    if not cot_json:
+                        # No existe en JSON, descargar
+                        cot_limpia = self._limpiar_cotizacion_para_json(cot_mongo)
+                        cotizaciones_json_actualizadas[numero] = cot_limpia
+                        descargas += 1
+                        print(f"⬇️ [DESCARGA] Nueva: {numero}")
+                        
+                    else:
+                        # Existe en ambos, verificar timestamps
+                        ts_json = cot_json.get("timestamp", 0)
+                        ts_mongo = cot_mongo.get("timestamp", 0)
+                        
+                        if ts_mongo > ts_json:
+                            # MongoDB más reciente, actualizar JSON
+                            cot_limpia = self._limpiar_cotizacion_para_json(cot_mongo)
+                            cotizaciones_json_actualizadas[numero] = cot_limpia
+                            descargas += 1
+                            conflictos += 1
+                            print(f"⬇️ [CONFLICTO] MongoDB más reciente: {numero}")
+                            
+                except Exception as e:
+                    print(f"❌ [DESCARGA_ERROR] {numero}: {e}")
+                    errores += 1
+            
+            # FASE 3: Guardar JSON actualizado
+            if descargas > 0:
+                print("💾 [SYNC_FASE_3] Guardando JSON actualizado...")
+                datos_offline["cotizaciones"] = list(cotizaciones_json_actualizadas.values())
+                datos_offline["ultima_sincronizacion"] = datetime.datetime.now().isoformat()
+                datos_offline["sincronizaciones"] = datos_offline.get("sincronizaciones", 0) + 1
                 
-                # Opcional: Marcar cotizaciones como sincronizadas en lugar de eliminarlas
-                self._marcar_cotizaciones_sincronizadas(datos_offline)
+                self._guardar_datos_offline(datos_offline)
+            
+            resultado = {
+                "success": True,
+                "timestamp": datetime.datetime.now().isoformat(),
+                "subidas": subidas,      # JSON → MongoDB
+                "descargas": descargas,  # MongoDB → JSON
+                "conflictos": conflictos,
+                "errores": errores,
+                "total_json": len(cotizaciones_json_actualizadas),
+                "total_mongo": len(cotizaciones_mongo),
+                "mensaje": f"Sincronización completada: ⬆️{subidas} ⬇️{descargas} ⚠️{conflictos} ❌{errores}"
+            }
+            
+            print(f"✅ [SYNC_RESULTADO] {resultado['mensaje']}")
+            return resultado
             
         except Exception as e:
-            print(f"[ERROR] Error en sincronización automática: {e}")
+            error_msg = f"Error en sincronización bidireccional: {e}"
+            print(f"❌ [SYNC_ERROR] {error_msg}")
+            return {"success": False, "error": error_msg}
     
-    def _marcar_cotizaciones_sincronizadas(self, datos_offline):
-        """Marca las cotizaciones como sincronizadas sin eliminarlas"""
-        try:
-            fecha_sync = datetime.datetime.now().isoformat()
-            
-            # Marcar cada cotización como sincronizada
-            for cotizacion in datos_offline.get("cotizaciones", []):
-                cotizacion["sincronizada"] = True
-                cotizacion["fecha_sincronizacion"] = fecha_sync
-            
-            # Actualizar metadata
-            if "metadata" not in datos_offline:
-                datos_offline["metadata"] = {}
-            
-            datos_offline["metadata"]["ultima_sincronizacion"] = fecha_sync
-            datos_offline["metadata"]["total_sincronizado"] = len(datos_offline.get("cotizaciones", []))
-            
-            # Guardar archivo actualizado
-            self._guardar_datos_offline(datos_offline)
-            
-        except Exception as e:
-            print(f"[ERROR] Error marcando cotizaciones como sincronizadas: {e}")
+    def _limpiar_cotizacion_para_mongo(self, cotizacion: dict) -> dict:
+        """Limpia cotización para insertar en MongoDB"""
+        cot_limpia = cotizacion.copy()
+        # Remover campos específicos del JSON offline
+        campos_a_remover = ["_id", "respaldo_de_mongodb", "fecha_respaldo", "sincronizada"]
+        for campo in campos_a_remover:
+            cot_limpia.pop(campo, None)
+        return cot_limpia
+    
+    def _limpiar_cotizacion_para_json(self, cotizacion: dict) -> dict:
+        """Limpia cotización para insertar en JSON offline"""
+        cot_limpia = cotizacion.copy()
+        # Convertir ObjectId a string si existe
+        if "_id" in cot_limpia:
+            cot_limpia["_id"] = str(cot_limpia["_id"])
+        # Marcar como sincronizada
+        cot_limpia["sincronizada"] = True
+        cot_limpia["fecha_sincronizacion"] = datetime.datetime.now().isoformat()
+        return cot_limpia
+
+    def _sincronizar_cotizaciones_offline(self):
+        """MÉTODO LEGACY - Usar sincronizar_bidireccional() en su lugar"""
+        print("⚠️ [SYNC_LEGACY] Usando sincronización bidireccional mejorada...")
+        resultado = self.sincronizar_bidireccional()
+        return resultado.get("success", False)
     
     def obtener_estado_sincronizacion(self):
         """Obtiene información del estado de sincronización"""

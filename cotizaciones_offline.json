@@ -2671,15 +2671,65 @@
       "numeroCotizacion": "MONGO-CWS-CM-001-R1-BOBOX",
       "revision": 1,
       "_id": "899693ca-0e52-42a5-952f-0b306c915790"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Trent Reznor",
+        "proyecto": "NUEVO FORMULARIO",
+        "cliente": "MONGO",
+        "atencionA": "Faustino Oro",
+        "contacto": "fdfdf@gmail.com",
+        "revision": "1",
+        "numeroCotizacion": "MONGO-CWS-TR-001-R1-NUEVOFORMU"
+      },
+      "items": [
+        {
+          "descripcion": "Rack 1",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "848.00",
+          "total": "8480.00",
+          "transporte": "0",
+          "instalacion": "0",
+          "seguridad": "0",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 3/4 x 3/4 CAL 14",
+              "peso": "1.06",
+              "cantidad": "10",
+              "precio": "80",
+              "subtotal": "848.00"
+            }
+          ],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tipoCambio": "",
+        "tiempoEntrega": "20 dias",
+        "entregaEn": "SLP",
+        "terminos": "30 dias de crédito",
+        "comentarios": ""
+      },
+      "fechaCreacion": "2025-08-12T16:07:37.166409",
+      "timestamp": 1755036457166,
+      "version": "1.0.0",
+      "numeroCotizacion": "MONGO-CWS-TR-001-R1-NUEVOFORMU",
+      "revision": 1,
+      "_id": "689bbb290f78848afe426841",
+      "respaldo_de_mongodb": true,
+      "fecha_respaldo": "2025-08-12T16:07:37.809553"
     }
   ],
   "metadata": {
     "created": "2025-07-28T18:58:40.397575",
     "version": "1.0.0",
-    "total_cotizaciones": 45,
+    "total_cotizaciones": 46,
     "modo": "respaldo_automatico",
-    "last_updated": "2025-08-11T21:49:35.689294",
-    "ultimo_respaldo": "2025-08-11T10:19:58.607693",
+    "last_updated": "2025-08-12T16:07:37.809553",
+    "ultimo_respaldo": "2025-08-12T16:07:37.809553",
     "ultima_sincronizacion": "2025-08-11T17:32:51.826374",
     "total_sincronizado": 41
   }

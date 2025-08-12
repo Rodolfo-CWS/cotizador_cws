@@ -1,6 +1,7 @@
 """
-PDF Manager - Sistema de gestión de PDFs para cotizaciones CWS
-Maneja almacenamiento en Google Drive y índice en MongoDB
+PDF Manager - Sistema híbrido de gestión de PDFs para cotizaciones CWS
+Sistema primario: Cloudinary (25GB gratis)
+Sistema fallback: Google Drive + almacenamiento local
 """
 
 import os
@@ -10,42 +11,56 @@ from pathlib import Path
 import shutil
 from typing import Dict, List, Optional, Tuple
 from google_drive_client import GoogleDriveClient
+from cloudinary_manager import CloudinaryManager
 
 class PDFManager:
     def __init__(self, database_manager, base_pdf_path: str = None):
         """
-        Inicializa el gestor de PDFs
+        Inicializa el gestor híbrido de PDFs
+        Sistema primario: Cloudinary
+        Sistema fallback: Google Drive + local
         
         Args:
             database_manager: Instancia de DatabaseManager
-            base_pdf_path: Ruta base para almacenar PDFs (Google Drive)
+            base_pdf_path: Ruta base para almacenar PDFs localmente (fallback)
         """
         self.db_manager = database_manager
         
-        # Configurar rutas de PDFs
+        # SISTEMA PRIMARIO: Cloudinary
+        print("🚀 Inicializando PDF Manager híbrido...")
+        self.cloudinary_manager = CloudinaryManager()
+        self.cloudinary_disponible = self.cloudinary_manager.is_available()
+        
+        if self.cloudinary_disponible:
+            print("✅ Sistema primario: Cloudinary activado (25GB gratis)")
+        else:
+            print("⚠️ Sistema primario: Cloudinary no disponible, usando fallbacks")
+        
+        # SISTEMAS FALLBACK: Google Drive + Local
+        # Configurar rutas de PDFs locales (para fallback)
         if base_pdf_path:
             self.base_pdf_path = Path(base_pdf_path)
         else:
             # Intentar detectar Google Drive automáticamente
             self.base_pdf_path = self._detectar_google_drive()
         
-        # Crear estructura de carpetas
+        # Crear estructura de carpetas local
         self.nuevas_path = self.base_pdf_path / "nuevas"
         self.antiguas_path = self.base_pdf_path / "antiguas"
         
         # Crear carpetas si no existen
         self._crear_estructura_carpetas()
         
-        # Inicializar cliente Google Drive
+        # Inicializar cliente Google Drive (fallback)
         self.drive_client = GoogleDriveClient()
         
         # Colección para índice de PDFs
         self._inicializar_coleccion()
         
-        print(f"PDF Manager inicializado:")
-        print(f"  Ruta base: {self.base_pdf_path}")
-        print(f"  PDFs nuevos: {self.nuevas_path}")
-        print(f"  PDFs antiguos: {self.antiguas_path}")
+        print(f"📁 PDF Manager inicializado con arquitectura híbrida:")
+        print(f"   Primario: Cloudinary ({'✅ Activo' if self.cloudinary_disponible else '❌ Inactivo'})")
+        print(f"   Fallback Local: {self.base_pdf_path}")
+        print(f"   Fallback Drive: {'✅ Configurado' if self.drive_client else '❌ No disponible'}")
     
     def _inicializar_coleccion(self):
         """Inicializa la colección de PDFs si MongoDB está disponible"""
@@ -179,17 +194,22 @@ class PDFManager:
     
     def almacenar_pdf_nuevo(self, pdf_content: bytes, cotizacion_data: Dict) -> Dict:
         """
-        Almacena un PDF recién generado y registra en el índice
+        Almacena un PDF usando sistema híbrido: Cloudinary (primario) + Fallbacks
+        
+        Estrategia:
+        1. Cloudinary (primario) - 25GB gratis
+        2. Google Drive (fallback) - si Cloudinary falla
+        3. Local (emergencia) - siempre como respaldo
         
         Args:
             pdf_content: Contenido binario del PDF
             cotizacion_data: Datos de la cotización
             
         Returns:
-            Dict con resultado de la operación
+            Dict con resultado de la operación híbrida
         """
         try:
-            # Extraer información de la cotización - verificar múltiples ubicaciones posibles
+            # Extraer información de la cotización
             numero_cotizacion = (
                 cotizacion_data.get('numeroCotizacion') or 
                 cotizacion_data.get('datosGenerales', {}).get('numeroCotizacion') or 
@@ -197,58 +217,79 @@ class PDFManager:
             )
             datos_generales = cotizacion_data.get('datosGenerales', {})
             
-            print(f"[ALMACENAR_PDF] Número de cotización extraído: '{numero_cotizacion}'")
-            print(f"[ALMACENAR_PDF] Datos generales disponibles: {list(datos_generales.keys())}")
+            print(f"🚀 [ALMACENAR_PDF_HIBRIDO] Número de cotización: '{numero_cotizacion}'")
+            print(f"📊 [ALMACENAR_PDF_HIBRIDO] Tamaño PDF: {len(pdf_content)} bytes")
             
             # Generar nombre de archivo seguro
             nombre_archivo = self._generar_nombre_archivo(numero_cotizacion)
-            ruta_completa = self.nuevas_path / nombre_archivo
             
-            # Guardar PDF físicamente
-            ruta_completa.write_bytes(pdf_content)
+            # ===== PASO 1: CLOUDINARY (SISTEMA PRIMARIO) =====
+            cloudinary_result = {"success": False, "error": "No intentado"}
             
-            # Registrar en índice de MongoDB
-            registro_pdf = {
-                "nombre_archivo": nombre_archivo,
-                "numero_cotizacion": numero_cotizacion,
-                "cliente": datos_generales.get('cliente', ''),
-                "vendedor": datos_generales.get('vendedor', ''),
-                "proyecto": datos_generales.get('proyecto', ''),
-                "fecha": datetime.datetime.now().strftime('%Y-%m-%d'),
-                "timestamp": int(datetime.datetime.now().timestamp() * 1000),
-                "tipo": "nueva",
-                "tiene_desglose": True,
-                "ruta_archivo": f"nuevas/{nombre_archivo}",
-                "ruta_completa": str(ruta_completa.absolute()),
-                "tamaño_bytes": len(pdf_content)
-            }
-            
-            if not self.db_manager.modo_offline:
-                # Upsert en MongoDB (actualizar si existe, crear si no)
-                self.pdf_collection.replace_one(
-                    {"numero_cotizacion": numero_cotizacion},
-                    registro_pdf,
-                    upsert=True
-                )
-            
-            # MEJORADO: Integración con Google Drive - Subir PDF a carpeta "nuevas"
-            google_drive_result = None
-            
-            # Verificar disponibilidad de Google Drive con más detalle
-            es_render = os.getenv('RENDER') or os.getenv('RENDER_SERVICE_NAME')
-            print(f"[PDF Manager] Entorno Render detectado: {bool(es_render)}")
-            print(f"[PDF Manager] Drive client disponible: {self.drive_client is not None}")
-            print(f"[PDF Manager] Drive service disponible: {hasattr(self.drive_client, 'service') and self.drive_client.service is not None if self.drive_client else False}")
-            
-            if self.drive_client and self.drive_client.is_available():
+            if self.cloudinary_disponible:
+                print("🎯 [CLOUDINARY] Intentando subir a sistema primario...")
+                
+                # Crear archivo temporal para Cloudinary
+                import tempfile
+                temp_file = None
                 try:
-                    print(f"[PDF Manager] Subiendo PDF a Google Drive: {nombre_archivo}")
-                    print(f"[PDF Manager] Carpeta destino (nuevas): {self.drive_client.folder_nuevas}")
+                    # Crear archivo temporal
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+                        temp_file.write(pdf_content)
+                        temp_file_path = temp_file.name
                     
+                    # Subir a Cloudinary
+                    cloudinary_result = self.cloudinary_manager.subir_pdf(
+                        temp_file_path,
+                        numero_cotizacion,
+                        es_nueva=True
+                    )
+                    
+                    if cloudinary_result.get("success", False):
+                        print(f"✅ [CLOUDINARY] PDF subido exitosamente!")
+                        print(f"   URL: {cloudinary_result.get('url', 'N/A')}")
+                        print(f"   Tamaño: {cloudinary_result.get('bytes', 0)} bytes")
+                        cloudinary_result["success"] = True
+                    else:
+                        print(f"❌ [CLOUDINARY] Error: {cloudinary_result.get('error', 'Desconocido')}")
+                        
+                except Exception as e:
+                    print(f"❌ [CLOUDINARY] Excepción: {e}")
+                    cloudinary_result = {"success": False, "error": str(e)}
+                finally:
+                    # Limpiar archivo temporal
+                    if temp_file and os.path.exists(temp_file_path):
+                        try:
+                            os.unlink(temp_file_path)
+                        except:
+                            pass
+            else:
+                print("⚠️ [CLOUDINARY] Sistema primario no disponible, usando fallbacks")
+                cloudinary_result = {"success": False, "error": "Cloudinary no configurado"}
+            
+            # ===== PASO 2: LOCAL (RESPALDO SIEMPRE) =====
+            print("💾 [LOCAL] Guardando respaldo local...")
+            ruta_completa = self.nuevas_path / nombre_archivo
+            ruta_completa.write_bytes(pdf_content)
+            local_result = {
+                "success": True,
+                "ruta": str(ruta_completa.absolute()),
+                "tamaño": len(pdf_content)
+            }
+            print(f"✅ [LOCAL] Respaldo guardado: {ruta_completa}")
+            
+            # ===== PASO 3: GOOGLE DRIVE (FALLBACK) =====
+            google_drive_result = {"success": False, "error": "No intentado"}
+            
+            # Solo intentar Google Drive si Cloudinary falló
+            if not cloudinary_result.get("success", False) and self.drive_client and self.drive_client.is_available():
+                print("🔄 [GOOGLE_DRIVE] Cloudinary falló, intentando fallback...")
+                
+                try:
                     # Preparar metadata del archivo para Google Drive
                     file_metadata = {
                         'name': nombre_archivo,
-                        'parents': [self.drive_client.folder_nuevas]  # Carpeta "nuevas"
+                        'parents': [self.drive_client.folder_nuevas]
                     }
                     
                     from googleapiclient.http import MediaIoBaseUpload
@@ -261,9 +302,7 @@ class PDFManager:
                         resumable=True
                     )
                     
-                    print(f"[PDF Manager] Iniciando upload de {len(pdf_content)} bytes...")
-                    
-                    # Subir archivo a Google Drive con manejo de errores mejorado
+                    # Subir archivo a Google Drive
                     uploaded_file = self.drive_client.service.files().create(
                         body=file_metadata,
                         media_body=media_body,
@@ -279,54 +318,94 @@ class PDFManager:
                         "carpeta_id": self.drive_client.folder_nuevas
                     }
                     
-                    print(f"[PDF Manager] PDF subido exitosamente a Google Drive:")
-                    print(f"  - File ID: {uploaded_file.get('id')}")
-                    print(f"  - Nombre: {uploaded_file.get('name')}")
-                    print(f"  - Tamaño: {uploaded_file.get('size')} bytes")
+                    print(f"✅ [GOOGLE_DRIVE] Fallback exitoso!")
                     
                 except Exception as drive_error:
-                    print(f"[PDF Manager] Error subiendo a Google Drive: {drive_error}")
-                    print(f"[PDF Manager] Tipo de error: {type(drive_error).__name__}")
-                    if hasattr(drive_error, 'resp'):
-                        print(f"[PDF Manager] Código HTTP: {getattr(drive_error.resp, 'status', 'N/A')}")
-                    
+                    print(f"❌ [GOOGLE_DRIVE] Error en fallback: {drive_error}")
                     google_drive_result = {
                         "success": False,
                         "error": str(drive_error),
                         "error_type": type(drive_error).__name__
                     }
-            else:
-                # Log detallado de por qué no está disponible
-                motivo = "Google Drive no disponible:"
-                if not self.drive_client:
-                    motivo += " Cliente no inicializado"
-                elif not hasattr(self.drive_client, 'service'):
-                    motivo += " Servicio no encontrado"
-                elif not self.drive_client.service:
-                    motivo += " Servicio es None"
-                else:
-                    motivo += " Razón desconocida"
-                
-                print(f"[PDF Manager] {motivo}")
-                google_drive_result = {
-                    "success": False,
-                    "error": motivo,
-                    "local_only": True
-                }
             
-            return {
-                "success": True,
-                "mensaje": f"PDF almacenado exitosamente: {nombre_archivo}",
-                "ruta": str(ruta_completa),
+            # ===== PASO 4: REGISTRAR EN MONGODB (ÍNDICE) =====
+            # Registrar en índice independientemente del resultado de almacenamiento
+            registro_pdf = {
                 "nombre_archivo": nombre_archivo,
-                "tamaño": len(pdf_content),
-                "google_drive": google_drive_result  # Incluir resultado de Google Drive
+                "numero_cotizacion": numero_cotizacion,
+                "cliente": datos_generales.get('cliente', ''),
+                "vendedor": datos_generales.get('vendedor', ''),
+                "proyecto": datos_generales.get('proyecto', ''),
+                "fecha": datetime.datetime.now().strftime('%Y-%m-%d'),
+                "timestamp": int(datetime.datetime.now().timestamp() * 1000),
+                "tipo": "nueva",
+                "tiene_desglose": True,
+                "ruta_archivo": f"nuevas/{nombre_archivo}",
+                "ruta_completa": str(ruta_completa.absolute()),
+                "tamaño_bytes": len(pdf_content),
+                # Información de almacenamiento híbrido
+                "cloudinary": cloudinary_result,
+                "google_drive": google_drive_result,
+                "local": local_result
             }
             
+            if not self.db_manager.modo_offline:
+                try:
+                    self.pdf_collection.replace_one(
+                        {"numero_cotizacion": numero_cotizacion},
+                        registro_pdf,
+                        upsert=True
+                    )
+                    print("✅ [MONGODB] Índice actualizado")
+                except Exception as e:
+                    print(f"⚠️ [MONGODB] Error actualizando índice: {e}")
+            
+            # ===== RESULTADO FINAL =====
+            # Determinar si la operación fue exitosa
+            almacenamiento_exitoso = (
+                cloudinary_result.get("success", False) or 
+                google_drive_result.get("success", False) or
+                local_result.get("success", False)
+            )
+            
+            # Determinar mensaje de estado
+            if cloudinary_result.get("success", False):
+                estado = "✅ Cloudinary (primario)"
+            elif google_drive_result.get("success", False):
+                estado = "🔄 Google Drive (fallback)"
+            elif local_result.get("success", False):
+                estado = "💾 Local (emergencia)"
+            else:
+                estado = "❌ Error en todos los sistemas"
+            
+            resultado_final = {
+                "success": almacenamiento_exitoso,
+                "mensaje": f"PDF almacenado - {estado}: {nombre_archivo}",
+                "estado": estado,
+                "nombre_archivo": nombre_archivo,
+                "tamaño": len(pdf_content),
+                "ruta_local": str(ruta_completa),
+                # Detalles de cada sistema
+                "sistemas": {
+                    "cloudinary": cloudinary_result,
+                    "google_drive": google_drive_result, 
+                    "local": local_result
+                }
+            }
+            
+            print(f"🎉 [RESULTADO_FINAL] {estado}")
+            return resultado_final
+            
         except Exception as e:
+            print(f"❌ [ALMACENAR_PDF_HIBRIDO] Error general: {e}")
             return {
                 "success": False,
-                "error": f"Error almacenando PDF: {str(e)}"
+                "error": f"Error almacenando PDF: {str(e)}",
+                "sistemas": {
+                    "cloudinary": {"success": False, "error": "No procesado por error general"},
+                    "google_drive": {"success": False, "error": "No procesado por error general"},
+                    "local": {"success": False, "error": "No procesado por error general"}
+                }
             }
     
     def _generar_nombre_archivo(self, numero_cotizacion: str) -> str:

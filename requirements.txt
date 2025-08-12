@@ -36,9 +36,15 @@ requests==2.31.0
 # Servidor web para producción (REQUERIDO PARA LA NUBE)
 gunicorn==21.2.0
 
-# Google Drive API (para acceso a PDFs en la nube)
+# Google Drive API (para acceso a PDFs en la nube) - MANTENIDO COMO FALLBACK
 google-api-python-client==2.144.0
 google-auth==2.27.0
+
+# Cloudinary para almacenamiento de PDFs (25GB gratis)
+cloudinary==1.36.0
+
+# Scheduler para sincronización automática
+APScheduler==3.10.4
 
 # Manejo de archivos CSV (incluido en Python estándar)
 # csv - Built-in module

@@ -58,6 +58,20 @@ except Exception as e:
     print(f"Error inicializando PDFManager: {e}")
     pdf_manager = None
 
+# Crear instancia de scheduler de sincronización
+try:
+    from sync_scheduler import SyncScheduler
+    sync_scheduler = SyncScheduler(db_manager)
+    print("SyncScheduler inicializado exitosamente")
+    
+    # Iniciar scheduler automático si está habilitado
+    if sync_scheduler.auto_sync_enabled and sync_scheduler.is_available():
+        sync_scheduler.iniciar()
+    
+except Exception as e:
+    print(f"Error inicializando SyncScheduler: {e}")
+    sync_scheduler = None
+
 # ===========================================
 # FUNCIONES AUXILIARES PARA CONVERSIÓN ROBUSTA
 # ===========================================
@@ -3605,6 +3619,72 @@ def verificar_ultima():
         else:
             return jsonify({"encontrada": False})
             
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ============================================
+# RUTAS DE SCHEDULER DE SINCRONIZACIÓN
+# ============================================
+
+@app.route("/admin/scheduler/estado")
+def scheduler_estado():
+    """Obtiene el estado del scheduler de sincronización"""
+    try:
+        if not sync_scheduler:
+            return jsonify({"error": "Scheduler no disponible"}), 503
+        
+        estado = sync_scheduler.obtener_estado()
+        
+        # Agregar información adicional
+        if estado.get("activo", False):
+            proximo_sync = sync_scheduler.obtener_proximo_sync()
+            if proximo_sync:
+                estado["proximo_sync"] = proximo_sync.isoformat()
+                estado["minutos_hasta_proximo"] = int((proximo_sync - datetime.datetime.now()).total_seconds() / 60)
+        
+        return jsonify(estado)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/admin/scheduler/sync-manual", methods=["POST"])
+def scheduler_sync_manual():
+    """Ejecuta una sincronización manual inmediata"""
+    try:
+        if not sync_scheduler:
+            return jsonify({"error": "Scheduler no disponible"}), 503
+        
+        resultado = sync_scheduler.ejecutar_sincronizacion_manual()
+        
+        if resultado.get("success", False):
+            return jsonify({
+                "success": True,
+                "resultado": resultado,
+                "mensaje": "Sincronización manual completada"
+            })
+        else:
+            return jsonify({
+                "error": resultado.get("error", "Error en sincronización manual"),
+                "resultado": resultado
+            }), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/admin/cloudinary/estado")
+def cloudinary_estado():
+    """Obtiene el estado de Cloudinary"""
+    try:
+        if not pdf_manager or not pdf_manager.cloudinary_manager:
+            return jsonify({"error": "Cloudinary no disponible"}), 503
+        
+        stats = pdf_manager.cloudinary_manager.obtener_estadisticas()
+        
+        if "error" in stats:
+            return jsonify(stats), 500
+        
+        return jsonify(stats)
+        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
