@@ -39,11 +39,11 @@ def log_request_debug():
         return response
 
 if __name__ == "__main__":
-    print("🚀 Iniciando servidor CWS con debug mejorado...")
-    print(f"📊 Estado MongoDB: {'ONLINE' if not db_manager.modo_offline else 'OFFLINE'}")
-    print(f"🌐 URL: http://127.0.0.1:5000/")
-    print(f"📋 Admin: http://127.0.0.1:5000/admin")
-    print(f"📝 Formulario: http://127.0.0.1:5000/formulario")
+    print("[DEBUG] Iniciando servidor CWS con debug mejorado...")
+    print(f"[ESTADO] MongoDB: {'ONLINE' if not db_manager.modo_offline else 'OFFLINE'}")
+    print(f"[URL] http://127.0.0.1:5000/")
+    print(f"[ADMIN] http://127.0.0.1:5000/admin")
+    print(f"[FORMULARIO] http://127.0.0.1:5000/formulario")
     print("=" * 60)
     
     # Activar logging de requests

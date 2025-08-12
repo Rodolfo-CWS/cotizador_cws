@@ -39,7 +39,7 @@
       "revision": "1",
       "_id": "5b3d9d12-71ac-4773-96a7-bbc2cf776dcc",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -91,7 +91,7 @@
       "revision": "2",
       "_id": "c0ba50d5-0e4b-4b6e-8875-e5b2d72e46a1",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -143,7 +143,7 @@
       "revision": "2",
       "_id": "45d14982-d394-4aff-84f9-599ffe1b777d",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -184,7 +184,7 @@
       "revision": "0",
       "_id": "87b02769-2d98-4a5d-96fb-8004d60b7d5e",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -225,7 +225,7 @@
       "revision": "0",
       "_id": "4f327a57-7401-48ed-bb4b-3d680624533d",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -277,7 +277,7 @@
       "revision": "1",
       "_id": "88d81333-06a6-4d58-b893-36ed0842e364",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -335,7 +335,7 @@
       "revision": "2",
       "_id": "948b04d5-f7b1-4759-ba20-bf31c06d7a1c",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -470,7 +470,7 @@
       "revision": "2",
       "_id": "d591a7d0-a85a-4151-9a03-4ff8c782dfb7",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -579,7 +579,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-07-30T17:41:59.173982",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -652,7 +652,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-07-30T18:00:31.364685",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -704,7 +704,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-07-30T18:10:03.591993",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -756,7 +756,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-07-31T09:03:33.368670",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -857,7 +857,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-07-31T13:12:23.159854",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -970,7 +970,7 @@
       "revision": "2",
       "_id": "9aa02bd8-9f22-4f8c-bd8b-675519323475",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1022,7 +1022,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-01T08:49:42.480080",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1149,7 +1149,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-01T09:33:54.754576",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1209,7 +1209,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-01T14:52:07.278055",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1262,7 +1262,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-01T15:00:22.995112",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1315,7 +1315,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-01T15:06:29.049426",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1368,7 +1368,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-01T15:36:26.426762",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1421,7 +1421,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-01T16:02:51.458185",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1536,7 +1536,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-01T16:14:09.586251",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1624,7 +1624,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-01T16:18:37.926346",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1691,7 +1691,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-01T17:53:33.716555",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1750,7 +1750,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-04T10:50:19.062170",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1809,7 +1809,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-04T10:56:51.934522",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1868,7 +1868,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-04T11:02:49.040150",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -1995,7 +1995,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-05T09:59:02.400365",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -2122,7 +2122,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-05T11:12:39.497876",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -2157,7 +2157,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-07T08:46:38.772521",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -2195,7 +2195,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-07T08:49:22.951197",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -2236,7 +2236,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-07T09:12:39.813949",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "numeroCotizacion": "CLIENTETES-CWS-VT-001-R1-PROYECTOTE",
@@ -2266,7 +2266,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-07T14:09:30.801189",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "numeroCotizacion": "CLIENTEPRU-CWS-TC-001-R1-PRUEBACOMP",
@@ -2315,7 +2315,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-07T18:06:49.596439",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -2344,7 +2344,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-08T09:03:49.306937",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -2373,7 +2373,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-08T09:11:15.892865",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -2402,7 +2402,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-08T09:31:22.493545",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -2432,7 +2432,7 @@
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-11T10:19:58.607693",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -2468,7 +2468,7 @@
       "revision": 1,
       "_id": "0d64d63e-b5d9-41e5-96ad-8faa4223869d",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
     },
     {
       "datosGenerales": {
@@ -2507,17 +2507,180 @@
       "revision": 1,
       "_id": "d5270211-bf80-4628-a072-b5599a503169",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-08-11T13:19:46.080317"
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "Test Entorno 172803",
+        "vendedor": "Test Verificacion",
+        "proyecto": "Diagnostico",
+        "revision": "1",
+        "numeroCotizacion": "TESTENTORN-CWS-TV-001-R1-DIAGNOSTIC"
+      },
+      "items": [
+        {
+          "descripcion": "Test guardado",
+          "cantidad": 1,
+          "total": 1
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD"
+      },
+      "fechaCreacion": "2025-08-11T17:28:03.777525",
+      "timestamp": 1754954883777,
+      "version": "1.0.0",
+      "numeroCotizacion": "TESTENTORN-CWS-TV-001-R1-DIAGNOSTIC",
+      "revision": 1,
+      "_id": "cf38849e-e855-4641-ba72-b1c92c28e91c",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-08-11T17:32:51.826374"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "ACME Corporation",
+        "vendedor": "Juan Pérez",
+        "proyecto": "Torre Residencial",
+        "atencionA": "Luis Gómez",
+        "contacto": "luis@acme.com",
+        "revision": "1",
+        "numeroCotizacion": "ACMECORPOR-CWS-JP-003-R1-TORRERESID"
+      },
+      "items": [
+        {
+          "descripcion": "Rack Metálico",
+          "cantidad": "2",
+          "uom": "Pieza",
+          "costoUnidad": "1500.00",
+          "total": "3000.00",
+          "materiales": [],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tiempoEntrega": "15 días hábiles",
+        "entregaEn": "Planta ACME",
+        "terminos": "50% anticipo, 50% contra entrega"
+      },
+      "fechaCreacion": "2025-08-11T20:37:47.734334",
+      "timestamp": 1754966267734,
+      "version": "1.0.0",
+      "numeroCotizacion": "ACMECORPOR-CWS-JP-003-R1-TORRERESID",
+      "revision": 1,
+      "_id": "389034c8-bcb9-4741-b3aa-bd3008975c92"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "MONGO TEST CLIENT",
+        "vendedor": "Carlos Martinez",
+        "proyecto": "BOBOX PROJECT",
+        "numeroCotizacion": "MONGO-CWS-CM-001-R1-BOBOX",
+        "atencionA": "Test Person",
+        "contacto": "test@mongo.com",
+        "revision": "1",
+        "fecha": "2025-08-12"
+      },
+      "items": [
+        {
+          "descripcion": "Rack Metálico Test",
+          "cantidad": "2",
+          "uom": "Pieza",
+          "costoUnidad": "1500.00",
+          "total": "3000.00",
+          "materiales": [],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tiempoEntrega": "15 días",
+        "validez": "30 días"
+      },
+      "fechaCreacion": "2025-08-11T21:39:36.500904",
+      "timestamp": 1754969976500,
+      "version": "1.0.0",
+      "numeroCotizacion": "MONGO-CWS-CM-001-R1-BOBOX",
+      "revision": 1,
+      "_id": "daa6edfc-7a3e-41af-b4e4-f059d1250262"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "TEST INTEGRATED CLIENT",
+        "vendedor": "Juan Carlos",
+        "proyecto": "TEST INTEGRATION",
+        "atencionA": "Manager Test",
+        "contacto": "test@integration.com",
+        "revision": "1",
+        "fecha": "2025-08-12",
+        "numeroCotizacion": "TESTINTEGR-CWS-JC-001-R1-TESTINTEGR"
+      },
+      "items": [
+        {
+          "descripcion": "Rack de Prueba Integración",
+          "cantidad": "1",
+          "uom": "Pieza",
+          "costoUnidad": "2500.00",
+          "total": "2500.00",
+          "materiales": [],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tiempoEntrega": "10 días",
+        "validez": "30 días"
+      },
+      "fechaCreacion": "2025-08-11T21:42:23.966100",
+      "timestamp": 1754970143966,
+      "version": "1.0.0",
+      "numeroCotizacion": "TESTINTEGR-CWS-JC-001-R1-TESTINTEGR",
+      "revision": 1,
+      "_id": "15c6ac77-44c8-4d13-899b-324e8eb95ade"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "MONGO",
+        "vendedor": "Carlos Martinez",
+        "proyecto": "BOBOX",
+        "numeroCotizacion": "MONGO-CWS-CM-001-R1-BOBOX",
+        "atencionA": "Test Contact",
+        "contacto": "test@mongo.com",
+        "revision": "1",
+        "fecha": "2025-08-12"
+      },
+      "items": [
+        {
+          "descripcion": "Bobox Rack System",
+          "cantidad": "1",
+          "uom": "Pieza",
+          "costoUnidad": "5000.00",
+          "total": "5000.00",
+          "materiales": [],
+          "otrosMateriales": []
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tiempoEntrega": "20 días",
+        "validez": "30 días"
+      },
+      "fechaCreacion": "2025-08-11T21:49:35.688261",
+      "timestamp": 1754970575688,
+      "version": "1.0.0",
+      "numeroCotizacion": "MONGO-CWS-CM-001-R1-BOBOX",
+      "revision": 1,
+      "_id": "899693ca-0e52-42a5-952f-0b306c915790"
     }
   ],
   "metadata": {
     "created": "2025-07-28T18:58:40.397575",
     "version": "1.0.0",
-    "total_cotizaciones": 40,
+    "total_cotizaciones": 45,
     "modo": "respaldo_automatico",
-    "last_updated": "2025-08-11T13:19:46.080888",
+    "last_updated": "2025-08-11T21:49:35.689294",
     "ultimo_respaldo": "2025-08-11T10:19:58.607693",
-    "ultima_sincronizacion": "2025-08-11T13:19:46.080317",
-    "total_sincronizado": 40
+    "ultima_sincronizacion": "2025-08-11T17:32:51.826374",
+    "total_sincronizado": 41
   }
 }

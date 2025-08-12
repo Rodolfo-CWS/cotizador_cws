@@ -278,3 +278,4 @@ GOOGLE_DRIVE_FOLDER_ANTIGUAS=1GqM9yfwUKd9n8nN97IUiBSUrWUZ1Vida
 2. **OAuth2 Implementation**: Use user credentials instead of Service Account
 3. **Alternative Storage**: AWS S3, Cloudinary, or similar services
 4. **Hybrid Approach**: Local generation + manual upload workflow
+<!-- Last updated: 2025-08-12 09:47:47 via /good_job command -->

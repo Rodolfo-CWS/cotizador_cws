@@ -1,0 +1,20 @@
+{
+  "commands": {
+    "good_job": {
+      "description": "Updates project documentation, commits changes, and provides clean context summary",
+      "script": ".claude/commands/good_job.py",
+      "shortDescription": "Complete session with documentation updates and clean context"
+    }
+  },
+  "project": {
+    "name": "CWS Cotizador",
+    "description": "Professional quotation system with automated PDF generation and hybrid database architecture",
+    "version": "1.0.0",
+    "lastUpdated": "2025-08-12"
+  },
+  "settings": {
+    "autoCommit": true,
+    "documentationUpdates": true,
+    "sessionTracking": true
+  }
+}
