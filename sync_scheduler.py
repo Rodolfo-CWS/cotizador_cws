@@ -33,9 +33,9 @@ class SyncScheduler:
         self.sincronizaciones_fallidas = 0
         self.ultima_sincronizacion_resultado = None
         
-        print(f"🔄 [SYNC_SCHEDULER] Inicializando scheduler...")
+        print(f"SYNC: [SYNC_SCHEDULER] Inicializando scheduler...")
         print(f"   Intervalo: {self.intervalo_minutos} minutos")
-        print(f"   Auto-sync: {'✅ Habilitado' if self.auto_sync_enabled else '❌ Deshabilitado'}")
+        print(f"   Auto-sync: {'OK Habilitado' if self.auto_sync_enabled else 'NO Deshabilitado'}")
         
         # Intentar inicializar APScheduler
         try:
@@ -48,10 +48,10 @@ class SyncScheduler:
             self.atexit = atexit
             self.scheduler_disponible = True
             
-            print("✅ [SYNC_SCHEDULER] APScheduler disponible")
+            print("OK: [SYNC_SCHEDULER] APScheduler disponible")
             
         except ImportError:
-            print("❌ [SYNC_SCHEDULER] APScheduler no disponible: pip install APScheduler")
+            print("ERROR: [SYNC_SCHEDULER] APScheduler no disponible: pip install APScheduler")
             print("   Sincronización automática deshabilitada")
 
     def is_available(self) -> bool:
@@ -66,19 +66,19 @@ class SyncScheduler:
             bool: True si se inició correctamente
         """
         if not self.scheduler_disponible:
-            print("❌ [SYNC_SCHEDULER] No se puede iniciar - APScheduler no disponible")
+            print("ERROR: [SYNC_SCHEDULER] No se puede iniciar - APScheduler no disponible")
             return False
         
         if not self.auto_sync_enabled:
-            print("⚠️ [SYNC_SCHEDULER] Auto-sync deshabilitado por configuración")
+            print("WARNING: [SYNC_SCHEDULER] Auto-sync deshabilitado por configuracion")
             return False
         
         if self.activo:
-            print("⚠️ [SYNC_SCHEDULER] Scheduler ya está activo")
+            print("WARNING: [SYNC_SCHEDULER] Scheduler ya esta activo")
             return True
         
         try:
-            print(f"🚀 [SYNC_SCHEDULER] Iniciando scheduler...")
+            print(f"START: [SYNC_SCHEDULER] Iniciando scheduler...")
             print(f"   Sincronización cada {self.intervalo_minutos} minutos")
             
             # Crear scheduler
@@ -102,17 +102,17 @@ class SyncScheduler:
             # Configurar cierre automático al cerrar la aplicación
             self.atexit.register(lambda: self.detener())
             
-            print("✅ [SYNC_SCHEDULER] Scheduler iniciado exitosamente")
+            print("OK: [SYNC_SCHEDULER] Scheduler iniciado exitosamente")
             
             # Ejecutar sincronización inicial (opcional)
             if os.getenv('SYNC_ON_STARTUP', 'false').lower() == 'true':
-                print("🔄 [SYNC_SCHEDULER] Ejecutando sincronización inicial...")
+                print("SYNC: [SYNC_SCHEDULER] Ejecutando sincronizacion inicial...")
                 self._ejecutar_sincronizacion()
             
             return True
             
         except Exception as e:
-            print(f"❌ [SYNC_SCHEDULER] Error iniciando scheduler: {e}")
+            print(f"ERROR: [SYNC_SCHEDULER] Error iniciando scheduler: {e}")
             self.activo = False
             return False
 
@@ -124,18 +124,18 @@ class SyncScheduler:
             bool: True si se detuvo correctamente
         """
         if not self.scheduler or not self.activo:
-            print("⚠️ [SYNC_SCHEDULER] Scheduler no está activo")
+            print("WARNING: [SYNC_SCHEDULER] Scheduler no esta activo")
             return True
         
         try:
             print("🛑 [SYNC_SCHEDULER] Deteniendo scheduler...")
             self.scheduler.shutdown(wait=True)
             self.activo = False
-            print("✅ [SYNC_SCHEDULER] Scheduler detenido")
+            print("OK: [SYNC_SCHEDULER] Scheduler detenido")
             return True
             
         except Exception as e:
-            print(f"❌ [SYNC_SCHEDULER] Error deteniendo scheduler: {e}")
+            print(f"ERROR: [SYNC_SCHEDULER] Error deteniendo scheduler: {e}")
             return False
 
     def _ejecutar_sincronizacion(self):
@@ -145,11 +145,11 @@ class SyncScheduler:
         timestamp_inicio = datetime.datetime.now()
         
         try:
-            print(f"🔄 [SYNC_AUTO] Iniciando sincronización automática - {timestamp_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"SYNC: [SYNC_AUTO] Iniciando sincronizacion automatica - {timestamp_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
             
             # Solo sincronizar si MongoDB está disponible
             if self.db_manager.modo_offline:
-                print("⚠️ [SYNC_AUTO] MongoDB offline - saltando sincronización")
+                print("WARNING: [SYNC_AUTO] MongoDB offline - saltando sincronizacion")
                 return
             
             # Ejecutar sincronización bidireccional
@@ -161,13 +161,13 @@ class SyncScheduler:
             
             if resultado.get("success", False):
                 self.sincronizaciones_exitosas += 1
-                print(f"✅ [SYNC_AUTO] {resultado.get('mensaje', 'Sincronización exitosa')}")
+                print(f"OK: [SYNC_AUTO] {resultado.get('mensaje', 'Sincronizacion exitosa')}")
             else:
                 self.sincronizaciones_fallidas += 1
-                print(f"❌ [SYNC_AUTO] Error: {resultado.get('error', 'Error desconocido')}")
+                print(f"ERROR: [SYNC_AUTO] Error: {resultado.get('error', 'Error desconocido')}")
                 
         except Exception as e:
-            print(f"❌ [SYNC_AUTO] Excepción durante sincronización: {e}")
+            print(f"ERROR: [SYNC_AUTO] Excepcion durante sincronizacion: {e}")
             self.sincronizaciones_fallidas += 1
             self.ultima_sincronizacion_resultado = {"success": False, "error": str(e)}
 
@@ -178,7 +178,7 @@ class SyncScheduler:
         Returns:
             dict: Resultado de la sincronización
         """
-        print("🔄 [SYNC_MANUAL] Iniciando sincronización manual...")
+        print("SYNC: [SYNC_MANUAL] Iniciando sincronizacion manual...")
         
         if self.db_manager.modo_offline:
             resultado = {
@@ -198,7 +198,7 @@ class SyncScheduler:
             else:
                 self.sincronizaciones_fallidas += 1
         
-        print(f"✅ [SYNC_MANUAL] Resultado: {resultado.get('mensaje', resultado.get('error', 'Completado'))}")
+        print(f"OK: [SYNC_MANUAL] Resultado: {resultado.get('mensaje', resultado.get('error', 'Completado'))}")
         return resultado
 
     def obtener_estado(self) -> dict:
@@ -238,10 +238,10 @@ class SyncScheduler:
             bool: True si se cambió correctamente
         """
         if nuevos_minutos < 1:
-            print("❌ [SYNC_SCHEDULER] Intervalo debe ser al menos 1 minuto")
+            print("ERROR: [SYNC_SCHEDULER] Intervalo debe ser al menos 1 minuto")
             return False
         
-        print(f"🔄 [SYNC_SCHEDULER] Cambiando intervalo: {self.intervalo_minutos} → {nuevos_minutos} minutos")
+        print(f"SYNC: [SYNC_SCHEDULER] Cambiando intervalo: {self.intervalo_minutos} -> {nuevos_minutos} minutos")
         
         self.intervalo_minutos = nuevos_minutos
         
@@ -302,7 +302,7 @@ class SyncScheduler:
 # Función de utilidad para testing
 def test_sync_scheduler():
     """Test rápido del scheduler"""
-    print("🧪 Probando Sync Scheduler...")
+    print("TEST: Probando Sync Scheduler...")
     
     # Mock de DatabaseManager para testing
     class MockDatabaseManager:
@@ -323,16 +323,16 @@ def test_sync_scheduler():
     scheduler = SyncScheduler(mock_db)
     
     if not scheduler.is_available():
-        print("❌ APScheduler no disponible")
+        print("ERROR: APScheduler no disponible")
         return False
     
     # Test de sincronización manual
     resultado = scheduler.ejecutar_sincronizacion_manual()
-    print(f"✅ Sincronización manual: {resultado.get('success', False)}")
+    print(f"OK: Sincronizacion manual: {resultado.get('success', False)}")
     
     # Test de estado
     estado = scheduler.obtener_estado()
-    print(f"✅ Estado scheduler: {'Disponible' if estado['disponible'] else 'No disponible'}")
+    print(f"OK: Estado scheduler: {'Disponible' if estado['disponible'] else 'No disponible'}")
     
     return True
 

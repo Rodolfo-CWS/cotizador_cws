@@ -2721,14 +2721,76 @@
       "_id": "689bbb290f78848afe426841",
       "respaldo_de_mongodb": true,
       "fecha_respaldo": "2025-08-12T16:07:37.809553"
+    },
+    {
+      "datosGenerales": {
+        "vendedor": "Gerardo Gonzalez",
+        "proyecto": "BOBOX",
+        "cliente": "MONGO",
+        "atencionA": "Roberto Gomes",
+        "contacto": "fdfdf@gmail.com",
+        "revision": "1",
+        "numeroCotizacion": "MONGO-CWS-GG-001-R1-BOBOX"
+      },
+      "items": [
+        {
+          "descripcion": "Rack Metálico 1",
+          "cantidad": "10",
+          "uom": "Pieza",
+          "costoUnidad": "9001.80",
+          "total": "90018.00",
+          "transporte": "0",
+          "instalacion": "0",
+          "seguridad": "0",
+          "descuento": "0",
+          "materiales": [
+            {
+              "material": "PTR 3/4 x 3/4 CAL 14",
+              "peso": "1.06",
+              "cantidad": "20",
+              "precio": "80",
+              "subtotal": "1696.00"
+            },
+            {
+              "material": "PTR 1 1/4",
+              "peso": "1.83",
+              "cantidad": "18",
+              "precio": "70",
+              "subtotal": "2305.80"
+            }
+          ],
+          "otrosMateriales": [
+            {
+              "descripcion": "Dunnage",
+              "precio": "1000",
+              "cantidad": "5",
+              "subtotal": "5000.00"
+            }
+          ]
+        }
+      ],
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": "18.5",
+        "tiempoEntrega": "20 dias",
+        "entregaEn": "SLP",
+        "terminos": "30 dias de crédito",
+        "comentarios": ""
+      },
+      "fechaCreacion": "2025-08-12T16:30:48.825332",
+      "timestamp": 1755037848825,
+      "version": "1.0.0",
+      "numeroCotizacion": "MONGO-CWS-GG-001-R1-BOBOX",
+      "revision": 1,
+      "_id": "533bac3c-6e81-4d8d-957d-bf9b460c2355"
     }
   ],
   "metadata": {
     "created": "2025-07-28T18:58:40.397575",
     "version": "1.0.0",
-    "total_cotizaciones": 46,
+    "total_cotizaciones": 47,
     "modo": "respaldo_automatico",
-    "last_updated": "2025-08-12T16:07:37.809553",
+    "last_updated": "2025-08-12T16:30:48.829329",
     "ultimo_respaldo": "2025-08-12T16:07:37.809553",
     "ultima_sincronizacion": "2025-08-11T17:32:51.826374",
     "total_sincronizado": 41

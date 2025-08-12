@@ -27,14 +27,14 @@ class PDFManager:
         self.db_manager = database_manager
         
         # SISTEMA PRIMARIO: Cloudinary
-        print("🚀 Inicializando PDF Manager híbrido...")
+        print("INIT: Inicializando PDF Manager hibrido...")
         self.cloudinary_manager = CloudinaryManager()
         self.cloudinary_disponible = self.cloudinary_manager.is_available()
         
         if self.cloudinary_disponible:
-            print("✅ Sistema primario: Cloudinary activado (25GB gratis)")
+            print("OK: Sistema primario: Cloudinary activado (25GB gratis)")
         else:
-            print("⚠️ Sistema primario: Cloudinary no disponible, usando fallbacks")
+            print("WARNING: Sistema primario: Cloudinary no disponible, usando fallbacks")
         
         # SISTEMAS FALLBACK: Google Drive + Local
         # Configurar rutas de PDFs locales (para fallback)
@@ -57,10 +57,10 @@ class PDFManager:
         # Colección para índice de PDFs
         self._inicializar_coleccion()
         
-        print(f"📁 PDF Manager inicializado con arquitectura híbrida:")
-        print(f"   Primario: Cloudinary ({'✅ Activo' if self.cloudinary_disponible else '❌ Inactivo'})")
+        print(f"PDF: PDF Manager inicializado con arquitectura hibrida:")
+        print(f"   Primario: Cloudinary ({'OK Activo' if self.cloudinary_disponible else 'ERROR Inactivo'})")
         print(f"   Fallback Local: {self.base_pdf_path}")
-        print(f"   Fallback Drive: {'✅ Configurado' if self.drive_client else '❌ No disponible'}")
+        print(f"   Fallback Drive: {'OK Configurado' if self.drive_client else 'ERROR No disponible'}")
     
     def _inicializar_coleccion(self):
         """Inicializa la colección de PDFs si MongoDB está disponible"""
@@ -163,7 +163,7 @@ class PDFManager:
                     )
                 print("[OK] Archivos README creados")
             except Exception as readme_error:
-                print(f"⚠️ Error creando README: {readme_error}")
+                print(f"WARNING: Error creando README: {readme_error}")
                 
         except Exception as e:
             print(f"[ERROR] Error creando estructura de carpetas: {e}")
@@ -217,7 +217,7 @@ class PDFManager:
             )
             datos_generales = cotizacion_data.get('datosGenerales', {})
             
-            print(f"🚀 [ALMACENAR_PDF_HIBRIDO] Número de cotización: '{numero_cotizacion}'")
+            print(f"STORE: [ALMACENAR_PDF_HIBRIDO] Numero de cotizacion: '{numero_cotizacion}'")
             print(f"📊 [ALMACENAR_PDF_HIBRIDO] Tamaño PDF: {len(pdf_content)} bytes")
             
             # Generar nombre de archivo seguro
@@ -227,7 +227,7 @@ class PDFManager:
             cloudinary_result = {"success": False, "error": "No intentado"}
             
             if self.cloudinary_disponible:
-                print("🎯 [CLOUDINARY] Intentando subir a sistema primario...")
+                print("TARGET: [CLOUDINARY] Intentando subir a sistema primario...")
                 
                 # Crear archivo temporal para Cloudinary
                 import tempfile
@@ -246,15 +246,15 @@ class PDFManager:
                     )
                     
                     if cloudinary_result.get("success", False):
-                        print(f"✅ [CLOUDINARY] PDF subido exitosamente!")
+                        print(f"OK: [CLOUDINARY] PDF subido exitosamente!")
                         print(f"   URL: {cloudinary_result.get('url', 'N/A')}")
                         print(f"   Tamaño: {cloudinary_result.get('bytes', 0)} bytes")
                         cloudinary_result["success"] = True
                     else:
-                        print(f"❌ [CLOUDINARY] Error: {cloudinary_result.get('error', 'Desconocido')}")
+                        print(f"ERROR: [CLOUDINARY] Error: {cloudinary_result.get('error', 'Desconocido')}")
                         
                 except Exception as e:
-                    print(f"❌ [CLOUDINARY] Excepción: {e}")
+                    print(f"ERROR: [CLOUDINARY] Excepcion: {e}")
                     cloudinary_result = {"success": False, "error": str(e)}
                 finally:
                     # Limpiar archivo temporal
@@ -264,11 +264,11 @@ class PDFManager:
                         except:
                             pass
             else:
-                print("⚠️ [CLOUDINARY] Sistema primario no disponible, usando fallbacks")
+                print("WARNING: [CLOUDINARY] Sistema primario no disponible, usando fallbacks")
                 cloudinary_result = {"success": False, "error": "Cloudinary no configurado"}
             
             # ===== PASO 2: LOCAL (RESPALDO SIEMPRE) =====
-            print("💾 [LOCAL] Guardando respaldo local...")
+            print("LOCAL: [LOCAL] Guardando respaldo local...")
             ruta_completa = self.nuevas_path / nombre_archivo
             ruta_completa.write_bytes(pdf_content)
             local_result = {
@@ -276,7 +276,7 @@ class PDFManager:
                 "ruta": str(ruta_completa.absolute()),
                 "tamaño": len(pdf_content)
             }
-            print(f"✅ [LOCAL] Respaldo guardado: {ruta_completa}")
+            print(f"OK: [LOCAL] Respaldo guardado: {ruta_completa}")
             
             # ===== PASO 3: GOOGLE DRIVE (FALLBACK) =====
             google_drive_result = {"success": False, "error": "No intentado"}
@@ -318,10 +318,10 @@ class PDFManager:
                         "carpeta_id": self.drive_client.folder_nuevas
                     }
                     
-                    print(f"✅ [GOOGLE_DRIVE] Fallback exitoso!")
+                    print(f"OK: [GOOGLE_DRIVE] Fallback exitoso!")
                     
                 except Exception as drive_error:
-                    print(f"❌ [GOOGLE_DRIVE] Error en fallback: {drive_error}")
+                    print(f"ERROR: [GOOGLE_DRIVE] Error en fallback: {drive_error}")
                     google_drive_result = {
                         "success": False,
                         "error": str(drive_error),
@@ -356,9 +356,9 @@ class PDFManager:
                         registro_pdf,
                         upsert=True
                     )
-                    print("✅ [MONGODB] Índice actualizado")
+                    print("OK: [MONGODB] Indice actualizado")
                 except Exception as e:
-                    print(f"⚠️ [MONGODB] Error actualizando índice: {e}")
+                    print(f"WARNING: [MONGODB] Error actualizando indice: {e}")
             
             # ===== RESULTADO FINAL =====
             # Determinar si la operación fue exitosa
@@ -370,13 +370,13 @@ class PDFManager:
             
             # Determinar mensaje de estado
             if cloudinary_result.get("success", False):
-                estado = "✅ Cloudinary (primario)"
+                estado = "OK Cloudinary (primario)"
             elif google_drive_result.get("success", False):
                 estado = "🔄 Google Drive (fallback)"
             elif local_result.get("success", False):
-                estado = "💾 Local (emergencia)"
+                estado = "LOCAL Local (emergencia)"
             else:
-                estado = "❌ Error en todos los sistemas"
+                estado = "ERROR Error en todos los sistemas"
             
             resultado_final = {
                 "success": almacenamiento_exitoso,
@@ -397,7 +397,7 @@ class PDFManager:
             return resultado_final
             
         except Exception as e:
-            print(f"❌ [ALMACENAR_PDF_HIBRIDO] Error general: {e}")
+            print(f"ERROR: [ALMACENAR_PDF_HIBRIDO] Error general: {e}")
             return {
                 "success": False,
                 "error": f"Error almacenando PDF: {str(e)}",

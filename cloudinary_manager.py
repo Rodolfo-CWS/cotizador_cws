@@ -6,6 +6,7 @@ Reemplaza Google Drive con almacenamiento gratuito de 25GB
 import os
 import json
 import datetime
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import tempfile
@@ -21,7 +22,9 @@ class CloudinaryManager:
         """
         self.cloudinary_available = False
         self.folder_nuevas = "cotizaciones/nuevas"
-        self.folder_antiguas = "cotizaciones/antiguas" 
+        self.folder_antiguas = "cotizaciones/antiguas"
+        self.max_retries = 3
+        self.retry_delay = 2  # segundos 
         
         try:
             import cloudinary
@@ -64,10 +67,38 @@ class CloudinaryManager:
     def is_available(self) -> bool:
         """Verifica si Cloudinary está disponible y configurado"""
         return self.cloudinary_available
+    
+    def _retry_operation(self, operation_func, *args, **kwargs):
+        """
+        Ejecuta una operación con reintentos automáticos
+        """
+        last_error = None
+        
+        for attempt in range(self.max_retries):
+            try:
+                result = operation_func(*args, **kwargs)
+                return result
+                
+            except Exception as e:
+                last_error = e
+                error_str = str(e).lower()
+                
+                # Solo reintentar en ciertos errores
+                if any(keyword in error_str for keyword in ['timeout', 'connection', 'network', 'temporary']):
+                    print(f"RETRY: Intento {attempt + 1}/{self.max_retries} fallo: {e}")
+                    if attempt < self.max_retries - 1:
+                        time.sleep(self.retry_delay * (attempt + 1))  # Exponential backoff
+                        continue
+                else:
+                    # Error no recuperable, no reintentar
+                    break
+        
+        # Si llegamos aquí, todos los intentos fallaron
+        raise last_error
 
     def subir_pdf(self, archivo_local: str, numero_cotizacion: str, es_nueva: bool = True) -> dict:
         """
-        Sube un PDF a Cloudinary
+        Sube un PDF a Cloudinary con reintentos automáticos
         
         Args:
             archivo_local: Ruta del archivo local a subir
@@ -87,18 +118,22 @@ class CloudinaryManager:
             # Crear nombre público único
             public_id = f"{folder}/{numero_cotizacion}"
             
-            # Subir archivo
-            print(f"📤 Subiendo PDF a Cloudinary: {public_id}")
+            print(f"UPLOAD: Subiendo PDF a Cloudinary: {public_id}")
             
-            resultado = self.cloudinary.uploader.upload(
-                archivo_local,
-                public_id=public_id,
-                resource_type="raw",  # Para archivos no-imagen como PDFs
-                overwrite=True,       # Sobrescribir si ya existe
-                invalidate=True,      # Invalidar cache CDN
-                tags=["cotizacion", "pdf", "cws"],  # Tags para organización
-                context=f"numero={numero_cotizacion}|fecha={datetime.datetime.now().isoformat()}"
-            )
+            # Función interna para la subida (para usar con retry)
+            def _upload_operation():
+                return self.cloudinary.uploader.upload(
+                    archivo_local,
+                    public_id=public_id,
+                    resource_type="raw",  # Para archivos no-imagen como PDFs
+                    overwrite=True,       # Sobrescribir si ya existe
+                    invalidate=True,      # Invalidar cache CDN
+                    tags=["cotizacion", "pdf", "cws"],  # Tags para organización
+                    context=f"numero={numero_cotizacion}|fecha={datetime.datetime.now().isoformat()}"
+                )
+            
+            # Ejecutar con reintentos
+            resultado = self._retry_operation(_upload_operation)
             
             # Extraer información relevante
             info_archivo = {
@@ -113,15 +148,15 @@ class CloudinaryManager:
                 "numero_cotizacion": numero_cotizacion
             }
             
-            print(f"✅ PDF subido exitosamente:")
+            print(f"OK: PDF subido exitosamente:")
             print(f"   URL: {info_archivo['url']}")
-            print(f"   Tamaño: {info_archivo['bytes']} bytes")
+            print(f"   Tamano: {info_archivo['bytes']} bytes")
             
             return info_archivo
             
         except Exception as e:
             error_msg = f"Error subiendo PDF a Cloudinary: {e}"
-            print(f"❌ {error_msg}")
+            print(f"ERROR: {error_msg}")
             return {"error": error_msg, "fallback": True}
 
     def descargar_pdf(self, public_id: str, destino_local: str = None) -> dict:
@@ -148,7 +183,7 @@ class CloudinaryManager:
                 secure=True
             )[0]
             
-            print(f"📥 Descargando PDF desde: {url}")
+            print(f"DOWNLOAD: Descargando PDF desde: {url}")
             
             # Descargar archivo
             response = requests.get(url)
@@ -165,7 +200,7 @@ class CloudinaryManager:
             with open(destino_local, 'wb') as f:
                 f.write(response.content)
             
-            print(f"✅ PDF descargado: {destino_local}")
+            print(f"OK: PDF descargado: {destino_local}")
             
             return {
                 "archivo_local": destino_local,
@@ -175,7 +210,7 @@ class CloudinaryManager:
             
         except Exception as e:
             error_msg = f"Error descargando PDF desde Cloudinary: {e}"
-            print(f"❌ {error_msg}")
+            print(f"ERROR: {error_msg}")
             return {"error": error_msg}
 
     def listar_pdfs(self, folder: str = None, max_resultados: int = 100) -> dict:
@@ -224,7 +259,7 @@ class CloudinaryManager:
                 }
                 archivos.append(archivo_info)
             
-            print(f"📋 Encontrados {len(archivos)} PDFs en Cloudinary")
+            print(f"LIST: Encontrados {len(archivos)} PDFs en Cloudinary")
             
             return {
                 "archivos": archivos,
@@ -234,7 +269,7 @@ class CloudinaryManager:
             
         except Exception as e:
             error_msg = f"Error listando PDFs en Cloudinary: {e}"
-            print(f"❌ {error_msg}")
+            print(f"ERROR: {error_msg}")
             return {"error": error_msg, "archivos": []}
 
     def eliminar_pdf(self, public_id: str) -> dict:
@@ -251,7 +286,7 @@ class CloudinaryManager:
             return {"error": "Cloudinary no disponible"}
         
         try:
-            print(f"🗑️ Eliminando PDF: {public_id}")
+            print(f"DELETE: Eliminando PDF: {public_id}")
             
             resultado = self.cloudinary.uploader.destroy(
                 public_id,
@@ -260,16 +295,16 @@ class CloudinaryManager:
             )
             
             if resultado.get('result') == 'ok':
-                print(f"✅ PDF eliminado exitosamente")
+                print(f"OK: PDF eliminado exitosamente")
                 return {"eliminado": True, "public_id": public_id}
             else:
                 error_msg = f"Error eliminando PDF: {resultado}"
-                print(f"❌ {error_msg}")
+                print(f"ERROR: {error_msg}")
                 return {"error": error_msg}
             
         except Exception as e:
             error_msg = f"Error eliminando PDF de Cloudinary: {e}"
-            print(f"❌ {error_msg}")
+            print(f"ERROR: {error_msg}")
             return {"error": error_msg}
 
     def mover_a_antiguas(self, numero_cotizacion: str) -> dict:
@@ -289,7 +324,7 @@ class CloudinaryManager:
             public_id_origen = f"{self.folder_nuevas}/{numero_cotizacion}"
             public_id_destino = f"{self.folder_antiguas}/{numero_cotizacion}"
             
-            print(f"📁 Moviendo PDF: {public_id_origen} → {public_id_destino}")
+            print(f"MOVE: Moviendo PDF: {public_id_origen} -> {public_id_destino}")
             
             # Renombrar archivo (mover entre carpetas)
             resultado = self.cloudinary.uploader.rename(
@@ -300,7 +335,7 @@ class CloudinaryManager:
                 invalidate=True
             )
             
-            print(f"✅ PDF movido a antiguas exitosamente")
+            print(f"OK: PDF movido a antiguas exitosamente")
             
             return {
                 "movido": True,
@@ -311,12 +346,12 @@ class CloudinaryManager:
             
         except Exception as e:
             error_msg = f"Error moviendo PDF en Cloudinary: {e}"
-            print(f"❌ {error_msg}")
+            print(f"ERROR: {error_msg}")
             return {"error": error_msg}
 
     def obtener_estadisticas(self) -> dict:
         """
-        Obtiene estadísticas de uso de Cloudinary
+        Obtiene estadísticas de uso de Cloudinary con reintentos
         
         Returns:
             Dict con estadísticas de almacenamiento
@@ -325,8 +360,12 @@ class CloudinaryManager:
             return {"error": "Cloudinary no disponible"}
         
         try:
-            # Obtener información de la cuenta
-            info = self.cloudinary.api.usage()
+            # Función interna para obtener estadísticas
+            def _stats_operation():
+                return self.cloudinary.api.usage()
+            
+            # Ejecutar con reintentos
+            info = self._retry_operation(_stats_operation)
             
             estadisticas = {
                 "creditos_usados": info.get('credits', 0),
@@ -337,15 +376,21 @@ class CloudinaryManager:
                 "fecha_consulta": datetime.datetime.now().isoformat()
             }
             
-            # Obtener conteo de PDFs por carpeta
-            nuevas = self.listar_pdfs("nuevas", max_resultados=1000)
-            antiguas = self.listar_pdfs("antiguas", max_resultados=1000)
+            # Obtener conteo de PDFs por carpeta (también con retry)
+            try:
+                nuevas = self.listar_pdfs("nuevas", max_resultados=1000)
+                antiguas = self.listar_pdfs("antiguas", max_resultados=1000)
+                
+                estadisticas["pdfs_nuevos"] = len(nuevas.get("archivos", []))
+                estadisticas["pdfs_antiguos"] = len(antiguas.get("archivos", []))
+                estadisticas["total_pdfs"] = estadisticas["pdfs_nuevos"] + estadisticas["pdfs_antiguos"]
+            except Exception as list_error:
+                print(f"WARNING: No se pudieron obtener conteos de archivos: {list_error}")
+                estadisticas["pdfs_nuevos"] = 0
+                estadisticas["pdfs_antiguos"] = 0
+                estadisticas["total_pdfs"] = 0
             
-            estadisticas["pdfs_nuevos"] = len(nuevas.get("archivos", []))
-            estadisticas["pdfs_antiguos"] = len(antiguas.get("archivos", []))
-            estadisticas["total_pdfs"] = estadisticas["pdfs_nuevos"] + estadisticas["pdfs_antiguos"]
-            
-            print(f"📊 Estadísticas Cloudinary:")
+            print(f"STATS: Estadisticas Cloudinary:")
             print(f"   PDFs almacenados: {estadisticas['total_pdfs']}")
             print(f"   Storage usado: {estadisticas['storage_usado']} bytes")
             print(f"   Bandwidth usado: {estadisticas['bandwidth_usado']} bytes")

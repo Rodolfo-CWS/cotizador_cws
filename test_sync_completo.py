@@ -23,35 +23,35 @@ def test_database_hibrido():
     db = DatabaseManager()
     
     print(f"1. Estado inicial:")
-    print(f"   Modo offline: {'✅ Sí' if db.modo_offline else '❌ No'}")
+    print(f"   Modo offline: {'OK Si' if db.modo_offline else 'NO'}")
     print(f"   Archivo JSON: {db.archivo_datos}")
     
     if not db.modo_offline:
-        print("   MongoDB: ✅ Conectado")
+        print("   MongoDB: OK Conectado")
     else:
-        print("   MongoDB: ❌ Sin conexión (modo offline)")
+        print("   MongoDB: ERROR Sin conexion (modo offline)")
     
     # Test de sincronización bidireccional
     print(f"\n2. Test de sincronización bidireccional:")
     
     if db.modo_offline:
-        print("   ⚠️ MongoDB offline - test de sincronización omitido")
+        print("   WARNING: MongoDB offline - test de sincronizacion omitido")
     else:
         try:
             resultado = db.sincronizar_bidireccional()
             
             if resultado.get("success", False):
-                print("   ✅ Sincronización exitosa")
-                print(f"     ⬆️ Subidas (JSON → MongoDB): {resultado.get('subidas', 0)}")
-                print(f"     ⬇️ Descargas (MongoDB → JSON): {resultado.get('descargas', 0)}")
-                print(f"     ⚠️ Conflictos resueltos: {resultado.get('conflictos', 0)}")
+                print("   OK: Sincronizacion exitosa")
+                print(f"     UP Subidas (JSON -> MongoDB): {resultado.get('subidas', 0)}")
+                print(f"     DOWN Descargas (MongoDB -> JSON): {resultado.get('descargas', 0)}")
+                print(f"     CONFLICT Conflictos resueltos: {resultado.get('conflictos', 0)}")
                 print(f"     Total JSON: {resultado.get('total_json', 0)}")
                 print(f"     Total MongoDB: {resultado.get('total_mongo', 0)}")
             else:
-                print(f"   ❌ Error en sincronización: {resultado.get('error', 'Desconocido')}")
+                print(f"   ERROR en sincronizacion: {resultado.get('error', 'Desconocido')}")
                 
         except Exception as e:
-            print(f"   ❌ Excepción durante sincronización: {e}")
+            print(f"   ERROR Excepcion durante sincronizacion: {e}")
     
     # Test de lectura de datos
     print(f"\n3. Test de lectura de datos:")
@@ -62,21 +62,21 @@ def test_database_hibrido():
         paginas = cotizaciones.get("total_pages", 0)
         items = len(cotizaciones.get("cotizaciones", []))
         
-        print(f"   ✅ Datos leídos exitosamente")
+        print(f"   OK: Datos leidos exitosamente")
         print(f"     Total cotizaciones: {total}")
-        print(f"     Total páginas: {paginas}")
-        print(f"     Items en página 1: {items}")
+        print(f"     Total paginas: {paginas}")
+        print(f"     Items en pagina 1: {items}")
         
         if items > 0:
             primera = cotizaciones["cotizaciones"][0]
-            numero = primera.get("numeroCotizacion", "Sin número")
+            numero = primera.get("numeroCotizacion", "Sin numero")
             cliente = primera.get("datosGenerales", {}).get("cliente", "Sin cliente")
             print(f"     Ejemplo: {numero} - {cliente}")
         
     except Exception as e:
-        print(f"   ❌ Error leyendo datos: {e}")
+        print(f"   ERROR leyendo datos: {e}")
     
-    print("\n✅ Test de base de datos híbrida completado")
+    print("\nOK: Test de base de datos hibrida completado")
     return True
 
 def test_scheduler_completo():
@@ -86,10 +86,10 @@ def test_scheduler_completo():
     # Test básico del scheduler
     print("1. Test básico del scheduler:")
     if not test_sync_scheduler():
-        print("   ❌ Test básico del scheduler falló")
+        print("   ERROR: Test basico del scheduler fallo")
         return False
     
-    print("   ✅ Test básico exitoso")
+    print("   OK: Test basico exitoso")
     
     # Test con DatabaseManager real
     print("\n2. Test con sistema real:")
@@ -98,14 +98,14 @@ def test_scheduler_completo():
         db = DatabaseManager()
         scheduler = SyncScheduler(db)
         
-        print(f"   Scheduler disponible: {'✅ Sí' if scheduler.is_available() else '❌ No'}")
-        print(f"   Auto-sync habilitado: {'✅ Sí' if scheduler.auto_sync_enabled else '❌ No'}")
+        print(f"   Scheduler disponible: {'OK Si' if scheduler.is_available() else 'NO'}")
+        print(f"   Auto-sync habilitado: {'OK Si' if scheduler.auto_sync_enabled else 'NO'}")
         print(f"   Intervalo: {scheduler.intervalo_minutos} minutos")
         
         # Test de estado
         estado = scheduler.obtener_estado()
-        print(f"   Estado activo: {'✅ Sí' if estado.get('activo', False) else '❌ No'}")
-        print(f"   MongoDB disponible: {'✅ Sí' if estado.get('mongodb_disponible', False) else '❌ No'}")
+        print(f"   Estado activo: {'OK Si' if estado.get('activo', False) else 'NO'}")
+        print(f"   MongoDB disponible: {'OK Si' if estado.get('mongodb_disponible', False) else 'NO'}")
         
         # Test de sincronización manual
         if scheduler.is_available():
@@ -113,17 +113,17 @@ def test_scheduler_completo():
             resultado = scheduler.ejecutar_sincronizacion_manual()
             
             if resultado.get("success", False):
-                print("   ✅ Sincronización manual exitosa")
+                print("   OK: Sincronizacion manual exitosa")
                 print(f"     {resultado.get('mensaje', 'Sin mensaje')}")
             else:
-                print(f"   ⚠️ Sincronización manual falló: {resultado.get('error', 'Error desconocido')}")
-                print("     (Esto es normal si MongoDB está offline)")
+                print(f"   WARNING: Sincronizacion manual fallo: {resultado.get('error', 'Error desconocido')}")
+                print("     (Esto es normal si MongoDB esta offline)")
         
     except Exception as e:
-        print(f"   ❌ Error en test del scheduler: {e}")
+        print(f"   ERROR en test del scheduler: {e}")
         return False
     
-    print("\n✅ Test de scheduler completado")
+    print("\nOK: Test de scheduler completado")
     return True
 
 def test_pdf_hibrido():
@@ -290,28 +290,28 @@ def main():
             tests_exitosos += 1
         
     except Exception as e:
-        print(f"\n❌ Error durante los tests: {e}")
+        print(f"\nERROR: Error durante los tests: {e}")
     
     print("\n" + "="*60)
-    print(f"🏁 RESULTADO FINAL: {tests_exitosos}/{tests_totales} tests exitosos")
+    print(f"FINAL: RESULTADO FINAL: {tests_exitosos}/{tests_totales} tests exitosos")
     
     if tests_exitosos == tests_totales:
-        print("🎉 Todos los tests pasaron! Sistema híbrido completamente funcional.")
+        print("OK: Todos los tests pasaron! Sistema hibrido completamente funcional.")
     elif tests_exitosos >= tests_totales // 2:
-        print("⚠️ Sistema parcialmente funcional - algunos componentes necesitan configuración.")
+        print("WARNING: Sistema parcialmente funcional - algunos componentes necesitan configuracion.")
     else:
-        print("❌ Sistema necesita configuración adicional.")
+        print("ERROR: Sistema necesita configuracion adicional.")
     
-    print("\n📋 Próximos pasos recomendados:")
+    print("\nNEXT: Proximos pasos recomendados:")
     if tests_exitosos < tests_totales:
         print("   1. Configura las variables de entorno faltantes")
         print("   2. Instala dependencias: pip install -r requirements.txt") 
-        print("   3. Verifica configuración de MongoDB y Cloudinary")
+        print("   3. Verifica configuracion de MongoDB y Cloudinary")
     else:
-        print("   ✅ Sistema listo para producción!")
-        print("   ✅ Cloudinary configurado para PDFs")
-        print("   ✅ Sincronización automática disponible")
-        print("   ✅ Fallbacks funcionando correctamente")
+        print("   OK: Sistema listo para produccion!")
+        print("   OK: Cloudinary configurado para PDFs")
+        print("   OK: Sincronizacion automatica disponible")
+        print("   OK: Fallbacks funcionando correctamente")
     
     return tests_exitosos >= tests_totales // 2
 
