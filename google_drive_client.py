@@ -219,7 +219,7 @@ class GoogleDriveClient:
             return []
         
         try:
-            print(f"🔍 Google Drive: Buscando PDFs con query: '{query}'")
+            print(f"[SEARCH] Google Drive: Buscando PDFs con query: '{query}'")
             print(f"   Carpeta nuevas: {self.folder_nuevas}")
             print(f"   Carpeta antiguas: {self.folder_antiguas}")
             
@@ -250,21 +250,21 @@ class GoogleDriveClient:
                 ).execute()
                 
                 files = results.get('files', [])
-                print(f"   📊 {nombre_carpeta}: {len(files)} archivos encontrados")
+                print(f"   [FILES] {nombre_carpeta}: {len(files)} archivos encontrados")
                 
                 # Agregar información de la carpeta a cada archivo
                 for file in files:
                     file['carpeta_origen'] = nombre_carpeta
                     all_files.append(file)
             
-            print(f"📊 Google Drive: Total de archivos - {len(all_files)}")
+            print(f"[TOTAL] Google Drive: Total de archivos - {len(all_files)}")
             
             # Formatear resultados
             pdfs = []
             for file in all_files:  # Usar all_files en lugar de files
                 nombre_archivo = file['name']
                 carpeta = file.get('carpeta_origen', 'desconocida')
-                print(f"   📄 Archivo encontrado: {nombre_archivo} (ID: {file['id']}) en {carpeta}")
+                print(f"   [PDF] Archivo encontrado: {nombre_archivo} (ID: {file['id']}) en {carpeta}")
                 
                 # Extraer número de cotización del nombre del archivo
                 numero_cotizacion = nombre_archivo.replace('.pdf', '')
@@ -306,7 +306,7 @@ class GoogleDriveClient:
             return None
         
         try:
-            print(f"🔽 Google Drive: Iniciando descarga de '{nombre_archivo}'")
+            print(f"[DOWNLOAD] Google Drive: Iniciando descarga de '{nombre_archivo}'")
             
             # Crear variaciones del nombre a buscar
             nombres_a_probar = [
@@ -417,7 +417,7 @@ class GoogleDriveClient:
             return None
         
         try:
-            print(f"🔽 Google Drive: Descargando por ID: {file_id} (nombre: {nombre_archivo})")
+            print(f"[DOWNLOAD_ID] Google Drive: Descargando por ID: {file_id} (nombre: {nombre_archivo})")
             
             # Descargar directamente por ID
             request = self.service.files().get_media(fileId=file_id)

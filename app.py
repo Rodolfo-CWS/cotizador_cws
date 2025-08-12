@@ -156,9 +156,9 @@ def validate_material_data(material, item_index=0, material_index=0):
     cantidad = safe_float(material.get('cantidad'), 0.0)
     precio = safe_float(material.get('precio'), 0.0)
     
-    # Validaciones específicas
-    if peso <= 0 and (cantidad > 0 or precio > 0):
-        peso = 1.0  # Peso mínimo para materiales válidos
+    # Validaciones específicas - CONSERVAR VALORES ORIGINALES EN REVISIONES
+    if peso < 0:
+        peso = 0.0  # Solo corregir valores negativos, no cambiar valores válidos
         
     if cantidad < 0:
         print(f"[VALIDATE] Cantidad negativa detectada: {cantidad}, corrigiendo a 0")
@@ -922,13 +922,67 @@ def formulario():
             print(f"[FORM] FORMULARIO: Resultado guardado = {resultado}")
             
             if resultado["success"]:
-                print(f"[OK] FORMULARIO: Guardado exitoso - Numero: {resultado.get('numeroCotizacion')}")
-                return jsonify({
+                numero_cotizacion = resultado.get('numeroCotizacion')
+                print(f"[OK] FORMULARIO: Guardado exitoso - Numero: {numero_cotizacion}")
+                
+                # AGREGAR: Generar PDF automáticamente después de guardar
+                pdf_resultado = None
+                pdf_error = None
+                
+                try:
+                    print(f"[PDF] FORMULARIO: Generando PDF automáticamente para {numero_cotizacion}")
+                    
+                    if pdf_manager and (WEASYPRINT_AVAILABLE or REPORTLAB_AVAILABLE):
+                        # Buscar la cotización recién guardada
+                        cotizacion_busqueda = db_manager.obtener_cotizacion(numero_cotizacion)
+                        
+                        if cotizacion_busqueda["encontrado"]:
+                            cotizacion = cotizacion_busqueda["item"]
+                            
+                            # Generar PDF usando ReportLab
+                            try:
+                                pdf_data = generar_pdf_reportlab(cotizacion)
+                                
+                                # Almacenar en Google Drive y localmente
+                                resultado_almacenamiento = pdf_manager.almacenar_pdf_nuevo(
+                                    pdf_data, 
+                                    cotizacion
+                                )
+                                
+                                pdf_resultado = resultado_almacenamiento
+                                print(f"[PDF] FORMULARIO: PDF generado y almacenado exitosamente")
+                                
+                            except Exception as pdf_gen_error:
+                                print(f"[ERROR] FORMULARIO: Error generando PDF: {pdf_gen_error}")
+                                pdf_error = str(pdf_gen_error)
+                        else:
+                            print(f"[ERROR] FORMULARIO: No se pudo recuperar cotización para PDF: {numero_cotizacion}")
+                            pdf_error = "No se pudo recuperar la cotización para generar PDF"
+                    else:
+                        print(f"[WARNING] FORMULARIO: PDF Manager no disponible o generadores PDF no instalados")
+                        pdf_error = "Generadores de PDF no disponibles"
+                        
+                except Exception as e:
+                    print(f"[ERROR] FORMULARIO: Error en generación automática de PDF: {e}")
+                    pdf_error = str(e)
+                
+                # Respuesta con información de PDF
+                respuesta = {
                     "success": True,
                     "mensaje": "Cotización guardada correctamente",
                     "id": resultado["id"],
-                    "numeroCotizacion": resultado["numeroCotizacion"]
-                })
+                    "numeroCotizacion": numero_cotizacion,
+                    "pdf_generado": pdf_resultado is not None,
+                    "pdf_error": pdf_error
+                }
+                
+                if pdf_resultado:
+                    respuesta["pdf_info"] = {
+                        "ruta_local": pdf_resultado.get("ruta_local"),
+                        "google_drive": pdf_resultado.get("google_drive", {})
+                    }
+                
+                return jsonify(respuesta)
             else:
                 print(f"[ERROR] FORMULARIO: Error al guardar - {resultado.get('error')}")
                 return jsonify({

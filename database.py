@@ -77,7 +77,9 @@ class DatabaseManager:
                 self.mongo_uri,
                 serverSelectionTimeoutMS=timeout_ms,
                 connectTimeoutMS=timeout_ms,
-                socketTimeoutMS=timeout_ms
+                socketTimeoutMS=timeout_ms,
+                tls=True,
+                tlsAllowInvalidCertificates=True
             )
             
             self.db = self.client[self.database_name]
@@ -86,7 +88,7 @@ class DatabaseManager:
             # CRÍTICO: Verificación REAL de conexión y permisos
             print("[MONGO] Verificando conexión real...")
             self._verificar_conexion_completa()
-            print("[MONGO] ✅ Conexión a MongoDB exitosa y verificada")
+            print("[MONGO] [OK] Conexion a MongoDB exitosa y verificada")
             
             self.modo_offline = False
             
