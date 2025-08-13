@@ -32,9 +32,56 @@ import atexit
 import os
 import json  # ← IMPORTANTE
 import csv  # Para leer archivo CSV de materiales
+import logging
+from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
 from database import DatabaseManager
 from pdf_manager import PDFManager
+
+# Configurar logging detallado para detectar fallos silenciosos
+def configurar_logging():
+    """Configura logging detallado para la aplicación"""
+    # Crear directorio de logs si no existe
+    log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Configurar logging principal
+    log_file = os.path.join(log_dir, 'cotizador_fallos_criticos.log')
+    
+    # Handler rotativo para evitar archivos de log enormes
+    file_handler = RotatingFileHandler(
+        log_file, 
+        maxBytes=10*1024*1024,  # 10MB por archivo
+        backupCount=5  # Mantener 5 archivos de respaldo
+    )
+    
+    # Formato detallado de logs
+    formatter = logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(name)s:%(lineno)d - %(message)s'
+    )
+    file_handler.setFormatter(formatter)
+    
+    # Configurar logger raíz
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    logger.addHandler(file_handler)
+    
+    # Logger específico para fallos críticos
+    critical_logger = logging.getLogger('FALLOS_CRITICOS')
+    critical_handler = RotatingFileHandler(
+        os.path.join(log_dir, 'fallos_silenciosos_detectados.log'),
+        maxBytes=5*1024*1024,
+        backupCount=3
+    )
+    critical_handler.setFormatter(formatter)
+    critical_logger.addHandler(critical_handler)
+    critical_logger.setLevel(logging.ERROR)
+    
+    print(f"✅ Logging configurado: {log_file}")
+    return logger
+
+# Configurar logging al inicio
+configurar_logging()
 
 # Cargar variables de entorno
 load_dotenv()
@@ -913,7 +960,16 @@ def home():
                     "campos_guardados": resultado["campos_guardados"]
                 })
             else:
-                return jsonify({"error": resultado["error"]}), 500
+                # ❌ LOG CRÍTICO: Error en guardado
+                error_msg = resultado.get("error", "Error desconocido")
+                logging.error(f"ERROR_GUARDADO: {error_msg}")
+                
+                # Log específico para diferentes tipos de error
+                if resultado.get("tipo_error") == "fallo_silencioso":
+                    critical_logger = logging.getLogger('FALLOS_CRITICOS')
+                    critical_logger.error(f"FALLO_SILENCIOSO_CRÍTICO: {error_msg}")
+                
+                return jsonify({"error": error_msg}), 500
                 
         except Exception as e:
             print(f"Error en ruta principal: {e}")
@@ -938,6 +994,20 @@ def formulario():
             if resultado["success"]:
                 numero_cotizacion = resultado.get('numeroCotizacion')
                 print(f"[OK] FORMULARIO: Guardado exitoso - Numero: {numero_cotizacion}")
+                
+                # ✅ LOG CRÍTICO: Cotización guardada exitosamente
+                logging.info(f"COTIZACION_GUARDADA: {numero_cotizacion} - Cliente: {datos.get('datosGenerales', {}).get('cliente', 'N/A')}")
+                
+                # Verificar si es un fallo silencioso detectado
+                if resultado.get("tipo_error") == "fallo_silencioso":
+                    critical_logger = logging.getLogger('FALLOS_CRITICOS')
+                    critical_logger.error(f"FALLO_SILENCIOSO_DETECTADO: {numero_cotizacion} - {resultado.get('error', 'Error desconocido')}")
+                    
+                    return jsonify({
+                        "error": "Error crítico en guardado - datos no persistieron",
+                        "tipo_error": "fallo_silencioso",
+                        "numero_cotizacion": numero_cotizacion
+                    }), 500
                 
                 # AGREGAR: Generar PDF automáticamente después de guardar
                 pdf_resultado = None

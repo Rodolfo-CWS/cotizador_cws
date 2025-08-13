@@ -336,9 +336,11 @@
             btnBuscar.classList.add('loading');
             btnBuscar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>';
             
-            mostrarMensaje('Buscando PDFs...', 'loading');
+            // CORRECCIÓN: Búsqueda unificada - usar cotizaciones directamente para evitar inconsistencias
+            mostrarMensaje('Buscando cotizaciones...', 'loading');
+            console.log('🔍 Búsqueda unificada iniciada para:', query);
 
-            fetch('/buscar_pdfs', {
+            fetch('/buscar', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -353,61 +355,16 @@
                 return response.json();
             })
             .then(data => {
-                console.log('✅ Respuesta del servidor:', data);
-                
-                // Si no hay resultados de PDFs, usar fallback a cotizaciones
-                if (!data.resultados || data.resultados.length === 0) {
-                    console.log('🔄 No hay PDFs, buscando en cotizaciones...');
-                    
-                    return fetch('/buscar', {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({ query: query })
-                    })
-                    .then(response => response.json())
-                    .then(cotizacionesData => {
-                        console.log('✅ Resultados de cotizaciones:', cotizacionesData);
-                        procesarRespuesta({
-                            resultados: cotizacionesData.resultados || [],
-                            total: cotizacionesData.total || 0,
-                            modo: 'cotizaciones'
-                        });
-                    });
-                } else {
-                    procesarRespuesta(data);
-                }
+                console.log('✅ Resultados unificados:', data);
+                procesarRespuesta({
+                    resultados: data.resultados || [],
+                    total: data.total || 0,
+                    modo: 'unificado'
+                });
             })
             .catch(error => {
-                console.error('❌ Error en búsqueda de PDFs:', error);
-                console.log('🔄 Intentando búsqueda de cotizaciones como fallback...');
-                
-                // Fallback: buscar en cotizaciones
-                return fetch('/buscar', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ query: query })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('✅ Fallback exitoso - cotizaciones:', data);
-                    // Convertir formato de cotizaciones a formato de PDFs
-                    return {
-                        resultados: data.resultados || [],
-                        total: data.total || 0,
-                        modo: data.modo || 'fallback'
-                    };
-                })
-                .then(data => procesarRespuesta(data))
-                .catch(fallbackError => {
-                    console.error('❌ Error también en fallback:', fallbackError);
-                    mostrarMensaje(`Error al buscar: ${error.message}`, 'error');
-                });
+                console.error('❌ Error en búsqueda unificada:', error);
+                mostrarMensaje(`Error en búsqueda: ${error.message}`, 'error');
             })
             .finally(() => {
                 btnBuscar.disabled = false;

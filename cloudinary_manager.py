@@ -98,7 +98,7 @@ class CloudinaryManager:
 
     def subir_pdf(self, archivo_local: str, numero_cotizacion: str, es_nueva: bool = True) -> dict:
         """
-        Sube un PDF a Cloudinary con reintentos automáticos
+        Sube un PDF a Cloudinary con reintentos automáticos y manejo robusto de errores
         
         Args:
             archivo_local: Ruta del archivo local a subir
@@ -106,10 +106,24 @@ class CloudinaryManager:
             es_nueva: True para carpeta 'nuevas', False para 'antiguas'
             
         Returns:
-            Dict con información del archivo subido o error
+            Dict con información del archivo subido o error detallado
         """
         if not self.cloudinary_available:
-            return {"error": "Cloudinary no disponible", "fallback": True}
+            print("CLOUDINARY: Servicio no disponible - usando fallback")
+            return {
+                "error": "Cloudinary no disponible", 
+                "fallback": True,
+                "tipo_error": "servicio_no_disponible"
+            }
+        
+        # Validaciones previas
+        if not os.path.exists(archivo_local):
+            print(f"CLOUDINARY: Archivo no existe: {archivo_local}")
+            return {
+                "error": f"Archivo no existe: {archivo_local}",
+                "fallback": True,
+                "tipo_error": "archivo_no_existe"
+            }
         
         try:
             # Determinar carpeta de destino
@@ -118,7 +132,8 @@ class CloudinaryManager:
             # Crear nombre público único
             public_id = f"{folder}/{numero_cotizacion}"
             
-            print(f"UPLOAD: Subiendo PDF a Cloudinary: {public_id}")
+            print(f"CLOUDINARY: [INICIO] Subiendo PDF: {public_id}")
+            print(f"CLOUDINARY: Archivo local: {archivo_local} (tamaño: {os.path.getsize(archivo_local)} bytes)")
             
             # Función interna para la subida (para usar con retry)
             def _upload_operation():
@@ -156,8 +171,31 @@ class CloudinaryManager:
             
         except Exception as e:
             error_msg = f"Error subiendo PDF a Cloudinary: {e}"
-            print(f"ERROR: {error_msg}")
-            return {"error": error_msg, "fallback": True}
+            error_tipo = type(e).__name__
+            
+            print(f"CLOUDINARY: [ERROR] {error_msg}")
+            print(f"CLOUDINARY: [ERROR] Tipo: {error_tipo}")
+            
+            # Log detallado para debugging
+            import logging
+            logging.error(f"CLOUDINARY ERROR: {error_msg} - Archivo: {archivo_local} - Cotización: {numero_cotizacion}")
+            
+            # Determinar tipo de error específico
+            tipo_error_especifico = "error_desconocido"
+            if "authentication" in str(e).lower() or "unauthorized" in str(e).lower():
+                tipo_error_especifico = "error_autenticacion"
+            elif "network" in str(e).lower() or "timeout" in str(e).lower():
+                tipo_error_especifico = "error_red"
+            elif "quota" in str(e).lower() or "limit" in str(e).lower():
+                tipo_error_especifico = "error_cuota"
+            
+            return {
+                "error": error_msg, 
+                "fallback": True,
+                "tipo_error": tipo_error_especifico,
+                "error_tipo": error_tipo,
+                "numero_cotizacion": numero_cotizacion
+            }
 
     def descargar_pdf(self, public_id: str, destino_local: str = None) -> dict:
         """

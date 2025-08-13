@@ -504,94 +504,117 @@ class DatabaseManager:
                     return self.guardar_cotizacion(datos)
                 
                 # 2. Guardar en MongoDB
-                print(f"[MONGODB] INTENTANDO GUARDAR EN MONGODB...")
-                print(f"   Collection: {self.collection}")
-                print(f"   Numero cotizacion: {numero}")
-                resultado = self.collection.insert_one(datos)
-                inserted_id = str(resultado.inserted_id)
-                
-                print(f"[SUCCESS] Cotizacion guardada en MongoDB - ID: {inserted_id}")
-                
-                # 3. RESPALDO AUTOMÁTICO: También guardar en archivo offline
                 try:
-                    self._agregar_respaldo_offline(datos, inserted_id)
-                    print("Respaldo offline creado automaticamente")
-                except Exception as backup_error:
-                    print(f"Error en respaldo offline: {backup_error}")
-                    # No fallar por error de respaldo
+                    print(f"[MONGODB] INTENTANDO GUARDAR EN MONGODB...")
+                    print(f"   Collection: {self.collection}")
+                    print(f"   Numero cotizacion: {numero}")
+                    resultado = self.collection.insert_one(datos)
+                    inserted_id = str(resultado.inserted_id)
                 
-                # 4. VERIFICACIÓN CRÍTICA REAL DE GUARDADO
-                print(f"[VERIFICAR] 🔍 VERIFICACIÓN CRÍTICA INMEDIATA...")
+                    print(f"[SUCCESS] Cotizacion guardada en MongoDB - ID: {inserted_id}")
+                    
+                    # 3. RESPALDO AUTOMÁTICO: También guardar en archivo offline
+                    try:
+                        self._agregar_respaldo_offline(datos, inserted_id)
+                        print("Respaldo offline creado automaticamente")
+                    except Exception as backup_error:
+                        print(f"Error en respaldo offline: {backup_error}")
+                        # No fallar por error de respaldo
+                    
+                    # 4. VERIFICACIÓN CRÍTICA REAL DE GUARDADO
+                    print(f"[VERIFICAR] 🔍 VERIFICACIÓN CRÍTICA INMEDIATA...")
                 
-                try:
-                    # Verificación múltiple para asegurar que se guardó realmente
-                    verificaciones_pasadas = 0
-                    total_verificaciones = 3
-                    documento_guardado = None
+                    try:
+                        # Verificación múltiple para asegurar que se guardó realmente
+                        verificaciones_pasadas = 0
+                        total_verificaciones = 3
+                        documento_guardado = None
                     
-                    # Verificación 1: Por ObjectId
-                    print(f"[VERIFICAR] Test 1: Buscando por ObjectId {resultado.inserted_id}")
-                    verificacion_id = self.collection.find_one({"_id": resultado.inserted_id})
-                    if verificacion_id:
-                        print(f"[VERIFICAR] [OK] Test 1 PASADO: Encontrado por ObjectId")
-                        documento_guardado = verificacion_id
-                        verificaciones_pasadas += 1
-                    else:
-                        print(f"[VERIFICAR] [FAIL] Test 1 FALLO: No encontrado por ObjectId")
+                        # Verificación 1: Por ObjectId
+                        print(f"[VERIFICAR] Test 1: Buscando por ObjectId {resultado.inserted_id}")
+                        verificacion_id = self.collection.find_one({"_id": resultado.inserted_id})
+                        if verificacion_id:
+                            print(f"[VERIFICAR] [OK] Test 1 PASADO: Encontrado por ObjectId")
+                            documento_guardado = verificacion_id
+                            verificaciones_pasadas += 1
+                        else:
+                            print(f"[VERIFICAR] [FAIL] Test 1 FALLO: No encontrado por ObjectId")
                     
-                    # Verificación 2: Por número de cotización
-                    print(f"[VERIFICAR] Test 2: Buscando por número '{numero}'")
-                    verificacion_numero = self.collection.find_one({"numeroCotizacion": numero})
-                    if verificacion_numero:
-                        print(f"[VERIFICAR] [OK] Test 2 PASADO: Encontrado por número")
-                        print(f"   Cliente verificado: {verificacion_numero.get('datosGenerales', {}).get('cliente')}")
-                        if not documento_guardado:
-                            documento_guardado = verificacion_numero
-                        verificaciones_pasadas += 1
-                    else:
-                        print(f"[VERIFICAR] [FAIL] Test 2 FALLO: No encontrado por número")
+                        # Verificación 2: Por número de cotización
+                        print(f"[VERIFICAR] Test 2: Buscando por número '{numero}'")
+                        verificacion_numero = self.collection.find_one({"numeroCotizacion": numero})
+                        if verificacion_numero:
+                            print(f"[VERIFICAR] [OK] Test 2 PASADO: Encontrado por número")
+                            print(f"   Cliente verificado: {verificacion_numero.get('datosGenerales', {}).get('cliente')}")
+                            if not documento_guardado:
+                                documento_guardado = verificacion_numero
+                            verificaciones_pasadas += 1
+                        else:
+                            print(f"[VERIFICAR] [FAIL] Test 2 FALLO: No encontrado por número")
                     
-                    # Verificación 3: Contar documentos
-                    print(f"[VERIFICAR] Test 3: Verificando incremento en conteo")
-                    conteo_actual = self.collection.count_documents({})
-                    print(f"   Total documentos ahora: {conteo_actual}")
-                    verificaciones_pasadas += 1  # Este siempre pasa si llegamos aquí
+                        # Verificación 3: Contar documentos
+                        print(f"[VERIFICAR] Test 3: Verificando incremento en conteo")
+                        conteo_actual = self.collection.count_documents({})
+                        print(f"   Total documentos ahora: {conteo_actual}")
+                        verificaciones_pasadas += 1  # Este siempre pasa si llegamos aquí
                     
-                    # Evaluación final
-                    print(f"[VERIFICAR] Resultado: {verificaciones_pasadas}/{total_verificaciones} verificaciones pasadas")
+                        # Evaluación final
+                        print(f"[VERIFICAR] Resultado: {verificaciones_pasadas}/{total_verificaciones} verificaciones pasadas")
                     
-                    if verificaciones_pasadas >= 2:
-                        print(f"[VERIFICAR] [SUCCESS] GUARDADO VERIFICADO EXITOSAMENTE")
-                    else:
-                        # FALLO CRÍTICO - el documento NO se guardó realmente
-                        print(f"[VERIFICAR] [CRITICAL] FALLO CRÍTICO: Documento NO se guardó correctamente")
-                        print(f"   ObjectId generado: {resultado.inserted_id}")
-                        print(f"   Número de cotización: {numero}")
+                        if verificaciones_pasadas >= 2:
+                            print(f"[VERIFICAR] [SUCCESS] GUARDADO VERIFICADO EXITOSAMENTE")
+                            
+                            return {
+                                "success": True,
+                                "id": inserted_id,
+                                "numeroCotizacion": numero,
+                                "campos_guardados": len(datos.keys()),
+                                "modo": "online",
+                                "verificado": True,
+                                "verificaciones_pasadas": verificaciones_pasadas
+                            }
+                        else:
+                            # ⚠️ FALLO SILENCIOSO DETECTADO
+                            print(f"[VERIFICAR] [CRITICAL FAIL] ⚠️ FALLO SILENCIOSO DETECTADO")
+                            print(f"[VERIFICAR] Sistema reportó éxito pero datos no persistieron correctamente")
+                            print(f"[VERIFICAR] Verificaciones fallidas: {total_verificaciones - verificaciones_pasadas}")
+                            
+                            # Log crítico del fallo silencioso
+                            import logging
+                            logging.error(f"FALLO SILENCIOSO CRÍTICO: Cotización {numero} no persistió - inserted_id: {inserted_id}")
+                            
+                            return {
+                                "success": False,
+                                "error": "FALLO SILENCIOSO DETECTADO: Los datos no persistieron correctamente en MongoDB",
+                                "inserted_id": inserted_id,
+                                "numero_cotizacion": numero,
+                                "verificaciones_pasadas": verificaciones_pasadas,
+                                "tipo_error": "fallo_silencioso"
+                            }
                         
-                        # Cambiar a modo offline inmediatamente
-                        print(f"[CRÍTICO] Cambiando a modo offline por fallo de guardado")
-                        self.modo_offline = True
-                        return self.guardar_cotizacion(datos)
+                    except Exception as verificacion_error:
+                        print(f"[ERROR VERIFICAR] Error en verificación: {verificacion_error}")
+                        print(f"[ERROR VERIFICAR] Tipo: {type(verificacion_error).__name__}")
                         
-                except Exception as verificacion_error:
-                    print(f"[ERROR VERIFICAR] Error en verificación: {verificacion_error}")
-                    print(f"[ERROR VERIFICAR] Tipo: {type(verificacion_error).__name__}")
+                        # Log crítico del error de verificación
+                        import logging
+                        logging.error(f"ERROR VERIFICACIÓN CRÍTICO: {verificacion_error} - Cotización: {numero}")
+                        
+                        return {
+                            "success": False,
+                            "error": f"Error en verificación post-escritura: {str(verificacion_error)}",
+                            "numero_cotizacion": numero,
+                            "tipo_error": "error_verificacion"
+                        }
+                
+                except Exception as mongo_error:
+                    print(f"[ERROR] Error guardando en MongoDB: {mongo_error}")
+                    print(f"[ERROR] Tipo: {type(mongo_error).__name__}")
+                    print("[FALLBACK] Cambiando a modo offline automáticamente")
                     
-                    # Si hay error en verificación, cambiar a offline
-                    print(f"[RECONEXIÓN] Error en verificación, cambiando a offline")
+                    # Cambiar a modo offline y reintentar
                     self.modo_offline = True
                     return self.guardar_cotizacion(datos)
-                
-                return {
-                    "success": True,
-                    "id": inserted_id,
-                    "numeroCotizacion": numero,
-                    "campos_guardados": len(datos.keys()),
-                    "modo": "online",
-                    "respaldo": "creado",
-                    "cliente": cliente,
-                    "vendedor": vendedor
-                }
             
         except Exception as e:
             print(f"Error al guardar: {e}")

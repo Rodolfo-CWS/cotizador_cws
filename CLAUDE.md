@@ -8,28 +8,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Production URL**: https://cotizador-cws.onrender.com/
 
-## 🚨 CURRENT SYSTEM STATUS (August 2025) - HYBRID SYSTEM DEPLOYED
+## 🚨 CURRENT SYSTEM STATUS (August 2025) - PRODUCTION READY WITH ANTI-FALLO SILENCIOSO
 
 ### ✅ PRODUCTION READY COMPONENTS
 - **Application**: 100% operational on Render with hybrid architecture
-- **Quotation Creation**: Working perfectly via web interface
+- **Quotation Creation**: Working perfectly via web interface with anti-fallo silencioso protection
 - **PDF Generation**: Automatic generation with ReportLab (36KB+ PDFs)
 - **Automatic Workflow**: `/formulario` route generates PDF immediately after saving
 - **Numbering System**: Automatic sequential numbering working correctly
-- **Web Interface**: Responsive, search functionality operational
+- **Web Interface**: Responsive, unified search functionality operational
+- **Silent Failure Detection**: ✨ **NEW** - Triple verification system prevents data loss
 
-### 🎉 HYBRID SYSTEM SUCCESSFULLY DEPLOYED (August 12, 2025)
-- **Database Architecture**: JSON primary + MongoDB cloud sync (41 documents synced)
+### 🎉 HYBRID SYSTEM + ANTI-FALLO SILENCIOSO (August 13, 2025)
+- **Database Architecture**: JSON primary + MongoDB cloud sync with **post-write verification**
 - **PDF Storage**: Cloudinary (25GB free) + Google Drive (fallback) + Local (emergency)
 - **Auto-Sync**: Bidirectional synchronization every 15 minutes
 - **Zero Downtime**: Triple redundancy with automatic fallbacks
-- **Production Status**: Commit `139d503` deployed to Render
+- **Anti-Fallo System**: ✨ **NEW** - Triple verification prevents silent failures
+- **Unified Search**: ✨ **NEW** - Consistent results across all search methods
+- **Production Status**: Ready for deployment with critical fixes
 
 ### ⚡ RESOLVED ISSUES
 - **MongoDB**: ✅ SSL connectivity resolved - 41 documents successfully synced
 - **Storage**: ✅ Cloudinary provides 25GB free PDF storage with CDN
 - **Unicode**: ✅ Windows compatibility issues fixed
 - **Resilience**: ✅ Smart retry logic with exponential backoff implemented
+- **Silent Failures**: ✅ **NEW** - Triple verification system detects and prevents data loss
+- **Search Consistency**: ✅ **NEW** - Unified search eliminates result discrepancies
+- **PDF Assignment**: ✅ **NEW** - Robust error handling prevents incorrect PDF assignments
 
 ## Quick Start Commands
 
@@ -77,6 +83,20 @@ python test_revision_materials.py
 # Hybrid System Tests
 python test_cloudinary.py        # Test Cloudinary integration (25GB free storage)
 python test_sync_completo.py     # Test complete hybrid system (JSON + MongoDB + Cloudinary)
+
+# ✨ NEW: Anti-Fallo Silencioso Tests (August 13, 2025)
+# Test critical failure detection system
+python -c "
+from database import DatabaseManager
+import json
+db = DatabaseManager()
+datos_test = {'datosGenerales': {'cliente': 'TEST-FALLO', 'vendedor': 'TEST', 'proyecto': 'VERIFICACION'}, 'items': []}
+resultado = db.guardar_cotizacion(datos_test)
+print('Test resultado:', json.dumps(resultado, indent=2))
+if resultado.get('success'):
+    verificacion = db.obtener_cotizacion(resultado['numeroCotizacion'])
+    print('Verificación:', verificacion.get('encontrado'))
+"
 
 # System Status Verification
 python -c "from database import DatabaseManager; db = DatabaseManager(); print(f'MongoDB: {\"OK\" if not db.modo_offline else \"OFFLINE\"}, JSON: {len(db.obtener_todas_cotizaciones()[\"cotizaciones\"])} cotizaciones')"
@@ -162,26 +182,50 @@ python -c "from database import DatabaseManager; db = DatabaseManager(); print(f
 - **User-Transparent**: End users never see technical failures
 - **Comprehensive Logging**: All fallback events logged for monitoring
 
+#### ✨ NEW: Anti-Fallo Silencioso Architecture (August 13, 2025)
+
+**TRIPLE VERIFICATION SYSTEM:**
+- **Post-Write Verification**: Every MongoDB write is immediately verified with 3 tests
+  - Test 1: Verify by ObjectId (document exists with correct _id)
+  - Test 2: Verify by business key (document findable by numeroCotizacion)  
+  - Test 3: Verify collection count (database actually incremented)
+- **Silent Failure Detection**: If ≥2 verifications fail, system reports error instead of success
+- **Automatic Fallback**: On verification failure, system automatically switches to offline mode
+
+**UNIFIED SEARCH SYSTEM:**
+- **Single Source of Truth**: All search operations use `/buscar` endpoint
+- **Consistent Results**: Eliminates discrepancies between search by name vs vendor
+- **Automatic Fallback**: If primary search fails, system uses local data seamlessly
+
+**ENHANCED ERROR LOGGING:**
+- **Rotating Logs**: `/logs/cotizador_fallos_criticos.log` (10MB files, 5 backups)
+- **Critical Logger**: `/logs/fallos_silenciosos_detectados.log` for silent failures
+- **Categorized Errors**: Authentication, network, quota errors specifically identified
+- **Real-time Detection**: Silent failures logged immediately with full context
+
 ### File Structure
 ```
 cotizador_cws/
-├── app.py                    # Main Flask application with routes + NEW scheduler endpoints
-├── database.py               # ENHANCED: Hybrid database manager with bidirectional sync
+├── app.py                    # ENHANCED: Main Flask app with anti-fallo silencioso logging
+├── database.py               # ENHANCED: Hybrid DB manager + triple verification system  
 ├── pdf_manager.py            # ENHANCED: Triple redundancy PDF storage (Cloudinary + Drive + Local)
 ├── config.py                 # Environment-based configuration
 ├── google_drive_client.py    # Google Drive API integration (maintained as fallback)
-├── cloudinary_manager.py     # NEW: Cloudinary integration for PDF storage (25GB free)
+├── cloudinary_manager.py     # ENHANCED: Robust error handling + detailed logging
 ├── sync_scheduler.py         # NEW: APScheduler for automatic JSON ↔ MongoDB sync
 ├── Lista de materiales.csv   # Materials catalog loaded at startup
 ├── cotizaciones_offline.json # JSON primary database (enhanced with sync metadata)
 ├── requirements.txt          # UPDATED: Added cloudinary, APScheduler dependencies
 ├── Procfile                  # Render deployment configuration
 ├── runtime.txt               # Python version for Render (3.11.5)
+├── logs/                     # ✨ NEW: Anti-Fallo Silencioso logging system (Aug 13)
+│   ├── cotizador_fallos_criticos.log      # Main application logs (rotated 10MB)
+│   └── fallos_silenciosos_detectados.log  # Critical failures only (rotated 5MB)
 ├── static/                   # Static assets
 │   ├── logo.png             # CWS Company logo
 │   └── manifest.json        # PWA manifest
 ├── templates/                # Jinja2 HTML templates
-│   ├── home.html            # Main landing page with search
+│   ├── home.html            # ENHANCED: Unified search system (no more inconsistencies)
 │   ├── formulario.html      # Dynamic quotation form
 │   ├── formato_pdf_cws.html # WeasyPrint PDF template
 │   └── ver_cotizacion.html  # Quotation viewer
