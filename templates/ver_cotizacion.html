@@ -203,6 +203,15 @@
                 <strong>Contacto:</strong>
                 <span>{{ cotizacion.datosGenerales.contacto or 'N/A' }}</span>
             </div>
+            
+            <!-- Justificación de Actualización - Solo para revisiones >= R2 -->
+            {% if cotizacion.revision and cotizacion.revision|int >= 2 %}
+            <div class="field" style="border-left: 4px solid #f59e0b; padding-left: 16px; background-color: #fef3c7; border-radius: 6px; margin-top: 12px;">
+                <strong style="color: #92400e;">📝 Justificación de Actualización (R{{ cotizacion.revision }}):</strong>
+                <span style="color: #92400e; font-style: italic; font-weight: 500;">
+                    {{ cotizacion.datosGenerales.actualizacionRevision or '⚠️ Sin justificación registrada' }}
+                </span>
+            </div>
             {% endif %}
         </div>
 
