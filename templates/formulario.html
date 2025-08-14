@@ -326,6 +326,7 @@ const DATOS_PRECARGADOS = {{ datos_precargados | tojson if datos_precargados els
 // Función para generar opciones de materiales
 function generarOpcionesMateriales() {
     let opciones = '<option value="" data-peso="0" data-uom="">Seleccione Material</option>';
+    opciones += '<option value="COTIZAR_POR_PESO" data-peso="0" data-uom="KG">Cotizar por peso</option>';
     LISTA_MATERIALES.forEach(material => {
         opciones += `<option value="${material.descripcion}" data-peso="${material.peso}" data-uom="${material.uom}">${material.descripcion}</option>`;
     });
@@ -395,14 +396,30 @@ function configurarEventListeners() {
         if (e.target.matches('input[placeholder="Ej. Rack Metálico"]')) {
             setTimeout(() => { actualizarTodosLosCalculos(); }, 100);
         }
+        
+        // Cálculo en tiempo real para campos de cotizar por peso
+        if (e.target.matches('.peso-estructura-input, .precio-kg-input')) {
+            calcularSubtotalPeso(e.target);
+        }
     });
 
     document.addEventListener('change', function(e) {
         if (e.target.matches('.material-select')) {
-            const pesoInput = e.target.closest('.material-row').querySelector('.peso-input');
+            const materialRow = e.target.closest('.material-row');
             const selectedOption = e.target.selectedOptions[0];
-            const peso = selectedOption?.getAttribute('data-peso') || 0;
-            if (pesoInput) pesoInput.value = peso;
+            const valorSeleccionado = e.target.value;
+            
+            // Detectar si se seleccionó "Cotizar por peso"
+            if (valorSeleccionado === 'COTIZAR_POR_PESO') {
+                toggleCotizarPorPeso(materialRow, true);
+            } else {
+                toggleCotizarPorPeso(materialRow, false);
+                
+                // Funcionalidad original para materiales normales
+                const pesoInput = materialRow.querySelector('.peso-input');
+                const peso = selectedOption?.getAttribute('data-peso') || 0;
+                if (pesoInput) pesoInput.value = peso;
+            }
             
             const itemElement = e.target.closest('.item-block');
             if (itemElement) {
@@ -699,83 +716,107 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                         
                         if (descripcion && desc) {
                             if (tipo === 'materiales') {
-                                // Para materiales normales: seleccionar opción en dropdown
-                                const opciones = descripcion.querySelectorAll('option');
-                                let opcionEncontrada = false;
-                                
-                                // Función para normalizar texto (quitar espacios extra, mayúsculas, etc.)
-                                function normalizar(texto) {
-                                    return texto.trim().toLowerCase().replace(/\s+/g, ' ');
-                                }
-                                
-                                const descNormalizado = normalizar(desc);
-                                
-                                // 1. Buscar coincidencia exacta por valor
-                                for (let opcion of opciones) {
-                                    if (opcion.value === desc) {
-                                        descripcion.value = opcion.value;
+                                // Verificar si es "Cotizar por peso"
+                                if (desc === 'COTIZAR_POR_PESO' || material.tipoCotizacion === 'peso') {
+                                    // Seleccionar la opción "Cotizar por peso"
+                                    descripcion.value = 'COTIZAR_POR_PESO';
+                                    
+                                    // Activar modo cotizar por peso
+                                    toggleCotizarPorPeso(ultimoMaterial, true);
+                                    
+                                    // Cargar datos específicos de peso
+                                    const pesoEstructuraInput = ultimoMaterial.querySelector('.peso-estructura-input');
+                                    const precioKgInput = ultimoMaterial.querySelector('.precio-kg-input');
+                                    const subtotalPesoInput = ultimoMaterial.querySelector('.subtotal-peso-input');
+                                    
+                                    if (pesoEstructuraInput && material.pesoEstructura !== undefined) {
+                                        pesoEstructuraInput.value = material.pesoEstructura;
+                                    }
+                                    if (precioKgInput && material.precioKg !== undefined) {
+                                        precioKgInput.value = material.precioKg;
+                                    }
+                                    if (subtotalPesoInput && material.subtotal !== undefined) {
+                                        subtotalPesoInput.value = material.subtotal;
+                                    }
+                                } else {
+                                    // Para materiales normales: seleccionar opción en dropdown
+                                    const opciones = descripcion.querySelectorAll('option');
+                                    let opcionEncontrada = false;
+                                    
+                                    // Función para normalizar texto (quitar espacios extra, mayúsculas, etc.)
+                                    function normalizar(texto) {
+                                        return texto.trim().toLowerCase().replace(/\s+/g, ' ');
+                                    }
+                                    
+                                    const descNormalizado = normalizar(desc);
+                                    
+                                    // 1. Buscar coincidencia exacta por valor
+                                    for (let opcion of opciones) {
+                                        if (opcion.value === desc) {
+                                            descripcion.value = opcion.value;
+                                            opcionEncontrada = true;
+                                            // CRÍTICO: Actualizar peso inmediatamente después de seleccionar
+                                            const pesoValor = opcion.getAttribute('data-peso') || 1;
+                                            const pesoInput = ultimoMaterial.querySelector('.peso-input');
+                                            if (pesoInput) {
+                                                pesoInput.value = pesoValor;
+                                            }
+                                            break;
+                                        }
+                                    }
+                                    
+                                    // 2. Buscar coincidencia normalizada
+                                    if (!opcionEncontrada) {
+                                        for (let opcion of opciones) {
+                                            if (normalizar(opcion.value) === descNormalizado || 
+                                                normalizar(opcion.textContent) === descNormalizado) {
+                                                descripcion.value = opcion.value;
+                                                opcionEncontrada = true;
+                                                // CRÍTICO: Actualizar peso inmediatamente
+                                                const pesoValor = opcion.getAttribute('data-peso') || 1;
+                                                const pesoInput = ultimoMaterial.querySelector('.peso-input');
+                                                if (pesoInput) {
+                                                    pesoInput.value = pesoValor;
+                                                }
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // 3. Buscar coincidencia parcial flexible
+                                    if (!opcionEncontrada) {
+                                        for (let opcion of opciones) {
+                                            const opcionNormalizada = normalizar(opcion.textContent);
+                                            if (opcionNormalizada.includes(descNormalizado) || 
+                                                descNormalizado.includes(opcionNormalizada)) {
+                                                descripcion.value = opcion.value;
+                                                opcionEncontrada = true;
+                                                // CRÍTICO: Actualizar peso inmediatamente
+                                                const pesoValor = opcion.getAttribute('data-peso') || 1;
+                                                const pesoInput = ultimoMaterial.querySelector('.peso-input');
+                                                if (pesoInput) {
+                                                    pesoInput.value = pesoValor;
+                                                }
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // 4. Fallback: crear opción dinámica si no existe
+                                    if (!opcionEncontrada && desc.trim()) {
+                                        const nuevaOpcion = document.createElement('option');
+                                        nuevaOpcion.value = desc;
+                                        nuevaOpcion.textContent = desc;
+                                        nuevaOpcion.setAttribute('data-peso', material.peso || '1');
+                                        nuevaOpcion.setAttribute('data-uom', material.uom || '');
+                                        descripcion.appendChild(nuevaOpcion);
+                                        descripcion.value = desc;
                                         opcionEncontrada = true;
-                                        // CRÍTICO: Actualizar peso inmediatamente después de seleccionar
-                                        const pesoValor = opcion.getAttribute('data-peso') || 1;
+                                        // Actualizar peso para opciones dinámicas
                                         const pesoInput = ultimoMaterial.querySelector('.peso-input');
                                         if (pesoInput) {
-                                            pesoInput.value = pesoValor;
+                                            pesoInput.value = material.peso || '1';
                                         }
-                                        break;
-                                    }
-                                }
-                                
-                                // 2. Buscar coincidencia normalizada
-                                if (!opcionEncontrada) {
-                                    for (let opcion of opciones) {
-                                        if (normalizar(opcion.value) === descNormalizado || 
-                                            normalizar(opcion.textContent) === descNormalizado) {
-                                            descripcion.value = opcion.value;
-                                            opcionEncontrada = true;
-                                            // CRÍTICO: Actualizar peso inmediatamente
-                                            const pesoValor = opcion.getAttribute('data-peso') || 1;
-                                            const pesoInput = ultimoMaterial.querySelector('.peso-input');
-                                            if (pesoInput) {
-                                                pesoInput.value = pesoValor;
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                                
-                                // 3. Buscar coincidencia parcial flexible
-                                if (!opcionEncontrada) {
-                                    for (let opcion of opciones) {
-                                        const opcionNormalizada = normalizar(opcion.textContent);
-                                        if (opcionNormalizada.includes(descNormalizado) || 
-                                            descNormalizado.includes(opcionNormalizada)) {
-                                            descripcion.value = opcion.value;
-                                            opcionEncontrada = true;
-                                            // CRÍTICO: Actualizar peso inmediatamente
-                                            const pesoValor = opcion.getAttribute('data-peso') || 1;
-                                            const pesoInput = ultimoMaterial.querySelector('.peso-input');
-                                            if (pesoInput) {
-                                                pesoInput.value = pesoValor;
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                                
-                                // 4. Fallback: crear opción dinámica si no existe
-                                if (!opcionEncontrada && desc.trim()) {
-                                    const nuevaOpcion = document.createElement('option');
-                                    nuevaOpcion.value = desc;
-                                    nuevaOpcion.textContent = desc;
-                                    nuevaOpcion.setAttribute('data-peso', material.peso || '1');
-                                    nuevaOpcion.setAttribute('data-uom', material.uom || '');
-                                    descripcion.appendChild(nuevaOpcion);
-                                    descripcion.value = desc;
-                                    opcionEncontrada = true;
-                                    // Actualizar peso para opciones dinámicas
-                                    const pesoInput = ultimoMaterial.querySelector('.peso-input');
-                                    if (pesoInput) {
-                                        pesoInput.value = material.peso || '1';
                                     }
                                 }
                             } else {
@@ -784,18 +825,21 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                             }
                         }
                         
-                        if (precio && material.precio !== undefined) {
-                            precio.value = material.precio;
-                            // Disparar eventos para recálculo
-                            precio.dispatchEvent(new Event('input', { bubbles: true }));
-                            precio.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                        
-                        if (cantidad && material.cantidad !== undefined) {
-                            cantidad.value = material.cantidad;
-                            // Disparar eventos para recálculo
-                            cantidad.dispatchEvent(new Event('input', { bubbles: true }));
-                            cantidad.dispatchEvent(new Event('change', { bubbles: true }));
+                        // Solo cargar precio y cantidad para materiales normales (no "Cotizar por peso")
+                        if (desc !== 'COTIZAR_POR_PESO' && material.tipoCotizacion !== 'peso') {
+                            if (precio && material.precio !== undefined) {
+                                precio.value = material.precio;
+                                // Disparar eventos para recálculo
+                                precio.dispatchEvent(new Event('input', { bubbles: true }));
+                                precio.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                            
+                            if (cantidad && material.cantidad !== undefined) {
+                                cantidad.value = material.cantidad;
+                                // Disparar eventos para recálculo
+                                cantidad.dispatchEvent(new Event('input', { bubbles: true }));
+                                cantidad.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
                         }
                         
                         // CRÍTICO: Forzar recálculo después de cargar todos los datos
@@ -971,27 +1015,49 @@ function crearTemplateItem(numero) {
                             <label class="block text-xs mb-1">Material:</label>
                             <select class="material-select w-full p-2 border rounded text-sm">
                                 <option value="" data-peso="0" data-uom="">Seleccione Material</option>
+                                <option value="COTIZAR_POR_PESO" data-peso="0" data-uom="KG">Cotizar por peso</option>
                                 {% for material in materiales %}
                                 <option value="{{ material.descripcion }}" data-peso="{{ material.peso }}" data-uom="{{ material.uom }}">{{ material.descripcion }}</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-span-2">
-                            <label class="block text-xs mb-1">Peso/Kg:</label>
-                            <input type="number" step="0.01" class="peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+                        
+                        <!-- Campos normales de materiales -->
+                        <div class="material-campos-normales col-span-8 grid grid-cols-4 gap-2">
+                            <div>
+                                <label class="block text-xs mb-1">Peso/Kg:</label>
+                                <input type="number" step="0.01" class="peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-xs mb-1">Cantidad:</label>
+                                <input type="number" step="0.01" class="cantidad-input w-full p-2 border rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs mb-1">$/Kg:</label>
+                                <input type="number" step="0.01" class="precio-input w-full p-2 border rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs mb-1">Subtotal ($):</label>
+                                <input type="number" step="0.01" class="subtotal-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+                            </div>
                         </div>
-                        <div class="col-span-2">
-                            <label class="block text-xs mb-1">Cantidad:</label>
-                            <input type="number" step="0.01" class="cantidad-input w-full p-2 border rounded text-sm">
+                        
+                        <!-- Campos especiales para cotizar por peso (inicialmente ocultos) -->
+                        <div class="material-campos-peso col-span-8 grid grid-cols-3 gap-2" style="display: none;">
+                            <div>
+                                <label class="block text-xs mb-1">¿Cuál es el peso de la estructura? (KG):</label>
+                                <input type="number" step="0.01" class="peso-estructura-input w-full p-2 border rounded text-sm" placeholder="Peso en KG">
+                            </div>
+                            <div>
+                                <label class="block text-xs mb-1">$/Kg:</label>
+                                <input type="number" step="0.01" class="precio-kg-input w-full p-2 border rounded text-sm" placeholder="Precio por kilogramo">
+                            </div>
+                            <div>
+                                <label class="block text-xs mb-1">Subtotal ($):</label>
+                                <input type="number" step="0.01" class="subtotal-peso-input w-full p-2 border rounded text-sm bg-green-50" readonly>
+                            </div>
                         </div>
-                        <div class="col-span-2">
-                            <label class="block text-xs mb-1">$/Kg:</label>
-                            <input type="number" step="0.01" class="precio-input w-full p-2 border rounded text-sm">
-                        </div>
-                        <div class="col-span-1">
-                            <label class="block text-xs mb-1">Subtotal ($):</label>
-                            <input type="number" step="0.01" class="subtotal-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
-                        </div>
+                        
                         <div class="col-span-1 flex justify-center">
                             <button type="button" onclick="eliminarFila(this, 'material')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
                         </div>
@@ -1088,22 +1154,43 @@ function agregarFila(button, tipo) {
                     ${generarOpcionesMateriales()}
                 </select>
             </div>
-            <div class="col-span-2">
-                <label class="block text-xs mb-1">Peso/Kg:</label>
-                <input type="number" step="0.01" class="peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+            
+            <!-- Campos normales de materiales -->
+            <div class="material-campos-normales col-span-8 grid grid-cols-4 gap-2">
+                <div>
+                    <label class="block text-xs mb-1">Peso/Kg:</label>
+                    <input type="number" step="0.01" class="peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+                </div>
+                <div>
+                    <label class="block text-xs mb-1">Cantidad:</label>
+                    <input type="number" step="0.01" class="cantidad-input w-full p-2 border rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs mb-1">$/Kg:</label>
+                    <input type="number" step="0.01" class="precio-input w-full p-2 border rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs mb-1">Subtotal ($):</label>
+                    <input type="number" step="0.01" class="subtotal-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+                </div>
             </div>
-            <div class="col-span-2">
-                <label class="block text-xs mb-1">Cantidad:</label>
-                <input type="number" step="0.01" class="cantidad-input w-full p-2 border rounded text-sm">
+            
+            <!-- Campos especiales para cotizar por peso (inicialmente ocultos) -->
+            <div class="material-campos-peso col-span-8 grid grid-cols-3 gap-2" style="display: none;">
+                <div>
+                    <label class="block text-xs mb-1">¿Cuál es el peso de la estructura? (KG):</label>
+                    <input type="number" step="0.01" class="peso-estructura-input w-full p-2 border rounded text-sm" placeholder="Peso en KG">
+                </div>
+                <div>
+                    <label class="block text-xs mb-1">$/Kg:</label>
+                    <input type="number" step="0.01" class="precio-kg-input w-full p-2 border rounded text-sm" placeholder="Precio por kilogramo">
+                </div>
+                <div>
+                    <label class="block text-xs mb-1">Subtotal ($):</label>
+                    <input type="number" step="0.01" class="subtotal-peso-input w-full p-2 border rounded text-sm bg-green-50" readonly>
+                </div>
             </div>
-            <div class="col-span-2">
-                <label class="block text-xs mb-1">$/Kg:</label>
-                <input type="number" step="0.01" class="precio-input w-full p-2 border rounded text-sm">
-            </div>
-            <div class="col-span-1">
-                <label class="block text-xs mb-1">Subtotal ($):</label>
-                <input type="number" step="0.01" class="subtotal-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
-            </div>
+            
             <div class="col-span-1 flex justify-center">
                 <button type="button" onclick="eliminarFila(this, 'material')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
             </div>
@@ -1257,12 +1344,83 @@ function calcularSubtotalOtro(input) {
     }
 }
 
+// Nueva función para toggle entre modo normal y cotizar por peso
+function toggleCotizarPorPeso(materialRow, mostrarCamposPeso) {
+    const camposNormales = materialRow.querySelector('.material-campos-normales');
+    const camposPeso = materialRow.querySelector('.material-campos-peso');
+    
+    if (mostrarCamposPeso) {
+        // Mostrar campos de cotizar por peso
+        camposNormales.style.display = 'none';
+        camposPeso.style.display = 'grid';
+        
+        // Limpiar campos normales
+        materialRow.querySelectorAll('.peso-input, .cantidad-input, .precio-input, .subtotal-input').forEach(input => {
+            input.value = '';
+        });
+    } else {
+        // Mostrar campos normales
+        camposNormales.style.display = 'grid';
+        camposPeso.style.display = 'none';
+        
+        // Limpiar campos de peso
+        materialRow.querySelectorAll('.peso-estructura-input, .precio-kg-input, .subtotal-peso-input').forEach(input => {
+            input.value = '';
+        });
+    }
+}
+
+// Nueva función para calcular subtotal por peso
+function calcularSubtotalPeso(input) {
+    const row = input.closest('.material-row');
+    if (!row) return;
+    
+    const pesoEstructuraInput = row.querySelector('.peso-estructura-input');
+    const precioKgInput = row.querySelector('.precio-kg-input');
+    const subtotalPesoInput = row.querySelector('.subtotal-peso-input');
+    
+    // Obtener valores
+    const pesoEstructura = parseFloat(pesoEstructuraInput?.value || 0);
+    const precioKg = parseFloat(precioKgInput?.value || 0);
+    const subtotal = pesoEstructura * precioKg;
+    
+    // Actualizar campo de subtotal
+    if (subtotalPesoInput) {
+        subtotalPesoInput.value = subtotal.toFixed(2);
+    }
+    
+    // Debug para identificar problemas
+    console.log('Cálculo cotizar por peso:', {
+        pesoEstructura: pesoEstructura,
+        precioKg: precioKg,
+        subtotal: subtotal,
+        formula: `${pesoEstructura} KG × $${precioKg}/KG = $${subtotal}`
+    });
+    
+    // Recalcular totales del item
+    const itemElement = row.closest('.item-block');
+    if (itemElement) {
+        setTimeout(() => {
+            calcularCostosItem(itemElement);
+            actualizarTodosLosCalculos();
+        }, 10);
+    }
+}
+
 function calcularCostosItem(itemElement) {
     if (!itemElement) return;
     let totalMateriales = 0;
+    
+    // Sumar subtotales de materiales normales
     itemElement.querySelectorAll('.subtotal-input').forEach(input => {
         totalMateriales += parseFloat(input.value || 0);
     });
+    
+    // Sumar subtotales de cotizar por peso
+    itemElement.querySelectorAll('.subtotal-peso-input').forEach(input => {
+        totalMateriales += parseFloat(input.value || 0);
+    });
+    
     let totalOtros = 0;
     itemElement.querySelectorAll('.subtotal-otro').forEach(input => {
         totalOtros += parseFloat(input.value || 0);
@@ -1400,19 +1558,37 @@ async function guardarCotizacion() {
             const materiales = [];
             item.querySelectorAll('.materiales-container .material-row').forEach(row => {
                 const material = row.querySelector('.material-select')?.value;
-                const peso = row.querySelector('.peso-input')?.value || "0";
-                const cantidadMat = row.querySelector('.cantidad-input')?.value || "0";
-                const precio = row.querySelector('.precio-input')?.value || "0";
-                const subtotal = row.querySelector('.subtotal-input')?.value || "0";
                 
                 if (material && material.trim() !== "") {
-                    materiales.push({
-                        material: material,
-                        peso: peso,
-                        cantidad: cantidadMat,
-                        precio: precio,
-                        subtotal: subtotal
-                    });
+                    if (material === 'COTIZAR_POR_PESO') {
+                        // Campos especiales para cotizar por peso
+                        const pesoEstructura = row.querySelector('.peso-estructura-input')?.value || "0";
+                        const precioKg = row.querySelector('.precio-kg-input')?.value || "0";
+                        const subtotalPeso = row.querySelector('.subtotal-peso-input')?.value || "0";
+                        
+                        materiales.push({
+                            material: 'COTIZAR_POR_PESO',
+                            pesoEstructura: pesoEstructura,
+                            precioKg: precioKg,
+                            subtotal: subtotalPeso,
+                            tipoCotizacion: 'peso'
+                        });
+                    } else {
+                        // Campos normales para materiales estándar
+                        const peso = row.querySelector('.peso-input')?.value || "0";
+                        const cantidadMat = row.querySelector('.cantidad-input')?.value || "0";
+                        const precio = row.querySelector('.precio-input')?.value || "0";
+                        const subtotal = row.querySelector('.subtotal-input')?.value || "0";
+                        
+                        materiales.push({
+                            material: material,
+                            peso: peso,
+                            cantidad: cantidadMat,
+                            precio: precio,
+                            subtotal: subtotal,
+                            tipoCotizacion: 'normal'
+                        });
+                    }
                 }
             });
 
