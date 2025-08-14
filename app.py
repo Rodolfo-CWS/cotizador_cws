@@ -594,7 +594,7 @@ def generar_pdf_reportlab(datos_cotizacion):
     story.append(Spacer(1, 8))
     
     # Definir variables de moneda y tipo de cambio GLOBALMENTE
-    condiciones = cotizacion.get('condiciones', {})
+    condiciones = datos_cotizacion.get('condiciones', {})
     moneda = condiciones.get('moneda', 'MXN')
     tipo_cambio_str = condiciones.get('tipoCambio', '1.0')
     
