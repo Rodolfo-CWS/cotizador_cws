@@ -593,6 +593,22 @@ def generar_pdf_reportlab(datos_cotizacion):
     story.append(Paragraph(intro_text, intro_style))
     story.append(Spacer(1, 8))
     
+    # Definir variables de moneda y tipo de cambio GLOBALMENTE
+    condiciones = cotizacion.get('condiciones', {})
+    moneda = condiciones.get('moneda', 'MXN')
+    tipo_cambio_str = condiciones.get('tipoCambio', '1.0')
+    
+    # SEGURIDAD: Validar tipo de cambio
+    try:
+        tipo_cambio = float(tipo_cambio_str) if tipo_cambio_str else 1.0
+        if tipo_cambio <= 0 or tipo_cambio > 1000:
+            tipo_cambio = 1.0  # Valor seguro por defecto
+    except (ValueError, TypeError):
+        tipo_cambio = 1.0  # Valor seguro por defecto
+    
+    # Inicializar conversion_note
+    conversion_note = None
+    
     # ITEMS - Tabla profesional mejorada
     if items:
         story.append(Paragraph("ITEMS DE COTIZACIÓN", subtitle_style))
@@ -674,17 +690,7 @@ def generar_pdf_reportlab(datos_cotizacion):
         iva = subtotal * 0.16
         total = subtotal + iva
         
-        # Verificar si la moneda es USD para aplicar conversión
-        moneda = condiciones.get('moneda', 'MXN')
-        tipo_cambio_str = condiciones.get('tipoCambio', '1.0')
-        
-        # SEGURIDAD: Validar tipo de cambio
-        try:
-            tipo_cambio = float(tipo_cambio_str) if tipo_cambio_str else 1.0
-            if tipo_cambio <= 0 or tipo_cambio > 1000:
-                tipo_cambio = 1.0  # Valor seguro por defecto
-        except (ValueError, TypeError):
-            tipo_cambio = 1.0  # Valor seguro por defecto
+        # Las variables moneda y tipo_cambio ya están definidas arriba
         
         # Aplicar conversión si es USD y tipo de cambio válido
         if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
