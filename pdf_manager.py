@@ -514,7 +514,7 @@ class PDFManager:
             return self._buscar_pdfs_offline(query, page, per_page)
     
     def _buscar_pdfs_offline(self, query: str, page: int, per_page: int) -> Dict:
-        """Búsqueda de PDFs en modo offline (incluye Google Drive)"""
+        """Búsqueda de PDFs en modo offline (incluye base de datos, Google Drive y archivos locales)"""
         print(f"Búsqueda de PDFs en modo offline: '{query}'")
         print(f"Ruta base configurada: {self.base_pdf_path}")
         print(f"Drive disponible: {self.drive_client.is_available()}")
@@ -522,7 +522,32 @@ class PDFManager:
         try:
             resultados = []
             
-            # 1. Buscar en Google Drive (prioritario)
+            # NUEVO: 1. Buscar en base de datos de cotizaciones (prioritario)
+            print("Buscando en base de datos de cotizaciones...")
+            try:
+                cotizaciones_result = self.db_manager.buscar_cotizaciones(query, 1, 1000)  # Obtener todas
+                cotizaciones = cotizaciones_result.get('resultados', [])
+                print(f"Cotizaciones encontradas en BD: {len(cotizaciones)}")
+                
+                for cot in cotizaciones:
+                    datos_gen = cot.get('datosGenerales', {})
+                    resultados.append({
+                        "numero_cotizacion": cot.get('numeroCotizacion', 'N/A'),
+                        "cliente": datos_gen.get('cliente', 'N/A'),
+                        "vendedor": datos_gen.get('vendedor', 'N/A'),
+                        "proyecto": datos_gen.get('proyecto', 'N/A'),
+                        "fecha_creacion": cot.get('fechaCreacion', 'N/A'),
+                        "ruta_completa": f"cotizacion://{cot.get('_id')}",
+                        "tipo": "cotizacion",
+                        "tiene_desglose": True,
+                        "revision": cot.get('revision', 1),
+                        "_id": cot.get('_id')
+                    })
+            except Exception as e:
+                print(f"Error buscando en base de datos: {e}")
+                pass
+            
+            # 2. Buscar en Google Drive (secundario)
             if self.drive_client.is_available():
                 print("Buscando PDFs en Google Drive...")
                 try:
@@ -544,7 +569,7 @@ class PDFManager:
                         "tamaño": pdf.get('tamaño', '0')
                     })
             
-            # 2. Buscar en carpetas locales (fallback)
+            # 3. Buscar en carpetas locales (fallback)
             print(f"Buscando PDFs locales en: {self.nuevas_path}")
             print(f"Carpeta nuevas existe: {self.nuevas_path.exists()}")
             

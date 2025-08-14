@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file
+# Updated: Aug 14, 2025 - Cloudinary credentials fixed
 
 # Intentar importar generadores de PDF
 WEASYPRINT_AVAILABLE = False
