@@ -277,18 +277,53 @@
                         <thead>
                             <tr style="background: #e5e7eb; color: #374151;">
                                 <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Descripción</th>
-                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Precio</th>
-                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Cantidad</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Detalle</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Precio/Cantidad</th>
                                 <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Subtotal</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for material in item.get('materiales', []) %}
                             <tr style="border-bottom: 1px solid #ddd;">
-                                <td style="border: 1px solid #ddd; padding: 6px; font-weight: bold;">{{ material.get('material') or 'Sin descripción' }}</td>
-                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${{ material.get('precio', '0.00') }}</td>
-                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">{{ material.get('cantidad', '0') }}</td>
-                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center; font-weight: bold; color: #dc3545;">${{ material.get('subtotal', '0.00') }}</td>
+                                <td style="border: 1px solid #ddd; padding: 6px; font-weight: bold;">
+                                    {% if material.get('material') == 'COTIZAR_POR_PESO' %}
+                                        <span style="color: #10b981; font-weight: bold;">⚖️ Cotizar por peso</span>
+                                    {% else %}
+                                        {{ material.get('material') or 'Sin descripción' }}
+                                    {% endif %}
+                                </td>
+                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">
+                                    {% if material.get('material') == 'COTIZAR_POR_PESO' %}
+                                        <div style="font-size: 11px; line-height: 1.4;">
+                                            <strong>Peso estructura:</strong><br>
+                                            {{ material.get('pesoEstructura', '0') }} KG
+                                        </div>
+                                    {% else %}
+                                        <div style="font-size: 11px; line-height: 1.4;">
+                                            <strong>Peso:</strong> {{ material.get('peso', '0') }} kg<br>
+                                            <strong>$/Kg:</strong> ${{ material.get('precio', '0.00') }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">
+                                    {% if material.get('material') == 'COTIZAR_POR_PESO' %}
+                                        <div style="font-size: 11px; line-height: 1.4;">
+                                            <strong>${{ material.get('precioKg', '0.00') }}/KG</strong>
+                                        </div>
+                                    {% else %}
+                                        <div style="font-size: 11px; line-height: 1.4;">
+                                            <strong>Cantidad:</strong> {{ material.get('cantidad', '0') }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center; font-weight: bold; color: #dc3545;">
+                                    ${{ material.get('subtotal', '0.00') }}
+                                    {% if material.get('material') == 'COTIZAR_POR_PESO' %}
+                                        <div style="font-size: 10px; color: #6b7280; margin-top: 2px;">
+                                            ({{ material.get('pesoEstructura', '0') }} KG × ${{ material.get('precioKg', '0.00') }})
+                                        </div>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
