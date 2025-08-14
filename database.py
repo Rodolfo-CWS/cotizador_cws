@@ -58,8 +58,8 @@ class DatabaseManager:
                 usuario_encoded = urllib.parse.quote_plus(usuario)
                 contraseña_encoded = urllib.parse.quote_plus(contraseña)
                 
-                # Usar timeouts más largos en producción, cortos en desarrollo
-                timeout = "30000" if es_produccion else "5000"
+                # Usar timeouts cortos para evitar que el deployment se cuelgue
+                timeout = "5000"  # 5 segundos máximo
                 self.mongo_uri = f"mongodb+srv://{usuario_encoded}:{contraseña_encoded}@{cluster}/{database}?retryWrites=true&w=majority&appName=Cluster0&connectTimeoutMS={timeout}&serverSelectionTimeoutMS={timeout}"
                 self.database_name = database
             
@@ -69,8 +69,8 @@ class DatabaseManager:
             # MEJORADO: Conexión con verificación robusta y timeouts específicos
             print("[MONGO] Creando cliente MongoDB...")
             
-            # Timeout específico por entorno
-            timeout_ms = 30000 if es_produccion else 10000
+            # Timeout corto para evitar deployment colgado
+            timeout_ms = 5000  # 5 segundos máximo
             print(f"[MONGO] Timeout configurado: {timeout_ms}ms")
             
             self.client = MongoClient(
