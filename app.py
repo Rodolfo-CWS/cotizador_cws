@@ -664,10 +664,18 @@ def generar_pdf_reportlab(datos_cotizacion):
         
         # Verificar si la moneda es USD para aplicar conversión
         moneda = condiciones.get('moneda', 'MXN')
-        tipo_cambio = float(condiciones.get('tipoCambio', 1.0)) if condiciones.get('tipoCambio') else 1.0
+        tipo_cambio_str = condiciones.get('tipoCambio', '1.0')
         
-        # Aplicar conversión si es USD
-        if moneda == 'USD' and tipo_cambio > 0:
+        # SEGURIDAD: Validar tipo de cambio
+        try:
+            tipo_cambio = float(tipo_cambio_str) if tipo_cambio_str else 1.0
+            if tipo_cambio <= 0 or tipo_cambio > 1000:
+                tipo_cambio = 1.0  # Valor seguro por defecto
+        except (ValueError, TypeError):
+            tipo_cambio = 1.0  # Valor seguro por defecto
+        
+        # Aplicar conversión si es USD y tipo de cambio válido
+        if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
             subtotal_mostrar = subtotal / tipo_cambio
             iva_mostrar = iva / tipo_cambio
             total_mostrar = total / tipo_cambio

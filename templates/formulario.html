@@ -724,7 +724,7 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                         if (descripcion && desc) {
                             if (tipo === 'materiales') {
                                 // Verificar si es "Cotizar por peso"
-                                if (desc === 'COTIZAR_POR_PESO' || material.tipoCotizacion === 'peso') {
+                                if (esCotizacionPorPeso(desc) || esCotizacionPorPeso(material)) {
                                     // Seleccionar la opción "Cotizar por peso"
                                     descripcion.value = 'COTIZAR_POR_PESO';
                                     
@@ -833,7 +833,7 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                         }
                         
                         // Solo cargar precio y cantidad para materiales normales (no "Cotizar por peso")
-                        if (desc !== 'COTIZAR_POR_PESO' && material.tipoCotizacion !== 'peso') {
+                        if (!esCotizacionPorPeso(desc) && !esCotizacionPorPeso(material)) {
                             if (precio && material.precio !== undefined) {
                                 precio.value = material.precio;
                                 // Disparar eventos para recálculo
@@ -854,7 +854,7 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                             // Asegurar que todos los valores están disponibles antes del cálculo
                             if (tipo === 'materiales') {
                                 // Verificar si es "Cotizar por peso" para usar la función correcta
-                                if (desc === 'COTIZAR_POR_PESO' || material.tipoCotizacion === 'peso') {
+                                if (esCotizacionPorPeso(desc) || esCotizacionPorPeso(material)) {
                                     // Para cotizar por peso, usar los inputs específicos
                                     const triggerInput = ultimoMaterial.querySelector('.peso-estructura-input, .precio-kg-input');
                                     if (triggerInput) {
@@ -901,7 +901,7 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                     if (tipo === 'materiales') {
                         // Verificar si la fila es "Cotizar por peso"
                         const materialSelect = row.querySelector('.material-select');
-                        if (materialSelect && materialSelect.value === 'COTIZAR_POR_PESO') {
+                        if (materialSelect && esCotizacionPorPeso(materialSelect.value)) {
                             // Es cotizar por peso, usar función específica
                             const pesoInput = row.querySelector('.peso-estructura-input, .precio-kg-input');
                             if (pesoInput) {
@@ -1397,6 +1397,13 @@ function toggleCotizarPorPeso(materialRow, mostrarCamposPeso) {
     }
 }
 
+// Función auxiliar para detectar si es cotización por peso
+function esCotizacionPorPeso(material) {
+    return material === 'COTIZAR_POR_PESO' || 
+           (typeof material === 'object' && material.tipoCotizacion === 'peso') ||
+           (typeof material === 'object' && material.material === 'COTIZAR_POR_PESO');
+}
+
 // Nueva función para calcular subtotal por peso
 function calcularSubtotalPeso(input) {
     const row = input.closest('.material-row');
@@ -1406,9 +1413,20 @@ function calcularSubtotalPeso(input) {
     const precioKgInput = row.querySelector('.precio-kg-input');
     const subtotalPesoInput = row.querySelector('.subtotal-peso-input');
     
-    // Obtener valores
+    // Obtener valores y validar
     const pesoEstructura = parseFloat(pesoEstructuraInput?.value || 0);
     const precioKg = parseFloat(precioKgInput?.value || 0);
+    
+    // SEGURIDAD: Validar inputs
+    if (pesoEstructura < 0 || pesoEstructura > 100000) {
+        console.warn('Peso de estructura inválido:', pesoEstructura);
+        return;
+    }
+    if (precioKg < 0 || precioKg > 10000) {
+        console.warn('Precio por KG inválido:', precioKg);
+        return;
+    }
+    
     const subtotal = pesoEstructura * precioKg;
     
     // Actualizar campo de subtotal
@@ -1416,13 +1434,8 @@ function calcularSubtotalPeso(input) {
         subtotalPesoInput.value = subtotal.toFixed(2);
     }
     
-    // Debug para identificar problemas
-    console.log('Cálculo cotizar por peso:', {
-        pesoEstructura: pesoEstructura,
-        precioKg: precioKg,
-        subtotal: subtotal,
-        formula: `${pesoEstructura} KG × $${precioKg}/KG = $${subtotal}`
-    });
+    // Log simplificado para debugging
+    console.log('Cálculo cotizar por peso completado');
     
     // Recalcular totales del item
     const itemElement = row.closest('.item-block');
@@ -1509,6 +1522,12 @@ function actualizarTodosLosCalculos() {
     const esUSD = monedaSelect?.value === 'USD';
     const tipoCambio = parseFloat(tipoCambioInput?.value || 1);
     
+    // SEGURIDAD: Validar tipo de cambio
+    if (esUSD && (tipoCambio <= 0 || tipoCambio > 1000 || isNaN(tipoCambio))) {
+        console.warn('Tipo de cambio inválido:', tipoCambio);
+        return; // No aplicar conversión con valores inválidos
+    }
+    
     let subtotalMostrar = subtotalGeneral;
     let ivaMostrar = iva;
     let granTotalMostrar = granTotal;
@@ -1521,15 +1540,8 @@ function actualizarTodosLosCalculos() {
         granTotalMostrar = granTotal / tipoCambio;
         simboloMoneda = 'USD $';
         
-        console.log('Conversión USD aplicada:', {
-            subtotalMXN: subtotalGeneral,
-            tipoCambio: tipoCambio,
-            subtotalUSD: subtotalMostrar,
-            ivaMXN: iva,
-            ivaUSD: ivaMostrar,
-            granTotalMXN: granTotal,
-            granTotalUSD: granTotalMostrar
-        });
+        // Log simplificado (sin datos financieros sensibles)
+        console.log('Conversión USD aplicada con tipo de cambio:', tipoCambio);
     }
     
     // Actualizar elementos en pantalla
@@ -1639,7 +1651,7 @@ async function guardarCotizacion() {
                 const material = row.querySelector('.material-select')?.value;
                 
                 if (material && material.trim() !== "") {
-                    if (material === 'COTIZAR_POR_PESO') {
+                    if (esCotizacionPorPeso(material)) {
                         // Campos especiales para cotizar por peso
                         const pesoEstructura = row.querySelector('.peso-estructura-input')?.value || "0";
                         const precioKg = row.querySelector('.precio-kg-input')?.value || "0";
