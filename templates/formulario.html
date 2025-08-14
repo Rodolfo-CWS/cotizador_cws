@@ -1554,15 +1554,44 @@ function actualizarTodosLosCalculos() {
     if (granTotalElement) granTotalElement.textContent = `${simboloMoneda}${granTotalMostrar.toFixed(2)}`;
     
     // Actualizar totales de items individuales en el resumen si es USD
-    if (esUSD && tipoCambio > 0) {
-        document.querySelectorAll('.item-total-display').forEach((element, index) => {
-            const itemBlocks = document.querySelectorAll('.item-block');
-            if (itemBlocks[index]) {
-                const totalItemMXN = parseFloat(itemBlocks[index].querySelector('.total-item')?.value || 0);
-                const totalItemUSD = totalItemMXN / tipoCambio;
-                element.textContent = `USD $${totalItemUSD.toFixed(2)}`;
-            }
-        });
+    if (esUSD && tipoCambio > 0 && tipoCambio != 1.0) {
+        // Actualizar también los precios por unidad y totales en el resumen
+        const itemBlocks = document.querySelectorAll('.item-block');
+        const resumenContainer = document.getElementById('resumen-items');
+        
+        // Recrear el resumen con precios en USD
+        if (resumenContainer) {
+            // Limpiar y recrear elementos del resumen con conversión USD
+            resumenContainer.innerHTML = '';
+            
+            itemBlocks.forEach((item, index) => {
+                const descripcion = item.querySelector('.descripcion-item')?.value?.trim() || `Item ${index + 1}`;
+                const totalItemMXN = parseFloat(item.querySelector('.total-item')?.value || 0);
+                const cantidad = parseFloat(item.querySelector('.cantidad-item')?.value || 0);
+                const uom = item.querySelector('.uom-item')?.value || 'Pieza';
+                
+                if (totalItemMXN > 0 || descripcion !== `Item ${index + 1}`) {
+                    // Convertir a USD
+                    const totalItemUSD = totalItemMXN / tipoCambio;
+                    const precioUnitarioUSD = cantidad > 0 ? totalItemUSD / cantidad : 0;
+                    
+                    const itemResumen = document.createElement('div');
+                    itemResumen.className = 'bg-white p-3 rounded-lg shadow border-l-4 border-blue-500 mb-2';
+                    itemResumen.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h4 class="font-semibold text-gray-800">${descripcion}</h4>
+                                <p class="text-sm text-gray-600">${cantidad} ${uom} × USD $${precioUnitarioUSD.toFixed(2)} c/u</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-lg font-bold text-blue-600">USD $${totalItemUSD.toFixed(2)}</p>
+                            </div>
+                        </div>
+                    `;
+                    resumenContainer.appendChild(itemResumen);
+                }
+            });
+        }
     }
 }
 

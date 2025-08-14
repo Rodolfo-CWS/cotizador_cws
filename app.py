@@ -601,10 +601,21 @@ def generar_pdf_reportlab(datos_cotizacion):
         items_data = [['ITEM', 'DESCRIPCIÓN', 'CANT.', 'UOM', 'PRECIO UNITARIO', 'TOTAL']]
         subtotal = 0
         
+        # Verificar conversión USD para items (usar misma lógica que totales)
         for i, item in enumerate(items):
             cantidad = float(item.get('cantidad', 0))
-            total = float(item.get('total', 0))
-            precio_unitario = total / cantidad if cantidad > 0 else 0
+            total_mxn = float(item.get('total', 0))
+            precio_unitario_mxn = total_mxn / cantidad if cantidad > 0 else 0
+            
+            # Aplicar conversión USD si corresponde (misma lógica que totales)
+            if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
+                total_mostrar = total_mxn / tipo_cambio
+                precio_unitario_mostrar = precio_unitario_mxn / tipo_cambio
+                simbolo_item = 'USD $'
+            else:
+                total_mostrar = total_mxn
+                precio_unitario_mostrar = precio_unitario_mxn
+                simbolo_item = '$'
             
             # Agregar número de item y formatear datos
             items_data.append([
@@ -612,10 +623,10 @@ def generar_pdf_reportlab(datos_cotizacion):
                 item.get('descripcion', ''),
                 f"{cantidad:,.0f}",
                 item.get('uom', ''),
-                f"${precio_unitario:,.2f}",
-                f"${total:,.2f}"
+                f"{simbolo_item}{precio_unitario_mostrar:,.2f}",
+                f"{simbolo_item}{total_mostrar:,.2f}"
             ])
-            subtotal += total
+            subtotal += total_mxn  # Siempre sumar en MXN para cálculos internos
         
         items_table = Table(items_data, colWidths=[0.5*inch, 2.5*inch, 0.7*inch, 0.6*inch, 1.1*inch, 1.1*inch])
         items_table.setStyle(TableStyle([
