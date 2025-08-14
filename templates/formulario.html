@@ -401,6 +401,13 @@ function configurarEventListeners() {
         if (e.target.matches('.peso-estructura-input, .precio-kg-input')) {
             calcularSubtotalPeso(e.target);
         }
+        
+        // Recalcular totales cuando cambia el tipo de cambio
+        if (e.target.matches('#tipo-cambio')) {
+            setTimeout(() => {
+                actualizarTodosLosCalculos();
+            }, 100);
+        }
     });
 
     document.addEventListener('change', function(e) {
@@ -846,10 +853,19 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                         setTimeout(() => {
                             // Asegurar que todos los valores están disponibles antes del cálculo
                             if (tipo === 'materiales') {
-                                // Para materiales, usar cualquier input de la fila para trigger
-                                const triggerInput = cantidad || precio || ultimoMaterial.querySelector('.cantidad-input, .precio-input');
-                                if (triggerInput) {
-                                    calcularSubtotalMaterial(triggerInput);
+                                // Verificar si es "Cotizar por peso" para usar la función correcta
+                                if (desc === 'COTIZAR_POR_PESO' || material.tipoCotizacion === 'peso') {
+                                    // Para cotizar por peso, usar los inputs específicos
+                                    const triggerInput = ultimoMaterial.querySelector('.peso-estructura-input, .precio-kg-input');
+                                    if (triggerInput) {
+                                        calcularSubtotalPeso(triggerInput);
+                                    }
+                                } else {
+                                    // Para materiales normales
+                                    const triggerInput = cantidad || precio || ultimoMaterial.querySelector('.cantidad-input, .precio-input');
+                                    if (triggerInput) {
+                                        calcularSubtotalMaterial(triggerInput);
+                                    }
                                 }
                             } else {
                                 // Para otros materiales
@@ -883,7 +899,18 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                     // Disparar recálculo en el primer input numérico encontrado
                     const primerInput = inputsNumericos[0];
                     if (tipo === 'materiales') {
-                        calcularSubtotalMaterial(primerInput);
+                        // Verificar si la fila es "Cotizar por peso"
+                        const materialSelect = row.querySelector('.material-select');
+                        if (materialSelect && materialSelect.value === 'COTIZAR_POR_PESO') {
+                            // Es cotizar por peso, usar función específica
+                            const pesoInput = row.querySelector('.peso-estructura-input, .precio-kg-input');
+                            if (pesoInput) {
+                                calcularSubtotalPeso(pesoInput);
+                            }
+                        } else {
+                            // Es material normal
+                            calcularSubtotalMaterial(primerInput);
+                        }
                     } else {
                         calcularSubtotalOtro(primerInput);
                     }
@@ -1456,28 +1483,75 @@ function actualizarTodosLosCalculos() {
         if (totalItem > 0 || descripcion !== `Item ${index + 1}`) {
             const itemResumen = document.createElement('div');
             itemResumen.className = 'bg-white p-3 rounded-lg shadow border-l-4 border-blue-500 mb-2';
+            
+            // Esta secci\u00f3n se actualizar\u00e1 despu\u00e9s con la conversi\u00f3n USD si aplica
             itemResumen.innerHTML = `
                 <div class="flex justify-between items-center">
                     <div>
                         <h4 class="font-semibold text-gray-800">${descripcion}</h4>
-                        <p class="text-sm text-gray-600">${cantidad} ${uom} × $${(totalItem/cantidad || 0).toFixed(2)} c/u</p>
+                        <p class="text-sm text-gray-600">${cantidad} ${uom} \u00d7 $${(totalItem/cantidad || 0).toFixed(2)} c/u</p>
                     </div>
                     <div class="text-right">
-                        <p class="text-lg font-bold text-blue-600">$${totalItem.toFixed(2)}</p>
+                        <p class="text-lg font-bold text-blue-600 item-total-display">$${totalItem.toFixed(2)}</p>
                     </div>
                 </div>
             `;
             resumenContainer.appendChild(itemResumen);
         }
     });
+    // Calcular IVA y gran total
     const iva = subtotalGeneral * 0.16;
     const granTotal = subtotalGeneral + iva;
+    
+    // Verificar si la moneda es USD para aplicar conversión
+    const monedaSelect = document.getElementById('moneda');
+    const tipoCambioInput = document.getElementById('tipo-cambio');
+    const esUSD = monedaSelect?.value === 'USD';
+    const tipoCambio = parseFloat(tipoCambioInput?.value || 1);
+    
+    let subtotalMostrar = subtotalGeneral;
+    let ivaMostrar = iva;
+    let granTotalMostrar = granTotal;
+    let simboloMoneda = '$';
+    
+    if (esUSD && tipoCambio > 0) {
+        // Convertir a USD dividiendo entre el tipo de cambio
+        subtotalMostrar = subtotalGeneral / tipoCambio;
+        ivaMostrar = iva / tipoCambio;
+        granTotalMostrar = granTotal / tipoCambio;
+        simboloMoneda = 'USD $';
+        
+        console.log('Conversión USD aplicada:', {
+            subtotalMXN: subtotalGeneral,
+            tipoCambio: tipoCambio,
+            subtotalUSD: subtotalMostrar,
+            ivaMXN: iva,
+            ivaUSD: ivaMostrar,
+            granTotalMXN: granTotal,
+            granTotalUSD: granTotalMostrar
+        });
+    }
+    
+    // Actualizar elementos en pantalla
     const subtotalElement = document.getElementById('subtotal-items');
     const ivaElement = document.getElementById('iva-total');
     const granTotalElement = document.getElementById('gran-total');
-    if (subtotalElement) subtotalElement.textContent = `$${subtotalGeneral.toFixed(2)}`;
-    if (ivaElement) ivaElement.textContent = `$${iva.toFixed(2)}`;
-    if (granTotalElement) granTotalElement.textContent = `$${granTotal.toFixed(2)}`;
+    
+    if (subtotalElement) subtotalElement.textContent = `${simboloMoneda}${subtotalMostrar.toFixed(2)}`;
+    if (ivaElement) ivaElement.textContent = `${simboloMoneda}${ivaMostrar.toFixed(2)}`;
+    if (granTotalElement) granTotalElement.textContent = `${simboloMoneda}${granTotalMostrar.toFixed(2)}`;
+    
+    // Actualizar totales de items individuales en el resumen si es USD
+    if (esUSD && tipoCambio > 0) {
+        document.querySelectorAll('.item-total-display').forEach((element, index) => {
+            const itemBlocks = document.querySelectorAll('.item-block');
+            if (itemBlocks[index]) {
+                const totalItemMXN = parseFloat(itemBlocks[index].querySelector('.total-item')?.value || 0);
+                const totalItemUSD = totalItemMXN / tipoCambio;
+                element.textContent = `USD $${totalItemUSD.toFixed(2)}`;
+            }
+        });
+    }
 }
 
 function toggleTipoCambio() {
@@ -1492,6 +1566,11 @@ function toggleTipoCambio() {
         tipoCambioInput.required = false;
         tipoCambioInput.value = '';
     }
+    
+    // Recalcular todos los totales cuando cambia la moneda
+    setTimeout(() => {
+        actualizarTodosLosCalculos();
+    }, 100);
 }
 
 async function guardarCotizacion() {
