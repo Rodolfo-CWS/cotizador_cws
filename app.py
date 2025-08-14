@@ -662,12 +662,35 @@ def generar_pdf_reportlab(datos_cotizacion):
         iva = subtotal * 0.16
         total = subtotal + iva
         
-        # Crear tabla de totales con mejor diseño
-        totales_data = [
-            ['Subtotal:', f"${subtotal:,.2f}"],
-            ['IVA (16%):', f"${iva:,.2f}"],
-            ['TOTAL:', f"${total:,.2f}"]
-        ]
+        # Verificar si la moneda es USD para aplicar conversión
+        moneda = condiciones.get('moneda', 'MXN')
+        tipo_cambio = float(condiciones.get('tipoCambio', 1.0)) if condiciones.get('tipoCambio') else 1.0
+        
+        # Aplicar conversión si es USD
+        if moneda == 'USD' and tipo_cambio > 0:
+            subtotal_mostrar = subtotal / tipo_cambio
+            iva_mostrar = iva / tipo_cambio
+            total_mostrar = total / tipo_cambio
+            simbolo_moneda = 'USD $'
+            
+            # Crear tabla de totales con conversión USD
+            totales_data = [
+                ['Subtotal:', f"{simbolo_moneda}{subtotal_mostrar:,.2f}"],
+                ['IVA (16%):', f"{simbolo_moneda}{iva_mostrar:,.2f}"],
+                ['TOTAL:', f"{simbolo_moneda}{total_mostrar:,.2f}"]
+            ]
+            
+            # Agregar nota de conversión al final
+            conversion_note = f"Tipo de cambio: {tipo_cambio:.2f} MXN/USD"
+        else:
+            # Mantener formato original para MXN
+            simbolo_moneda = '$'
+            totales_data = [
+                ['Subtotal:', f"{simbolo_moneda}{subtotal:,.2f}"],
+                ['IVA (16%):', f"{simbolo_moneda}{iva:,.2f}"],
+                ['TOTAL:', f"{simbolo_moneda}{total:,.2f}"]
+            ]
+            conversion_note = None
         
         # Tabla con ancho fijo alineada a la derecha
         totales_table = Table(totales_data, colWidths=[1.8*inch, 1.5*inch])
@@ -705,6 +728,19 @@ def generar_pdf_reportlab(datos_cotizacion):
         
         story.append(totales_container)
     
+    # Agregar nota de conversión USD si aplica
+    if moneda == 'USD' and conversion_note:
+        story.append(Spacer(1, 6))
+        conversion_style = ParagraphStyle(
+            'ConversionNote',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.HexColor('#666666'),
+            alignment=2,  # Alineación derecha
+            spaceAfter=0
+        )
+        story.append(Paragraph(f"<i>{conversion_note}</i>", conversion_style))
+    
     # TÉRMINOS Y CONDICIONES - Sección profesional
     if condiciones:
         story.append(Spacer(1, 12))
@@ -722,6 +758,10 @@ def generar_pdf_reportlab(datos_cotizacion):
             ('Términos de Pago:', condiciones.get('terminos', '')),
             ('Comentarios:', condiciones.get('comentarios', ''))
         ]
+        
+        # Agregar tipo de cambio si es USD
+        if moneda == 'USD' and tipo_cambio > 0:
+            campos_terminos.insert(1, ('Tipo de Cambio:', f'{tipo_cambio:.2f} MXN/USD'))
         
         for label, value in campos_terminos:
             if value and value.strip():  # Solo agregar si tiene contenido
