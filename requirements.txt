@@ -9,8 +9,12 @@ Werkzeug==3.0.1
 # Manejo de variables de entorno
 python-dotenv==1.0.0
 
-# Base de datos MongoDB (opcional - funciona sin esto en modo offline)
-pymongo==4.6.0
+# Base de datos MongoDB (DEPRECADO - migrar a Supabase)
+# pymongo==4.6.0
+
+# Supabase (PostgreSQL cloud database)
+supabase==2.3.0
+psycopg2-binary==2.9.9
 
 # Manejo de fechas y tiempo
 python-dateutil==2.8.2

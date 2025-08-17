@@ -36,7 +36,9 @@ import csv  # Para leer archivo CSV de materiales
 import logging
 from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
-from database import DatabaseManager
+# Migración a Supabase (2025-08-17)
+# from database import DatabaseManager  # ← MongoDB (DEPRECADO)
+from supabase_manager import SupabaseManager as DatabaseManager
 from pdf_manager import PDFManager
 
 # Configurar logging detallado para detectar fallos silenciosos

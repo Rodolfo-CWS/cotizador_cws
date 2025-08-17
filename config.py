@@ -11,7 +11,13 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
-    # MongoDB
+    # Supabase PostgreSQL (Nueva base de datos principal)
+    SUPABASE_URL = os.environ.get('SUPABASE_URL')
+    SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY')
+    SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY')  # Para operaciones admin
+    DATABASE_URL = os.environ.get('DATABASE_URL')  # PostgreSQL connection string
+    
+    # MongoDB (DEPRECADO - mantenido para migración)
     MONGO_USERNAME = os.environ.get('MONGO_USERNAME', 'admin')
     MONGO_PASSWORD = os.environ.get('MONGO_PASSWORD', 'ADMIN123')
     MONGO_CLUSTER = os.environ.get('MONGO_CLUSTER', 'cluster0.t4e0tp8.mongodb.net')
@@ -19,7 +25,7 @@ class Config:
     
     @property
     def MONGO_URI(self):
-        """Construye la URI de MongoDB con las variables de entorno"""
+        """Construye la URI de MongoDB con las variables de entorno (DEPRECADO)"""
         import urllib.parse
         usuario = urllib.parse.quote_plus(self.MONGO_USERNAME)
         contraseña = urllib.parse.quote_plus(self.MONGO_PASSWORD)
@@ -43,27 +49,25 @@ class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
     
-    # En producción, preferir MONGODB_URI si está disponible, sino usar componentes
-    @property
-    def MONGO_URI(self):
-        # Prioridad 1: Variable completa para Render/producción
-        uri_completa = os.environ.get('MONGODB_URI')
-        if uri_completa:
-            print("Usando MONGODB_URI completa para producción")
-            return uri_completa
+    # Configuración Supabase para producción
+    def validate_supabase_config(self):
+        """Valida que las variables de Supabase estén configuradas"""
+        missing = []
         
-        # Prioridad 2: Variable alternativa específica de producción
-        uri_prod = os.environ.get('MONGO_URI_PROD')
-        if uri_prod:
-            print("Usando MONGO_URI_PROD para producción")
-            return uri_prod
+        if not self.SUPABASE_URL:
+            missing.append('SUPABASE_URL')
+        if not self.DATABASE_URL:
+            missing.append('DATABASE_URL')
+        if not self.SUPABASE_ANON_KEY:
+            missing.append('SUPABASE_ANON_KEY')
         
-        # Prioridad 3: Construir desde componentes (fallback para desarrollo)
-        print("Construyendo URI desde componentes para producción")
-        import urllib.parse
-        usuario = urllib.parse.quote_plus(self.MONGO_USERNAME)
-        contraseña = urllib.parse.quote_plus(self.MONGO_PASSWORD)
-        return f"mongodb+srv://{usuario}:{contraseña}@{self.MONGO_CLUSTER}/{self.MONGO_DATABASE}?retryWrites=true&w=majority&appName=Cluster0"
+        if missing:
+            print(f"⚠️  Variables Supabase faltantes: {', '.join(missing)}")
+            print("   Sistema funcionará en modo offline con JSON")
+            return False
+        
+        print("✅ Configuración Supabase completa")
+        return True
 
 class TestingConfig(Config):
     """Configuración para testing"""
