@@ -19,6 +19,7 @@ import json
 import os
 import sys
 import time
+import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 import psycopg2
@@ -30,13 +31,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def safe_str(value, default=""):
-    """Convierte valor a string de forma segura (compatible con Unicode)"""
+    """Convierte valor a string de forma segura y simple"""
     if value is None:
         return default
-    try:
-        return str(value).encode('utf-8', errors='ignore').decode('utf-8')
-    except:
-        return default
+    return str(value).strip()
 
 class SupabaseManager:
     """
@@ -620,15 +618,29 @@ class SupabaseManager:
         Formato: CLIENTE-CWS-VENDEDOR-###-R#-PROYECTO
         """
         try:
+            print(f"[NUMERO] Datos generales recibidos: {datos_generales}")
+            
+            # Obtener valores con fallbacks robustos
             cliente = safe_str(datos_generales.get('cliente', 'CLIENTE')).upper()
             vendedor = safe_str(datos_generales.get('vendedor', 'VEND')).upper()
             proyecto = safe_str(datos_generales.get('proyecto', 'PROYECTO')).upper()
             
+            # Validar que no estén vacíos después de safe_str
+            if not cliente or cliente.strip() == '':
+                cliente = 'CLIENTE'
+            if not vendedor or vendedor.strip() == '':
+                vendedor = 'VEND'
+            if not proyecto or proyecto.strip() == '':
+                proyecto = 'PROYECTO'
+            
+            print(f"[NUMERO] Valores procesados - Cliente: '{cliente}', Vendedor: '{vendedor}', Proyecto: '{proyecto}'")
+            
             # Limpiar caracteres especiales
-            import re
             cliente = re.sub(r'[^A-Z0-9]', '-', cliente)[:10]
             vendedor = re.sub(r'[^A-Z0-9]', '', vendedor)[:3]
             proyecto = re.sub(r'[^A-Z0-9]', '-', proyecto)[:15]
+            
+            print(f"[NUMERO] Valores limpiados - Cliente: '{cliente}', Vendedor: '{vendedor}', Proyecto: '{proyecto}'")
             
             # Contar cotizaciones existentes para este vendedor
             if self.modo_offline:
