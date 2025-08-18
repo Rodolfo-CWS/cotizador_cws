@@ -36,9 +36,8 @@ import csv  # Para leer archivo CSV de materiales
 import logging
 from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
-# TEMPORAL: Revertir a MongoDB por problemas de conectividad con Supabase
-from database import DatabaseManager  # ← MongoDB (FUNCIONA)
-# from supabase_manager import SupabaseManager as DatabaseManager  # ← Supabase (CON PROBLEMAS)
+# SOLO SUPABASE - MongoDB eliminado completamente
+from supabase_manager import SupabaseManager as DatabaseManager
 from pdf_manager import PDFManager
 
 # Configurar logging detallado para detectar fallos silenciosos

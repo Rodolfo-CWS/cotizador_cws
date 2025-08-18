@@ -9,12 +9,11 @@ Werkzeug==3.0.1
 # Manejo de variables de entorno
 python-dotenv==1.0.0
 
-# MongoDB (TEMPORAL - hasta resolver problemas de Supabase)
-pymongo==4.6.0
+# MongoDB completamente eliminado
 
-# Supabase (CON PROBLEMAS DE CONECTIVIDAD - temporalmente deshabilitado)
-# supabase==2.3.0
-# psycopg2-binary>=2.9.9
+# Supabase PostgreSQL (UNICA BASE DE DATOS)
+supabase==2.3.0
+psycopg2-binary>=2.9.9
 
 # Manejo de fechas y tiempo
 python-dateutil==2.8.2
