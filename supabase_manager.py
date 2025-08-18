@@ -79,8 +79,13 @@ class SupabaseManager:
         try:
             # Cliente Supabase (APIs automáticas)
             if self.supabase_key:
-                self.supabase_client = create_client(self.supabase_url, self.supabase_key)
-                print("[SUPABASE] Cliente Supabase inicializado")
+                try:
+                    # Crear cliente Supabase
+                    self.supabase_client = create_client(self.supabase_url, self.supabase_key)
+                    print("[SUPABASE] Cliente Supabase inicializado")
+                except Exception as supabase_error:
+                    print(f"[SUPABASE] Warning - Cliente Supabase falló: {supabase_error}")
+                    self.supabase_client = None
             
             # Conexión PostgreSQL directa
             self.pg_connection = psycopg2.connect(
@@ -663,6 +668,10 @@ class SupabaseManager:
         
         # El cliente Supabase no necesita cierre explícito
         print("[SUPABASE] SupabaseManager cerrado")
+    
+    def cerrar_conexion(self):
+        """Alias para close() - compatibilidad con código existente"""
+        self.close()
 
 # Alias para compatibilidad con código existente
 DatabaseManager = SupabaseManager
