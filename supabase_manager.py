@@ -201,7 +201,12 @@ class SupabaseManager:
         try:
             numero_cotizacion = datos.get('numeroCotizacion')
             if not numero_cotizacion:
-                return {"success": False, "error": "Número de cotización requerido"}
+                # Generar número automáticamente si no existe
+                print("[GUARDAR] Número no provisto, generando automáticamente...")
+                datos_generales = datos.get('datosGenerales', {})
+                numero_cotizacion = self.generar_numero_automatico(datos_generales)
+                datos['numeroCotizacion'] = numero_cotizacion
+                print(f"[GUARDAR] Número generado: {numero_cotizacion}")
             
             print(f"[GUARDAR] Procesando cotización: {numero_cotizacion}")
             
@@ -627,10 +632,13 @@ class SupabaseManager:
             
             # Contar cotizaciones existentes para este vendedor
             if self.modo_offline:
+                print(f"[NUMERO] Modo offline - generando número para vendedor: {vendedor}")
                 data = self._cargar_datos_offline()
                 cotizaciones = data.get("cotizaciones", [])
+                print(f"[NUMERO] Cotizaciones cargadas: {len(cotizaciones)}")
                 count = len([c for c in cotizaciones 
                            if c.get('datosGenerales', {}).get('vendedor', '').upper() == vendedor])
+                print(f"[NUMERO] Count para vendedor {vendedor}: {count}")
             else:
                 try:
                     cursor = self.pg_connection.cursor()
