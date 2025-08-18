@@ -9,8 +9,7 @@ Werkzeug==3.0.1
 # Manejo de variables de entorno
 python-dotenv==1.0.0
 
-# Base de datos MongoDB (DEPRECADO - migrar a Supabase)
-# pymongo==4.6.0
+# MongoDB completamente removido - usando Supabase PostgreSQL
 
 # Supabase (PostgreSQL cloud database)  
 supabase==2.3.0
