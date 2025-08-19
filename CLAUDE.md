@@ -8,34 +8,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Production URL**: https://cotizador-cws.onrender.com/
 
-## 🚨 CURRENT SYSTEM STATUS (August 2025) - PRODUCTION READY WITH ANTI-FALLO SILENCIOSO
+## 🚨 CURRENT SYSTEM STATUS (August 2025) - SUPABASE HYBRID ARCHITECTURE 
 
-### ✅ PRODUCTION READY COMPONENTS
-- **Application**: 100% operational on Render with hybrid architecture
-- **Quotation Creation**: Working perfectly via web interface with anti-fallo silencioso protection
-- **PDF Generation**: Automatic generation with ReportLab (36KB+ PDFs)
-- **Automatic Workflow**: `/formulario` route generates PDF immediately after saving
-- **Numbering System**: Automatic sequential numbering working correctly
-- **Web Interface**: Responsive, unified search functionality operational
-- **Silent Failure Detection**: ✨ **NEW** - Triple verification system prevents data loss
+### ✅ PRODUCTION READY COMPONENTS - FULLY OPERATIONAL
+- **Application**: 100% operational on Render with Supabase hybrid architecture
+- **Quotation Creation**: ✅ **WORKING** - HTTP 500 errors resolved, complete end-to-end functionality
+- **PDF Generation**: Automatic generation with ReportLab (36KB+ PDFs) + permanent storage
+- **Automatic Workflow**: `/formulario` route generates PDFs and saves to permanent storage
+- **Numbering System**: Automatic sequential numbering working correctly (format: CLIENT-CWS-VENDOR-###-R1-PROJECT)
+- **Web Interface**: Responsive interface with real-time quotation management
+- **Permanent Storage**: ✅ **NEW** - Cloudinary (25GB) + Supabase PostgreSQL + local fallback
 
-### 🎉 HYBRID SYSTEM + ANTI-FALLO SILENCIOSO (August 13, 2025)
-- **Database Architecture**: JSON primary + MongoDB cloud sync with **post-write verification**
-- **PDF Storage**: Cloudinary (25GB free) + Google Drive (fallback) + Local (emergency)
-- **Auto-Sync**: Bidirectional synchronization every 15 minutes
-- **Zero Downtime**: Triple redundancy with automatic fallbacks
-- **Anti-Fallo System**: ✨ **NEW** - Triple verification prevents silent failures
-- **Unified Search**: ✨ **NEW** - Consistent results across all search methods
-- **Production Status**: Ready for deployment with critical fixes
+### 🎉 SUPABASE HYBRID SYSTEM (August 19, 2025) - PRODUCTION READY
+- **Database Architecture**: ✅ **SUPABASE POSTGRESQL** primary + JSON offline fallback
+- **PDF Storage**: ✅ **CLOUDINARY** (25GB free) + local emergency backup + Google Drive fallback  
+- **Data Persistence**: ✅ **PERMANENT** - All quotations and PDFs stored permanently in cloud
+- **Offline Resilience**: ✅ **GUARANTEED** - System works 100% offline, syncs when online
+- **HTTP 500 Resolution**: ✅ **RESOLVED** - All quotation creation errors fixed
+- **Production Status**: ✅ **DEPLOYED** - Fully operational with permanent storage
 
-### ⚡ RESOLVED ISSUES
-- **MongoDB**: ✅ SSL connectivity resolved - 41 documents successfully synced
-- **Storage**: ✅ Cloudinary provides 25GB free PDF storage with CDN
-- **Unicode**: ✅ Windows compatibility issues fixed
-- **Resilience**: ✅ Smart retry logic with exponential backoff implemented
-- **Silent Failures**: ✅ **NEW** - Triple verification system detects and prevents data loss
-- **Search Consistency**: ✅ **NEW** - Unified search eliminates result discrepancies
-- **PDF Assignment**: ✅ **NEW** - Robust error handling prevents incorrect PDF assignments
+### ⚡ RESOLVED ISSUES (August 19, 2025)
+- **HTTP 500 Errors**: ✅ **RESOLVED** - All quotation creation errors fixed through key name consistency
+- **Supabase Integration**: ✅ **IMPLEMENTED** - Complete migration from MongoDB to Supabase PostgreSQL
+- **Cloudinary PDF Storage**: ✅ **WORKING** - Fixed format error, 25GB permanent storage operational
+- **PDF Generation**: ✅ **RESOLVED** - KeyError 'id' fixed, PDFs generate correctly in offline mode
+- **Number Generation**: ✅ **WORKING** - Automatic sequential numbering (CLIENT-CWS-VENDOR-###-R1-PROJECT)
+- **Permanent Storage**: ✅ **IMPLEMENTED** - Triple redundancy with cloud-first architecture
+- **Unicode Compatibility**: ✅ **RESOLVED** - Full Windows/Linux compatibility maintained
+- **Offline Fallback**: ✅ **GUARANTEED** - System works 100% offline with JSON backup
 
 ## Quick Start Commands
 
@@ -58,17 +58,24 @@ INSTALAR_AUTOMATICO.bat
 
 ### Testing and Validation
 ```bash
+# ✅ SUPABASE SYSTEM TESTS (August 19, 2025)
+# Complete permanent storage configuration test
+python configure_permanent_storage.py
+
+# Test Supabase connectivity and data operations
+python test_simple_supabase.py
+
+# Verify Cloudinary PDF storage (25GB free)
+python test_cloudinary.py
+
 # Complete system test (run this after major changes)
 python test_completo.py
 
-# PDF generation test (verify both ReportLab and WeasyPrint)
+# PDF generation test (verify ReportLab with permanent storage)
 python test_pdf_completo.py
 
 # Server connectivity test (local server health check)
 python test_servidor.py
-
-# MongoDB production test (diagnose connection issues)
-python test_mongodb_production.py
 
 # Verify PDF libraries are properly installed
 python -c "import weasyprint; print('WeasyPrint OK')"
@@ -77,29 +84,33 @@ python -c "import reportlab; print('ReportLab OK')"
 # Test automatic numbering system
 python test_numero_automatico.py
 
-# Verify material revision functionality
-python test_revision_materials.py
-
-# Hybrid System Tests
-python test_cloudinary.py        # Test Cloudinary integration (25GB free storage)
-python test_sync_completo.py     # Test complete hybrid system (JSON + MongoDB + Cloudinary)
-
-# ✨ NEW: Anti-Fallo Silencioso Tests (August 13, 2025)
-# Test critical failure detection system
+# ✅ NEW: Supabase Hybrid System Tests (August 19, 2025)
+# Test complete Supabase + Cloudinary integration
 python -c "
-from database import DatabaseManager
+from supabase_manager import SupabaseManager
 import json
-db = DatabaseManager()
-datos_test = {'datosGenerales': {'cliente': 'TEST-FALLO', 'vendedor': 'TEST', 'proyecto': 'VERIFICACION'}, 'items': []}
+db = SupabaseManager()
+print(f'Modo: {\"Online (Supabase)\" if not db.modo_offline else \"Offline (JSON)\"}')
+
+# Test quotation save
+datos_test = {'datosGenerales': {'cliente': 'TEST-SUPABASE', 'vendedor': 'TEST', 'proyecto': 'VERIFICACION'}, 'items': []}
 resultado = db.guardar_cotizacion(datos_test)
-print('Test resultado:', json.dumps(resultado, indent=2))
-if resultado.get('success'):
-    verificacion = db.obtener_cotizacion(resultado['numeroCotizacion'])
-    print('Verificación:', verificacion.get('encontrado'))
+print('Resultado:', json.dumps(resultado, indent=2))
+
+# Test statistics
+stats = db.obtener_estadisticas()
+print('Estadísticas:', json.dumps(stats, indent=2))
 "
 
-# System Status Verification
-python -c "from database import DatabaseManager; db = DatabaseManager(); print(f'MongoDB: {\"OK\" if not db.modo_offline else \"OFFLINE\"}, JSON: {len(db.obtener_todas_cotizaciones()[\"cotizaciones\"])} cotizaciones')"
+# Verify system health and storage
+python -c "
+from supabase_manager import SupabaseManager
+from cloudinary_manager import CloudinaryManager
+db = SupabaseManager()
+cm = CloudinaryManager()
+print(f'Supabase: {\"ONLINE\" if not db.modo_offline else \"OFFLINE (fallback)\"}')
+print(f'Cloudinary: {\"OK\" if cm.cloudinary_available else \"OFFLINE (fallback)\"}')
+"
 ```
 
 ## Production Deployment (Render)
@@ -117,36 +128,41 @@ python -c "from database import DatabaseManager; db = DatabaseManager(); print(f
 # - RENDER_UPLOAD_DIRECTO.md (direct upload method)
 ```
 
-### Production Environment Variables
+### Production Environment Variables (August 19, 2025) - SUPABASE ARCHITECTURE
 
-**Database & Sync (Required):**
-- `MONGODB_URI` - Complete MongoDB connection string for production
+**Supabase Database (Primary - Required):**
+- `DATABASE_URL` - PostgreSQL connection string: `postgresql://postgres.[REF]:[PASS]@aws-1-us-east-2.pooler.supabase.com:6543/postgres`
+- `SUPABASE_URL` - Supabase project URL: `https://[REF].supabase.co`
+- `SUPABASE_ANON_KEY` - Supabase anonymous key for API access
 - `FLASK_ENV=production` - Production mode configuration
-- `SYNC_INTERVAL_MINUTES=15` - Auto-sync interval (default: 15 minutes)
-- `AUTO_SYNC_ENABLED=true` - Enable automatic synchronization
-- `SYNC_ON_STARTUP=false` - Skip initial sync on app startup
 
-**Cloudinary (PDF Storage - 25GB Free):**
-- `CLOUDINARY_CLOUD_NAME=dvexwdihj` - Your Cloudinary cloud name
-- `CLOUDINARY_API_KEY=685549632198419` - Cloudinary API key
-- `CLOUDINARY_API_SECRET` - Cloudinary API secret (configured)
+**Cloudinary PDF Storage (25GB Free - Primary):**
+- `CLOUDINARY_CLOUD_NAME` - Your Cloudinary cloud name (configured: dvexwdihj)
+- `CLOUDINARY_API_KEY` - Cloudinary API key (configured: 685549632198419)
+- `CLOUDINARY_API_SECRET` - Cloudinary API secret (required for uploads)
 
-**Google Drive (Fallback - Maintained):**
-- `GOOGLE_SERVICE_ACCOUNT_JSON` - Service account credentials (configured)
+**Google Drive (Emergency Fallback - Optional):**
+- `GOOGLE_SERVICE_ACCOUNT_JSON` - Service account credentials (maintained for fallback)
 - `GOOGLE_DRIVE_FOLDER_NUEVAS` - Folder ID for new quotations
 - `GOOGLE_DRIVE_FOLDER_ANTIGUAS` - Folder ID for old quotations
 
+**System Configuration:**
+- `FLASK_DEBUG=False` - Disable debug in production
+- `APP_VERSION=2.1.0` - Current application version
+- `DEFAULT_PAGE_SIZE=20` - Pagination default
+
 ## Core Architecture
 
-### Application Stack
+### Application Stack - SUPABASE ARCHITECTURE (August 19, 2025)
 - **Frontend**: HTML/CSS/JavaScript with Jinja2 templates
-- **Backend**: Python Flask web framework
-- **Database**: **HYBRID SYSTEM** - JSON (primary) ↔ MongoDB (sync) with bidirectional sync
-- **PDF Generation**: ReportLab (primary) + WeasyPrint (fallback)
-- **PDF Storage**: **TRIPLE REDUNDANCY** - Cloudinary (primary) + Google Drive (fallback) + Local (emergency)
-- **Synchronization**: APScheduler for automatic JSON ↔ MongoDB sync every 15 minutes
-- **Deployment**: Render.com with environment-based configuration
-- **Monitoring**: Comprehensive logging and fallback detection
+- **Backend**: Python Flask web framework  
+- **Database**: ✅ **SUPABASE POSTGRESQL** (primary) + JSON offline fallback
+- **PDF Generation**: ReportLab (primary, 36KB+ professional PDFs) + WeasyPrint (fallback)
+- **PDF Storage**: ✅ **TRIPLE REDUNDANCY** - Cloudinary 25GB (primary) + Local (emergency) + Google Drive (fallback)
+- **Data Persistence**: ✅ **PERMANENT CLOUD STORAGE** - All data persists through deployments
+- **Deployment**: Render.com with automatic deployments from GitHub
+- **Monitoring**: Comprehensive logging with structured error handling
+- **Offline Capability**: 100% offline functionality with automatic cloud sync
 
 ### Key Technical Patterns
 
