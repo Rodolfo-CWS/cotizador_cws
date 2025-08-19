@@ -1121,11 +1121,14 @@ def formulario():
                 respuesta = {
                     "success": True,
                     "mensaje": "Cotización guardada correctamente",
-                    "id": resultado["id"],
                     "numeroCotizacion": numero_cotizacion,
                     "pdf_generado": pdf_resultado is not None,
                     "pdf_error": pdf_error
                 }
+                
+                # Agregar ID solo si existe (modo online)
+                if "id" in resultado:
+                    respuesta["id"] = resultado["id"]
                 
                 if pdf_resultado:
                     respuesta["pdf_info"] = {
