@@ -1059,7 +1059,7 @@ def formulario():
             print(f"[FORM] FORMULARIO: Resultado guardado = {resultado}")
             
             if resultado["success"]:
-                numero_cotizacion = resultado.get('numeroCotizacion')
+                numero_cotizacion = resultado.get('numero_cotizacion') or resultado.get('numeroCotizacion')
                 print(f"[OK] FORMULARIO: Guardado exitoso - Numero: {numero_cotizacion}")
                 
                 # ✅ LOG CRÍTICO: Cotización guardada exitosamente
