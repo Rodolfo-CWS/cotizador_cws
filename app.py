@@ -3832,6 +3832,43 @@ def cloudinary_estado():
 # EJECUTAR APLICACIÓN
 # ============================================
 
+@app.route("/local-pdf/<path:numero_cotizacion>")
+def servir_pdf_local(numero_cotizacion):
+    """Servir PDF directamente desde almacenamiento local de Render"""
+    try:
+        import os
+        from flask import send_file
+        from urllib.parse import unquote
+        
+        numero_cotizacion = unquote(numero_cotizacion)
+        
+        # Limpiar extensión si viene incluida
+        if numero_cotizacion.endswith('.pdf'):
+            numero_cotizacion = numero_cotizacion[:-4]
+        
+        # Buscar en carpetas locales
+        base_path = os.path.join(os.getcwd(), "pdfs_cotizaciones")
+        posibles_rutas = [
+            os.path.join(base_path, "nuevas", f"{numero_cotizacion}.pdf"),
+            os.path.join(base_path, "antiguas", f"{numero_cotizacion}.pdf"),
+            os.path.join(base_path, f"{numero_cotizacion}.pdf")
+        ]
+        
+        for ruta in posibles_rutas:
+            if os.path.exists(ruta):
+                print(f"[LOCAL_PDF] Sirviendo: {ruta}")
+                return send_file(ruta, as_attachment=False, mimetype='application/pdf')
+        
+        print(f"[LOCAL_PDF] No encontrado: {numero_cotizacion}")
+        print(f"[LOCAL_PDF] Rutas buscadas: {posibles_rutas}")
+        return jsonify({"error": "PDF no encontrado en almacenamiento local", "numero": numero_cotizacion}), 404
+        
+    except Exception as e:
+        print(f"[LOCAL_PDF] Error sirviendo PDF: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# ============================================
+
 if __name__ == "__main__":
     app_name = os.getenv('APP_NAME', 'CWS Cotizaciones')
     app_version = os.getenv('APP_VERSION', '1.0.0')

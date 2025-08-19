@@ -155,7 +155,7 @@ class CloudinaryManager:
                 "url": resultado['secure_url'],
                 "public_id": resultado['public_id'],
                 "bytes": resultado['bytes'],
-                "formato": resultado['format'],
+                "formato": resultado.get('format', 'pdf'),  # Default to 'pdf' for raw files
                 "fecha_subida": resultado['created_at'],
                 "version": resultado['version'],
                 "etag": resultado.get('etag', ''),
