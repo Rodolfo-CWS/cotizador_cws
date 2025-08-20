@@ -1711,47 +1711,198 @@ def servir_pdf(numero_cotizacion):
 
 @app.route("/desglose/<path:numero_cotizacion>")
 def ver_desglose(numero_cotizacion):
-    """Ver desglose detallado de cotización (vista actual de MongoDB)"""
+    """Ver desglose detallado de cotización - MANEJO INTELIGENTE"""
     try:
         from urllib.parse import unquote
         numero_cotizacion = unquote(numero_cotizacion)
         
-        print(f"Viendo desglose: '{numero_cotizacion}'")
+        print(f"[DESGLOSE] Viendo: '{numero_cotizacion}'")
         
-        # Verificar que el PDF existe y tiene desglose
+        # PASO 1: Intentar obtener cotización completa (con datos de desglose)
+        resultado_cotizacion = db_manager.obtener_cotizacion(numero_cotizacion)
+        
+        if resultado_cotizacion.get("encontrado"):
+            # Tenemos datos completos - mostrar desglose normal
+            print(f"[DESGLOSE] Cotización encontrada en DB - mostrando desglose completo")
+            from flask import render_template
+            return render_template("ver_cotizacion.html", cotizacion=resultado_cotizacion["item"])
+        
+        # PASO 2: No hay datos completos, verificar si existe PDF
+        print(f"[DESGLOSE] Cotización no en DB, verificando PDF...")
         resultado_pdf = pdf_manager.obtener_pdf(numero_cotizacion)
         
-        if resultado_pdf.get("encontrado") and not resultado_pdf["registro"].get("tiene_desglose", False):
-            # Es un PDF antiguo sin desglose
-            return render_template_string("""
-            <!DOCTYPE html>
-            <html lang="es">
-            <head>
-                <meta charset="UTF-8">
-                <title>Desglose no disponible</title>
-                <style>
-                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-                    .mensaje { background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px auto; max-width: 500px; }
-                </style>
-            </head>
-            <body>
-                <h1>Desglose no disponible</h1>
-                <div class="mensaje">
-                    <p>Esta cotización fue importada como PDF histórico.</p>
-                    <p>El desglose detallado no está disponible.</p>
-                    <p><strong>Número:</strong> {{ numero }}</p>
-                </div>
-                <a href="/">← Volver al inicio</a>
-            </body>
-            </html>
-            """, numero=numero_cotizacion)
+        if resultado_pdf.get("encontrado"):
+            registro_pdf = resultado_pdf.get("registro", {})
+            tiene_desglose = registro_pdf.get("tiene_desglose", False)
+            
+            if tiene_desglose:
+                # PDF de cotización generada por la app, pero datos perdidos
+                print(f"[DESGLOSE] PDF encontrado (nueva cotización) - datos perdidos en contenedor")
+                return render_template_string("""
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Datos de Cotización No Disponibles - CWS</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                               background: #f8f9fa; margin: 0; padding: 20px; }
+                        .container { max-width: 600px; margin: 50px auto; background: white; 
+                                   border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 30px; }
+                        .header { text-align: center; margin-bottom: 30px; }
+                        .logo { color: #2C5282; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+                        .mensaje { background: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; 
+                                 border-radius: 8px; margin: 20px 0; }
+                        .info { background: #e3f2fd; border: 1px solid #bbdefb; padding: 15px; 
+                              border-radius: 8px; margin: 15px 0; }
+                        .buttons { display: flex; gap: 15px; justify-content: center; margin-top: 30px; }
+                        .btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; 
+                             font-weight: 500; transition: transform 0.2s; }
+                        .btn:hover { transform: translateY(-1px); }
+                        .btn-primary { background: #2C5282; color: white; }
+                        .btn-secondary { background: #718096; color: white; }
+                        .btn-outline { border: 2px solid #2C5282; color: #2C5282; background: white; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <div class="logo">🏢 CWS Company</div>
+                            <h1>Datos de Cotización No Disponibles</h1>
+                        </div>
+                        
+                        <div class="mensaje">
+                            <h3>📋 Cotización Generada Correctamente</h3>
+                            <p>La cotización <strong>{{ numero }}</strong> fue creada exitosamente y el PDF se generó correctamente.</p>
+                        </div>
+                        
+                        <div class="info">
+                            <h4>ℹ️ ¿Por qué no puedo ver el desglose?</h4>
+                            <p>Los datos detallados de esta cotización no están disponibles temporalmente debido a que se creó durante un reinicio del servidor.</p>
+                            <p>El PDF con toda la información está disponible y se puede descargar.</p>
+                        </div>
+                        
+                        <div class="buttons">
+                            <a href="/pdf/{{ numero }}" target="_blank" class="btn btn-primary">
+                                📄 Ver PDF Completo
+                            </a>
+                            <a href="/" class="btn btn-outline">
+                                🏠 Volver al Inicio  
+                            </a>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 30px; color: #718096; font-size: 12px;">
+                            <p>Si necesitas el desglose detallado, puedes recrear la cotización o contactar al administrador.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """, numero=numero_cotizacion)
+            else:
+                # PDF histórico sin desglose
+                print(f"[DESGLOSE] PDF histórico encontrado - sin desglose")
+                return render_template_string("""
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Desglose No Disponible - CWS</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                               background: #f8f9fa; margin: 0; padding: 20px; }
+                        .container { max-width: 500px; margin: 50px auto; background: white; 
+                                   border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 30px; }
+                        .header { text-align: center; margin-bottom: 30px; }
+                        .logo { color: #2C5282; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+                        .mensaje { background: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; 
+                                 border-radius: 8px; margin: 20px 0; }
+                        .buttons { display: flex; gap: 15px; justify-content: center; margin-top: 30px; }
+                        .btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; 
+                             font-weight: 500; transition: transform 0.2s; }
+                        .btn:hover { transform: translateY(-1px); }
+                        .btn-primary { background: #2C5282; color: white; }
+                        .btn-outline { border: 2px solid #2C5282; color: #2C5282; background: white; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <div class="logo">🏢 CWS Company</div>
+                            <h1>PDF Histórico</h1>
+                        </div>
+                        
+                        <div class="mensaje">
+                            <h3>📁 Archivo Histórico</h3>
+                            <p>Este es un PDF histórico importado manualmente.</p>
+                            <p>El desglose detallado no está disponible.</p>
+                            <p><strong>Número:</strong> {{ numero }}</p>
+                        </div>
+                        
+                        <div class="buttons">
+                            <a href="/pdf/{{ numero }}" target="_blank" class="btn btn-primary">
+                                📄 Ver PDF
+                            </a>
+                            <a href="/" class="btn btn-outline">
+                                🏠 Volver al Inicio
+                            </a>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """, numero=numero_cotizacion)
         
-        # Usar la funcionalidad existente de ver cotización
-        return ver_item(numero_cotizacion)
+        # PASO 3: No existe ni cotización ni PDF
+        print(f"[DESGLOSE] Cotización '{numero_cotizacion}' no encontrada en ninguna fuente")
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Cotización No Encontrada - CWS</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                       background: #f8f9fa; margin: 0; padding: 20px; }
+                .container { max-width: 500px; margin: 50px auto; background: white; 
+                           border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 30px; }
+                .header { text-align: center; margin-bottom: 30px; }
+                .logo { color: #2C5282; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+                .mensaje { background: #fef2f2; border: 1px solid #fecaca; padding: 20px; 
+                         border-radius: 8px; margin: 20px 0; color: #dc2626; }
+                .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; 
+                     text-decoration: none; font-weight: 500; margin-top: 20px;
+                     border: 2px solid #2C5282; color: #2C5282; background: white; }
+                .btn:hover { background: #2C5282; color: white; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div class="logo">🏢 CWS Company</div>
+                    <h1>Cotización No Encontrada</h1>
+                </div>
+                
+                <div class="mensaje">
+                    <h3>❌ No Encontrada</h3>
+                    <p>La cotización <strong>{{ numero }}</strong> no fue encontrada en el sistema.</p>
+                    <p>Verifica que el número sea correcto.</p>
+                </div>
+                
+                <div style="text-align: center;">
+                    <a href="/" class="btn">🏠 Volver al Inicio</a>
+                </div>
+            </div>
+        </body>
+        </html>
+        """, numero=numero_cotizacion), 404
         
     except Exception as e:
-        print(f"Error viendo desglose: {e}")
-        return f"Error: {str(e)}", 500
+        print(f"[DESGLOSE] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"Error procesando desglose: {str(e)}", 500
 
 # ============================================
 # RUTA DE INFORMACIÓN DEL SISTEMA
