@@ -79,7 +79,7 @@ def configurar_logging():
     critical_logger.addHandler(critical_handler)
     critical_logger.setLevel(logging.ERROR)
     
-    print(f"✅ Logging configurado: {log_file}")
+    print(f"Logging configurado: {log_file}")
     return logger
 
 # Configurar logging al inicio
@@ -96,7 +96,27 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-pro
 app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
 
 # Crear instancia de base de datos
+print("Inicializando DatabaseManager (SupabaseManager)...")
 db_manager = DatabaseManager()
+
+# Validar estado de conexión al inicio
+print(f"Estado de conexión:")
+print(f"   Modo offline: {db_manager.modo_offline}")
+if not db_manager.modo_offline:
+    print(f"   Supabase conectado: {db_manager.supabase_url}")
+    print(f"   Base de datos: PostgreSQL")
+else:
+    print(f"   Modo offline activo - usando JSON local")
+    print(f"   Archivo offline: {db_manager.archivo_offline}")
+
+# Obtener estadísticas iniciales
+try:
+    stats = db_manager.obtener_estadisticas()
+    print(f"Estadísticas iniciales:")
+    for key, value in stats.items():
+        print(f"   {key}: {value}")
+except Exception as e:
+    print(f"Error obteniendo estadísticas: {e}")
 
 # Crear instancia de gestor de PDFs
 try:
@@ -1283,14 +1303,25 @@ def buscar():
         per_page = datos.get("per_page", int(os.getenv('DEFAULT_PAGE_SIZE', '20')))
         
         print(f"[BÚSQUEDA UNIFICADA] Query: '{query}' (página {page})")
+        print(f"[BÚSQUEDA UNIFICADA] Estado DB: modo_offline={db_manager.modo_offline}")
         
         # PASO 1: Buscar en Supabase/JSON local (cotizaciones con desglose)
         resultados_cotizaciones = []
         try:
+            print(f"[DB] Iniciando búsqueda en {'Supabase' if not db_manager.modo_offline else 'JSON local'}...")
             resultado_db = db_manager.buscar_cotizaciones(query, 1, 1000)  # Obtener todas
+            print(f"[DB] Resultado de búsqueda: {type(resultado_db)} - {list(resultado_db.keys()) if isinstance(resultado_db, dict) else 'No es dict'}")
+            
             if not resultado_db.get("error"):
                 cotizaciones = resultado_db.get("resultados", [])
                 print(f"[DB] Encontradas {len(cotizaciones)} cotizaciones en base de datos")
+                
+                if len(cotizaciones) > 0:
+                    print(f"[DB] Primera cotización: {list(cotizaciones[0].keys()) if cotizaciones[0] else 'Vacía'}")
+                    if 'datosGenerales' in cotizaciones[0]:
+                        print(f"[DB] datosGenerales keys: {list(cotizaciones[0]['datosGenerales'].keys())}")
+                else:
+                    print(f"[DB] ⚠️ No se encontraron cotizaciones para query: '{query}'")
                 
                 for cot in cotizaciones:
                     datos_gen = cot.get('datosGenerales', {})
@@ -1315,7 +1346,10 @@ def buscar():
         resultados_pdfs = []
         try:
             if pdf_manager:
+                print(f"[PDF] Iniciando búsqueda de PDFs...")
                 resultado_pdfs = pdf_manager.buscar_pdfs(query, 1, 1000)  # Obtener todos
+                print(f"[PDF] Resultado PDFs: {type(resultado_pdfs)} - {list(resultado_pdfs.keys()) if isinstance(resultado_pdfs, dict) else 'No es dict'}")
+                
                 if not resultado_pdfs.get("error"):
                     pdfs = resultado_pdfs.get("resultados", [])
                     print(f"[PDF] Encontrados {len(pdfs)} PDFs")
@@ -1334,25 +1368,34 @@ def buscar():
                         })
                 else:
                     print(f"[PDF] Error en búsqueda de PDFs: {resultado_pdfs.get('error')}")
+            else:
+                print(f"[PDF] ⚠️ PDFManager no disponible - saltando búsqueda de PDFs")
         except Exception as e:
             print(f"[PDF] Error buscando PDFs: {e}")
+            import traceback
+            traceback.print_exc()
         
         # PASO 3: Combinar y deduplicar resultados
         resultados_combinados = {}
+        
+        print(f"[COMBINAR] Cotizaciones DB: {len(resultados_cotizaciones)}, PDFs: {len(resultados_pdfs)}")
         
         # Añadir cotizaciones (prioridad alta - tienen desglose)
         for cot in resultados_cotizaciones:
             numero = cot['numero_cotizacion']
             resultados_combinados[numero] = cot
+            print(f"[COMBINAR] Agregada cotización: {numero}")
         
         # Añadir PDFs solo si no existe cotización con desglose
         for pdf in resultados_pdfs:
             numero = pdf['numero_cotizacion']
             if numero not in resultados_combinados:
                 resultados_combinados[numero] = pdf
+                print(f"[COMBINAR] Agregado PDF: {numero}")
             else:
                 # Si ya existe cotización, marcar que tiene PDF
                 resultados_combinados[numero]['tiene_pdf'] = True
+                print(f"[COMBINAR] PDF {numero} ya existe como cotización - marcando tiene_pdf=True")
         
         # Convertir a lista y ordenar por relevancia
         resultados_finales = list(resultados_combinados.values())
@@ -1376,14 +1419,24 @@ def buscar():
         
         print(f"[UNIFICADA] Total: {total}, Página: {len(resultados_paginados)} resultados")
         
-        return jsonify({
+        # Debug: mostrar estructura de respuesta
+        if len(resultados_paginados) > 0:
+            print(f"[UNIFICADA] Primer resultado enviado al frontend:")
+            primer_resultado = resultados_paginados[0]
+            for key, value in primer_resultado.items():
+                print(f"   {key}: {value}")
+        
+        respuesta = {
             "resultados": resultados_paginados,
             "total": total,
             "pagina": page,
             "por_pagina": per_page,
             "total_paginas": (total + per_page - 1) // per_page,
             "modo": "busqueda_unificada"
-        })
+        }
+        
+        print(f"[UNIFICADA] Enviando respuesta con {len(resultados_paginados)} resultados")
+        return jsonify(respuesta)
         
     except Exception as e:
         print(f"[UNIFICADA] Error en búsqueda: {e}")

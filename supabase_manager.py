@@ -67,6 +67,12 @@ class SupabaseManager:
         """Inicializar conexión a Supabase"""
         print("[SUPABASE] Inicializando conexion...")
         
+        # Debug de variables de entorno
+        print(f"[SUPABASE] Variables disponibles:")
+        print(f"   SUPABASE_URL: {'Configurada' if self.supabase_url else 'Faltante'}")
+        print(f"   SUPABASE_ANON_KEY: {'Configurada' if self.supabase_key else 'Faltante'}")
+        print(f"   DATABASE_URL: {'Configurada' if self.database_url else 'Faltante'}")
+        
         # Validar configuración
         if not self.supabase_url or not self.database_url:
             print("[SUPABASE] Variables de entorno faltantes - modo offline")
@@ -86,12 +92,17 @@ class SupabaseManager:
                     self.supabase_client = None
             
             # Conexión PostgreSQL directa
+            print(f"[SUPABASE] Intentando conexión PostgreSQL...")
+            print(f"[SUPABASE] DATABASE_URL (primeros 50 chars): {self.database_url[:50]}...")
+            
             self.pg_connection = psycopg2.connect(
                 self.database_url,
                 cursor_factory=RealDictCursor,
                 connect_timeout=10,
                 application_name="CWS_Cotizador"
             )
+            
+            print(f"[SUPABASE] Conexión PostgreSQL establecida")
             
             # Test de conexión
             cursor = self.pg_connection.cursor()
@@ -104,6 +115,17 @@ class SupabaseManager:
                 self.ultima_conexion = datetime.now()
                 print("[SUPABASE] Conectado a PostgreSQL exitosamente")
                 print(f"[SUPABASE] URL: {self.supabase_url}")
+                
+                # Test adicional: verificar si existen las tablas
+                try:
+                    cursor = self.pg_connection.cursor()
+                    cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';")
+                    tablas = cursor.fetchall()
+                    cursor.close()
+                    print(f"[SUPABASE] Tablas disponibles: {[t['table_name'] for t in tablas]}")
+                except Exception as table_error:
+                    print(f"[SUPABASE] Error verificando tablas: {table_error}")
+                    
             else:
                 raise Exception("Test de conexión falló")
                 
@@ -462,7 +484,7 @@ class SupabaseManager:
             
             total_pages = (total + per_page - 1) // per_page
             
-            print(f"[SUPABASE] 🔍 Encontradas {len(cotizaciones)} de {total} cotizaciones")
+            print(f"[SUPABASE] Encontradas {len(cotizaciones)} de {total} cotizaciones")
             
             return {
                 "resultados": cotizaciones,
@@ -481,8 +503,20 @@ class SupabaseManager:
     def _buscar_cotizaciones_offline(self, query: str, page: int, per_page: int) -> Dict:
         """Buscar cotizaciones en JSON offline"""
         try:
+            print(f"[OFFLINE] Iniciando busqueda offline con query: '{query}'")
             data = self._cargar_datos_offline()
             cotizaciones = data.get("cotizaciones", [])
+            print(f"[OFFLINE] Cargadas {len(cotizaciones)} cotizaciones del JSON")
+            
+            if len(cotizaciones) > 0:
+                print(f"[OFFLINE] Primera cotizacion: {list(cotizaciones[0].keys())}")
+                if 'datosGenerales' in cotizaciones[0]:
+                    dg = cotizaciones[0]['datosGenerales']
+                    print(f"[OFFLINE] datosGenerales: {list(dg.keys())}")
+                    print(f"[OFFLINE] Cliente: '{dg.get('cliente', 'N/A')}'")
+                    print(f"[OFFLINE] numeroCotizacion (root): '{cotizaciones[0].get('numeroCotizacion', 'N/A')}'")
+                else:
+                    print(f"[OFFLINE] No hay datosGenerales en primera cotizacion")
             
             if not query:
                 resultados = cotizaciones
@@ -514,7 +548,7 @@ class SupabaseManager:
             
             total_pages = (total + per_page - 1) // per_page
             
-            print(f"[OFFLINE] 🔍 Encontradas {len(resultados_pagina)} de {total} cotizaciones")
+            print(f"[OFFLINE] Encontradas {len(resultados_pagina)} de {total} cotizaciones")
             
             return {
                 "resultados": resultados_pagina,
