@@ -1275,25 +1275,121 @@ def diagnostico_entorno():
 
 @app.route("/buscar", methods=["POST"])
 def buscar():
-    """Buscar cotizaciones con paginación"""
+    """Buscar cotizaciones con paginación - BÚSQUEDA UNIFICADA"""
     try:
         datos = request.get_json()
         query = datos.get("query", "")
         page = datos.get("page", 1)
         per_page = datos.get("per_page", int(os.getenv('DEFAULT_PAGE_SIZE', '20')))
         
-        print(f"Buscando: '{query}' (pagina {page})")
+        print(f"[BÚSQUEDA UNIFICADA] Query: '{query}' (página {page})")
         
-        resultado = db_manager.buscar_cotizaciones(query, page, per_page)
+        # PASO 1: Buscar en Supabase/JSON local (cotizaciones con desglose)
+        resultados_cotizaciones = []
+        try:
+            resultado_db = db_manager.buscar_cotizaciones(query, 1, 1000)  # Obtener todas
+            if not resultado_db.get("error"):
+                cotizaciones = resultado_db.get("resultados", [])
+                print(f"[DB] Encontradas {len(cotizaciones)} cotizaciones en base de datos")
+                
+                for cot in cotizaciones:
+                    datos_gen = cot.get('datosGenerales', {})
+                    resultados_cotizaciones.append({
+                        "numero_cotizacion": cot.get('numeroCotizacion', 'N/A'),
+                        "cliente": datos_gen.get('cliente', 'N/A'),
+                        "vendedor": datos_gen.get('vendedor', 'N/A'),
+                        "proyecto": datos_gen.get('proyecto', 'N/A'),
+                        "fecha_creacion": cot.get('fechaCreacion', 'N/A'),
+                        "tipo": "cotizacion",
+                        "tiene_desglose": True,
+                        "fuente": "supabase" if not db_manager.modo_offline else "json_local",
+                        "revision": cot.get('revision', 1),
+                        "_id": cot.get('_id')
+                    })
+            else:
+                print(f"[DB] Error en búsqueda de cotizaciones: {resultado_db.get('error')}")
+        except Exception as e:
+            print(f"[DB] Error buscando cotizaciones: {e}")
         
-        if "error" in resultado:
-            return jsonify({"error": resultado["error"]}), 500
+        # PASO 2: Buscar en PDFs (Cloudinary + Google Drive + Local)
+        resultados_pdfs = []
+        try:
+            if pdf_manager:
+                resultado_pdfs = pdf_manager.buscar_pdfs(query, 1, 1000)  # Obtener todos
+                if not resultado_pdfs.get("error"):
+                    pdfs = resultado_pdfs.get("resultados", [])
+                    print(f"[PDF] Encontrados {len(pdfs)} PDFs")
+                    
+                    for pdf in pdfs:
+                        resultados_pdfs.append({
+                            "numero_cotizacion": pdf.get('numero_cotizacion', 'N/A'),
+                            "cliente": pdf.get('cliente', 'N/A'),
+                            "vendedor": pdf.get('vendedor', 'N/A'),
+                            "proyecto": pdf.get('proyecto', 'N/A'),
+                            "fecha_creacion": pdf.get('fecha_creacion', 'N/A'),
+                            "tipo": pdf.get('tipo', 'pdf'),
+                            "tiene_desglose": pdf.get('tiene_desglose', False),
+                            "fuente": pdf.get('tipo', 'pdf_manager'),
+                            "revision": pdf.get('revision', 1)
+                        })
+                else:
+                    print(f"[PDF] Error en búsqueda de PDFs: {resultado_pdfs.get('error')}")
+        except Exception as e:
+            print(f"[PDF] Error buscando PDFs: {e}")
         
-        return jsonify(resultado)
+        # PASO 3: Combinar y deduplicar resultados
+        resultados_combinados = {}
+        
+        # Añadir cotizaciones (prioridad alta - tienen desglose)
+        for cot in resultados_cotizaciones:
+            numero = cot['numero_cotizacion']
+            resultados_combinados[numero] = cot
+        
+        # Añadir PDFs solo si no existe cotización con desglose
+        for pdf in resultados_pdfs:
+            numero = pdf['numero_cotizacion']
+            if numero not in resultados_combinados:
+                resultados_combinados[numero] = pdf
+            else:
+                # Si ya existe cotización, marcar que tiene PDF
+                resultados_combinados[numero]['tiene_pdf'] = True
+        
+        # Convertir a lista y ordenar por relevancia
+        resultados_finales = list(resultados_combinados.values())
+        
+        # Aplicar filtros de búsqueda si hay query
+        if query.strip():
+            resultados_filtrados = []
+            query_lower = query.lower()
+            for res in resultados_finales:
+                # Buscar en múltiples campos
+                texto_busqueda = f"{res.get('numero_cotizacion', '')} {res.get('cliente', '')} {res.get('vendedor', '')} {res.get('proyecto', '')}".lower()
+                if query_lower in texto_busqueda:
+                    resultados_filtrados.append(res)
+            resultados_finales = resultados_filtrados
+        
+        # Paginación
+        total = len(resultados_finales)
+        start = (page - 1) * per_page
+        end = start + per_page
+        resultados_paginados = resultados_finales[start:end]
+        
+        print(f"[UNIFICADA] Total: {total}, Página: {len(resultados_paginados)} resultados")
+        
+        return jsonify({
+            "resultados": resultados_paginados,
+            "total": total,
+            "pagina": page,
+            "por_pagina": per_page,
+            "total_paginas": (total + per_page - 1) // per_page,
+            "modo": "busqueda_unificada"
+        })
         
     except Exception as e:
-        print(f"Error en busqueda: {e}")
-        return jsonify({"error": "Error al buscar"}), 500
+        print(f"[UNIFICADA] Error en búsqueda: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Error en búsqueda unificada"}), 500
 
 @app.route("/ver/<path:item_id>")
 def ver_item(item_id):
