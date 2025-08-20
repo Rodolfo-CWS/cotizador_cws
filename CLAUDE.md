@@ -27,15 +27,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **HTTP 500 Resolution**: ✅ **RESOLVED** - All quotation creation errors fixed
 - **Production Status**: ✅ **DEPLOYED** - Fully operational with permanent storage
 
-### ⚡ RESOLVED ISSUES (August 19, 2025)
+### ⚡ RESOLVED ISSUES (August 20, 2025)
 - **HTTP 500 Errors**: ✅ **RESOLVED** - All quotation creation errors fixed through key name consistency
 - **Supabase Integration**: ✅ **IMPLEMENTED** - Complete migration from MongoDB to Supabase PostgreSQL
 - **Cloudinary PDF Storage**: ✅ **WORKING** - Fixed format error, 25GB permanent storage operational
 - **PDF Generation**: ✅ **RESOLVED** - KeyError 'id' fixed, PDFs generate correctly in offline mode
 - **Number Generation**: ✅ **WORKING** - Automatic sequential numbering (CLIENT-CWS-VENDOR-###-R1-PROJECT)
-- **Permanent Storage**: ✅ **IMPLEMENTED** - Triple redundancy with cloud-first architecture
+- **PDF Storage Architecture**: ✅ **SIMPLIFIED** - Google Drive (nuevas/) removed, dual redundancy (Cloudinary + Local)
 - **Unicode Compatibility**: ✅ **RESOLVED** - Full Windows/Linux compatibility maintained
 - **Offline Fallback**: ✅ **GUARANTEED** - System works 100% offline with JSON backup
+- **Google Drive Quota Issues**: ✅ **RESOLVED** - Eliminated automatic uploads to avoid quota problems
 
 ## Quick Start Commands
 
@@ -305,19 +306,19 @@ cotizador_cws/
 - **HTML to PDF** conversion using `formato_pdf_cws.html`
 - **Installation**: May require system dependencies (see `INSTRUCCIONES_PDF.md`)
 
-### ✅ PDF Storage (TRIPLE REDUNDANCY IMPLEMENTED)
+### ✅ PDF Storage (SIMPLIFIED DUAL REDUNDANCY - August 20, 2025)
 - **Cloudinary (Primary)**: 25GB free professional storage with CDN
-  - Status: Configured and ready (authentication resolving)
+  - Status: Configured and operational
   - Features: Automatic organization, version control, fast delivery
   - Capacity: 25GB free tier with room for thousands of PDFs
-- **Google Drive (Fallback)**: Fully operational Service Account integration
-  - Status: 100% functional with proper folder permissions
-  - Folders: `nuevas` and `antiguas` with write access verified
-  - Backup: Automatic fallback when Cloudinary unavailable
-- **Local Storage (Emergency)**: Always available file system backup
+- **Local Storage (Backup)**: Always available file system backup
   - Location: `G:\Mi unidad\CWS\CWS_Cotizaciones_PDF\` (local)
   - Production: `/opt/render/project/src/pdfs_cotizaciones/` (Render)
-  - Guarantee: PDFs always saved regardless of cloud service status
+  - Guarantee: PDFs always saved regardless of Cloudinary status
+- **Google Drive (Search Only)**: 📂 Used only for searching historical PDFs
+  - Folders: `antiguas` for historical PDF search (no new uploads)
+  - **Change**: Google Drive `nuevas/` removed to avoid quota issues
+  - Status: 100% functional for historical PDF searches
 
 ## Quotation System Features
 
