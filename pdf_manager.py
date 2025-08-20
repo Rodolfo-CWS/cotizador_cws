@@ -65,27 +65,7 @@ class PDFManager:
         print(f"   Respaldo Local: {self.base_pdf_path}")
         print(f"   Busqueda Drive (antiguas/): {'OK Configurado' if self.drive_client else 'ERROR No disponible'}")
     
-    def _inicializar_coleccion(self):
-        """Inicializa la colección de PDFs si MongoDB está disponible"""
-        if not self.db_manager.modo_offline:
-            self.pdf_collection = self.db_manager.db["pdf_index"]
-            self._crear_indices_pdf()
-            print("PDF Collection inicializada con MongoDB")
-        else:
-            self.pdf_collection = None
-            print("PDF Manager en modo offline - colección no disponible")
-    
-    def _verificar_conexion_mongodb(self):
-        """Verifica conexión MongoDB - no intenta reconectar para evitar errores"""
-        # Simplemente verificar el estado actual
-        if self.db_manager.modo_offline:
-            print("MongoDB en modo offline - usando búsqueda offline")
-            return False
-        else:
-            # Verificar que tengamos colección inicializada
-            if not hasattr(self, 'pdf_collection') or self.pdf_collection is None:
-                self._inicializar_coleccion()
-            return True
+    # MongoDB eliminado - Sistema híbrido usando solo Cloudinary + Google Drive + Local
     
     def _detectar_google_drive(self) -> Path:
         """Detecta automáticamente la ruta de Google Drive"""
@@ -174,26 +154,7 @@ class PDFManager:
             print(f"   Error tipo: {type(e).__name__}")
             print(f"   Verificar permisos en la ruta")
     
-    def _crear_indices_pdf(self):
-        """Crea índices para optimizar búsquedas de PDFs"""
-        try:
-            # Índice por número de cotización
-            self.pdf_collection.create_index("numero_cotizacion", unique=True)
-            # Índice por cliente
-            self.pdf_collection.create_index("cliente")
-            # Índice por tipo (nueva/antigua)
-            self.pdf_collection.create_index("tipo")
-            # Índice por fecha
-            self.pdf_collection.create_index("fecha")
-            # Índice de texto para búsqueda
-            self.pdf_collection.create_index([
-                ("numero_cotizacion", "text"),
-                ("cliente", "text"),
-                ("vendedor", "text"),
-                ("proyecto", "text")
-            ])
-        except Exception as e:
-            print(f"Advertencia: Error creando índices PDF: {e}")
+    # Método _crear_indices_pdf eliminado - MongoDB no se usa más
     
     def almacenar_pdf_nuevo(self, pdf_content: bytes, cotizacion_data: Dict) -> Dict:
         """
@@ -308,16 +269,8 @@ class PDFManager:
                 "local": local_result
             }
             
-            if not self.db_manager.modo_offline:
-                try:
-                    self.pdf_collection.replace_one(
-                        {"numero_cotizacion": numero_cotizacion},
-                        registro_pdf,
-                        upsert=True
-                    )
-                    print("OK: [MONGODB] Indice actualizado")
-                except Exception as e:
-                    print(f"WARNING: [MONGODB] Error actualizando indice: {e}")
+            # MongoDB eliminado - Sistema híbrido sin dependencia de índices MongoDB
+            print("OK: [HÍBRIDO] Almacenamiento completado sin dependencia de MongoDB")
             
             # ===== RESULTADO FINAL =====
             # Determinar si la operación fue exitosa (sistema simplificado)
@@ -400,7 +353,7 @@ class PDFManager:
     
     def buscar_pdfs(self, query: str, page: int = 1, per_page: int = 20) -> Dict:
         """
-        Busca PDFs por término de búsqueda
+        Busca PDFs por término de búsqueda en múltiples fuentes
         
         Args:
             query: Término de búsqueda
@@ -411,78 +364,39 @@ class PDFManager:
             Dict con resultados de la búsqueda
         """
         try:
-            print(f"[BUSCAR PDFs] Iniciando búsqueda: '{query}'")
-            print(f"[BUSCAR PDFs] Modo offline actual: {self.db_manager.modo_offline}")
-            
-            # Verificar y reinicializar conexión si es necesario
-            if not self._verificar_conexion_mongodb():
-                print(f"[BUSCAR PDFs] Usando búsqueda offline")
-                return self._buscar_pdfs_offline(query, page, per_page)
-            
-            # Verificar que pdf_collection existe
-            if self.pdf_collection is None:
-                return self._buscar_pdfs_offline(query, page, per_page)
-            
-            # Búsqueda en MongoDB
-            skip = (page - 1) * per_page
-            
-            # Filtro de búsqueda (buscar en múltiples campos)
-            filtro = {
-                "$or": [
-                    {"numero_cotizacion": {"$regex": query, "$options": "i"}},
-                    {"cliente": {"$regex": query, "$options": "i"}},
-                    {"vendedor": {"$regex": query, "$options": "i"}},
-                    {"proyecto": {"$regex": query, "$options": "i"}}
-                ]
-            }
-            
-            # Ejecutar búsqueda
-            resultados = list(
-                self.pdf_collection
-                .find(filtro)
-                .sort("timestamp", -1)
-                .skip(skip)
-                .limit(per_page)
-            )
-            
-            # Contar total
-            total = self.pdf_collection.count_documents(filtro)
-            
-            # Limpiar ObjectId para JSON
-            for resultado in resultados:
-                if '_id' in resultado:
-                    resultado['_id'] = str(resultado['_id'])
-            
-            return {
-                "resultados": resultados,
-                "total": total,
-                "pagina": page,
-                "por_pagina": per_page,
-                "total_paginas": (total + per_page - 1) // per_page
-            }
+            print(f"[BUSCAR PDFs] Iniciando búsqueda híbrida: '{query}'")
+            return self._buscar_pdfs_offline(query, page, per_page)
             
         except Exception as e:
-            print(f"[BUSCAR PDFs] ERROR en búsqueda principal: {e}")
+            print(f"[BUSCAR PDFs] ERROR en búsqueda: {e}")
             import traceback
             traceback.print_exc()
-            # En caso de cualquier error, usar búsqueda offline
-            return self._buscar_pdfs_offline(query, page, per_page)
+            return {"error": f"Error en búsqueda de PDFs: {e}", "resultados": [], "total": 0}
     
     def _buscar_pdfs_offline(self, query: str, page: int, per_page: int) -> Dict:
-        """Búsqueda de PDFs en modo offline (incluye base de datos, Google Drive y archivos locales)"""
-        print(f"Búsqueda de PDFs en modo offline: '{query}'")
-        print(f"Ruta base configurada: {self.base_pdf_path}")
-        print(f"Drive disponible: {self.drive_client.is_available()}")
+        """Búsqueda de PDFs híbrida (Cloudinary, base de datos, Google Drive y archivos locales)"""
+        print(f"[BUSCAR HÍBRIDA] Query: '{query}' - Cloudinary disponible: {self.cloudinary_disponible}")
+        print(f"[BUSCAR HÍBRIDA] Drive disponible: {self.drive_client.is_available()}")
         
         try:
             resultados = []
             
-            # NUEVO: 1. Buscar en base de datos de cotizaciones (prioritario)
-            print("Buscando en base de datos de cotizaciones...")
+            # 1. BUSCAR EN CLOUDINARY (PRIORITARIO)
+            if self.cloudinary_disponible:
+                print("[BUSCAR HÍBRIDA] Buscando en Cloudinary...")
+                try:
+                    cloudinary_pdfs = self.cloudinary_manager.buscar_pdfs(query, 1000)
+                    print(f"[CLOUDINARY] PDFs encontrados: {len(cloudinary_pdfs)}")
+                    resultados.extend(cloudinary_pdfs)
+                except Exception as e:
+                    print(f"[CLOUDINARY] Error en búsqueda: {e}")
+            
+            # 2. Buscar en base de datos de cotizaciones
+            print("[BUSCAR HÍBRIDA] Buscando en base de datos de cotizaciones...")
             try:
                 cotizaciones_result = self.db_manager.buscar_cotizaciones(query, 1, 1000)  # Obtener todas
                 cotizaciones = cotizaciones_result.get('resultados', [])
-                print(f"Cotizaciones encontradas en BD: {len(cotizaciones)}")
+                print(f"[BD] Cotizaciones encontradas: {len(cotizaciones)}")
                 
                 for cot in cotizaciones:
                     datos_gen = cot.get('datosGenerales', {})
@@ -496,20 +410,21 @@ class PDFManager:
                         "tipo": "cotizacion",
                         "tiene_desglose": True,
                         "revision": cot.get('revision', 1),
-                        "_id": cot.get('_id')
+                        "_id": cot.get('_id'),
+                        "fuente": "supabase" if not self.db_manager.modo_offline else "json_local"
                     })
             except Exception as e:
-                print(f"Error buscando en base de datos: {e}")
+                print(f"[BD] Error buscando en base de datos: {e}")
                 pass
             
-            # 2. Buscar en Google Drive (secundario)
+            # 3. Buscar en Google Drive (históricos)
             if self.drive_client.is_available():
-                print("Buscando PDFs en Google Drive...")
+                print("[BUSCAR HÍBRIDA] Buscando PDFs históricos en Google Drive...")
                 try:
                     drive_pdfs = self.drive_client.buscar_pdfs(query)
-                    print(f"PDFs encontrados en Google Drive: {len(drive_pdfs)}")
+                    print(f"[GOOGLE DRIVE] PDFs encontrados: {len(drive_pdfs)}")
                 except Exception as e:
-                    print(f"Error buscando en Google Drive: {e}")
+                    print(f"[GOOGLE DRIVE] Error buscando: {e}")
                     drive_pdfs = []
                 
                 for pdf in drive_pdfs:
@@ -521,7 +436,8 @@ class PDFManager:
                         "tipo": "google_drive",
                         "tiene_desglose": True,
                         "drive_id": pdf['id'],
-                        "tamaño": pdf.get('tamaño', '0')
+                        "tamaño": pdf.get('tamaño', '0'),
+                        "fuente": "google_drive"
                     })
             
             # 3. Buscar en carpetas locales (fallback)
@@ -724,31 +640,11 @@ class PDFManager:
                 # Buscar PDF físicamente en las carpetas
                 return self._obtener_pdf_offline(numero_cotizacion)
             
-            # Buscar en índice
-            registro = self.pdf_collection.find_one({"numero_cotizacion": numero_cotizacion})
+            # MongoDB eliminado - Búsqueda directa en Cloudinary y sistema híbrido
+            registro = None  # Ya no usamos índice MongoDB
             
-            if not registro:
-                return {"encontrado": False, "mensaje": "PDF no encontrado"}
-            
-            # Verificar que el archivo existe físicamente
-            ruta_completa = Path(registro["ruta_completa"])
-            if not ruta_completa.exists():
-                return {
-                    "encontrado": False, 
-                    "error": f"Archivo PDF no encontrado en: {ruta_completa}",
-                    "registro": registro
-                }
-            
-            # Limpiar ObjectId
-            if '_id' in registro:
-                registro['_id'] = str(registro['_id'])
-            
-            return {
-                "encontrado": True,
-                "registro": registro,
-                "ruta_completa": str(ruta_completa),
-                "existe_archivo": True
-            }
+            # MongoDB eliminado - Usar búsqueda directa offline
+            return self._obtener_pdf_offline(numero_cotizacion)
             
         except Exception as e:
             return {"error": f"Error obteniendo PDF: {str(e)}"}
@@ -795,12 +691,7 @@ class PDFManager:
                 "fecha_importacion": datetime.datetime.now().isoformat()
             }
             
-            if not self.db_manager.modo_offline:
-                self.pdf_collection.replace_one(
-                    {"numero_cotizacion": numero_cotizacion},
-                    registro_pdf,
-                    upsert=True
-                )
+            # MongoDB eliminado - No se actualiza índice automáticamente
             
             return {
                 "success": True,
@@ -820,22 +711,24 @@ class PDFManager:
             if self.db_manager.modo_offline:
                 return {"error": "No disponible en modo offline"}
             
-            # Obtener todos los registros
-            registros = list(
-                self.pdf_collection
-                .find()
-                .sort("timestamp", -1)
-            )
+            # MongoDB eliminado - Obtener estadísticas de fuentes directas
+            registros = []
             
-            # Limpiar ObjectIds
-            for registro in registros:
-                if '_id' in registro:
-                    registro['_id'] = str(registro['_id'])
+            # Estadísticas desde fuentes híbridas
+            total = 0
+            nuevos = 0
+            antiguos = 0
             
-            # Estadísticas
-            total = len(registros)
-            nuevos = sum(1 for r in registros if r.get('tipo') == 'nueva')
-            antiguos = sum(1 for r in registros if r.get('tipo') == 'antigua')
+            # Obtener estadísticas de Cloudinary
+            if self.cloudinary_disponible:
+                try:
+                    cloudinary_stats = self.cloudinary_manager.obtener_estadisticas()
+                    if not cloudinary_stats.get("error"):
+                        total += cloudinary_stats.get("total_archivos", 0)
+                        nuevos += cloudinary_stats.get("archivos_nuevas", 0)
+                        antiguos += cloudinary_stats.get("archivos_antiguas", 0)
+                except Exception as e:
+                    print(f"[STATS] Error obteniendo estadísticas Cloudinary: {e}")
             
             return {
                 "registros": registros,
@@ -863,21 +756,24 @@ class PDFManager:
                 "errores": []
             }
             
-            # Verificar registros en base de datos
-            registros = list(self.pdf_collection.find())
-            resultados["registros_verificados"] = len(registros)
+            # MongoDB eliminado - Verificación directa en sistemas híbridos
+            resultados["registros_verificados"] = 0  # MongoDB no se usa
             
-            for registro in registros:
-                ruta_completa = Path(registro.get("ruta_completa", ""))
-                
-                if ruta_completa.exists():
-                    resultados["archivos_encontrados"] += 1
-                else:
-                    resultados["archivos_faltantes"].append({
-                        "numero": registro.get("numero_cotizacion"),
-                        "archivo": registro.get("nombre_archivo"),
-                        "ruta": str(ruta_completa)
-                    })
+            # Verificar archivos en Cloudinary
+            if self.cloudinary_disponible:
+                try:
+                    cloudinary_pdfs = self.cloudinary_manager.listar_pdfs(max_resultados=1000)
+                    if not cloudinary_pdfs.get("error"):
+                        archivos_cloudinary = cloudinary_pdfs.get("archivos", [])
+                        resultados["archivos_encontrados"] += len(archivos_cloudinary)
+                        resultados["registros_verificados"] += len(archivos_cloudinary)
+                except Exception as e:
+                    print(f"[VERIFICAR] Error verificando Cloudinary: {e}")
+            
+            # Verificar archivos locales
+            if self.nuevas_path.exists():
+                archivos_locales = list(self.nuevas_path.glob("*.pdf"))
+                resultados["archivos_encontrados"] += len(archivos_locales)
             
             return resultados
             

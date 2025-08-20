@@ -671,7 +671,9 @@ class SupabaseManager:
             
             # Limpiar caracteres especiales
             cliente = re.sub(r'[^A-Z0-9]', '-', cliente)[:10]
-            vendedor = re.sub(r'[^A-Z0-9]', '', vendedor)[:3]
+            # Extraer primeras letras de cada nombre (máximo 2 letras)
+            palabras_vendedor = vendedor.split()
+            vendedor = ''.join([palabra[0] for palabra in palabras_vendedor if palabra])[:2]
             proyecto = re.sub(r'[^A-Z0-9]', '-', proyecto)[:15]
             
             print(f"[NUMERO] Valores limpiados - Cliente: '{cliente}', Vendedor: '{vendedor}', Proyecto: '{proyecto}'")

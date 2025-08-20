@@ -931,17 +931,22 @@ def preparar_datos_nueva_revision(cotizacion_original):
         
         # Generar nuevo número de cotización con revisión usando el sistema automático
         numero_original = datos['datosGenerales'].get('numeroCotizacion', '')
+        print(f"[REVISION] Número original: '{numero_original}' -> Nueva revisión: {nueva_revision}")
+        
         if numero_original:
             # Usar la función del DatabaseManager para generar el número de revisión
             nuevo_numero = db_manager.generar_numero_revision(numero_original, nueva_revision)
             datos['datosGenerales']['numeroCotizacion'] = nuevo_numero
+            print(f"[REVISION] Número actualizado: '{nuevo_numero}'")
         else:
             # Si no hay número original, generar uno nuevo completo
             cliente = datos['datosGenerales'].get('cliente', '')
             vendedor = datos['datosGenerales'].get('vendedor', '')
             proyecto = datos['datosGenerales'].get('proyecto', '')
+            print(f"[REVISION] Generando número nuevo para: Cliente='{cliente}', Vendedor='{vendedor}', Proyecto='{proyecto}'")
             nuevo_numero = db_manager.generar_numero_cotizacion(cliente, vendedor, proyecto, int(nueva_revision))
             datos['datosGenerales']['numeroCotizacion'] = nuevo_numero
+            print(f"[REVISION] Número generado: '{nuevo_numero}'")
         
         # NUEVO: Recalcular subtotales de materiales para asegurar consistencia
         if 'items' in datos:
@@ -1180,11 +1185,16 @@ def formulario():
     datos_precargados = None
     
     if revision_id:
+        print(f"[REVISION] Solicitando nueva revisión de: '{revision_id}'")
         # Cargar datos de la cotización original para nueva revisión
         resultado = db_manager.obtener_cotizacion(revision_id)
         if resultado.get('encontrado'):
             cotizacion_original = resultado['item']
+            print(f"[REVISION] Cotización original encontrada: {cotizacion_original.get('numeroCotizacion', 'N/A')}")
             datos_precargados = preparar_datos_nueva_revision(cotizacion_original)
+            print(f"[REVISION] Datos precargados preparados - Nueva revisión: {datos_precargados.get('datosGenerales', {}).get('revision', 'N/A')}")
+        else:
+            print(f"[REVISION] ⚠️ Cotización original no encontrada para: '{revision_id}'")
     
     return render_template("formulario.html", 
                          materiales=LISTA_MATERIALES, 
@@ -1776,9 +1786,17 @@ def ver_desglose(numero_cotizacion):
         
         if resultado_cotizacion.get("encontrado"):
             # Tenemos datos completos - mostrar desglose normal
+            cotizacion = resultado_cotizacion["item"]
             print(f"[DESGLOSE] Cotización encontrada en DB - mostrando desglose completo")
+            
+            # Asegurar que la cotización tenga numeroCotizacion para el botón Nueva Revisión
+            if not cotizacion.get('numeroCotizacion'):
+                cotizacion['numeroCotizacion'] = numero_cotizacion
+                print(f"[DESGLOSE] Añadido numeroCotizacion faltante: {numero_cotizacion}")
+            
+            print(f"[DESGLOSE] Cotización con numeroCotizacion: {cotizacion.get('numeroCotizacion', 'N/A')}")
             from flask import render_template
-            return render_template("ver_cotizacion.html", cotizacion=resultado_cotizacion["item"])
+            return render_template("ver_cotizacion.html", cotizacion=cotizacion)
         
         # PASO 2: No hay datos completos, verificar si existe PDF
         print(f"[DESGLOSE] Cotización no en DB, verificando PDF...")

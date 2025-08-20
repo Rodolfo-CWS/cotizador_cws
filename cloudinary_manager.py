@@ -387,6 +387,103 @@ class CloudinaryManager:
             print(f"ERROR: {error_msg}")
             return {"error": error_msg}
 
+    def buscar_pdfs(self, query: str, max_resultados: int = 100) -> list:
+        """
+        Busca PDFs en Cloudinary por término de búsqueda
+        
+        Args:
+            query: Término de búsqueda (numero_cotizacion, cliente, vendedor)
+            max_resultados: Máximo número de resultados
+            
+        Returns:
+            Lista de PDFs que coinciden con la búsqueda
+        """
+        if not self.cloudinary_available:
+            print("[CLOUDINARY] No disponible para búsqueda")
+            return []
+        
+        try:
+            print(f"[CLOUDINARY] Buscando PDFs con query: '{query}'")
+            
+            # Obtener todos los PDFs de Cloudinary
+            resultado_nuevas = self.listar_pdfs("nuevas", max_resultados)
+            resultado_antiguas = self.listar_pdfs("antiguas", max_resultados)
+            
+            todos_pdfs = []
+            if not resultado_nuevas.get("error"):
+                todos_pdfs.extend(resultado_nuevas.get("archivos", []))
+            if not resultado_antiguas.get("error"):
+                todos_pdfs.extend(resultado_antiguas.get("archivos", []))
+            
+            print(f"[CLOUDINARY] Total PDFs encontrados: {len(todos_pdfs)}")
+            
+            # Filtrar por query si se proporciona
+            if query.strip():
+                pdfs_filtrados = []
+                query_lower = query.lower()
+                
+                for pdf in todos_pdfs:
+                    # Extraer información del nombre del archivo o metadatos
+                    public_id = pdf.get("public_id", "")
+                    numero_cotizacion = pdf.get("numero_cotizacion", "")
+                    
+                    # Buscar en múltiples campos
+                    if (query_lower in public_id.lower() or 
+                        query_lower in numero_cotizacion.lower()):
+                        
+                        # Parsear información del nombre del archivo
+                        nombre_archivo = public_id.split("/")[-1]  # Obtener solo el nombre
+                        
+                        # Intentar extraer datos del formato: CLIENTE-CWS-VENDEDOR-###-R#-PROYECTO
+                        partes = nombre_archivo.replace(".pdf", "").split("-")
+                        
+                        pdf_info = {
+                            "numero_cotizacion": numero_cotizacion or nombre_archivo.replace(".pdf", ""),
+                            "cliente": partes[0] if len(partes) > 0 else "Cloudinary",
+                            "vendedor": partes[2] if len(partes) > 2 else "N/A",
+                            "proyecto": "-".join(partes[5:]) if len(partes) > 5 else "N/A",
+                            "fecha_creacion": pdf.get("fecha_creacion", "N/A"),
+                            "ruta_completa": pdf.get("url", ""),
+                            "tipo": "cloudinary",
+                            "tiene_desglose": False,  # PDFs de Cloudinary no tienen desglose
+                            "public_id": public_id,
+                            "tamaño": pdf.get("bytes", 0),
+                            "fuente": "cloudinary"
+                        }
+                        pdfs_filtrados.append(pdf_info)
+                
+                print(f"[CLOUDINARY] PDFs filtrados por query: {len(pdfs_filtrados)}")
+                return pdfs_filtrados
+            else:
+                # Sin query, devolver todos con formato estándar
+                pdfs_formateados = []
+                for pdf in todos_pdfs:
+                    public_id = pdf.get("public_id", "")
+                    nombre_archivo = public_id.split("/")[-1]
+                    partes = nombre_archivo.replace(".pdf", "").split("-")
+                    
+                    pdf_info = {
+                        "numero_cotizacion": pdf.get("numero_cotizacion", nombre_archivo.replace(".pdf", "")),
+                        "cliente": partes[0] if len(partes) > 0 else "Cloudinary",
+                        "vendedor": partes[2] if len(partes) > 2 else "N/A",
+                        "proyecto": "-".join(partes[5:]) if len(partes) > 5 else "N/A",
+                        "fecha_creacion": pdf.get("fecha_creacion", "N/A"),
+                        "ruta_completa": pdf.get("url", ""),
+                        "tipo": "cloudinary",
+                        "tiene_desglose": False,
+                        "public_id": public_id,
+                        "tamaño": pdf.get("bytes", 0),
+                        "fuente": "cloudinary"
+                    }
+                    pdfs_formateados.append(pdf_info)
+                
+                print(f"[CLOUDINARY] Total PDFs formateados: {len(pdfs_formateados)}")
+                return pdfs_formateados
+                
+        except Exception as e:
+            print(f"[CLOUDINARY] Error en búsqueda: {e}")
+            return []
+
     def obtener_estadisticas(self) -> dict:
         """
         Obtiene estadísticas de uso de Cloudinary con reintentos
