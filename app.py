@@ -1720,13 +1720,23 @@ def servir_pdf(numero_cotizacion):
             return jsonify({"error": resultado["error"]}), 500
         
         if not resultado["encontrado"]:
-            return jsonify({"error": f"PDF '{numero_cotizacion}' no encontrado"}), 404
+            return jsonify({"error": f"PDF '{numero_cotizacion}' no encontrado en Cloudinary, Google Drive ni localmente"}), 404
         
         # Servir el archivo PDF
         ruta_completa = resultado["ruta_completa"]
+        tipo_fuente = resultado.get("tipo", "local")
+        
+        # Si es un PDF de Cloudinary, redirigir a su URL directa
+        if tipo_fuente == "cloudinary" or ruta_completa.startswith("https://"):
+            print(f"📄 Redirigiendo a PDF de Cloudinary: {numero_cotizacion}")
+            print(f"   URL: {ruta_completa}")
+            
+            # Redirigir directamente a la URL de Cloudinary
+            from flask import redirect
+            return redirect(ruta_completa)
         
         # Si es un PDF de Google Drive, descargar y servir
-        if ruta_completa.startswith("gdrive://"):
+        elif ruta_completa.startswith("gdrive://"):
             drive_id = resultado.get("drive_id")
             if not drive_id:
                 return jsonify({"error": "ID de Google Drive no encontrado"}), 500

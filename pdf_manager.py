@@ -537,7 +537,40 @@ class PDFManager:
         print(f"Variaciones a buscar: {variaciones_nombre}")
         
         try:
-            # 1. Buscar en Google Drive (prioritario)
+            # 1. BUSCAR EN CLOUDINARY (PRIORITARIO)
+            if self.cloudinary_disponible:
+                print("[OBTENER PDF] Buscando en Cloudinary...")
+                try:
+                    # Buscar en Cloudinary usando las variaciones
+                    for variacion in variaciones_nombre:
+                        # Intentar encontrar el PDF con esta variación
+                        cloudinary_pdfs = self.cloudinary_manager.buscar_pdfs(variacion, 20)
+                        
+                        for pdf_info in cloudinary_pdfs:
+                            pdf_public_id = pdf_info.get('public_id', '')
+                            pdf_numero = pdf_info.get('numero_cotizacion', '')
+                            
+                            # Verificar coincidencia
+                            if (variacion.lower() in pdf_public_id.lower() or 
+                                variacion.lower() in pdf_numero.lower()):
+                                
+                                print(f"[CLOUDINARY] ✅ PDF encontrado: {pdf_public_id}")
+                                return {
+                                    "encontrado": True,
+                                    "registro": pdf_info,
+                                    "ruta_completa": pdf_info.get('ruta_completa', ''),
+                                    "existe_archivo": True,
+                                    "tipo": "cloudinary",
+                                    "url_directa": pdf_info.get('ruta_completa', ''),
+                                    "public_id": pdf_public_id
+                                }
+                    
+                    print(f"[CLOUDINARY] PDF no encontrado en Cloudinary para: {numero_cotizacion}")
+                
+                except Exception as e:
+                    print(f"[CLOUDINARY] Error buscando: {e}")
+            
+            # 2. Buscar en Google Drive (secundario)
             if self.drive_client.is_available():
                 print("Buscando en Google Drive...")
                 try:
