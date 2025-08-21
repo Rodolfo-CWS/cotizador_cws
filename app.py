@@ -4015,6 +4015,44 @@ def not_found(error):
         "mensaje": "Página no encontrada"
     }), 404
 
+@app.route("/debug/sistema")
+def debug_sistema():
+    """Diagnóstico del sistema para debugging"""
+    try:
+        import os
+        import sys
+        # Verificar variables de entorno
+        cloudinary_vars = {
+            'CLOUDINARY_CLOUD_NAME': bool(os.getenv('CLOUDINARY_CLOUD_NAME')),
+            'CLOUDINARY_API_KEY': bool(os.getenv('CLOUDINARY_API_KEY')), 
+            'CLOUDINARY_API_SECRET': bool(os.getenv('CLOUDINARY_API_SECRET'))
+        }
+        
+        # Estado de managers
+        estado_managers = {
+            'supabase_offline': db_manager.modo_offline,
+            'cloudinary_disponible': pdf_manager.cloudinary_disponible if pdf_manager else False,
+            'drive_disponible': pdf_manager.drive_client.is_available() if pdf_manager else False
+        }
+        
+        # Variables de entorno importantes
+        env_vars = {
+            'SUPABASE_URL': bool(os.getenv('SUPABASE_URL')),
+            'DATABASE_URL': bool(os.getenv('DATABASE_URL')),
+            'GOOGLE_SERVICE_ACCOUNT_JSON': bool(os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON'))
+        }
+        
+        return jsonify({
+            'cloudinary': cloudinary_vars,
+            'managers': estado_managers, 
+            'environment': env_vars,
+            'render_environment': bool(os.getenv('RENDER')),
+            'python_version': sys.version
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route("/buscar-texto-completo/<texto>")
 def buscar_texto_completo(texto):
     """Busca un texto en TODOS los campos de las cotizaciones"""

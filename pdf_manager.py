@@ -57,8 +57,7 @@ class PDFManager:
         # Inicializar cliente Google Drive (solo para búsqueda en antiguas/)
         self.drive_client = GoogleDriveClient()
         
-        # Colección para índice de PDFs
-        self._inicializar_coleccion()
+        # MongoDB eliminado - No hay colección de índices
         
         print(f"PDF: PDF Manager inicializado con arquitectura simplificada:")
         print(f"   Primario: Cloudinary ({'OK Activo' if self.cloudinary_disponible else 'ERROR Inactivo'})")
