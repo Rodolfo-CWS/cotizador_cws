@@ -108,6 +108,12 @@
             border-color: #4f46e5;
         }
         
+        .btn-all {
+            background: #6366f1;
+            color: white;
+            border-color: #6366f1;
+        }
+        
         .btn-new {
             background: #10b981;
             color: white;
@@ -305,6 +311,15 @@
                 <div class="tooltip">Buscar</div>
             </button>
             
+            <button class="icon-button btn-all" 
+                    onclick="verTodos()"
+                    title="Ver todas las cotizaciones">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+                </svg>
+                <div class="tooltip">Ver Todas</div>
+            </button>
+            
             <button class="icon-button btn-new" 
                     onclick="nuevaCotizacion()"
                     title="Nueva cotización">
@@ -325,9 +340,9 @@
         // Función de búsqueda
         function buscar() {
             const query = document.getElementById('searchInput').value.trim();
+            // Permitir búsqueda vacía para mostrar todos los resultados
             if (!query) {
-                mostrarMensaje('Ingresa un término de búsqueda', 'error');
-                return;
+                console.log('🔍 Búsqueda vacía - mostrando todos los resultados');
             }
 
             ultimaBusqueda = query;
@@ -337,8 +352,9 @@
             btnBuscar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>';
             
             // CORRECCIÓN: Búsqueda unificada - usar cotizaciones directamente para evitar inconsistencias
-            mostrarMensaje('Buscando cotizaciones...', 'loading');
-            console.log('🔍 Búsqueda unificada iniciada para:', query);
+            const mensaje = query ? `Buscando "${query}"...` : 'Cargando todas las cotizaciones...';
+            mostrarMensaje(mensaje, 'loading');
+            console.log('🔍 Búsqueda unificada iniciada para:', query || '(todos los resultados)');
 
             fetch('/buscar', {
                 method: 'POST',
@@ -399,7 +415,10 @@
             const div = document.getElementById('resultados');
             
             if (!pdfs || pdfs.length === 0) {
-                mostrarMensaje(`No se encontraron PDFs para "${ultimaBusqueda}"`, 'error');
+                const mensaje = ultimaBusqueda ? 
+                    `No se encontraron resultados para "${ultimaBusqueda}"` : 
+                    'No se encontraron resultados en el sistema';
+                mostrarMensaje(mensaje, 'error');
                 return;
             }
 
@@ -511,6 +530,12 @@
         }
 
         // Función para nueva cotización
+        function verTodos() {
+            // Limpiar campo de búsqueda y ejecutar búsqueda vacía
+            document.getElementById('searchInput').value = '';
+            buscar();
+        }
+
         function nuevaCotizacion() {
             window.location.href = '/formulario';
         }
