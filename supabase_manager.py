@@ -242,7 +242,7 @@ class SupabaseManager:
                     
                 except Exception as e:
                     print(f"[SUPABASE] Error guardando online: {safe_str(e)}")
-                    print("[SUPABASE] 🔄 Fallback a modo offline")
+                    print("[SUPABASE] Fallback a modo offline")
                     self.modo_offline = True
             
             # Guardar en JSON (modo offline o fallback)
@@ -317,7 +317,7 @@ class SupabaseManager:
             self.pg_connection.commit()
             cursor.close()
             
-            print(f"[SUPABASE] ✅ Cotización guardada: ID={cotizacion_id}")
+            print(f"[SUPABASE] Cotizacion guardada: ID={cotizacion_id}")
             
             return {
                 "success": True,
@@ -335,7 +335,7 @@ class SupabaseManager:
                 pass
             
             error_msg = safe_str(e)
-            print(f"[SUPABASE] ❌ Error guardando: {error_msg}")
+            print(f"[SUPABASE] Error guardando: {error_msg}")
             raise e
     
     def _guardar_cotizacion_offline(self, datos: Dict) -> Dict:
@@ -364,10 +364,10 @@ class SupabaseManager:
             # Actualizar o agregar
             if indice_existente is not None:
                 cotizaciones[indice_existente] = datos
-                print(f"[OFFLINE] 🔄 Cotización actualizada: {numero_cotizacion}")
+                print(f"[OFFLINE] Cotizacion actualizada: {numero_cotizacion}")
             else:
                 cotizaciones.append(datos)
-                print(f"[OFFLINE] ➕ Nueva cotización: {numero_cotizacion}")
+                print(f"[OFFLINE] Nueva cotizacion: {numero_cotizacion}")
             
             # Guardar archivo
             data["cotizaciones"] = cotizaciones
@@ -400,7 +400,7 @@ class SupabaseManager:
                     return self._buscar_cotizaciones_supabase(query, page, per_page)
                 except Exception as e:
                     print(f"[SUPABASE] Error en búsqueda online: {safe_str(e)}")
-                    print("[SUPABASE] 🔄 Fallback a búsqueda offline")
+                    print("[SUPABASE] Fallback a busqueda offline")
                     return self._buscar_cotizaciones_offline(query, page, per_page)
                     
         except Exception as e:
