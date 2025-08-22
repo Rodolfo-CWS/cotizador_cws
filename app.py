@@ -1726,33 +1726,14 @@ def servir_pdf(numero_cotizacion):
         ruta_completa = resultado["ruta_completa"]
         tipo_fuente = resultado.get("tipo", "local")
         
-        # Si es un PDF de Cloudinary, hacer proxy del contenido
+        # Si es un PDF de Cloudinary, redirigir a su URL directa
         if tipo_fuente == "cloudinary" or ruta_completa.startswith("https://"):
-            print(f"📄 Sirviendo PDF desde Cloudinary: {numero_cotizacion}")
+            print(f"📄 Redirigiendo a PDF de Cloudinary: {numero_cotizacion}")
             print(f"   URL: {ruta_completa}")
             
-            # Descargar contenido desde Cloudinary y servirlo
-            try:
-                import requests
-                response = requests.get(ruta_completa, timeout=30)
-                response.raise_for_status()
-                
-                # Crear respuesta con el contenido PDF
-                from flask import Response
-                return Response(
-                    response.content,
-                    mimetype='application/pdf',
-                    headers={
-                        'Content-Disposition': f'inline; filename="{numero_cotizacion}.pdf"',
-                        'Content-Length': str(len(response.content))
-                    }
-                )
-            except Exception as e:
-                print(f"Error descargando PDF desde Cloudinary: {e}")
-                return jsonify({
-                    "error": f"Error accediendo al PDF en Cloudinary: {str(e)}",
-                    "url": ruta_completa
-                }), 500
+            # Redirigir directamente a la URL de Cloudinary
+            from flask import redirect
+            return redirect(ruta_completa)
         
         # Si es un PDF de Google Drive, descargar y servir
         elif ruta_completa.startswith("gdrive://"):
