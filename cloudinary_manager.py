@@ -144,15 +144,26 @@ class CloudinaryManager:
                     overwrite=True,       # Sobrescribir si ya existe
                     invalidate=True,      # Invalidar cache CDN
                     tags=["cotizacion", "pdf", "cws"],  # Tags para organización
-                    context=f"numero={numero_cotizacion}|fecha={datetime.datetime.now().isoformat()}"
+                    context=f"numero={numero_cotizacion}|fecha={datetime.datetime.now().isoformat()}",
+                    type="upload",        # Tipo público
+                    access_mode="public"  # Acceso público sin autenticación
                 )
             
             # Ejecutar con reintentos
             resultado = self._retry_operation(_upload_operation)
             
+            # Generar URL pública sin autenticación
+            url_publica = self.cloudinary.utils.cloudinary_url(
+                resultado['public_id'],
+                resource_type="raw",
+                secure=True,
+                type="upload",
+                sign_url=False
+            )[0]
+            
             # Extraer información relevante
             info_archivo = {
-                "url": resultado['secure_url'],
+                "url": url_publica,  # URL pública sin autenticación
                 "public_id": resultado['public_id'],
                 "bytes": resultado['bytes'],
                 "formato": resultado.get('format', 'pdf'),  # Default to 'pdf' for raw files
@@ -214,11 +225,13 @@ class CloudinaryManager:
         try:
             import requests
             
-            # Obtener URL del archivo
+            # Obtener URL del archivo (pública)
             url = self.cloudinary.utils.cloudinary_url(
                 public_id, 
                 resource_type="raw",
-                secure=True
+                secure=True,
+                type="upload",
+                sign_url=False  # URL pública sin firma
             )[0]
             
             print(f"DOWNLOAD: Descargando PDF desde: {url}")
@@ -285,9 +298,18 @@ class CloudinaryManager:
             # Procesar resultados
             archivos = []
             for recurso in resultado.get('resources', []):
+                # Generar URL pública para cada archivo
+                url_publica = self.cloudinary.utils.cloudinary_url(
+                    recurso['public_id'],
+                    resource_type="raw",
+                    secure=True,
+                    type="upload",
+                    sign_url=False
+                )[0]
+                
                 archivo_info = {
                     "public_id": recurso['public_id'],
-                    "url": recurso['secure_url'],
+                    "url": url_publica,  # URL pública sin autenticación
                     "bytes": recurso['bytes'],
                     "fecha_creacion": recurso['created_at'],
                     "version": recurso['version'],
