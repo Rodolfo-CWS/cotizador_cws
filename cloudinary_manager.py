@@ -151,9 +151,20 @@ class CloudinaryManager:
             # Ejecutar con reintentos
             resultado = self._retry_operation(_upload_operation)
             
+            # Generar URL firmada para acceso público
+            url_firmada = self.cloudinary.utils.cloudinary_url(
+                resultado['public_id'],
+                resource_type="raw",
+                secure=True,
+                sign_url=True,  # URL firmada con API secret
+                auth_token={
+                    "duration": 3600  # 1 hora de validez
+                }
+            )[0]
+            
             # Extraer información relevante
             info_archivo = {
-                "url": resultado['secure_url'],  # Usar URL directa de Cloudinary (método original)
+                "url": url_firmada,  # URL firmada para acceso temporal
                 "public_id": resultado['public_id'],
                 "bytes": resultado['bytes'],
                 "formato": resultado.get('format', 'pdf'),  # Default to 'pdf' for raw files
@@ -286,9 +297,18 @@ class CloudinaryManager:
             # Procesar resultados
             archivos = []
             for recurso in resultado.get('resources', []):
+                # Generar URL firmada para cada archivo
+                url_firmada = self.cloudinary.utils.cloudinary_url(
+                    recurso['public_id'],
+                    resource_type="raw",
+                    secure=True,
+                    sign_url=True,
+                    auth_token={"duration": 3600}
+                )[0]
+                
                 archivo_info = {
                     "public_id": recurso['public_id'],
-                    "url": recurso['secure_url'],  # Usar URL directa (método original)
+                    "url": url_firmada,  # URL firmada con acceso temporal
                     "bytes": recurso['bytes'],
                     "fecha_creacion": recurso['created_at'],
                     "version": recurso['version'],
