@@ -140,13 +140,14 @@ class CloudinaryManager:
                 return self.cloudinary.uploader.upload(
                     archivo_local,
                     public_id=public_id,
-                    resource_type="raw",  # Para archivos no-imagen como PDFs
+                    resource_type="auto",  # Detección automática para PDFs visualizables
                     overwrite=True,       # Sobrescribir si ya existe
                     invalidate=True,      # Invalidar cache CDN
                     tags=["cotizacion", "pdf", "cws"],  # Tags para organización
                     context=f"numero={numero_cotizacion}|fecha={datetime.datetime.now().isoformat()}",
                     type="upload",        # Tipo público
-                    access_mode="public"  # Acceso público sin autenticación
+                    access_mode="public", # Acceso público sin autenticación
+                    format="pdf"          # Forzar formato PDF
                 )
             
             # Ejecutar con reintentos
@@ -219,7 +220,7 @@ class CloudinaryManager:
             # Obtener información del archivo
             recurso_info = self.cloudinary.api.resource(
                 public_id,
-                resource_type="raw"
+                resource_type="image"  # PDFs se tratan como image en Cloudinary cuando usan resource_type="auto"
             )
             url = recurso_info['secure_url']
             
@@ -277,7 +278,7 @@ class CloudinaryManager:
             # Buscar archivos
             resultado = self.cloudinary.api.resources(
                 type="upload",
-                resource_type="raw",
+                resource_type="image",  # PDFs como imagen cuando se sube con resource_type="auto"
                 prefix=prefix,
                 max_results=max_resultados,
                 tags=True,
@@ -330,7 +331,7 @@ class CloudinaryManager:
             
             resultado = self.cloudinary.uploader.destroy(
                 public_id,
-                resource_type="raw",
+                resource_type="image",  # PDFs como imagen
                 invalidate=True
             )
             
@@ -370,7 +371,7 @@ class CloudinaryManager:
             resultado = self.cloudinary.uploader.rename(
                 public_id_origen,
                 public_id_destino,
-                resource_type="raw",
+                resource_type="image",  # PDFs como imagen
                 overwrite=True,
                 invalidate=True
             )
