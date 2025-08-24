@@ -1726,12 +1726,19 @@ def servir_pdf(numero_cotizacion):
         ruta_completa = resultado["ruta_completa"]
         tipo_fuente = resultado.get("tipo", "local")
         
-        # Si es un PDF de Cloudinary, redirigir a su URL directa
-        if tipo_fuente == "cloudinary" or ruta_completa.startswith("https://"):
-            print(f"PDF: Redirigiendo a PDF de Cloudinary: {numero_cotizacion}")
+        # Si es un PDF de Supabase Storage o Cloudinary, redirigir a su URL directa
+        if (tipo_fuente in ["supabase_storage", "cloudinary"] or 
+            ruta_completa.startswith("https://")):
+            
+            fuente_nombre = {
+                "supabase_storage": "Supabase Storage",
+                "cloudinary": "Cloudinary"
+            }.get(tipo_fuente, "URL directa")
+            
+            print(f"PDF: Redirigiendo a PDF de {fuente_nombre}: {numero_cotizacion}")
             print(f"   URL: {ruta_completa}")
             
-            # Redirigir directamente a la URL de Cloudinary
+            # Redirigir directamente a la URL
             from flask import redirect
             return redirect(ruta_completa)
         

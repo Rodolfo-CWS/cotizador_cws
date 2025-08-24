@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "created_at": "2025-08-19T13:08:34.495390",
+  "tables_count": 4,
+  "tables": [
+    "cotizaciones",
+    "pdf_files",
+    "system_logs",
+    "system_config"
+  ]
+}

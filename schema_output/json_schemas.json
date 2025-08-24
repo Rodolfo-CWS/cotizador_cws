@@ -1,0 +1,338 @@
+{
+  "cotizaciones": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Tabla principal de cotizaciones CWS",
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "ID único del registro"
+      },
+      "numero_cotizacion": {
+        "type": "string",
+        "description": "Número único de cotización (formato: CLIENTE-CWS-VENDOR-###-R#-PROYECTO)"
+      },
+      "revision": {
+        "type": "integer",
+        "description": "Número de revisión de la cotización"
+      },
+      "datos_generales": {
+        "type": "object",
+        "description": "Información general del cliente y proyecto",
+        "cliente": {
+          "type": "string",
+          "required": true
+        },
+        "vendedor": {
+          "type": "string",
+          "required": true
+        },
+        "proyecto": {
+          "type": "string",
+          "required": true
+        },
+        "atencion_a": {
+          "type": "string"
+        },
+        "telefono": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "fecha": {
+          "type": "string"
+        }
+      },
+      "items": {
+        "type": "array",
+        "description": "Array de items cotizados",
+        "items": {
+          "material": {
+            "type": "string",
+            "required": true
+          },
+          "cantidad": {
+            "type": "number",
+            "required": true
+          },
+          "precio": {
+            "type": "number",
+            "required": true
+          },
+          "unidad": {
+            "type": "string",
+            "default": "unidad"
+          },
+          "categoria": {
+            "type": "string"
+          }
+        }
+      },
+      "totales": {
+        "type": "object",
+        "description": "Totales calculados de la cotización",
+        "subtotal": {
+          "type": "number"
+        },
+        "descuento": {
+          "type": "number",
+          "default": 0
+        },
+        "impuestos": {
+          "type": "number",
+          "default": 0
+        },
+        "total": {
+          "type": "number"
+        }
+      },
+      "observaciones": {
+        "type": "string",
+        "description": "Observaciones y notas adicionales"
+      },
+      "fecha_creacion": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Fecha y hora de creación"
+      },
+      "fecha_modificacion": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Fecha y hora de última modificación"
+      },
+      "version": {
+        "type": "string",
+        "description": "Versión del formato de datos"
+      },
+      "estado": {
+        "type": "string",
+        "description": "Estado de la cotización (activa, archivada, eliminada)"
+      },
+      "timestamp": {
+        "type": "integer",
+        "description": "Timestamp Unix para sincronización"
+      },
+      "hash_contenido": {
+        "type": "string",
+        "description": "Hash MD5 del contenido para detección de cambios"
+      },
+      "sincronizado": {
+        "type": "boolean",
+        "description": "Indica si el registro está sincronizado"
+      },
+      "metadata": {
+        "type": "object",
+        "description": "Metadatos adicionales del sistema",
+        "fuente_creacion": {
+          "type": "string"
+        },
+        "ip_creacion": {
+          "type": "string"
+        },
+        "user_agent": {
+          "type": "string"
+        },
+        "migracion_id": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "required": [
+      "numero_cotizacion",
+      "datos_generales"
+    ]
+  },
+  "pdf_files": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Índice de archivos PDF almacenados",
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "description": ""
+      },
+      "numero_cotizacion": {
+        "type": "string",
+        "description": "Número de cotización asociado"
+      },
+      "nombre_archivo": {
+        "type": "string",
+        "description": "Nombre original del archivo"
+      },
+      "tamaño_bytes": {
+        "type": "integer",
+        "description": "Tamaño del archivo en bytes"
+      },
+      "hash_contenido": {
+        "type": "string",
+        "description": "Hash SHA256 del contenido del PDF"
+      },
+      "ubicaciones": {
+        "type": "object",
+        "description": "URLs y metadatos de almacenamiento por proveedor",
+        "cloudinary": {
+          "url": {
+            "type": "string"
+          },
+          "public_id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "folder": {
+            "type": "string"
+          }
+        },
+        "google_drive": {
+          "file_id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "folder_id": {
+            "type": "string"
+          }
+        },
+        "local": {
+          "ruta": {
+            "type": "string"
+          },
+          "existe": {
+            "type": "boolean"
+          }
+        }
+      },
+      "proveedor_principal": {
+        "type": "string",
+        "description": "Proveedor de almacenamiento principal"
+      },
+      "fecha_creacion": {
+        "type": "string",
+        "format": "date-time",
+        "description": ""
+      },
+      "fecha_subida": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Fecha de primera subida a almacenamiento"
+      },
+      "fecha_ultimo_acceso": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Fecha de último acceso al archivo"
+      },
+      "estado": {
+        "type": "string",
+        "description": "Estado del archivo (disponible, procesando, error, eliminado)"
+      },
+      "verificado": {
+        "type": "boolean",
+        "description": "Indica si la integridad del archivo ha sido verificada"
+      },
+      "ultima_verificacion": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Fecha de última verificación de integridad"
+      },
+      "metadata": {
+        "type": "object",
+        "description": "Metadatos adicionales del PDF"
+      }
+    },
+    "required": [
+      "numero_cotizacion",
+      "nombre_archivo"
+    ]
+  },
+  "system_logs": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Logs del sistema unificado",
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "description": ""
+      },
+      "timestamp": {
+        "type": "string",
+        "format": "date-time",
+        "description": ""
+      },
+      "nivel": {
+        "type": "string",
+        "description": "Nivel del log (INFO, WARNING, ERROR, CRITICAL)"
+      },
+      "modulo": {
+        "type": "string",
+        "description": "Módulo que generó el log"
+      },
+      "mensaje": {
+        "type": "string",
+        "description": "Mensaje del log"
+      },
+      "contexto": {
+        "type": "object",
+        "description": "Contexto adicional del evento"
+      },
+      "usuario": {
+        "type": "string",
+        "description": "Usuario relacionado con el evento"
+      },
+      "ip_address": {
+        "type": "string",
+        "description": "Dirección IP del origen"
+      }
+    },
+    "required": [
+      "nivel",
+      "mensaje"
+    ]
+  },
+  "system_config": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Configuración del sistema unificado",
+    "type": "object",
+    "properties": {
+      "clave": {
+        "type": "string",
+        "description": "Clave de configuración"
+      },
+      "valor": {
+        "type": "object",
+        "description": "Valor de configuración (JSON)"
+      },
+      "descripcion": {
+        "type": "string",
+        "description": "Descripción de la configuración"
+      },
+      "categoria": {
+        "type": "string",
+        "description": "Categoría de configuración"
+      },
+      "modificado_en": {
+        "type": "string",
+        "format": "date-time",
+        "description": ""
+      },
+      "modificado_por": {
+        "type": "string",
+        "description": "Usuario que modificó la configuración"
+      }
+    },
+    "required": [
+      "valor"
+    ]
+  }
+}

@@ -20,6 +20,42 @@
       "numeroCotizacion": "TEST-CORRE-CWS-TE-001-R1-PRUEBA-IMP",
       "revision": 1,
       "_id": "df54b575-300d-4120-a3df-005a26cf2f31"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "CLIENTE-PRUEBA",
+        "vendedor": "TEST",
+        "proyecto": "VERIFICACION-SUPABASE",
+        "atencionA": "Usuario Test",
+        "contacto": "test@ejemplo.com",
+        "fecha": "2025-01-20",
+        "validez": "30 dias"
+      },
+      "items": [
+        {
+          "descripcion": "Item de prueba",
+          "cantidad": 1,
+          "precio_unitario": 100.0,
+          "subtotal": 100.0
+        }
+      ],
+      "observaciones": "Cotizacion de prueba para verificar sistema Supabase",
+      "revision": 1,
+      "version": "1.0.0",
+      "numeroCotizacion": "CLIENTE-PR-CWS-TES-001-R1-VERIFICACION-SU",
+      "timestamp": 1755701411640,
+      "fechaCreacion": "2025-08-20T08:50:11.640537"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "TEST-CLIENTE",
+        "vendedor": "TEST",
+        "proyecto": "PROYECTO-TEST"
+      },
+      "items": [],
+      "numeroCotizacion": "TEST-CLIEN-CWS-T-001-R1-PROYECTO-TEST",
+      "timestamp": 1755887158890,
+      "fechaCreacion": "2025-08-22T12:25:58.890260"
     }
   ],
   "metadata": {

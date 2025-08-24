@@ -15,6 +15,7 @@ import shutil
 from typing import Dict, List, Optional, Tuple
 from google_drive_client import GoogleDriveClient
 from cloudinary_manager import CloudinaryManager
+from supabase_storage_manager import SupabaseStorageManager
 
 class PDFManager:
     def __init__(self, database_manager, base_pdf_path: str = None):
@@ -29,15 +30,19 @@ class PDFManager:
         """
         self.db_manager = database_manager
         
-        # SISTEMA PRIMARIO: Cloudinary
-        print("INIT: Inicializando PDF Manager hibrido...")
+        # SISTEMA PRIMARIO: Supabase Storage
+        print("INIT: Inicializando PDF Manager con Supabase Storage...")
+        self.supabase_storage = SupabaseStorageManager()
+        self.supabase_storage_disponible = self.supabase_storage.is_available()
+        
+        if self.supabase_storage_disponible:
+            print("OK: Sistema primario: Supabase Storage activado (25GB gratis)")
+        else:
+            print("WARNING: Sistema primario: Supabase Storage no disponible, usando fallbacks")
+        
+        # SISTEMA FALLBACK: Cloudinary (mantenido como respaldo)
         self.cloudinary_manager = CloudinaryManager()
         self.cloudinary_disponible = self.cloudinary_manager.is_available()
-        
-        if self.cloudinary_disponible:
-            print("OK: Sistema primario: Cloudinary activado (25GB gratis)")
-        else:
-            print("WARNING: Sistema primario: Cloudinary no disponible, usando fallbacks")
         
         # SISTEMA RESPALDO: Local storage
         # Configurar rutas de PDFs locales
@@ -59,8 +64,9 @@ class PDFManager:
         
         # MongoDB eliminado - No hay colección de índices
         
-        print(f"PDF: PDF Manager inicializado con arquitectura simplificada:")
-        print(f"   Primario: Cloudinary ({'OK Activo' if self.cloudinary_disponible else 'ERROR Inactivo'})")
+        print(f"PDF: PDF Manager inicializado con nueva arquitectura:")
+        print(f"   Primario: Supabase Storage ({'OK Activo' if self.supabase_storage_disponible else 'ERROR Inactivo'})")
+        print(f"   Fallback: Cloudinary ({'OK Activo' if self.cloudinary_disponible else 'ERROR Inactivo'})")
         print(f"   Respaldo Local: {self.base_pdf_path}")
         print(f"   Busqueda Drive (antiguas/): {'OK Configurado' if self.drive_client else 'ERROR No disponible'}")
     
@@ -157,13 +163,12 @@ class PDFManager:
     
     def almacenar_pdf_nuevo(self, pdf_content: bytes, cotizacion_data: Dict) -> Dict:
         """
-        Almacena un PDF usando sistema híbrido simplificado: Cloudinary (primario) + Local (respaldo)
+        Almacena un PDF usando nueva arquitectura: Supabase Storage (primario) + Fallbacks
         
-        Estrategia simplificada:
-        1. Cloudinary (primario) - 25GB gratis
-        2. Local (emergencia) - siempre como respaldo
-        
-        Nota: Google Drive (nuevas/) eliminado para evitar problemas de cuotas
+        Estrategia nueva:
+        1. Supabase Storage (primario) - 25GB gratis, CDN integrado
+        2. Cloudinary (fallback) - Si Supabase no disponible  
+        3. Local (emergencia) - siempre como respaldo
         
         Args:
             pdf_content: Contenido binario del PDF
@@ -181,17 +186,62 @@ class PDFManager:
             )
             datos_generales = cotizacion_data.get('datosGenerales', {})
             
-            print(f"STORE: [ALMACENAR_PDF_HIBRIDO] Numero de cotizacion: '{numero_cotizacion}'")
-            print(f"📊 [ALMACENAR_PDF_HIBRIDO] Tamaño PDF: {len(pdf_content)} bytes")
+            print(f"STORE: [ALMACENAR_PDF_SUPABASE] Numero de cotizacion: '{numero_cotizacion}'")
+            print(f"SIZE: [ALMACENAR_PDF_SUPABASE] Tamaño PDF: {len(pdf_content)} bytes")
             
             # Generar nombre de archivo seguro
             nombre_archivo = self._generar_nombre_archivo(numero_cotizacion)
             
-            # ===== PASO 1: CLOUDINARY (SISTEMA PRIMARIO) =====
+            # ===== PASO 1: SUPABASE STORAGE (SISTEMA PRIMARIO) =====
+            supabase_result = {"success": False, "error": "No intentado"}
+            
+            if self.supabase_storage_disponible:
+                print("TARGET: [SUPABASE_STORAGE] Intentando subir a sistema primario...")
+                
+                # Crear archivo temporal para Supabase Storage
+                import tempfile
+                temp_file = None
+                try:
+                    # Crear archivo temporal
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+                        temp_file.write(pdf_content)
+                        temp_file_path = temp_file.name
+                    
+                    # Subir a Supabase Storage
+                    supabase_result = self.supabase_storage.subir_pdf(
+                        temp_file_path,
+                        numero_cotizacion,
+                        es_nueva=True
+                    )
+                    
+                    if not supabase_result.get("fallback", False):
+                        print(f"OK: [SUPABASE_STORAGE] PDF subido exitosamente!")
+                        print(f"   URL: {supabase_result.get('url', 'N/A')}")
+                        print(f"   Tamaño: {supabase_result.get('bytes', 0)} bytes")
+                        supabase_result["success"] = True
+                    else:
+                        print(f"ERROR: [SUPABASE_STORAGE] Error: {supabase_result.get('error', 'Desconocido')}")
+                        
+                except Exception as e:
+                    print(f"ERROR: [SUPABASE_STORAGE] Excepcion: {e}")
+                    supabase_result = {"success": False, "error": str(e)}
+                finally:
+                    # Limpiar archivo temporal
+                    if temp_file and os.path.exists(temp_file_path):
+                        try:
+                            os.unlink(temp_file_path)
+                        except:
+                            pass
+            else:
+                print("WARNING: [SUPABASE_STORAGE] Sistema primario no disponible, usando fallbacks")
+                supabase_result = {"success": False, "error": "Supabase Storage no configurado"}
+            
+            # ===== PASO 2: CLOUDINARY (SISTEMA FALLBACK) =====
             cloudinary_result = {"success": False, "error": "No intentado"}
             
-            if self.cloudinary_disponible:
-                print("TARGET: [CLOUDINARY] Intentando subir a sistema primario...")
+            # Solo intentar Cloudinary si Supabase falló
+            if not supabase_result.get("success", False) and self.cloudinary_disponible:
+                print("TARGET: [CLOUDINARY] Intentando fallback a Cloudinary...")
                 
                 # Crear archivo temporal para Cloudinary
                 import tempfile
@@ -209,8 +259,8 @@ class PDFManager:
                         es_nueva=True
                     )
                     
-                    if cloudinary_result.get("success", False):
-                        print(f"OK: [CLOUDINARY] PDF subido exitosamente!")
+                    if not cloudinary_result.get("fallback", False):
+                        print(f"OK: [CLOUDINARY] PDF subido exitosamente como fallback!")
                         print(f"   URL: {cloudinary_result.get('url', 'N/A')}")
                         print(f"   Tamaño: {cloudinary_result.get('bytes', 0)} bytes")
                         cloudinary_result["success"] = True
@@ -227,11 +277,14 @@ class PDFManager:
                             os.unlink(temp_file_path)
                         except:
                             pass
+            elif supabase_result.get("success", False):
+                print("OK: [CLOUDINARY] No necesario - Supabase exitoso")
+                cloudinary_result = {"success": False, "error": "No necesario - Supabase exitoso"}
             else:
-                print("WARNING: [CLOUDINARY] Sistema primario no disponible, usando fallbacks")
+                print("WARNING: [CLOUDINARY] Sistema fallback no disponible")
                 cloudinary_result = {"success": False, "error": "Cloudinary no configurado"}
             
-            # ===== PASO 2: LOCAL (RESPALDO SIEMPRE) =====
+            # ===== PASO 3: LOCAL (RESPALDO SIEMPRE) =====
             print("LOCAL: [LOCAL] Guardando respaldo local...")
             ruta_completa = self.nuevas_path / nombre_archivo
             ruta_completa.write_bytes(pdf_content)
@@ -262,7 +315,8 @@ class PDFManager:
                 "ruta_archivo": f"nuevas/{nombre_archivo}",
                 "ruta_completa": str(ruta_completa.absolute()),
                 "tamaño_bytes": len(pdf_content),
-                # Información de almacenamiento híbrido
+                # Información de almacenamiento híbrido (nueva arquitectura)
+                "supabase_storage": supabase_result,
                 "cloudinary": cloudinary_result,
                 "google_drive": google_drive_result,
                 "local": local_result
@@ -272,15 +326,18 @@ class PDFManager:
             print("OK: [HÍBRIDO] Almacenamiento completado sin dependencia de MongoDB")
             
             # ===== RESULTADO FINAL =====
-            # Determinar si la operación fue exitosa (sistema simplificado)
+            # Determinar si la operación fue exitosa (nueva arquitectura)
             almacenamiento_exitoso = (
+                supabase_result.get("success", False) or
                 cloudinary_result.get("success", False) or 
                 local_result.get("success", False)
             )
             
             # Determinar mensaje de estado
-            if cloudinary_result.get("success", False):
-                estado = "OK Cloudinary (primario)"
+            if supabase_result.get("success", False):
+                estado = "OK Supabase Storage (primario)"
+            elif cloudinary_result.get("success", False):
+                estado = "OK Cloudinary (fallback)"
             elif local_result.get("success", False):
                 estado = "LOCAL Local (respaldo)"
             else:
@@ -301,7 +358,7 @@ class PDFManager:
                 }
             }
             
-            print(f"🎉 [RESULTADO_FINAL] {estado}")
+            print(f"FINAL: [RESULTADO_FINAL] {estado}")
             return resultado_final
             
         except Exception as e:
@@ -537,9 +594,43 @@ class PDFManager:
         print(f"Variaciones a buscar: {variaciones_nombre}")
         
         try:
-            # 1. BUSCAR EN CLOUDINARY (PRIORITARIO)
+            # 1. BUSCAR EN SUPABASE STORAGE (PRIORITARIO)
+            if self.supabase_storage_disponible:
+                print("[OBTENER PDF] Buscando en Supabase Storage...")
+                try:
+                    # Buscar en Supabase Storage usando las variaciones
+                    for variacion in variaciones_nombre:
+                        # Intentar encontrar el PDF con esta variación
+                        supabase_pdfs = self.supabase_storage.buscar_pdfs(variacion, 20)
+                        
+                        for pdf_info in supabase_pdfs:
+                            pdf_file_path = pdf_info.get('file_path', '')
+                            pdf_numero = pdf_info.get('numero_cotizacion', '')
+                            
+                            # Verificar coincidencia
+                            if (variacion.lower() in pdf_file_path.lower() or 
+                                variacion.lower() in pdf_numero.lower()):
+                                
+                                print(f"[SUPABASE_STORAGE] OK PDF encontrado: {pdf_file_path}")
+                                return {
+                                    "encontrado": True,
+                                    "registro": pdf_info,
+                                    "ruta_completa": pdf_info.get('url', ''),
+                                    "existe_archivo": True,
+                                    "tipo": "supabase_storage",
+                                    "url_directa": pdf_info.get('url', ''),
+                                    "file_path": pdf_file_path,
+                                    "fuente": "supabase_storage"
+                                }
+                    
+                    print("[SUPABASE_STORAGE] PDF no encontrado, probando con Cloudinary...")
+                    
+                except Exception as e:
+                    print(f"[SUPABASE_STORAGE] Error: {e}")
+            
+            # 2. BUSCAR EN CLOUDINARY (FALLBACK)
             if self.cloudinary_disponible:
-                print("[OBTENER PDF] Buscando en Cloudinary...")
+                print("[OBTENER PDF] Buscando en Cloudinary como fallback...")
                 try:
                     # Buscar en Cloudinary usando las variaciones
                     for variacion in variaciones_nombre:
