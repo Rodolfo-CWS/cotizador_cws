@@ -1695,7 +1695,7 @@ def servir_pdf(numero_cotizacion):
         numero_original = numero_cotizacion
         numero_cotizacion = unquote(numero_cotizacion)
         
-        print(f"📄 Sirviendo PDF:")
+        print(f"PDF: Sirviendo PDF:")
         print(f"   URL original: '{numero_original}'")
         print(f"   Después de unquote: '{numero_cotizacion}'")
         
@@ -1728,7 +1728,7 @@ def servir_pdf(numero_cotizacion):
         
         # Si es un PDF de Cloudinary, redirigir a su URL directa
         if tipo_fuente == "cloudinary" or ruta_completa.startswith("https://"):
-            print(f"📄 Redirigiendo a PDF de Cloudinary: {numero_cotizacion}")
+            print(f"PDF: Redirigiendo a PDF de Cloudinary: {numero_cotizacion}")
             print(f"   URL: {ruta_completa}")
             
             # Redirigir directamente a la URL de Cloudinary
@@ -1741,7 +1741,7 @@ def servir_pdf(numero_cotizacion):
             if not drive_id:
                 return jsonify({"error": "ID de Google Drive no encontrado"}), 500
             
-            print(f"📄 Sirviendo PDF desde Google Drive: {numero_cotizacion} (ID: {drive_id})")
+            print(f"PDF: Sirviendo PDF desde Google Drive: {numero_cotizacion} (ID: {drive_id})")
             
             # Descargar PDF desde Google Drive usando ID (más eficiente)
             if drive_id:

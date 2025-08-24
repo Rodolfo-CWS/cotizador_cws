@@ -137,11 +137,11 @@ class CloudinaryManager:
             
             # Función interna para la subida (para usar con retry)
             def _upload_operation():
-                return self.cloudinary.uploader.unsigned_upload(
+                return self.cloudinary.uploader.upload(
                     archivo_local,
-                    upload_preset="ml_default",  # Preset público por defecto
                     public_id=public_id,
                     resource_type="raw",
+                    access_mode="public",  # Asegurar acceso público
                     overwrite=True,
                     invalidate=True,
                     tags=["cotizacion", "pdf", "cws"],

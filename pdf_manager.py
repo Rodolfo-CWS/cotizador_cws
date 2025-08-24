@@ -554,7 +554,7 @@ class PDFManager:
                             if (variacion.lower() in pdf_public_id.lower() or 
                                 variacion.lower() in pdf_numero.lower()):
                                 
-                                print(f"[CLOUDINARY] ✅ PDF encontrado: {pdf_public_id}")
+                                print(f"[CLOUDINARY] OK PDF encontrado: {pdf_public_id}")
                                 return {
                                     "encontrado": True,
                                     "registro": pdf_info,
