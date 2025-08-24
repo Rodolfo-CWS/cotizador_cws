@@ -137,16 +137,30 @@ class CloudinaryManager:
             
             # Función interna para la subida (para usar con retry)
             def _upload_operation():
-                return self.cloudinary.uploader.upload(
-                    archivo_local,
-                    public_id=public_id,
-                    resource_type="raw",
-                    access_mode="public",  # Asegurar acceso público
-                    overwrite=True,
-                    invalidate=True,
-                    tags=["cotizacion", "pdf", "cws"],
-                    context=f"numero={numero_cotizacion}|fecha={datetime.datetime.now().isoformat()}"
-                )
+                # Intentar primero con upload firmado si tenemos API_SECRET
+                api_secret = os.getenv('CLOUDINARY_API_SECRET')
+                if api_secret:
+                    return self.cloudinary.uploader.upload(
+                        archivo_local,
+                        public_id=public_id,
+                        resource_type="raw",
+                        overwrite=True,
+                        invalidate=True,
+                        tags=["cotizacion", "pdf", "cws"],
+                        context=f"numero={numero_cotizacion}|fecha={datetime.datetime.now().isoformat()}"
+                    )
+                else:
+                    # Fallback a unsigned si no hay API_SECRET
+                    return self.cloudinary.uploader.unsigned_upload(
+                        archivo_local,
+                        "ml_default",
+                        public_id=public_id,
+                        resource_type="raw",
+                        overwrite=True,
+                        invalidate=True,
+                        tags=["cotizacion", "pdf", "cws"],
+                        context=f"numero={numero_cotizacion}|fecha={datetime.datetime.now().isoformat()}"
+                    )
             
             # Ejecutar con reintentos
             resultado = self._retry_operation(_upload_operation)
