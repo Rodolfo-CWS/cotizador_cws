@@ -5,8 +5,8 @@ Configurador de Almacenamiento Permanente
 =========================================
 
 Este script configura y verifica el almacenamiento permanente en:
-- Cloudinary (PDFs - 25GB gratis)  
-- Supabase (Datos - PostgreSQL)
+- Supabase Storage (PDFs integrados)  
+- Supabase PostgreSQL (Datos)
 
 Uso:
     python configure_permanent_storage.py
@@ -16,45 +16,46 @@ import os
 import sys
 from pathlib import Path
 
-def test_cloudinary():
-    """Probar configuración de Cloudinary"""
-    print("\n🔹 CLOUDINARY - TEST DE CONFIGURACIÓN")
+def test_supabase_storage():
+    """Probar configuración de Supabase Storage"""
+    print("\n🔹 SUPABASE STORAGE - TEST DE CONFIGURACIÓN")
     print("-" * 50)
     
     try:
         # Verificar variables de entorno
-        cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME', 'NO_CONFIGURADO')
-        api_key = os.getenv('CLOUDINARY_API_KEY', 'NO_CONFIGURADO')
-        api_secret = os.getenv('CLOUDINARY_API_SECRET', 'NO_CONFIGURADO')
+        supabase_url = os.getenv('SUPABASE_URL', 'NO_CONFIGURADO')
+        supabase_anon_key = os.getenv('SUPABASE_ANON_KEY', 'NO_CONFIGURADO')
         
-        print(f"Cloud Name: {cloud_name}")
-        print(f"API Key: {api_key}")
-        print(f"API Secret: {'***' + api_secret[-4:] if len(api_secret) > 4 else 'NO_CONFIGURADO'}")
+        print(f"Supabase URL: {supabase_url}")
+        print(f"Anon Key: {'***' + supabase_anon_key[-10:] if len(supabase_anon_key) > 10 else 'NO_CONFIGURADO'}")
         
-        if any(v == 'NO_CONFIGURADO' for v in [cloud_name, api_key, api_secret]):
+        if any(v == 'NO_CONFIGURADO' for v in [supabase_url, supabase_anon_key]):
             print("❌ FALLA: Variables de entorno no configuradas")
             return False
             
-        # Probar importación y configuración
-        import cloudinary
-        import cloudinary.uploader
+        # Probar importación y configuración de Supabase Storage
+        from supabase_storage_manager import SupabaseStorageManager
         
-        cloudinary.config(
-            cloud_name=cloud_name,
-            api_key=api_key,
-            api_secret=api_secret,
-            secure=True
-        )
+        storage = SupabaseStorageManager()
         
-        # Test de conectividad (ping)
-        result = cloudinary.api.ping()
-        print(f"✅ CONECTIVIDAD: {result.get('status', 'OK')}")
+        if not storage.is_available():
+            print("❌ FALLA: Supabase Storage no disponible")
+            return False
+        
+        # Test de conectividad con estadísticas
+        stats = storage.obtener_estadisticas()
+        if "error" in stats:
+            print(f"❌ FALLA: {stats['error']}")
+            return False
+        
+        print(f"✅ CONECTIVIDAD: OK")
+        print(f"✅ PDFs almacenados: {stats.get('total_pdfs', 0)}")
+        print(f"✅ Bucket: {stats.get('bucket_name', 'N/A')}")
         
         return True
         
     except ImportError:
-        print("❌ FALLA: Biblioteca cloudinary no instalada")
-        print("   Ejecuta: pip install cloudinary")
+        print("❌ FALLA: Módulo supabase_storage_manager no disponible")
         return False
         
     except Exception as e:
@@ -157,23 +158,23 @@ def test_end_to_end():
         return False
     
     try:
-        # Test Cloudinary upload
-        from cloudinary_manager import CloudinaryManager
+        # Test Supabase Storage upload
+        from supabase_storage_manager import SupabaseStorageManager
         
-        cm = CloudinaryManager()
-        if not cm.cloudinary_available:
-            print("❌ FALLA: CloudinaryManager no disponible")
+        storage = SupabaseStorageManager()
+        if not storage.is_available():
+            print("❌ FALLA: SupabaseStorageManager no disponible")
             return False
             
         # Subir PDF de prueba
         numero_test = f"TEST-PERM-{int(datetime.datetime.now().timestamp())}"
-        resultado = cm.subir_pdf(pdf_path, numero_test, es_nueva=True)
+        resultado = storage.subir_pdf(pdf_path, numero_test, es_nueva=True)
         
         if "error" in resultado:
-            print(f"❌ CLOUDINARY FALLA: {resultado['error']}")
+            print(f"❌ SUPABASE STORAGE FALLA: {resultado['error']}")
             return False
         
-        print(f"✅ CLOUDINARY OK: PDF subido a {resultado['url']}")
+        print(f"✅ SUPABASE STORAGE OK: PDF subido a {resultado['url']}")
         
         # Test Supabase save
         from supabase_manager import SupabaseManager
@@ -216,15 +217,14 @@ def print_configuration_guide():
     print("""
 📋 PASOS PARA CONFIGURACIÓN COMPLETA:
 
-1️⃣  CLOUDINARY (25GB gratis para PDFs):
-   • Ve a: https://cloudinary.com/users/register_free
-   • Crea cuenta gratuita
-   • Ve a Dashboard > Configuración
-   • Copia las credenciales a Render:
+1️⃣  SUPABASE STORAGE (integrado con PostgreSQL):
+   • Ve a: https://supabase.com/dashboard
+   • Ve a Settings > API
+   • Asegúrate de tener creado el bucket 'cotizaciones-pdfs'
+   • Las credenciales son las mismas que para PostgreSQL:
    
-   CLOUDINARY_CLOUD_NAME=tu_cloud_name
-   CLOUDINARY_API_KEY=tu_api_key  
-   CLOUDINARY_API_SECRET=tu_api_secret
+   SUPABASE_URL=https://[REF].supabase.co
+   SUPABASE_ANON_KEY=[TU_ANON_KEY]
 
 2️⃣  SUPABASE (PostgreSQL gratis):
    • Ve a: https://supabase.com/dashboard
@@ -253,16 +253,16 @@ def main():
     print("=" * 60)
     
     # Tests individuales
-    cloudinary_ok = test_cloudinary()
+    supabase_storage_ok = test_supabase_storage()
     supabase_ok = test_supabase()
     
     print("\n" + "="*60)
     print("📊 RESUMEN DE CONFIGURACIÓN:")
     print("-" * 60)
-    print(f"Cloudinary (PDFs):  {'✅ OK' if cloudinary_ok else '❌ FALLA'}")
+    print(f"Supabase Storage:   {'✅ OK' if supabase_storage_ok else '❌ FALLA'}")
     print(f"Supabase (Datos):   {'✅ OK' if supabase_ok else '❌ FALLA'}")
     
-    if cloudinary_ok and supabase_ok:
+    if supabase_storage_ok and supabase_ok:
         print("\n🎉 ¡CONFIGURACIÓN COMPLETA! Probando end-to-end...")
         e2e_ok = test_end_to_end()
         print(f"Test End-to-End:    {'✅ OK' if e2e_ok else '❌ FALLA'}")

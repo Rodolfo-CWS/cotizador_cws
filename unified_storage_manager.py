@@ -6,7 +6,7 @@ UNIFIED STORAGE MANAGER - Sistema Integrado de Almacenamiento
 
 Administrador unificado que integra todos los sistemas de almacenamiento:
 - Supabase PostgreSQL (datos principales)
-- Cloudinary (PDFs permanentes con CDN)
+- Supabase Storage (PDFs integrados)
 - Google Drive (PDFs antiguos del administrador)
 - JSON Local (sistema offline con sincronización)
 
@@ -32,7 +32,8 @@ from pathlib import Path
 
 # Managers existentes
 from supabase_manager import SupabaseManager
-from cloudinary_manager import CloudinaryManager
+# CloudinaryManager eliminado - migrado a Supabase Storage
+from supabase_storage_manager import SupabaseStorageManager
 from google_drive_client import GoogleDriveClient
 
 # Configuración de logging
@@ -77,7 +78,7 @@ class StorageResult:
 class HealthStatus:
     """Estado de salud del sistema"""
     supabase: StorageStatus
-    cloudinary: StorageStatus
+    supabase_storage: StorageStatus
     google_drive: StorageStatus
     json_local: StorageStatus
     overall_health: float
@@ -109,7 +110,7 @@ class UnifiedStorageManager:
         
         # Inicializar sistemas de almacenamiento
         self.supabase = SupabaseManager()
-        self.cloudinary = CloudinaryManager()
+        self.supabase_storage = SupabaseStorageManager()
         self.google_drive = GoogleDriveClient()
         
         # Estado del sistema
@@ -184,8 +185,8 @@ class UnifiedStorageManager:
             # Verificar Supabase
             supabase_status = StorageStatus.ONLINE if not self.supabase.modo_offline else StorageStatus.OFFLINE
             
-            # Verificar Cloudinary
-            cloudinary_status = StorageStatus.ONLINE if self.cloudinary.is_available() else StorageStatus.OFFLINE
+            # Verificar Supabase Storage
+            supabase_storage_status = StorageStatus.ONLINE if self.supabase_storage.is_available() else StorageStatus.OFFLINE
             
             # Verificar Google Drive
             google_drive_status = StorageStatus.ONLINE if self.google_drive.is_available() else StorageStatus.OFFLINE
@@ -196,7 +197,7 @@ class UnifiedStorageManager:
             # Calcular salud general (porcentaje de sistemas online)
             online_systems = sum([
                 supabase_status == StorageStatus.ONLINE,
-                cloudinary_status == StorageStatus.ONLINE,
+                supabase_storage_status == StorageStatus.ONLINE,
                 google_drive_status == StorageStatus.ONLINE,
                 json_local_status == StorageStatus.ONLINE
             ])
@@ -206,14 +207,14 @@ class UnifiedStorageManager:
             issues = []
             if supabase_status == StorageStatus.OFFLINE:
                 issues.append("Supabase no disponible - usando fallback JSON")
-            if cloudinary_status == StorageStatus.OFFLINE:
-                issues.append("Cloudinary no disponible - usando Google Drive/Local")
+            if supabase_storage_status == StorageStatus.OFFLINE:
+                issues.append("Supabase Storage no disponible - usando Google Drive/Local")
             if google_drive_status == StorageStatus.OFFLINE:
                 issues.append("Google Drive no disponible - sin acceso a PDFs antiguos")
             
             self.system_health = HealthStatus(
                 supabase=supabase_status,
-                cloudinary=cloudinary_status,
+                supabase_storage=supabase_storage_status,
                 google_drive=google_drive_status,
                 json_local=json_local_status,
                 overall_health=overall_health,
@@ -234,7 +235,7 @@ class UnifiedStorageManager:
             logger.error(f"❌ [HEALTH] Error verificando salud del sistema: {e}")
             return HealthStatus(
                 supabase=StorageStatus.ERROR,
-                cloudinary=StorageStatus.ERROR,
+                supabase_storage=StorageStatus.ERROR,
                 google_drive=StorageStatus.ERROR,
                 json_local=StorageStatus.ERROR,
                 overall_health=0.0,
@@ -376,27 +377,27 @@ class UnifiedStorageManager:
                 results = {}
                 primary_success = False
                 
-                # 1. Intentar Cloudinary (principal)
-                if self.system_health.cloudinary == StorageStatus.ONLINE:
+                # 1. Intentar Supabase Storage (principal)
+                if self.system_health.supabase_storage == StorageStatus.ONLINE:
                     try:
-                        cloudinary_result = self.cloudinary.subir_pdf(
+                        supabase_storage_result = self.supabase_storage.subir_pdf(
                             temp_file_path,
                             numero_cotizacion,
                             es_nueva=True
                         )
-                        results["cloudinary"] = cloudinary_result
+                        results["supabase_storage"] = supabase_storage_result
                         
-                        if not cloudinary_result.get("error"):
+                        if not supabase_storage_result.get("error"):
                             primary_success = True
-                            logger.info("✅ [CLOUDINARY] PDF subido al sistema principal")
+                            logger.info("✅ [SUPABASE_STORAGE] PDF subido al sistema principal")
                         else:
-                            logger.error(f"❌ [CLOUDINARY] Error: {cloudinary_result.get('error')}")
+                            logger.error(f"❌ [SUPABASE_STORAGE] Error: {supabase_storage_result.get('error')}")
                             
                     except Exception as e:
-                        logger.error(f"❌ [CLOUDINARY] Excepción: {e}")
-                        results["cloudinary"] = {"error": str(e)}
+                        logger.error(f"❌ [SUPABASE_STORAGE] Excepción: {e}")
+                        results["supabase_storage"] = {"error": str(e)}
                 
-                # 2. Google Drive (fallback si Cloudinary falló)
+                # 2. Google Drive (fallback si Supabase Storage falló)
                 if not primary_success and self.system_health.google_drive == StorageStatus.ONLINE:
                     try:
                         # Preparar metadata para Google Drive
@@ -453,7 +454,7 @@ class UnifiedStorageManager:
                         operation_id=operation_id,
                         operation_type=OperationType.CREATE,
                         data={"pdf_content": pdf_content, "cotizacion": cotizacion_data},
-                        target_systems=["cloudinary", "google_drive"],
+                        target_systems=["supabase_storage", "google_drive"],
                         created_at=datetime.datetime.now()
                     ))
                 
@@ -468,7 +469,7 @@ class UnifiedStorageManager:
                 return StorageResult(
                     success=overall_success,
                     data=results,
-                    source="cloudinary" if results.get("cloudinary", {}).get("success") else "google_drive" if results.get("google_drive", {}).get("success") else "local",
+                    source="supabase_storage" if results.get("supabase_storage", {}).get("success") else "google_drive" if results.get("google_drive", {}).get("success") else "local",
                     operation_id=operation_id
                 )
                 
@@ -872,9 +873,9 @@ class UnifiedStorageManager:
                         "status": self.system_health.supabase.value if self.system_health else "unknown",
                         "modo_offline": getattr(self.supabase, 'modo_offline', None)
                     },
-                    "cloudinary": {
-                        "status": self.system_health.cloudinary.value if self.system_health else "unknown",
-                        "available": self.cloudinary.is_available()
+                    "supabase_storage": {
+                        "status": self.system_health.supabase_storage.value if self.system_health else "unknown",
+                        "available": self.supabase_storage.is_available()
                     },
                     "google_drive": {
                         "status": self.system_health.google_drive.value if self.system_health else "unknown",

@@ -6,7 +6,7 @@ MIGRATION SCRIPTS - CWS COTIZADOR UNIFIED SYSTEM
 
 Scripts para migrar del sistema actual al nuevo sistema unificado que integra:
 - Supabase PostgreSQL (principal)
-- Cloudinary (PDFs con CDN)
+- Supabase Storage (PDFs integrados)
 - Google Drive (PDFs antiguos del admin)
 - Sistema offline con sincronización automática
 

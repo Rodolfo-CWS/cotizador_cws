@@ -43,8 +43,7 @@ gunicorn==21.2.0
 google-api-python-client==2.144.0
 google-auth==2.27.0
 
-# Cloudinary para almacenamiento de PDFs (25GB gratis)
-cloudinary==1.36.0
+# Cloudinary eliminado - migrado a Supabase Storage
 
 # Scheduler para sincronización automática
 APScheduler==3.10.4

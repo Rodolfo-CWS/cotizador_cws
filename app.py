@@ -1352,7 +1352,7 @@ def buscar():
         except Exception as e:
             print(f"[DB] Error buscando cotizaciones: {e}")
         
-        # PASO 2: Buscar en PDFs (Cloudinary + Google Drive + Local)
+        # PASO 2: Buscar en PDFs (Supabase Storage + Google Drive + Local)
         resultados_pdfs = []
         try:
             if pdf_manager:
@@ -1720,19 +1720,19 @@ def servir_pdf(numero_cotizacion):
             return jsonify({"error": resultado["error"]}), 500
         
         if not resultado["encontrado"]:
-            return jsonify({"error": f"PDF '{numero_cotizacion}' no encontrado en Cloudinary, Google Drive ni localmente"}), 404
+            return jsonify({"error": f"PDF '{numero_cotizacion}' no encontrado en Supabase Storage, Google Drive ni localmente"}), 404
         
         # Servir el archivo PDF
         ruta_completa = resultado["ruta_completa"]
         tipo_fuente = resultado.get("tipo", "local")
         
-        # Si es un PDF de Supabase Storage o Cloudinary, redirigir a su URL directa
-        if (tipo_fuente in ["supabase_storage", "cloudinary"] or 
+        # Si es un PDF de Supabase Storage, redirigir a su URL directa
+        if (tipo_fuente in ["supabase_storage"] or 
             ruta_completa.startswith("https://")):
             
             fuente_nombre = {
                 "supabase_storage": "Supabase Storage",
-                "cloudinary": "Cloudinary"
+                # Cloudinary eliminado
             }.get(tipo_fuente, "URL directa")
             
             print(f"PDF: Redirigiendo a PDF de {fuente_nombre}: {numero_cotizacion}")
@@ -4038,17 +4038,16 @@ def debug_sistema():
     try:
         import os
         import sys
-        # Verificar variables de entorno
-        cloudinary_vars = {
-            'CLOUDINARY_CLOUD_NAME': bool(os.getenv('CLOUDINARY_CLOUD_NAME')),
-            'CLOUDINARY_API_KEY': bool(os.getenv('CLOUDINARY_API_KEY')), 
-            'CLOUDINARY_API_SECRET': bool(os.getenv('CLOUDINARY_API_SECRET'))
+        # Verificar variables de entorno de Supabase Storage
+        supabase_storage_vars = {
+            'SUPABASE_URL': bool(os.getenv('SUPABASE_URL')),
+            'SUPABASE_ANON_KEY': bool(os.getenv('SUPABASE_ANON_KEY'))
         }
         
         # Estado de managers
         estado_managers = {
             'supabase_offline': db_manager.modo_offline,
-            'cloudinary_disponible': pdf_manager.cloudinary_disponible if pdf_manager else False,
+            'supabase_storage_disponible': pdf_manager.supabase_storage_disponible if pdf_manager else False,
             'drive_disponible': pdf_manager.drive_client.is_available() if pdf_manager else False
         }
         
@@ -4060,7 +4059,7 @@ def debug_sistema():
         }
         
         return jsonify({
-            'cloudinary': cloudinary_vars,
+            'supabase_storage': supabase_storage_vars,
             'managers': estado_managers, 
             'environment': env_vars,
             'render_environment': bool(os.getenv('RENDER')),
@@ -4184,14 +4183,14 @@ def scheduler_sync_manual():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/admin/cloudinary/estado")
-def cloudinary_estado():
-    """Obtiene el estado de Cloudinary"""
+@app.route("/admin/supabase-storage/estado")
+def supabase_storage_estado():
+    """Obtiene el estado de Supabase Storage"""
     try:
-        if not pdf_manager or not pdf_manager.cloudinary_manager:
-            return jsonify({"error": "Cloudinary no disponible"}), 503
+        if not pdf_manager or not pdf_manager.supabase_storage:
+            return jsonify({"error": "Supabase Storage no disponible"}), 503
         
-        stats = pdf_manager.cloudinary_manager.obtener_estadisticas()
+        stats = pdf_manager.supabase_storage.obtener_estadisticas()
         
         if "error" in stats:
             return jsonify(stats), 500
@@ -4200,6 +4199,74 @@ def cloudinary_estado():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/admin/storage-diagnostic")
+def storage_diagnostic():
+    """Diagnóstico completo del Storage para producción"""
+    try:
+        import os
+        diagnostic = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "environment": "RENDER" if os.getenv("RENDER") else "LOCAL",
+            "supabase_config": {
+                "url_configured": bool(os.getenv("SUPABASE_URL")),
+                "anon_key_configured": bool(os.getenv("SUPABASE_ANON_KEY")),
+                "url_preview": os.getenv("SUPABASE_URL", "NOT_SET")[:50] + "..." if os.getenv("SUPABASE_URL") else "NOT_SET"
+            },
+            "pdf_manager_status": {},
+            "storage_test": {}
+        }
+        
+        # Test PDF Manager
+        if pdf_manager:
+            try:
+                diagnostic["pdf_manager_status"] = {
+                    "initialized": True,
+                    "supabase_storage_available": getattr(pdf_manager, 'supabase_storage_disponible', False),
+                    "google_drive_available": pdf_manager.drive_client.is_available() if pdf_manager.drive_client else False,
+                    "base_pdf_path": str(pdf_manager.base_pdf_path) if hasattr(pdf_manager, 'base_pdf_path') else "NOT_SET"
+                }
+                
+                # Test Storage directo
+                if hasattr(pdf_manager, 'supabase_storage'):
+                    try:
+                        storage_available = pdf_manager.supabase_storage.is_available()
+                        diagnostic["storage_test"] = {
+                            "supabase_storage_available": storage_available,
+                            "error": None
+                        }
+                        
+                        if storage_available:
+                            # Test de estadísticas
+                            try:
+                                stats = pdf_manager.supabase_storage.obtener_estadisticas()
+                                diagnostic["storage_test"]["stats"] = stats
+                            except Exception as stats_error:
+                                diagnostic["storage_test"]["stats_error"] = str(stats_error)
+                    except Exception as storage_error:
+                        diagnostic["storage_test"] = {
+                            "supabase_storage_available": False,
+                            "error": str(storage_error)
+                        }
+                        
+            except Exception as pdf_manager_error:
+                diagnostic["pdf_manager_status"] = {
+                    "initialized": False,
+                    "error": str(pdf_manager_error)
+                }
+        else:
+            diagnostic["pdf_manager_status"] = {
+                "initialized": False,
+                "error": "pdf_manager is None"
+            }
+            
+        return jsonify(diagnostic)
+        
+    except Exception as e:
+        return jsonify({
+            "error": f"Error en diagnóstico de storage: {str(e)}",
+            "timestamp": datetime.datetime.now().isoformat()
+        }), 500
 
 # ============================================
 # EJECUTAR APLICACIÓN
