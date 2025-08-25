@@ -958,6 +958,259 @@ class SupabaseManager:
             print(f"[VERIFICAR_UNICO] Error: {error_msg}")
             return True  # Si hay error, asumir que es único para no bloquear
     
+    def sincronizar_bidireccional(self) -> dict:
+        """
+        Sincronización bidireccional mejorada: JSON ↔ Supabase PostgreSQL
+        Adaptado de la lógica original de MongoDB para múltiples dispositivos
+        
+        Estrategia:
+        1. JSON a Supabase: Subir cambios locales
+        2. Supabase a JSON: Descargar cambios remotos  
+        3. Resolución de conflictos: Last-write-wins basado en timestamp
+        
+        Returns:
+            Dict con resultado detallado de la sincronización
+        """
+        if self.modo_offline:
+            return {
+                "success": False,
+                "error": "Supabase no disponible - en modo offline",
+                "subidas": 0,
+                "descargas": 0,
+                "conflictos": 0
+            }
+        
+        print("[SYNC_BIDIRECCIONAL] Iniciando sincronización bidireccional...")
+        
+        try:
+            # Cargar datos JSON local
+            datos_offline = self._cargar_datos_offline()
+            cotizaciones_json = {cot.get("numeroCotizacion"): cot for cot in datos_offline.get("cotizaciones", []) if cot.get("numeroCotizacion")}
+            
+            # Obtener todas las cotizaciones de Supabase PostgreSQL
+            cotizaciones_supabase = {}
+            try:
+                cursor = self.pg_connection.cursor()
+                cursor.execute("SELECT * FROM cotizaciones ORDER BY numero_cotizacion;")
+                resultados = cursor.fetchall()
+                
+                for row in resultados:
+                    # Reconstruir estructura de cotización desde PostgreSQL
+                    numero = row['numero_cotizacion']
+                    cotizacion = {
+                        'numeroCotizacion': numero,
+                        'datosGenerales': row['datos_generales'],  # JSONB field
+                        'items': row['items'],  # JSONB field
+                        'revision': row['revision'],
+                        'version': row['version'],
+                        'timestamp': row['timestamp'],
+                        'fechaCreacion': row['fecha_creacion'].isoformat() if row['fecha_creacion'] else None,
+                        'usuario': row['usuario'],
+                        'observaciones': row['observaciones'],
+                        'id': row['id']
+                    }
+                    cotizaciones_supabase[numero] = cotizacion
+                
+                cursor.close()
+                print(f"[SYNC] Supabase: {len(cotizaciones_supabase)} cotizaciones")
+            except Exception as e:
+                print(f"[SYNC] Error leyendo Supabase: {e}")
+                return {"success": False, "error": str(e)}
+            
+            print(f"[SYNC] JSON local: {len(cotizaciones_json)} cotizaciones")
+            
+            # Contadores
+            subidas = 0      # JSON a Supabase
+            descargas = 0    # Supabase a JSON  
+            conflictos = 0   # Resueltos por timestamp
+            errores = 0
+            
+            # FASE 1: JSON a Supabase (subir cambios locales)
+            print("[SYNC_FASE_1] JSON a Supabase")
+            
+            for numero, cot_json in cotizaciones_json.items():
+                try:
+                    cot_supabase = cotizaciones_supabase.get(numero)
+                    
+                    if not cot_supabase:
+                        # No existe en Supabase, subir
+                        cot_limpia = self._limpiar_cotizacion_para_supabase(cot_json)
+                        resultado_guardado = self._guardar_cotizacion_supabase(cot_limpia)
+                        
+                        if resultado_guardado.get("success"):
+                            subidas += 1
+                            print(f"[SUBIDA] Nueva: {numero}")
+                        else:
+                            print(f"[SUBIDA_ERROR] {numero}: {resultado_guardado.get('error', 'Error desconocido')}")
+                            errores += 1
+                        
+                    else:
+                        # Existe en ambos, verificar timestamps
+                        ts_json = cot_json.get("timestamp", 0)
+                        ts_supabase = cot_supabase.get("timestamp", 0)
+                        
+                        if ts_json > ts_supabase:
+                            # JSON más reciente, actualizar Supabase
+                            cot_limpia = self._limpiar_cotizacion_para_supabase(cot_json)
+                            
+                            # Actualizar en Supabase usando UPDATE
+                            cursor = self.pg_connection.cursor()
+                            cursor.execute("""
+                                UPDATE cotizaciones 
+                                SET datos_generales = %s, items = %s, revision = %s, 
+                                    version = %s, timestamp = %s, usuario = %s, 
+                                    observaciones = %s, updated_at = NOW()
+                                WHERE numero_cotizacion = %s
+                            """, (
+                                Json(cot_limpia['datosGenerales']),
+                                Json(cot_limpia['items']),
+                                cot_limpia['revision'],
+                                cot_limpia['version'],
+                                cot_limpia['timestamp'],
+                                cot_limpia.get('usuario'),
+                                cot_limpia.get('observaciones'),
+                                numero
+                            ))
+                            self.pg_connection.commit()
+                            cursor.close()
+                            
+                            subidas += 1
+                            conflictos += 1
+                            print(f"[CONFLICTO] JSON más reciente: {numero}")
+                            
+                except Exception as e:
+                    print(f"[SUBIDA_ERROR] {numero}: {e}")
+                    errores += 1
+            
+            # FASE 2: Supabase a JSON (descargar cambios remotos)  
+            print("[SYNC_FASE_2] Supabase a JSON")
+            
+            cotizaciones_json_actualizadas = cotizaciones_json.copy()
+            
+            for numero, cot_supabase in cotizaciones_supabase.items():
+                try:
+                    cot_json = cotizaciones_json.get(numero)
+                    
+                    if not cot_json:
+                        # No existe en JSON, descargar
+                        cot_limpia = self._limpiar_cotizacion_para_json(cot_supabase)
+                        cotizaciones_json_actualizadas[numero] = cot_limpia
+                        descargas += 1
+                        print(f"[DESCARGA] Nueva: {numero}")
+                        
+                    else:
+                        # Existe en ambos, verificar timestamps
+                        ts_json = cot_json.get("timestamp", 0)
+                        ts_supabase = cot_supabase.get("timestamp", 0)
+                        
+                        if ts_supabase > ts_json:
+                            # Supabase más reciente, actualizar JSON
+                            cot_limpia = self._limpiar_cotizacion_para_json(cot_supabase)
+                            cotizaciones_json_actualizadas[numero] = cot_limpia
+                            descargas += 1
+                            conflictos += 1
+                            print(f"[CONFLICTO] Supabase más reciente: {numero}")
+                            
+                except Exception as e:
+                    print(f"[DESCARGA_ERROR] {numero}: {e}")
+                    errores += 1
+            
+            # FASE 3: Guardar JSON actualizado
+            if descargas > 0:
+                print("[SYNC_FASE_3] Guardando JSON actualizado...")
+                datos_offline["cotizaciones"] = list(cotizaciones_json_actualizadas.values())
+                datos_offline["ultima_sincronizacion"] = datetime.now().isoformat()
+                datos_offline["sincronizaciones"] = datos_offline.get("sincronizaciones", 0) + 1
+                
+                self._guardar_datos_offline(datos_offline)
+            
+            resultado = {
+                "success": True,
+                "timestamp": datetime.now().isoformat(),
+                "subidas": subidas,      # JSON a Supabase
+                "descargas": descargas,  # Supabase a JSON
+                "conflictos": conflictos,
+                "errores": errores,
+                "total_json": len(cotizaciones_json_actualizadas),
+                "total_supabase": len(cotizaciones_supabase),
+                "mensaje": f"Sincronización completada: subidas:{subidas} descargas:{descargas} conflictos:{conflictos} errores:{errores}"
+            }
+            
+            print(f"[SYNC_RESULTADO] {resultado['mensaje']}")
+            return resultado
+            
+        except Exception as e:
+            error_msg = f"Error en sincronización bidireccional: {safe_str(e)}"
+            print(f"[SYNC_ERROR] {error_msg}")
+            return {"success": False, "error": error_msg}
+    
+    def _limpiar_cotizacion_para_supabase(self, cotizacion: dict) -> dict:
+        """Limpia cotización para insertar en Supabase PostgreSQL"""
+        cot_limpia = cotizacion.copy()
+        
+        # Remover campos específicos del JSON offline que no van a Supabase
+        campos_a_remover = ["id", "respaldo_de_mongodb", "fecha_respaldo", "sincronizada", "fecha_sincronizacion"]
+        for campo in campos_a_remover:
+            cot_limpia.pop(campo, None)
+        
+        # Asegurar estructura correcta para Supabase
+        if 'datosGenerales' not in cot_limpia:
+            cot_limpia['datosGenerales'] = {}
+        if 'items' not in cot_limpia:
+            cot_limpia['items'] = []
+        
+        # Valores por defecto
+        cot_limpia.setdefault('revision', 1)
+        cot_limpia.setdefault('version', '1.0.0')
+        cot_limpia.setdefault('timestamp', int(time.time() * 1000))
+        
+        return cot_limpia
+    
+    def _limpiar_cotizacion_para_json(self, cotizacion: dict) -> dict:
+        """Limpia cotización para insertar en JSON offline"""
+        cot_limpia = cotizacion.copy()
+        
+        # Convertir ID de Supabase a string si existe
+        if "id" in cot_limpia:
+            cot_limpia["_id"] = str(cot_limpia["id"])
+        
+        # Marcar como sincronizada
+        cot_limpia["sincronizada"] = True
+        cot_limpia["fecha_sincronizacion"] = datetime.now().isoformat()
+        
+        # Asegurar que fechaCreacion sea string si es datetime
+        if "fechaCreacion" in cot_limpia and hasattr(cot_limpia["fechaCreacion"], "isoformat"):
+            cot_limpia["fechaCreacion"] = cot_limpia["fechaCreacion"].isoformat()
+        
+        return cot_limpia
+    
+    def obtener_estado_sincronizacion(self):
+        """Obtiene información del estado de sincronización"""
+        try:
+            datos_offline = self._cargar_datos_offline()
+            cotizaciones = datos_offline.get("cotizaciones", [])
+            
+            total = len(cotizaciones)
+            sincronizadas = sum(1 for c in cotizaciones if c.get("sincronizada", False))
+            pendientes = total - sincronizadas
+            
+            return {
+                "total": total,
+                "sincronizadas": sincronizadas,
+                "pendientes": pendientes,
+                "ultima_sincronizacion": datos_offline.get("ultima_sincronizacion"),
+                "total_sincronizaciones": datos_offline.get("sincronizaciones", 0),
+                "modo_offline": self.modo_offline
+            }
+            
+        except Exception as e:
+            return {
+                "error": safe_str(e),
+                "total": 0,
+                "sincronizadas": 0,
+                "pendientes": 0
+            }
+    
     def close(self):
         """Cerrar conexiones"""
         if self.pg_connection:

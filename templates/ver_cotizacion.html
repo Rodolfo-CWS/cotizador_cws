@@ -440,17 +440,6 @@
                 </svg>
                 Nueva Revisión
             </a>
-            {% else %}
-            <!-- Debugging temporalmente para identificar problemas -->
-            <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 8px; border-radius: 4px; font-size: 12px; color: #856404;">
-                <strong>DEBUG:</strong> Botón "Nueva Revisión" no disponible.<br>
-                <small>
-                    numeroCotizacion: {{ cotizacion.get('numeroCotizacion', 'NO DISPONIBLE') }}<br>
-                    numero_cotizacion: {{ cotizacion.get('numero_cotizacion', 'NO DISPONIBLE') }}<br>
-                    _id: {{ cotizacion.get('_id', 'NO DISPONIBLE') }}<br>
-                    Campos disponibles: {{ cotizacion.keys() | list | join(', ') }}
-                </small>
-            </div>
             {% endif %}
             <button onclick="window.print()" class="btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">

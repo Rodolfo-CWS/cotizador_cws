@@ -50,18 +50,18 @@ def test_boton_nueva_revision():
                 revision_id = cot.get('numeroCotizacion') or cot.get('numero_cotizacion') or cot.get('_id')
                 boton_disponible = bool(revision_id)
                 
-                print(f"     ✅ Botón 'Nueva Revisión': {'VISIBLE' if boton_disponible else 'OCULTO'}")
+                print(f"     Boton 'Nueva Revision': {'VISIBLE' if boton_disponible else 'OCULTO'}")
                 if boton_disponible:
                     print(f"     URL: /formulario?revision={revision_id}")
         else:
-            print("   ⚠️ No se encontraron cotizaciones de prueba")
+            print("   [WARNING] No se encontraron cotizaciones de prueba")
             return False
         
-        print("\n✅ Test de botón completado")
+        print("\nTest de boton completado")
         return True
         
     except Exception as e:
-        print(f"\n❌ ERROR en test de botón: {e}")
+        print(f"\n[ERROR] ERROR en test de botón: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -105,28 +105,28 @@ def test_flujo_nueva_revision():
                 revision_nueva = datos_generales.get('revision', 'N/A')
                 numero_nuevo = datos_generales.get('numeroCotizacion', 'N/A')
                 
-                print(f"   ✅ Revisión incrementada: {revision_nueva}")
-                print(f"   ✅ Número nuevo: {numero_nuevo}")
+                print(f"   [OK] Revisión incrementada: {revision_nueva}")
+                print(f"   [OK] Número nuevo: {numero_nuevo}")
                 
                 # Verificar que el número cambió
                 if numero_nuevo != numero_original:
-                    print(f"   ✅ Número actualizado correctamente")
+                    print(f"   [OK] Número actualizado correctamente")
                 else:
-                    print(f"   ⚠️ Número no cambió: {numero_original} → {numero_nuevo}")
+                    print(f"   [WARNING] Número no cambió: {numero_original} → {numero_nuevo}")
                 
                 # Verificar formato de número (debería incluir nuevas iniciales de vendedor)
                 if 'CWS' in numero_nuevo:
-                    print(f"   ✅ Formato CWS correcto")
+                    print(f"   [OK] Formato CWS correcto")
                 else:
-                    print(f"   ⚠️ Formato CWS incorrecto: {numero_nuevo}")
+                    print(f"   [WARNING] Formato CWS incorrecto: {numero_nuevo}")
                 
                 # Verificar que mantiene los datos originales
                 items_originales = len(cotizacion_original.get('items', []))
                 items_revision = len(datos_revision.get('items', []))
-                print(f"   ✅ Items preservados: {items_originales} → {items_revision}")
+                print(f"   [OK] Items preservados: {items_originales} → {items_revision}")
                 
             except Exception as e:
-                print(f"   ❌ Error preparando revisión: {e}")
+                print(f"   [ERROR] Error preparando revisión: {e}")
                 return False
             
             # Test 2: Simular obtención de cotización por número (como en formulario)
@@ -134,11 +134,11 @@ def test_flujo_nueva_revision():
             resultado_obtencion = db_manager.obtener_cotizacion(numero_original)
             
             if resultado_obtencion.get('encontrado'):
-                print(f"   ✅ Cotización encontrada por número: {numero_original}")
+                print(f"   [OK] Cotización encontrada por número: {numero_original}")
                 cotizacion_encontrada = resultado_obtencion['item']
-                print(f"   ✅ Campos disponibles: {list(cotizacion_encontrada.keys())}")
+                print(f"   [OK] Campos disponibles: {list(cotizacion_encontrada.keys())}")
             else:
-                print(f"   ⚠️ Cotización no encontrada por número: {numero_original}")
+                print(f"   [WARNING] Cotización no encontrada por número: {numero_original}")
             
             # Test 3: Verificar que la función generar_numero_revision funciona
             print("\n5. Probando generación de número de revisión...")
@@ -147,23 +147,23 @@ def test_flujo_nueva_revision():
                     numero_r2 = db_manager.generar_numero_revision(numero_original, "2")
                     numero_r3 = db_manager.generar_numero_revision(numero_original, "3")
                     
-                    print(f"   ✅ R1: {numero_original}")
-                    print(f"   ✅ R2: {numero_r2}")
-                    print(f"   ✅ R3: {numero_r3}")
+                    print(f"   [OK] R1: {numero_original}")
+                    print(f"   [OK] R2: {numero_r2}")
+                    print(f"   [OK] R3: {numero_r3}")
                 else:
-                    print(f"   ⚠️ Función generar_numero_revision no disponible")
+                    print(f"   [WARNING] Función generar_numero_revision no disponible")
             except Exception as e:
-                print(f"   ⚠️ Error generando números de revisión: {e}")
+                print(f"   [WARNING] Error generando números de revisión: {e}")
         
         else:
-            print("   ⚠️ No se encontraron cotizaciones para probar")
+            print("   [WARNING] No se encontraron cotizaciones para probar")
             return False
         
-        print("\n✅ Test de flujo completado exitosamente")
+        print("\n[OK] Test de flujo completado exitosamente")
         return True
         
     except Exception as e:
-        print(f"\n❌ ERROR en test de flujo: {e}")
+        print(f"\n[ERROR] ERROR en test de flujo: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -195,19 +195,19 @@ def test_template_debugging():
             print(f"   Resultado final: {repr(numero_cotizacion)}")
             
             if numero_cotizacion:
-                print(f"\n   ✅ BOTÓN VISIBLE - URL: /formulario?revision={numero_cotizacion}")
+                print(f"\n   [OK] BOTÓN VISIBLE - URL: /formulario?revision={numero_cotizacion}")
             else:
-                print(f"\n   ❌ BOTÓN OCULTO")
+                print(f"\n   [ERROR] BOTÓN OCULTO")
                 print(f"   Campos disponibles: {list(cotizacion.keys())}")
         
         return True
         
     except Exception as e:
-        print(f"\n❌ ERROR en test de template: {e}")
+        print(f"\n[ERROR] ERROR en test de template: {e}")
         return False
 
 if __name__ == "__main__":
-    print("🔄 INICIANDO TESTS DE NUEVA REVISIÓN")
+    print("INICIANDO TESTS DE NUEVA REVISION")
     
     # Test 1: Verificar botón
     boton_ok = test_boton_nueva_revision()
@@ -220,15 +220,15 @@ if __name__ == "__main__":
     
     # Resumen
     print(f"\n{'='*50}")
-    print("📊 RESUMEN DE TESTS:")
-    print(f"   Botón Nueva Revisión: {'✅ OK' if boton_ok else '❌ FALLA'}")
-    print(f"   Flujo de Revisión: {'✅ OK' if flujo_ok else '❌ FALLA'}")
-    print(f"   Template Debugging: {'✅ OK' if template_ok else '❌ FALLA'}")
+    print("[SUMMARY] RESUMEN DE TESTS:")
+    print(f"   Botón Nueva Revisión: {'[OK] OK' if boton_ok else '[ERROR] FALLA'}")
+    print(f"   Flujo de Revisión: {'[OK] OK' if flujo_ok else '[ERROR] FALLA'}")
+    print(f"   Template Debugging: {'[OK] OK' if template_ok else '[ERROR] FALLA'}")
     
     if boton_ok and flujo_ok and template_ok:
-        print(f"\n🎉 TODOS LOS TESTS PASARON - NUEVA REVISIÓN FUNCIONAL")
+        print(f"\n[SUCCESS] TODOS LOS TESTS PASARON - NUEVA REVISIÓN FUNCIONAL")
     else:
-        print(f"\n⚠️ ALGUNOS TESTS FALLARON - REVISAR CONFIGURACIÓN")
+        print(f"\n[WARNING] ALGUNOS TESTS FALLARON - REVISAR CONFIGURACIÓN")
     
     print("\nPara probar manualmente:")
     print("1. Ir a cualquier desglose de cotización")

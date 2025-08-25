@@ -1,5 +1,5 @@
 """
-Sync Scheduler - Sistema de sincronización automática JSON ↔ MongoDB
+Sync Scheduler - Sistema de sincronizacion automatica JSON a Supabase
 Utiliza APScheduler para sincronizar cada 15 minutos (configurable)
 """
 
@@ -89,7 +89,7 @@ class SyncScheduler:
                 func=self._ejecutar_sincronizacion,
                 trigger=self.IntervalTrigger(minutes=self.intervalo_minutos),
                 id='sync_bidireccional',
-                name='Sincronización Bidireccional JSON ↔ MongoDB',
+                name='Sincronizacion Bidireccional JSON a Supabase',
                 max_instances=1,  # Solo una instancia a la vez
                 coalesce=True,    # Combinar ejecuciones pendientes
                 replace_existing=True
@@ -128,7 +128,7 @@ class SyncScheduler:
             return True
         
         try:
-            print("🛑 [SYNC_SCHEDULER] Deteniendo scheduler...")
+            print("STOP: [SYNC_SCHEDULER] Deteniendo scheduler...")
             self.scheduler.shutdown(wait=True)
             self.activo = False
             print("OK: [SYNC_SCHEDULER] Scheduler detenido")
@@ -147,9 +147,9 @@ class SyncScheduler:
         try:
             print(f"SYNC: [SYNC_AUTO] Iniciando sincronizacion automatica - {timestamp_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
             
-            # Solo sincronizar si MongoDB está disponible
+            # Solo sincronizar si Supabase está disponible
             if self.db_manager.modo_offline:
-                print("WARNING: [SYNC_AUTO] MongoDB offline - saltando sincronizacion")
+                print("WARNING: [SYNC_AUTO] Supabase offline - saltando sincronizacion")
                 return
             
             # Ejecutar sincronización bidireccional
@@ -183,7 +183,7 @@ class SyncScheduler:
         if self.db_manager.modo_offline:
             resultado = {
                 "success": False,
-                "error": "MongoDB offline - no se puede sincronizar",
+                "error": "Supabase offline - no se puede sincronizar",
                 "timestamp": datetime.datetime.now().isoformat()
             }
         else:
@@ -213,7 +213,7 @@ class SyncScheduler:
             "activo": self.activo,
             "auto_sync_habilitado": self.auto_sync_enabled,
             "intervalo_minutos": self.intervalo_minutos,
-            "mongodb_disponible": not self.db_manager.modo_offline,
+            "supabase_disponible": not self.db_manager.modo_offline,
             "estadisticas": {
                 "sincronizaciones_exitosas": self.sincronizaciones_exitosas,
                 "sincronizaciones_fallidas": self.sincronizaciones_fallidas,
