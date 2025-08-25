@@ -233,63 +233,20 @@ class PDFManager:
                 print("WARNING: [SUPABASE_STORAGE] Sistema primario no disponible, usando fallbacks")
                 supabase_result = {"success": False, "error": "Supabase Storage no configurado"}
             
-            # ===== PASO 2: GOOGLE DRIVE (SISTEMA FALLBACK) =====
-            google_drive_result = {"success": False, "error": "No intentado"}
+            # ===== PASO 2: GOOGLE DRIVE (ELIMINADO PARA PDFs NUEVOS) =====
+            google_drive_result = {"success": False, "error": "Google Drive no se usa para PDFs nuevos"}
             
-            # Solo intentar Google Drive si Supabase falló y está disponible
-            if not supabase_result.get("success", False) and self.drive_client.is_available():
-                print("TARGET: [GOOGLE_DRIVE] Intentando fallback a Google Drive...")
-                
-                try:
-                    # Crear archivo temporal para Google Drive
-                    import tempfile
-                    temp_file = None
-                    
-                    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
-                        temp_file.write(pdf_content)
-                        temp_file_path = temp_file.name
-                    
-                    # Preparar metadata para Google Drive
-                    file_metadata = {
-                        'name': f"{numero_cotizacion}.pdf",
-                        'parents': [self.drive_client.folder_nuevas]  # Usar carpeta nuevas solo como emergencia
-                    }
-                    
-                    from googleapiclient.http import MediaFileUpload
-                    media_body = MediaFileUpload(
-                        temp_file_path,
-                        mimetype='application/pdf',
-                        resumable=True
-                    )
-                    
-                    uploaded_file = self.drive_client.service.files().create(
-                        body=file_metadata,
-                        media_body=media_body,
-                        fields='id,name,size,createdTime'
-                    ).execute()
-                    
-                    google_drive_result = {
-                        "success": True,
-                        "file_id": uploaded_file.get('id'),
-                        "url": f"https://drive.google.com/file/d/{uploaded_file.get('id')}/view",
-                        "bytes": len(pdf_content)
-                    }
-                    print(f"OK: [GOOGLE_DRIVE] PDF subido exitosamente como fallback!")
-                    print(f"   File ID: {uploaded_file.get('id')}")
-                    
-                    # Limpiar archivo temporal
-                    if temp_file_path and os.path.exists(temp_file_path):
-                        os.unlink(temp_file_path)
-                        
-                except Exception as e:
-                    print(f"ERROR: [GOOGLE_DRIVE] Excepcion: {e}")
-                    google_drive_result = {"success": False, "error": str(e)}
-            elif supabase_result.get("success", False):
-                print("OK: [GOOGLE_DRIVE] No necesario - Supabase exitoso")
-                google_drive_result = {"success": False, "error": "No necesario - Supabase exitoso"}
-            else:
-                print("WARNING: [GOOGLE_DRIVE] Sistema fallback no disponible")
-                google_drive_result = {"success": False, "error": "Google Drive no disponible"}
+            # IMPORTANTE: Google Drive NO se usa como fallback para PDFs nuevos
+            # Solo se mantiene para PDFs históricos (solo lectura)
+            print("INFO: [GOOGLE_DRIVE] Saltado - Solo se usa para PDFs históricos, no para nuevos")
+            
+            # El código de Google Drive se ha eliminado intencionalmente
+            # Los PDFs nuevos solo usan: Supabase Storage (primario) + Local (respaldo)
+            
+            # En caso de que se necesite reactivar Google Drive en el futuro:
+            # 1. Solo debe ser para emergencias extremas
+            # 2. Verificar que sea realmente necesario
+            # 3. Considerar usar Supabase Storage que tiene 25GB gratis
             
             # ===== PASO 3: LOCAL (RESPALDO SIEMPRE) =====
             print("LOCAL: [LOCAL] Guardando respaldo local...")

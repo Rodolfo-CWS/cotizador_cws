@@ -221,12 +221,25 @@ class SupabaseManager:
         try:
             numero_cotizacion = datos.get('numeroCotizacion')
             if not numero_cotizacion:
-                # Generar número automáticamente si no existe
-                print("[GUARDAR] Número no provisto, generando automáticamente...")
+                # Generar número usando el sistema consecutivo irrepetible
+                print("[GUARDAR] Número no provisto, generando con sistema consecutivo...")
                 datos_generales = datos.get('datosGenerales', {})
-                numero_cotizacion = self.generar_numero_automatico(datos_generales)
+                
+                # Extraer datos necesarios para generación consecutiva
+                cliente = datos_generales.get('cliente', 'CLIENTE')
+                vendedor = datos_generales.get('vendedor', 'VENDEDOR')  
+                proyecto = datos_generales.get('proyecto', 'PROYECTO')
+                revision = datos_generales.get('revision', 1)
+                
+                print(f"[GUARDAR] Generando consecutivo para: Cliente='{cliente}', Vendedor='{vendedor}', Proyecto='{proyecto}', Rev={revision}")
+                
+                # Usar el método consecutivo irrepetible (no el método viejo)
+                numero_cotizacion = self.generar_numero_cotizacion(cliente, vendedor, proyecto, revision)
                 datos['numeroCotizacion'] = numero_cotizacion
-                print(f"[GUARDAR] Número generado: {numero_cotizacion}")
+                
+                # Actualizar también en datosGenerales para consistencia
+                datos['datosGenerales']['numeroCotizacion'] = numero_cotizacion
+                print(f"[GUARDAR] Número consecutivo generado: {numero_cotizacion}")
             
             print(f"[GUARDAR] Procesando cotización: {numero_cotizacion}")
             
@@ -712,6 +725,238 @@ class SupabaseManager:
             # Fallback simple
             timestamp = int(time.time())
             return f"CWS-AUTO-{timestamp}-R1"
+    
+    def generar_numero_cotizacion(self, cliente, vendedor, proyecto, revision=1):
+        """
+        Genera un número de cotización automáticamente con el formato:
+        CLIENTE-CWS-INICIALES_VENDEDOR-###-R#-PROYECTO
+        
+        Con numeración consecutiva irrepetible usando PostgreSQL atomic operations
+        """
+        try:
+            print(f"[NUMERO_COTIZACION] Generando para: Cliente='{cliente}', Vendedor='{vendedor}', Proyecto='{proyecto}', Revision={revision}")
+            
+            # Normalizar datos de entrada
+            cliente = cliente.upper().replace(" ", "")[:10] if cliente else "CLIENTE"
+            proyecto = proyecto.upper().replace(" ", "")[:10] if proyecto else "PROYECTO"
+            
+            # Obtener las iniciales del vendedor (máximo 2 letras)
+            iniciales_vendedor = ""
+            if vendedor:
+                palabras = vendedor.strip().split()
+                for palabra in palabras[:2]:  # Máximo 2 palabras
+                    if palabra and palabra[0].isalpha():
+                        iniciales_vendedor += palabra[0].upper()
+                if len(iniciales_vendedor) < 2 and len(palabras) > 0:
+                    # Si solo hay una palabra, tomar las primeras 2 letras
+                    primera_palabra = palabras[0]
+                    iniciales_vendedor = primera_palabra[:2].upper()
+            
+            if not iniciales_vendedor:
+                iniciales_vendedor = "XX"
+            
+            print(f"[NUMERO_COTIZACION] Normalizados - Cliente: '{cliente}', Iniciales: '{iniciales_vendedor}', Proyecto: '{proyecto}'")
+            
+            # Generar patrón base para buscar números consecutivos
+            patron_base = f"{cliente}-CWS-{iniciales_vendedor}"
+            numero_consecutivo = self._obtener_siguiente_consecutivo(patron_base)
+            
+            # Formatear número completo
+            numero_cotizacion = f"{cliente}-CWS-{iniciales_vendedor}-{numero_consecutivo:03d}-R{revision}-{proyecto}"
+            
+            print(f"[NUMERO_COTIZACION] Generado: {numero_cotizacion}")
+            return numero_cotizacion
+            
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[NUMERO_COTIZACION] Error generando: {error_msg}")
+            # Fallback a número único basado en timestamp
+            timestamp = int(time.time())
+            return f"CWS-{timestamp}-R{revision}"
+    
+    def generar_numero_revision(self, numero_cotizacion_original, nueva_revision):
+        """
+        Genera un número de cotización para una nueva revisión manteniendo 
+        el mismo número base pero actualizando la revisión
+        Formato: CLIENTE-CWS-INICIALES-###-R#-PROYECTO
+        """
+        try:
+            print(f"[NUMERO_REVISION] Original: '{numero_cotizacion_original}', Nueva revisión: {nueva_revision}")
+            
+            # Patrón para encontrar la revisión: -R seguida de uno o más dígitos-
+            patron = r'-R\d+-'
+            match = re.search(patron, numero_cotizacion_original)
+            
+            if match:
+                # Extraer la parte antes de -R y después de -R#-
+                inicio_revision = match.start()
+                final_revision = match.end()
+                
+                base = numero_cotizacion_original[:inicio_revision]
+                proyecto_parte = numero_cotizacion_original[final_revision:]
+                
+                # Generar nuevo número con la nueva revisión
+                nuevo_numero = f"{base}-R{nueva_revision}-{proyecto_parte}"
+                print(f"[NUMERO_REVISION] Generado: {nuevo_numero}")
+                return nuevo_numero
+            else:
+                # Si no tiene el formato esperado, intentar agregar la revisión
+                print(f"[NUMERO_REVISION] Formato no reconocido, agregando revisión al final")
+                nuevo_numero = f"{numero_cotizacion_original}-R{nueva_revision}"
+                print(f"[NUMERO_REVISION] Generado (fallback): {nuevo_numero}")
+                return nuevo_numero
+                
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[NUMERO_REVISION] Error generando: {error_msg}")
+            return f"{numero_cotizacion_original}-R{nueva_revision}"
+    
+    def _obtener_siguiente_consecutivo(self, patron_base):
+        """
+        Obtiene el siguiente número consecutivo para un patrón base dado
+        Implementa lógica atómica para evitar números duplicados
+        """
+        try:
+            print(f"[CONSECUTIVO] Buscando siguiente para patrón: '{patron_base}'")
+            
+            if self.modo_offline:
+                return self._obtener_consecutivo_offline(patron_base)
+            else:
+                return self._obtener_consecutivo_supabase(patron_base)
+                
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[CONSECUTIVO] Error obteniendo: {error_msg}")
+            return 1
+    
+    def _obtener_consecutivo_supabase(self, patron_base):
+        """Obtener consecutivo usando PostgreSQL con operaciones atómicas"""
+        try:
+            cursor = self.pg_connection.cursor()
+            
+            # Usar FOR UPDATE para prevenir race conditions
+            query = """
+                SELECT numero_cotizacion FROM cotizaciones 
+                WHERE numero_cotizacion LIKE %s 
+                ORDER BY numero_cotizacion DESC
+                FOR UPDATE;
+            """
+            
+            # Buscar cotizaciones que coincidan con el patrón
+            patron_sql = f"{patron_base}%"
+            cursor.execute(query, (patron_sql,))
+            resultados = cursor.fetchall()
+            
+            # Extraer números consecutivos existentes
+            numeros_existentes = []
+            for resultado in resultados:
+                numero_cot = resultado['numero_cotizacion']
+                if numero_cot.startswith(patron_base):
+                    try:
+                        # Extraer el número consecutivo del formato: CLIENTE-CWS-INICIALES-###-R#-PROYECTO
+                        partes = numero_cot.split('-')
+                        if len(partes) >= 4:  # Debe tener al menos: CLIENTE-CWS-INICIALES-###
+                            num_parte = partes[3]  # La parte ### está en el índice 3
+                            if num_parte.isdigit():
+                                num_consecutivo = int(num_parte)
+                                numeros_existentes.append(num_consecutivo)
+                    except (ValueError, IndexError):
+                        continue
+            
+            cursor.close()
+            
+            # Encontrar el siguiente número disponible
+            if not numeros_existentes:
+                siguiente = 1
+            else:
+                siguiente = max(numeros_existentes) + 1
+            
+            print(f"[CONSECUTIVO_SUPABASE] Números existentes: {sorted(numeros_existentes)}")
+            print(f"[CONSECUTIVO_SUPABASE] Siguiente: {siguiente}")
+            
+            return siguiente
+            
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[CONSECUTIVO_SUPABASE] Error: {error_msg}")
+            # Fallback a modo offline
+            return self._obtener_consecutivo_offline(patron_base)
+    
+    def _obtener_consecutivo_offline(self, patron_base):
+        """Obtener consecutivo desde archivo JSON (modo offline)"""
+        try:
+            data = self._cargar_datos_offline()
+            cotizaciones = data.get("cotizaciones", [])
+            
+            # Extraer números consecutivos existentes
+            numeros_existentes = []
+            for cotizacion in cotizaciones:
+                numero_cot = cotizacion.get("numeroCotizacion", "")
+                if numero_cot.startswith(patron_base):
+                    try:
+                        # Extraer el número consecutivo del formato: PATRON-###-R#-PROYECTO
+                        partes = numero_cot.split('-')
+                        if len(partes) >= 4:  # Debe tener al menos: CLIENTE-CWS-INICIALES-###
+                            num_parte = partes[3]  # La parte ### está en el índice 3
+                            if num_parte.isdigit():
+                                num_consecutivo = int(num_parte)
+                                numeros_existentes.append(num_consecutivo)
+                    except (ValueError, IndexError):
+                        continue
+            
+            # Encontrar el siguiente número disponible
+            if not numeros_existentes:
+                siguiente = 1
+            else:
+                siguiente = max(numeros_existentes) + 1
+            
+            print(f"[CONSECUTIVO_OFFLINE] Números existentes: {sorted(numeros_existentes)}")
+            print(f"[CONSECUTIVO_OFFLINE] Siguiente: {siguiente}")
+            
+            return siguiente
+            
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[CONSECUTIVO_OFFLINE] Error: {error_msg}")
+            return 1
+    
+    def verificar_numero_unico(self, numero_cotizacion):
+        """
+        Verifica que un número de cotización no exista ya en la base de datos
+        Devuelve True si es único, False si ya existe
+        """
+        try:
+            if self.modo_offline:
+                data = self._cargar_datos_offline()
+                cotizaciones = data.get("cotizaciones", [])
+                for cot in cotizaciones:
+                    if cot.get("numeroCotizacion") == numero_cotizacion:
+                        return False
+                return True
+            else:
+                try:
+                    cursor = self.pg_connection.cursor()
+                    cursor.execute("""
+                        SELECT COUNT(*) as total FROM cotizaciones 
+                        WHERE numero_cotizacion = %s;
+                    """, (numero_cotizacion,))
+                    count = cursor.fetchone()['total']
+                    cursor.close()
+                    return count == 0
+                except Exception as e:
+                    print(f"[VERIFICAR_UNICO] Error en Supabase: {safe_str(e)}")
+                    # Fallback a offline
+                    data = self._cargar_datos_offline()
+                    cotizaciones = data.get("cotizaciones", [])
+                    for cot in cotizaciones:
+                        if cot.get("numeroCotizacion") == numero_cotizacion:
+                            return False
+                    return True
+                    
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[VERIFICAR_UNICO] Error: {error_msg}")
+            return True  # Si hay error, asumir que es único para no bloquear
     
     def close(self):
         """Cerrar conexiones"""
