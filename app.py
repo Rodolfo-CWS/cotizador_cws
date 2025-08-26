@@ -630,6 +630,9 @@ def generar_pdf_reportlab(datos_cotizacion):
     # Inicializar conversion_note
     conversion_note = None
     
+    # DEBUG: Para forzar deployment y verificar cambios
+    print(f"[PDF_DEBUG] Generando PDF para moneda: {moneda}, tipo_cambio: {tipo_cambio}")
+    
     # ITEMS - Tabla profesional mejorada
     if items:
         story.append(Paragraph("ITEMS DE COTIZACIÓN", subtitle_style))
