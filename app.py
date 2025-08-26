@@ -645,8 +645,8 @@ def generar_pdf_reportlab(datos_cotizacion):
             total_mxn = float(item.get('total', 0))
             precio_unitario_mxn = total_mxn / cantidad if cantidad > 0 else 0
             
-            # Aplicar conversión USD si corresponde (lógica mejorada)
-            if moneda == 'USD' and tipo_cambio > 1.0:  # Mejorado: tipo_cambio > 1.0 en lugar de != 1.0
+            # Aplicar conversión USD si corresponde (lógica corregida)
+            if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
                 total_mostrar = total_mxn / tipo_cambio
                 precio_unitario_mostrar = precio_unitario_mxn / tipo_cambio
                 simbolo_item = 'USD $'
@@ -713,8 +713,8 @@ def generar_pdf_reportlab(datos_cotizacion):
         
         # Las variables moneda y tipo_cambio ya están definidas arriba
         
-        # Aplicar conversión si es USD y tipo de cambio válido (lógica mejorada)
-        if moneda == 'USD' and tipo_cambio > 1.0:  # Consistente con items
+        # Aplicar conversión si es USD y tipo de cambio válido (lógica corregida)
+        if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:  # Consistente con items
             subtotal_mostrar = subtotal / tipo_cambio
             iva_mostrar = iva / tipo_cambio
             total_mostrar = total / tipo_cambio
@@ -796,24 +796,26 @@ def generar_pdf_reportlab(datos_cotizacion):
     # Preparar datos de términos (mejorado para garantizar contenido)
     terminos_data = []
     
-    # Campos de términos con valores por defecto más informativos
+    # Campos de términos usando datos reales del formulario
     campos_terminos = [
         ('Moneda:', condiciones.get('moneda', 'MXN') if condiciones else 'MXN'),
-        ('Tiempo de Entrega:', condiciones.get('tiempoEntrega', 'A definir') if condiciones else 'A definir'),
-        ('Entregar En:', condiciones.get('entregaEn', 'A definir') if condiciones else 'A definir'),
-        ('Términos de Pago:', condiciones.get('terminos', 'A definir') if condiciones else 'A definir'),
-        ('Comentarios:', condiciones.get('comentarios', 'Sin comentarios adicionales') if condiciones else 'Sin comentarios adicionales')
+        ('Tiempo de Entrega:', condiciones.get('tiempoEntrega', '') if condiciones else ''),
+        ('Entregar En:', condiciones.get('entregaEn', '') if condiciones else ''),
+        ('Términos de Pago:', condiciones.get('terminos', '') if condiciones else ''),
+        ('Comentarios:', condiciones.get('comentarios', '') if condiciones else '')
     ]
     
     # Agregar tipo de cambio si es USD
-    if moneda == 'USD' and tipo_cambio > 1.0:
+    if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
         campos_terminos.insert(1, ('Tipo de Cambio:', f'{tipo_cambio:.2f} MXN/USD'))
     
-    # Agregar TODOS los campos (ya no se omiten campos vacíos)
+    # Usar datos reales del formulario, mostrar "A definir" solo si están vacíos
     for label, value in campos_terminos:
-        # Garantizar que siempre hay un valor
-        display_value = value.strip() if value and value.strip() else 'No especificado'
-        terminos_data.append([label, display_value])
+        if value and value.strip():  # Si tiene contenido real, usarlo
+            terminos_data.append([label, value.strip()])
+        else:  # Solo si está vacío, mostrar valor por defecto
+            default_value = 'A definir' if 'Tiempo' in label or 'Entregar' in label or 'Términos' in label else ('Sin comentarios adicionales' if 'Comentarios' in label else 'MXN')
+            terminos_data.append([label, default_value])
     
     # SIEMPRE crear la tabla (eliminar condicional)
     terminos_table = Table(terminos_data, colWidths=[2*inch, 5*inch])
