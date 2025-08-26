@@ -164,10 +164,15 @@
                     </div>
                     
                     <div id="actualizacion-container" style="display: none;" class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Justificación de Actualización:</label>
-                        <textarea name="actualizacionRevision" rows="2" 
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Justificación de Actualización: 
+                            <span class="text-red-500 font-bold">*</span>
+                            <span class="text-xs text-gray-500">(mínimo 10 caracteres)</span>
+                        </label>
+                        <textarea name="actualizacionRevision" rows="3" 
                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                  placeholder="Describa los cambios realizados en esta revisión..."></textarea>
+                                  placeholder="Describa detalladamente los cambios realizados en esta revisión (mínimo 10 caracteres)..."
+                                  minlength="10"></textarea>
                     </div>
                 </div>
             </div>
@@ -1632,12 +1637,30 @@ async function guardarCotizacion() {
             }
         }
 
+        // VALIDACIÓN OBLIGATORIA: Justificación de actualización para revisiones >= 2
         const revision = parseInt(document.querySelector('[name="revision"]')?.value || 1);
         if (revision >= 2) {
-            const actualizacion = document.querySelector('[name="actualizacionRevision"]')?.value?.trim();
-            if (!actualizacion) {
-                alert('Debe proporcionar una justificación para revisiones 2 o superiores.');
-                document.querySelector('[name="actualizacionRevision"]')?.focus();
+            const actualizacionTextarea = document.querySelector('[name="actualizacionRevision"]');
+            const actualizacion = actualizacionTextarea?.value?.trim();
+            if (!actualizacion || actualizacion.length < 10) {
+                // Resaltar el campo con error
+                actualizacionTextarea.style.borderColor = '#dc2626';
+                actualizacionTextarea.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.1)';
+                
+                // Mostrar mensaje de error más informativo
+                const errorMsg = actualizacion ? 
+                    'La justificación debe tener al menos 10 caracteres para explicar los cambios realizados.' :
+                    'Debe proporcionar una justificación detallada para revisiones R2 o superiores.';
+                
+                alert(errorMsg);
+                actualizacionTextarea?.focus();
+                
+                // Remover el estilo de error después de 3 segundos
+                setTimeout(() => {
+                    actualizacionTextarea.style.borderColor = '';
+                    actualizacionTextarea.style.boxShadow = '';
+                }, 3000);
+                
                 return;
             }
         }
@@ -1846,6 +1869,24 @@ async function guardarCotizacion() {
             
         } else {
             const errorMensaje = resultado.error || resultado.detalle || "Error desconocido del servidor";
+            
+            // Manejo específico para errores de validación de justificación
+            if (resultado.campo_requerido === 'actualizacionRevision') {
+                const actualizacionTextarea = document.querySelector('[name="actualizacionRevision"]');
+                if (actualizacionTextarea) {
+                    // Resaltar el campo con error
+                    actualizacionTextarea.style.borderColor = '#dc2626';
+                    actualizacionTextarea.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.1)';
+                    actualizacionTextarea.focus();
+                    
+                    // Remover el estilo de error después de 5 segundos
+                    setTimeout(() => {
+                        actualizacionTextarea.style.borderColor = '';
+                        actualizacionTextarea.style.boxShadow = '';
+                    }, 5000);
+                }
+            }
+            
             alert(`Error al guardar la cotización:\n\n${errorMensaje}\n\nPor favor, verifica los datos e intenta nuevamente.`);
             throw new Error(errorMensaje);
         }

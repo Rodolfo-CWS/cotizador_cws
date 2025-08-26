@@ -639,14 +639,14 @@ def generar_pdf_reportlab(datos_cotizacion):
         items_data = [['ITEM', 'DESCRIPCIÓN', 'CANT.', 'UOM', 'PRECIO UNITARIO', 'TOTAL']]
         subtotal = 0
         
-        # Verificar conversión USD para items (usar misma lógica que totales)
+        # Verificar conversión USD para items (mejorado con debug)
         for i, item in enumerate(items):
             cantidad = float(item.get('cantidad', 0))
             total_mxn = float(item.get('total', 0))
             precio_unitario_mxn = total_mxn / cantidad if cantidad > 0 else 0
             
-            # Aplicar conversión USD si corresponde (misma lógica que totales)
-            if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
+            # Aplicar conversión USD si corresponde (lógica mejorada)
+            if moneda == 'USD' and tipo_cambio > 1.0:  # Mejorado: tipo_cambio > 1.0 en lugar de != 1.0
                 total_mostrar = total_mxn / tipo_cambio
                 precio_unitario_mostrar = precio_unitario_mxn / tipo_cambio
                 simbolo_item = 'USD $'
@@ -713,8 +713,8 @@ def generar_pdf_reportlab(datos_cotizacion):
         
         # Las variables moneda y tipo_cambio ya están definidas arriba
         
-        # Aplicar conversión si es USD y tipo de cambio válido
-        if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
+        # Aplicar conversión si es USD y tipo de cambio válido (lógica mejorada)
+        if moneda == 'USD' and tipo_cambio > 1.0:  # Consistente con items
             subtotal_mostrar = subtotal / tipo_cambio
             iva_mostrar = iva / tipo_cambio
             total_mostrar = total / tipo_cambio
@@ -788,59 +788,60 @@ def generar_pdf_reportlab(datos_cotizacion):
         )
         story.append(Paragraph(f"<i>{conversion_note}</i>", conversion_style))
     
-    # TÉRMINOS Y CONDICIONES - Sección profesional
-    if condiciones:
-        story.append(Spacer(1, 12))
-        story.append(Paragraph("TÉRMINOS Y CONDICIONES", subtitle_style))
-        story.append(Spacer(1, 5))
+    # TÉRMINOS Y CONDICIONES - Sección profesional (SIEMPRE VISIBLE)
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("TÉRMINOS Y CONDICIONES", subtitle_style))
+    story.append(Spacer(1, 5))
+    
+    # Preparar datos de términos (mejorado para garantizar contenido)
+    terminos_data = []
+    
+    # Campos de términos con valores por defecto más informativos
+    campos_terminos = [
+        ('Moneda:', condiciones.get('moneda', 'MXN') if condiciones else 'MXN'),
+        ('Tiempo de Entrega:', condiciones.get('tiempoEntrega', 'A definir') if condiciones else 'A definir'),
+        ('Entregar En:', condiciones.get('entregaEn', 'A definir') if condiciones else 'A definir'),
+        ('Términos de Pago:', condiciones.get('terminos', 'A definir') if condiciones else 'A definir'),
+        ('Comentarios:', condiciones.get('comentarios', 'Sin comentarios adicionales') if condiciones else 'Sin comentarios adicionales')
+    ]
+    
+    # Agregar tipo de cambio si es USD
+    if moneda == 'USD' and tipo_cambio > 1.0:
+        campos_terminos.insert(1, ('Tipo de Cambio:', f'{tipo_cambio:.2f} MXN/USD'))
+    
+    # Agregar TODOS los campos (ya no se omiten campos vacíos)
+    for label, value in campos_terminos:
+        # Garantizar que siempre hay un valor
+        display_value = value.strip() if value and value.strip() else 'No especificado'
+        terminos_data.append([label, display_value])
+    
+    # SIEMPRE crear la tabla (eliminar condicional)
+    terminos_table = Table(terminos_data, colWidths=[2*inch, 5*inch])
+    terminos_table.setStyle(TableStyle([
+        # Fuentes y tamaños - reducidas
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
         
-        # Preparar datos de términos
-        terminos_data = []
+        # Colores
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2D3748')),
+        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#4A5568')),
         
-        # Solo agregar campos que tengan contenido
-        campos_terminos = [
-            ('Moneda:', condiciones.get('moneda', 'MXN')),
-            ('Tiempo de Entrega:', condiciones.get('tiempoEntrega', '')),
-            ('Entregar En:', condiciones.get('entregaEn', '')),
-            ('Términos de Pago:', condiciones.get('terminos', '')),
-            ('Comentarios:', condiciones.get('comentarios', ''))
-        ]
+        # Alineación y padding - reducido
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
         
-        # Agregar tipo de cambio si es USD
-        if moneda == 'USD' and tipo_cambio > 0:
-            campos_terminos.insert(1, ('Tipo de Cambio:', f'{tipo_cambio:.2f} MXN/USD'))
-        
-        for label, value in campos_terminos:
-            if value and value.strip():  # Solo agregar si tiene contenido
-                terminos_data.append([label, value])
-        
-        if terminos_data:  # Solo crear tabla si hay datos
-            terminos_table = Table(terminos_data, colWidths=[2*inch, 5*inch])
-            terminos_table.setStyle(TableStyle([
-                # Fuentes y tamaños - reducidas
-                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-                
-                # Colores
-                ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2D3748')),
-                ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#4A5568')),
-                
-                # Alineación y padding - reducido
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('TOPPADDING', (0, 0), (-1, -1), 4),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                ('LEFTPADDING', (0, 0), (-1, -1), 6),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-                
-                # Fondo y bordes sutiles
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F7FAFC')),
-                ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
-                ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#E2E8F0')),
-            ]))
-            
-            story.append(terminos_table)
+        # Fondo y bordes sutiles
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F7FAFC')),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#E2E8F0')),
+    ]))
+    
+    story.append(terminos_table)
         
     # PIE DE PÁGINA PROFESIONAL - reducido
     story.append(Spacer(1, 12))
@@ -1077,6 +1078,22 @@ def formulario():
             datos = request.get_json()
             print("[FORM] FORMULARIO: Datos del formulario recibidos")
             print(f"[FORM] FORMULARIO: Cliente='{datos.get('datosGenerales', {}).get('cliente', 'N/A')}' | Items={len(datos.get('items', []))}")
+            
+            # VALIDACIÓN OBLIGATORIA BACKEND: Justificación de actualización para revisiones >= 2
+            datos_generales = datos.get('datosGenerales', {})
+            revision = safe_int(datos_generales.get('revision', 1))
+            
+            if revision >= 2:
+                actualizacion_revision = datos_generales.get('actualizacionRevision', '').strip()
+                if not actualizacion_revision or len(actualizacion_revision) < 10:
+                    error_msg = "Justificación de actualización requerida para revisiones R2+. Debe tener al menos 10 caracteres."
+                    print(f"[VALIDATION ERROR] {error_msg}")
+                    return jsonify({
+                        "error": error_msg,
+                        "campo_requerido": "actualizacionRevision",
+                        "revision": revision,
+                        "longitud_actual": len(actualizacion_revision)
+                    }), 400
             
             # Guardar usando DatabaseManager
             print("[FORM] FORMULARIO: Llamando a guardar_cotizacion...")
