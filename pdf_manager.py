@@ -32,8 +32,14 @@ class PDFManager:
         
         # SISTEMA PRIMARIO: Supabase Storage
         print("INIT: Inicializando PDF Manager con Supabase Storage...")
-        self.supabase_storage = SupabaseStorageManager()
-        self.supabase_storage_disponible = self.supabase_storage.is_available()
+        try:
+            self.supabase_storage = SupabaseStorageManager()
+            self.supabase_storage_disponible = self.supabase_storage.is_available()
+            print(f"INIT: SupabaseStorageManager creado - disponible: {self.supabase_storage_disponible}")
+        except Exception as e:
+            print(f"ERROR INIT: Error creando SupabaseStorageManager: {e}")
+            self.supabase_storage = None
+            self.supabase_storage_disponible = False
         
         if self.supabase_storage_disponible:
             print("OK: Sistema primario: Supabase Storage activado (25GB gratis)")
@@ -194,6 +200,8 @@ class PDFManager:
             
             if self.supabase_storage_disponible:
                 print("TARGET: [SUPABASE_STORAGE] Intentando subir a sistema primario...")
+                print(f"TARGET: [SUPABASE_STORAGE] Storage manager: {self.supabase_storage}")
+                print(f"TARGET: [SUPABASE_STORAGE] Storage available: {self.supabase_storage.storage_available if self.supabase_storage else 'N/A'}")
                 
                 # Crear archivo temporal para Supabase Storage
                 import tempfile
@@ -211,13 +219,19 @@ class PDFManager:
                         es_nueva=True
                     )
                     
-                    if not supabase_result.get("fallback", False):
+                    print(f"DEBUG: [SUPABASE_STORAGE] Resultado completo: {supabase_result}")
+                    
+                    if not supabase_result.get("fallback", False) and supabase_result.get("url"):
                         print(f"OK: [SUPABASE_STORAGE] PDF subido exitosamente!")
                         print(f"   URL: {supabase_result.get('url', 'N/A')}")
                         print(f"   Tamaño: {supabase_result.get('bytes', 0)} bytes")
+                        print(f"   File path: {supabase_result.get('file_path', 'N/A')}")
                         supabase_result["success"] = True
                     else:
-                        print(f"ERROR: [SUPABASE_STORAGE] Error: {supabase_result.get('error', 'Desconocido')}")
+                        print(f"ERROR: [SUPABASE_STORAGE] Error o fallback detectado")
+                        print(f"   Error: {supabase_result.get('error', 'Desconocido')}")
+                        print(f"   Tipo error: {supabase_result.get('tipo_error', 'N/A')}")
+                        print(f"   Fallback: {supabase_result.get('fallback', False)}")
                         
                 except Exception as e:
                     print(f"ERROR: [SUPABASE_STORAGE] Excepcion: {e}")
@@ -231,6 +245,11 @@ class PDFManager:
                             pass
             else:
                 print("WARNING: [SUPABASE_STORAGE] Sistema primario no disponible, usando fallbacks")
+                print(f"WARNING: [SUPABASE_STORAGE] Razón: supabase_storage_disponible = {self.supabase_storage_disponible}")
+                if self.supabase_storage:
+                    print(f"WARNING: [SUPABASE_STORAGE] Storage manager existe pero not available: {self.supabase_storage.storage_available}")
+                else:
+                    print("WARNING: [SUPABASE_STORAGE] No se pudo crear SupabaseStorageManager")
                 supabase_result = {"success": False, "error": "Supabase Storage no configurado"}
             
             # ===== PASO 2: GOOGLE DRIVE (ELIMINADO PARA PDFs NUEVOS) =====
