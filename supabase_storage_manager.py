@@ -31,10 +31,16 @@ class SupabaseStorageManager:
             
             # Obtener credenciales de Supabase
             supabase_url = os.getenv('SUPABASE_URL')
-            supabase_key = os.getenv('SUPABASE_ANON_KEY')
+            # Para Storage operations, necesitamos SERVICE_KEY (no ANON_KEY)
+            supabase_key = os.getenv('SUPABASE_SERVICE_KEY')
+            
+            # Fallback a ANON_KEY si SERVICE_KEY no está disponible (solo para testing)
+            if not supabase_key:
+                supabase_key = os.getenv('SUPABASE_ANON_KEY')
+                print("WARNING: Usando ANON_KEY - Storage operations pueden fallar")
             
             if not supabase_url or not supabase_key:
-                raise Exception("Variables de entorno de Supabase no configuradas")
+                raise Exception("Variables de entorno de Supabase no configuradas (necesita SUPABASE_SERVICE_KEY)")
             
             # Crear cliente Supabase
             self.supabase: Client = create_client(supabase_url, supabase_key)
@@ -43,8 +49,13 @@ class SupabaseStorageManager:
             self._verificar_bucket()
             
             self.storage_available = True
+            # Verificar tipo de clave que se está usando
+            using_service_key = os.getenv('SUPABASE_SERVICE_KEY') is not None
+            key_type = "SERVICE_KEY (Storage completo)" if using_service_key else "ANON_KEY (solo lectura)"
+            
             print("OK: Supabase Storage configurado correctamente")
             print(f"   URL: {supabase_url}")
+            print(f"   Clave: {key_type}")
             print(f"   Bucket: {self.bucket_name}")
             print(f"   Carpeta nuevas: {self.folder_nuevas}")
             print(f"   Carpeta antiguas: {self.folder_antiguas}")
@@ -55,7 +66,8 @@ class SupabaseStorageManager:
             print(f"ERROR configurando Supabase Storage: {e}")
             print("   Verifica las variables de entorno:")
             print("   - SUPABASE_URL")
-            print("   - SUPABASE_ANON_KEY")
+            print("   - SUPABASE_SERVICE_KEY (requerida para Storage)")
+            print("   - SUPABASE_ANON_KEY (fallback solo lectura)")
 
     def _verificar_bucket(self):
         """Verificar que el bucket existe o crearlo"""
