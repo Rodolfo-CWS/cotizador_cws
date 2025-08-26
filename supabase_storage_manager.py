@@ -451,7 +451,8 @@ class SupabaseStorageManager:
                             "vendedor": partes[2] if len(partes) > 2 else "N/A",
                             "proyecto": "-".join(partes[5:]) if len(partes) > 5 else "N/A",
                             "fecha_creacion": pdf.get("fecha_creacion", "N/A"),
-                            "ruta_completa": pdf.get("url", ""),
+                            "ruta_completa": pdf.get("url", ""),  # Esta es la URL correcta de listar_pdfs
+                            "url": pdf.get("url", ""),  # Agregamos también el campo url
                             "tipo": "supabase_storage",
                             "tiene_desglose": False,  # PDFs de Storage no tienen desglose automático
                             "file_path": pdf.get("file_path", ""),
@@ -476,6 +477,7 @@ class SupabaseStorageManager:
                         "proyecto": "-".join(partes[5:]) if len(partes) > 5 else "N/A",
                         "fecha_creacion": pdf.get("fecha_creacion", "N/A"),
                         "ruta_completa": pdf.get("url", ""),
+                        "url": pdf.get("url", ""),  # Agregamos también el campo url
                         "tipo": "supabase_storage",
                         "tiene_desglose": False,
                         "file_path": pdf.get("file_path", ""),
