@@ -12,7 +12,7 @@ python-dotenv==1.0.0
 # MongoDB completamente eliminado
 
 # Supabase PostgreSQL (UNICA BASE DE DATOS)
-supabase==2.3.0
+supabase>=2.5.0
 psycopg2-binary>=2.9.9
 
 # Manejo de fechas y tiempo

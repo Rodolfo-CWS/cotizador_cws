@@ -64,10 +64,22 @@ class SupabaseStorageManager:
             print("ERROR: Supabase no esta instalado: pip install supabase")
         except Exception as e:
             print(f"ERROR configurando Supabase Storage: {e}")
-            print("   Verifica las variables de entorno:")
-            print("   - SUPABASE_URL")
-            print("   - SUPABASE_SERVICE_KEY (requerida para Storage)")
-            print("   - SUPABASE_ANON_KEY (fallback solo lectura)")
+            print(f"ERROR tipo: {type(e).__name__}")
+            
+            # Diagnostico específico para errores comunes
+            error_str = str(e).lower()
+            if 'proxy' in error_str:
+                print("   DIAGNÓSTICO: Error de versión de librería supabase")
+                print("   SOLUCIÓN: Actualizar a supabase>=2.5.0")
+                print("   Este es un bug conocido en versiones 2.3.x")
+            elif 'unexpected keyword argument' in error_str:
+                print("   DIAGNÓSTICO: Incompatibilidad de parámetros de cliente")
+                print("   SOLUCIÓN: Verificar versión de librería supabase")
+            else:
+                print("   Verifica las variables de entorno:")
+                print("   - SUPABASE_URL")
+                print("   - SUPABASE_SERVICE_KEY (requerida para Storage)")
+                print("   - SUPABASE_ANON_KEY (fallback solo lectura)")
 
     def _verificar_bucket(self):
         """Verificar que el bucket existe o crearlo"""
