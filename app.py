@@ -1743,7 +1743,7 @@ def servir_pdf(numero_cotizacion):
         ruta_completa = resultado["ruta_completa"]
         tipo_fuente = resultado.get("tipo", "local")
         
-        # Si es un PDF de Supabase Storage, redirigir a su URL directa
+        # Si es un PDF de Supabase Storage, descargar y servir en lugar de redirigir
         if (tipo_fuente in ["supabase_storage"] or 
             ruta_completa.startswith("https://")):
             
@@ -1752,12 +1752,46 @@ def servir_pdf(numero_cotizacion):
                 # Cloudinary eliminado
             }.get(tipo_fuente, "URL directa")
             
-            print(f"PDF: Redirigiendo a PDF de {fuente_nombre}: {numero_cotizacion}")
+            print(f"PDF: Sirviendo PDF de {fuente_nombre}: {numero_cotizacion}")
             print(f"   URL: {ruta_completa}")
             
-            # Redirigir directamente a la URL
-            from flask import redirect
-            return redirect(ruta_completa)
+            # Verificar que la URL no esté vacía
+            if not ruta_completa or ruta_completa.strip() == "":
+                print(f"ERROR: URL vacía para PDF {numero_cotizacion}")
+                return jsonify({"error": "URL del PDF no disponible"}), 500
+            
+            # SOLUCIÓN: Descargar desde Supabase y servir directamente
+            try:
+                import requests
+                from io import BytesIO
+                
+                print(f"   Descargando PDF desde: {ruta_completa}")
+                response = requests.get(ruta_completa, timeout=30)
+                
+                if response.status_code == 200:
+                    print(f"   PDF descargado exitosamente ({len(response.content)} bytes)")
+                    
+                    # Verificar que es un PDF válido
+                    if response.content.startswith(b'%PDF'):
+                        pdf_buffer = BytesIO(response.content)
+                        pdf_buffer.seek(0)
+                        
+                        return send_file(
+                            pdf_buffer,
+                            mimetype='application/pdf',
+                            as_attachment=False,
+                            download_name=f"{numero_cotizacion}.pdf"
+                        )
+                    else:
+                        print(f"ERROR: Contenido descargado no es un PDF válido")
+                        return jsonify({"error": "Archivo descargado no es un PDF válido"}), 500
+                else:
+                    print(f"ERROR: Descarga falló con código {response.status_code}")
+                    return jsonify({"error": f"Error descargando PDF (código {response.status_code})"}), 500
+                    
+            except Exception as download_error:
+                print(f"ERROR: Excepción descargando PDF: {download_error}")
+                return jsonify({"error": f"Error descargando PDF: {str(download_error)}"}), 500
         
         # Si es un PDF de Google Drive, descargar y servir
         elif ruta_completa.startswith("gdrive://"):
