@@ -183,6 +183,10 @@ class SupabaseStorageManager:
             # Obtener URL pública del archivo
             url_publica = self.supabase.storage.from_(self.bucket_name).get_public_url(file_path)
             
+            # Limpiar URL si tiene parámetros extra vacíos
+            if url_publica.endswith('?'):
+                url_publica = url_publica[:-1]
+            
             # Extraer información relevante
             info_archivo = {
                 "url": url_publica,
@@ -300,6 +304,10 @@ class SupabaseStorageManager:
                             file_path = f"{carpeta}/{archivo['name']}"
                             url_publica = self.supabase.storage.from_(self.bucket_name).get_public_url(file_path)
                             
+                            # Limpiar URL si tiene parámetros extra vacíos
+                            if url_publica.endswith('?'):
+                                url_publica = url_publica[:-1]
+                            
                             archivo_info = {
                                 "file_path": file_path,
                                 "url": url_publica,
@@ -378,6 +386,10 @@ class SupabaseStorageManager:
             response = self.supabase.storage.from_(self.bucket_name).move(file_origen, file_destino)
             
             url_nueva = self.supabase.storage.from_(self.bucket_name).get_public_url(file_destino)
+            
+            # Limpiar URL si tiene parámetros extra vacíos
+            if url_nueva.endswith('?'):
+                url_nueva = url_nueva[:-1]
             
             print(f"OK: PDF movido a antiguas exitosamente")
             
