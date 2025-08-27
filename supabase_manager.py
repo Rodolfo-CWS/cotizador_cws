@@ -275,6 +275,7 @@ class SupabaseManager:
             numero_cotizacion = datos.get('numeroCotizacion')
             datos_generales = datos.get('datosGenerales', {})
             items = datos.get('items', [])
+            condiciones = datos.get('condiciones', {})  # AGREGAR: condiciones
             revision = datos.get('revision', 1)
             version = datos.get('version', '1.0.0')
             usuario = datos.get('usuario')
@@ -296,13 +297,14 @@ class SupabaseManager:
             # Query de inserción/actualización
             query = """
                 INSERT INTO cotizaciones (
-                    numero_cotizacion, datos_generales, items, revision, 
+                    numero_cotizacion, datos_generales, items, condiciones, revision, 
                     version, fecha_creacion, timestamp, usuario, observaciones
                 ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 ) ON CONFLICT (numero_cotizacion) DO UPDATE SET
                     datos_generales = EXCLUDED.datos_generales,
                     items = EXCLUDED.items,
+                    condiciones = EXCLUDED.condiciones,
                     revision = EXCLUDED.revision,
                     version = EXCLUDED.version,
                     usuario = EXCLUDED.usuario,
@@ -315,6 +317,7 @@ class SupabaseManager:
                 numero_cotizacion,
                 Json(datos_generales),  # JSONB
                 Json(items),  # JSONB
+                Json(condiciones),  # JSONB - AGREGAR: condiciones
                 revision,
                 version,
                 fecha_dt,
@@ -603,7 +606,7 @@ class SupabaseManager:
             cursor = self.pg_connection.cursor()
             
             query = """
-                SELECT id, numero_cotizacion, datos_generales, items, 
+                SELECT id, numero_cotizacion, datos_generales, items, condiciones,
                        revision, fecha_creacion, timestamp, usuario, observaciones
                 FROM cotizaciones 
                 WHERE numero_cotizacion = %s;
@@ -621,6 +624,7 @@ class SupabaseManager:
                 "numeroCotizacion": row['numero_cotizacion'],
                 "datosGenerales": row['datos_generales'],
                 "items": row['items'],
+                "condiciones": row['condiciones'] or {},  # AGREGAR: condiciones
                 "revision": row['revision'],
                 "fechaCreacion": row['fecha_creacion'].isoformat() if row['fecha_creacion'] else None,
                 "timestamp": row['timestamp'],
