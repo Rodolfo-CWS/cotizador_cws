@@ -1783,13 +1783,11 @@ async function guardarCotizacion() {
             comentarios: document.querySelector('textarea[name="comentarios"]')?.value || ""
         };
 
-        const condicionesRequeridas = ['moneda', 'tiempoEntrega', 'entregaEn', 'terminos'];
-        for (let campo of condicionesRequeridas) {
-            if (!condiciones[campo] || condiciones[campo].trim() === "") {
-                alert(`El campo "${campo}" en Términos y Condiciones es obligatorio.`);
-                document.querySelector(`[name="${campo}"]`)?.focus();
-                return;
-            }
+        // Solo moneda es obligatoria - otros campos opcionales para flexibilidad USD
+        if (!condiciones.moneda || condiciones.moneda.trim() === "") {
+            alert('El campo "moneda" en Términos y Condiciones es obligatorio.');
+            document.querySelector('[name="moneda"]')?.focus();
+            return;
         }
 
         if (condiciones.moneda === 'USD' && (!condiciones.tipoCambio || parseFloat(condiciones.tipoCambio) <= 0)) {

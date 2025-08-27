@@ -630,8 +630,17 @@ def generar_pdf_reportlab(datos_cotizacion):
     # Inicializar conversion_note
     conversion_note = None
     
-    # DEBUG: Para forzar deployment y verificar cambios
-    print(f"[PDF_DEBUG] Generando PDF para moneda: {moneda}, tipo_cambio: {tipo_cambio}")
+    # DEBUG: Diagnóstico completo de datos USD
+    print(f"[PDF_DEBUG] ======= INICIO DIAGNÓSTICO PDF =======")
+    print(f"[PDF_DEBUG] DATOS COMPLETOS: {datos_cotizacion}")
+    print(f"[PDF_DEBUG] CONDICIONES RAW: {datos_cotizacion.get('condiciones', 'NO_ENCONTRADO')}")
+    print(f"[PDF_DEBUG] CONDICIONES OBJECT: {condiciones}")
+    print(f"[PDF_DEBUG] MONEDA DETECTADA: '{moneda}' (tipo: {type(moneda)})")
+    print(f"[PDF_DEBUG] TIPO_CAMBIO STR: '{tipo_cambio_str}' (tipo: {type(tipo_cambio_str)})")
+    print(f"[PDF_DEBUG] TIPO_CAMBIO FLOAT: {tipo_cambio} (tipo: {type(tipo_cambio)})")
+    print(f"[PDF_DEBUG] CONDICIÓN USD: moneda==USD? {moneda == 'USD'}, tipo_cambio>0? {tipo_cambio > 0}, tipo_cambio!=1.0? {tipo_cambio != 1.0}")
+    print(f"[PDF_DEBUG] APLICARÁ CONVERSIÓN? {moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0}")
+    print(f"[PDF_DEBUG] ======= FIN DIAGNÓSTICO PDF =======")
     
     # ITEMS - Tabla profesional mejorada
     if items:
@@ -1083,6 +1092,18 @@ def formulario():
             datos = request.get_json()
             print("[FORM] FORMULARIO: Datos del formulario recibidos")
             print(f"[FORM] FORMULARIO: Cliente='{datos.get('datosGenerales', {}).get('cliente', 'N/A')}' | Items={len(datos.get('items', []))}")
+            
+            # DEBUG: Diagnóstico completo de condiciones recibidas
+            print(f"[FORM_DEBUG] ======= DIAGNÓSTICO FORMULARIO =======")
+            condiciones_recibidas = datos.get('condiciones', {})
+            print(f"[FORM_DEBUG] CONDICIONES COMPLETAS: {condiciones_recibidas}")
+            print(f"[FORM_DEBUG] MONEDA RECIBIDA: '{condiciones_recibidas.get('moneda', 'NO_ENCONTRADO')}'")
+            print(f"[FORM_DEBUG] TIPO_CAMBIO RECIBIDO: '{condiciones_recibidas.get('tipoCambio', 'NO_ENCONTRADO')}'")
+            print(f"[FORM_DEBUG] TIEMPO_ENTREGA: '{condiciones_recibidas.get('tiempoEntrega', 'NO_ENCONTRADO')}'")
+            print(f"[FORM_DEBUG] ENTREGAR_EN: '{condiciones_recibidas.get('entregaEn', 'NO_ENCONTRADO')}'")
+            print(f"[FORM_DEBUG] TERMINOS: '{condiciones_recibidas.get('terminos', 'NO_ENCONTRADO')}'")
+            print(f"[FORM_DEBUG] COMENTARIOS: '{condiciones_recibidas.get('comentarios', 'NO_ENCONTRADO')}'")
+            print(f"[FORM_DEBUG] ======= FIN DIAGNÓSTICO FORMULARIO =======")
             
             # VALIDACIÓN OBLIGATORIA BACKEND: Justificación de actualización para revisiones >= 2
             datos_generales = datos.get('datosGenerales', {})
