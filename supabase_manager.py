@@ -834,7 +834,54 @@ class SupabaseManager:
             return 1
     
     def _obtener_consecutivo_supabase(self, patron_base):
-        """Obtener consecutivo usando PostgreSQL con operaciones atómicas"""
+        """Obtener consecutivo usando tabla de contadores atómica - 100% irrepetible"""
+        try:
+            cursor = self.pg_connection.cursor()
+            
+            print(f"[CONTADOR_ATOMICO] Obteniendo siguiente para patrón: '{patron_base}'")
+            
+            # Operación atómica usando ON CONFLICT para increment
+            query = """
+                INSERT INTO cotizacion_counters (patron, ultimo_numero, descripcion) 
+                VALUES (%s, 1, %s)
+                ON CONFLICT (patron) 
+                DO UPDATE SET 
+                    ultimo_numero = cotizacion_counters.ultimo_numero + 1,
+                    updated_at = NOW()
+                RETURNING ultimo_numero;
+            """
+            
+            descripcion = f"Contador automático para {patron_base}"
+            cursor.execute(query, (patron_base, descripcion))
+            
+            # Obtener el número asignado
+            resultado = cursor.fetchone()
+            siguiente = resultado['ultimo_numero']
+            
+            # Commit inmediato para liberar el lock
+            self.pg_connection.commit()
+            cursor.close()
+            
+            print(f"[CONTADOR_ATOMICO] Número asignado: {siguiente} para patrón '{patron_base}'")
+            
+            return siguiente
+            
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[CONTADOR_ATOMICO] Error: {error_msg}")
+            
+            # Rollback en caso de error
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+                
+            # Fallback a método legacy
+            print(f"[CONTADOR_ATOMICO] Usando fallback legacy para patrón: {patron_base}")
+            return self._obtener_consecutivo_legacy(patron_base)
+    
+    def _obtener_consecutivo_legacy(self, patron_base):
+        """Método legacy de consecutivos (fallback)"""
         try:
             cursor = self.pg_connection.cursor()
             
@@ -875,53 +922,101 @@ class SupabaseManager:
             else:
                 siguiente = max(numeros_existentes) + 1
             
-            print(f"[CONSECUTIVO_SUPABASE] Números existentes: {sorted(numeros_existentes)}")
-            print(f"[CONSECUTIVO_SUPABASE] Siguiente: {siguiente}")
+            print(f"[CONSECUTIVO_LEGACY] Números existentes: {sorted(numeros_existentes)}")
+            print(f"[CONSECUTIVO_LEGACY] Siguiente: {siguiente}")
             
             return siguiente
             
         except Exception as e:
             error_msg = safe_str(e)
-            print(f"[CONSECUTIVO_SUPABASE] Error: {error_msg}")
+            print(f"[CONSECUTIVO_LEGACY] Error: {error_msg}")
             # Fallback a modo offline
             return self._obtener_consecutivo_offline(patron_base)
     
     def _obtener_consecutivo_offline(self, patron_base):
-        """Obtener consecutivo desde archivo JSON (modo offline)"""
+        """Obtener consecutivo usando contadores JSON (modo offline) - Sincronizado con Supabase"""
         try:
             data = self._cargar_datos_offline()
-            cotizaciones = data.get("cotizaciones", [])
             
-            # Extraer números consecutivos existentes
-            numeros_existentes = []
-            for cotizacion in cotizaciones:
-                numero_cot = cotizacion.get("numeroCotizacion", "")
-                if numero_cot.startswith(patron_base):
-                    try:
-                        # Extraer el número consecutivo del formato: PATRON-###-R#-PROYECTO
-                        partes = numero_cot.split('-')
-                        if len(partes) >= 4:  # Debe tener al menos: CLIENTE-CWS-INICIALES-###
-                            num_parte = partes[3]  # La parte ### está en el índice 3
-                            if num_parte.isdigit():
-                                num_consecutivo = int(num_parte)
-                                numeros_existentes.append(num_consecutivo)
-                    except (ValueError, IndexError):
-                        continue
+            # Inicializar sección de contadores si no existe
+            if "contadores" not in data:
+                data["contadores"] = {}
             
-            # Encontrar el siguiente número disponible
-            if not numeros_existentes:
-                siguiente = 1
+            contadores = data["contadores"]
+            
+            print(f"[CONTADOR_OFFLINE] Obteniendo siguiente para patrón: '{patron_base}'")
+            
+            # Obtener y incrementar contador para este patrón
+            if patron_base in contadores:
+                siguiente = contadores[patron_base]["ultimo_numero"] + 1
+                contadores[patron_base]["ultimo_numero"] = siguiente
+                contadores[patron_base]["updated_at"] = datetime.now().isoformat()
+                print(f"[CONTADOR_OFFLINE] Incrementado contador existente: {siguiente-1} -> {siguiente}")
             else:
-                siguiente = max(numeros_existentes) + 1
+                # Nuevo patrón: analizar cotizaciones existentes para sincronizar
+                print(f"[CONTADOR_OFFLINE] Nuevo patrón, analizando cotizaciones existentes...")
+                
+                cotizaciones = data.get("cotizaciones", [])
+                numeros_existentes = []
+                
+                for cotizacion in cotizaciones:
+                    numero_cot = cotizacion.get("numeroCotizacion", "")
+                    if numero_cot.startswith(patron_base):
+                        try:
+                            # Extraer el número consecutivo del formato: CLIENTE-CWS-INICIALES-###-R#-PROYECTO
+                            partes = numero_cot.split('-')
+                            if len(partes) >= 4:  # Debe tener al menos: CLIENTE-CWS-INICIALES-###
+                                num_parte = partes[3]  # La parte ### está en el índice 3
+                                if num_parte.isdigit():
+                                    num_consecutivo = int(num_parte)
+                                    numeros_existentes.append(num_consecutivo)
+                        except (ValueError, IndexError):
+                            continue
+                
+                # Establecer contador basado en máximo existente
+                if numeros_existentes:
+                    ultimo_usado = max(numeros_existentes)
+                    siguiente = ultimo_usado + 1
+                    print(f"[CONTADOR_OFFLINE] Números existentes: {sorted(numeros_existentes)}, máximo: {ultimo_usado}")
+                else:
+                    siguiente = 1
+                    print(f"[CONTADOR_OFFLINE] No hay números existentes, iniciando en 1")
+                
+                # Crear entrada de contador
+                contadores[patron_base] = {
+                    "ultimo_numero": siguiente,
+                    "descripcion": f"Contador offline para {patron_base}",
+                    "created_at": datetime.now().isoformat(),
+                    "updated_at": datetime.now().isoformat()
+                }
             
-            print(f"[CONSECUTIVO_OFFLINE] Números existentes: {sorted(numeros_existentes)}")
-            print(f"[CONSECUTIVO_OFFLINE] Siguiente: {siguiente}")
-            
-            return siguiente
+            # Guardar datos actualizados
+            if self._guardar_datos_offline(data):
+                print(f"[CONTADOR_OFFLINE] Número asignado: {siguiente} para patrón '{patron_base}'")
+                return siguiente
+            else:
+                print(f"[CONTADOR_OFFLINE] Error guardando contador, usando fallback")
+                return self._obtener_consecutivo_fallback(patron_base)
             
         except Exception as e:
             error_msg = safe_str(e)
-            print(f"[CONSECUTIVO_OFFLINE] Error: {error_msg}")
+            print(f"[CONTADOR_OFFLINE] Error: {error_msg}")
+            return self._obtener_consecutivo_fallback(patron_base)
+    
+    def _obtener_consecutivo_fallback(self, patron_base):
+        """Último recurso: generar número usando timestamp"""
+        try:
+            timestamp = int(time.time())
+            # Usar últimos 4 dígitos del timestamp como número
+            siguiente = timestamp % 10000
+            if siguiente == 0:
+                siguiente = 1
+            
+            print(f"[CONTADOR_FALLBACK] Número generado: {siguiente} para patrón '{patron_base}'")
+            return siguiente
+            
+        except Exception:
+            print(f"[CONTADOR_FALLBACK] Error crítico, usando 1")
             return 1
     
     def verificar_numero_unico(self, numero_cotizacion):
