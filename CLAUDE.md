@@ -8,12 +8,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Production URL**: https://cotizador-cws.onrender.com/
 
-## 🚨 CURRENT SYSTEM STATUS (August 25, 2025) - SUPABASE UNIFIED ARCHITECTURE 
+## 🚨 CURRENT SYSTEM STATUS (August 26, 2025) - SUPABASE UNIFIED ARCHITECTURE 
 
 ### ✅ PRODUCTION READY COMPONENTS - FULLY OPERATIONAL
 - **Application**: 100% operational on Render with Supabase unified architecture
 - **Quotation Creation**: ✅ **WORKING** - Complete end-to-end functionality with Supabase Storage
 - **PDF Generation**: Automatic generation with ReportLab (36KB+ PDFs) + permanent storage
+- **PDF Visualization**: ✅ **WORKING** - Direct PDF serving through Flask from Supabase Storage
 - **Automatic Workflow**: `/formulario` route generates PDFs and saves to Supabase Storage
 - **Numbering System**: Automatic sequential numbering working correctly (format: CLIENT-CWS-VENDOR-###-R1-PROJECT)
 - **Web Interface**: Responsive interface with real-time quotation management
@@ -28,11 +29,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Production Status**: ✅ **DEPLOYED** - Fully operational with unified Supabase architecture
 - **Migration Status**: ✅ **COMPLETED** - Successfully migrated from Cloudinary to Supabase Storage
 
-### ⚡ RESOLVED ISSUES (August 25, 2025)
+### ⚡ RESOLVED ISSUES (August 26, 2025)
 - **HTTP 500 Errors**: ✅ **RESOLVED** - All quotation creation errors fixed through key name consistency
 - **Supabase Integration**: ✅ **IMPLEMENTED** - Complete migration from MongoDB to Supabase PostgreSQL
 - **Cloudinary to Supabase Migration**: ✅ **COMPLETED** - Fully migrated PDF storage from Cloudinary to Supabase Storage
 - **PDF Generation**: ✅ **RESOLVED** - KeyError 'id' fixed, PDFs generate correctly in offline mode
+- **PDF Visualization Issues**: ✅ **RESOLVED** - Fixed redirect problems and empty URLs in PDF serving (August 26, 2025)
+- **Supabase Storage URL Issues**: ✅ **RESOLVED** - Fixed empty ruta_completa in PDF search results
+- **Supabase Client Initialization**: ✅ **RESOLVED** - Fixed 'proxy' parameter error by updating to supabase>=2.5.0
 - **Number Generation**: ✅ **WORKING** - Automatic sequential numbering (CLIENT-CWS-VENDOR-###-R1-PROJECT)
 - **PDF Storage Architecture**: ✅ **UNIFIED** - Supabase Storage primary + Google Drive and local fallback
 - **Unicode Compatibility**: ✅ **RESOLVED** - Full Windows/Linux compatibility maintained
@@ -43,9 +47,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Silent Unicode Failures**: ✅ **RESOLVED** - Eliminated emoji encoding issues causing crashes
 - **Production Environment Variables**: ✅ **RESOLVED** - Added required SUPABASE_SERVICE_KEY for Storage operations
 
-## 🔧 DETAILED PROBLEM RESOLUTION (August 20, 2025)
+## 🔧 DETAILED PROBLEM RESOLUTION (August 26, 2025)
 
-### **Critical Issue: Frontend-Backend Disconnection**
+### **Critical Issue: PDF Visualization Failures**
+
+**Problem Identified:**
+- PDF visualization showing "Redirecting... You should be redirected automatically to the target URL: ." 
+- Error "URL del PDF no disponible" when trying to view PDFs from search results
+- Supabase Storage working for saving but failing for serving PDFs
+
+**Root Cause Analysis:**
+1. **Supabase Client Initialization Error**: `Client.__init__() got an unexpected keyword argument 'proxy'`
+2. **Empty URLs in Search Results**: `buscar_pdfs()` method not properly copying URL field from `listar_pdfs()`
+3. **Browser Redirect Issues**: External redirects to Supabase Storage URLs causing browser problems
+
+**Solution Implemented:**
+1. **Updated Supabase Version**: Changed `supabase==2.3.0` → `supabase>=2.5.0` to fix client initialization
+2. **Fixed URL Propagation**: Added proper `url` field copying in `buscar_pdfs()` method
+3. **Direct PDF Serving**: Replaced redirect with direct download and serve through Flask
+4. **URL Cleaning**: Removed trailing `?` from Supabase Storage URLs
+
+**Technical Changes:**
+- `requirements.txt`: Updated Supabase library version
+- `supabase_storage_manager.py`: Fixed URL cleaning and field propagation
+- `app.py`: Changed PDF serving from redirect to direct download/serve approach
+- Enhanced error diagnostics and logging throughout PDF pipeline
+
+**Verification Results:**
+- ✅ Supabase Storage initialization works without 'proxy' errors
+- ✅ PDF search returns proper URLs in ruta_completa field
+- ✅ PDF visualization works through direct Flask serving
+- ✅ Complete end-to-end PDF workflow functional
+
+### **Previous Issue: Frontend-Backend Disconnection (August 20, 2025)**
 
 **Problem Identified:**
 - Search interface (`home.html`) expected PDF data format but backend returned cotización format
@@ -634,7 +668,33 @@ GOOGLE_DRIVE_FOLDER_ANTIGUAS=1GqM9yfwUKd9n8nN97IUiBSUrWUZ1Vida
 3. **Performance validation** - Ensure sub-second search response times
 4. **User acceptance testing** - Confirm complete workflow functionality
 
-## 🔧 Troubleshooting Guide
+## 🔧 Troubleshooting Guide (Updated August 26, 2025)
+
+### **PDF Visualization Issues** ⚡ RESOLVED
+
+**Problem:** "Redirecting... You should be redirected automatically to the target URL: ." when viewing PDFs
+
+**Solution Implemented:**
+1. **Supabase Version Fix**: Updated `supabase==2.3.0` → `supabase>=2.5.0` to fix client initialization
+2. **URL Propagation Fix**: Fixed `buscar_pdfs()` method to properly copy URL field from search results
+3. **Direct PDF Serving**: Changed from redirect to direct download/serve through Flask
+4. **URL Cleaning**: Removed trailing `?` from Supabase Storage URLs
+
+**Status:** ✅ RESOLVED - PDF visualization working correctly
+
+### **Supabase Storage Initialization Errors**
+
+**Problem:** `Client.__init__() got an unexpected keyword argument 'proxy'`
+
+**Root Cause:** Incompatible supabase library version
+
+**Solution:**
+```bash
+# Update requirements.txt
+supabase>=2.5.0  # Instead of supabase==2.3.0
+```
+
+**Status:** ✅ RESOLVED - Supabase Storage operations working
 
 ### **Search Not Working / Empty Results**
 
@@ -670,14 +730,15 @@ curl -X POST https://cotizador-cws.onrender.com/buscar \
 
 ### **PDF Storage Issues**
 
-**Google Drive Quota Problems:**
-- **Solution**: System now uses Google Drive for read-only access to historical PDFs only
-- **New PDFs**: Stored in Cloudinary (25GB free) + local backup
-- **No uploads to Google Drive**: Prevents quota issues
+**Supabase Storage (Primary):**
+- Check logs for "Supabase Storage configurado correctamente"
+- Verify SUPABASE_SERVICE_KEY environment variable in Render
+- Direct URLs should work immediately via Supabase CDN
 
-**Cloudinary Connection:**
-- Check logs for "OK: Cloudinary configurado correctamente"
-- Verify CLOUDINARY_* environment variables in Render
+**Google Drive (Fallback):**
+- Used as fallback storage system for redundancy
+- Check logs for "Google Drive API configurado correctamente"
+- Verify GOOGLE_SERVICE_ACCOUNT_JSON environment variable
 
 ### **Supabase Connection Troubleshooting**
 
@@ -693,12 +754,20 @@ if not db.modo_offline:
 else:
     print('Usando modo offline - JSON local')
 "
+
+# Test Supabase Storage specifically
+python -c "
+from supabase_storage_manager import SupabaseStorageManager
+storage = SupabaseStorageManager()
+print(f'Storage disponible: {storage.is_available()}')
+"
 ```
 
 **Production (Render):**
 - Check logs for "[SUPABASE] Variables disponibles" section
 - Should show which environment variables are configured
 - Look for "[SUPABASE] Conectado a PostgreSQL exitosamente" for successful connection
+- Verify "[SUPABASE STORAGE] Configurado correctamente" for Storage operations
 
 ### **Data Flow Validation**
 
@@ -706,7 +775,7 @@ else:
 1. **Create quotation** via `/formulario`
 2. **Search for it** via `/buscar` 
 3. **View breakdown** via `/desglose/<id>`
-4. **Check PDF** via `/pdf/<id>`
+4. **Check PDF** via `/pdf/<id>` (should serve directly, no redirects)
 
 **Expected Log Sequence:**
 ```
@@ -715,6 +784,17 @@ else:
 [DB] Encontradas X cotizaciones
 [COMBINAR] Cotizaciones DB: X, PDFs: Y
 [UNIFICADA] Enviando respuesta con Z resultados
+```
+
+### **PDF Serving Validation:**
+```bash
+# Test PDF endpoint directly
+curl -I https://cotizador-cws.onrender.com/pdf/CLIENT-CWS-VEN-001-R1-PROJECT
+
+# Expected Response:
+# HTTP/1.1 200 OK
+# Content-Type: application/pdf
+# Content-Length: [size]
 ```
 
 ## 🎉 MIGRATION COMPLETED (August 25, 2025)
@@ -759,4 +839,4 @@ else:
 3. Run configurar_supabase_storage.py for policy setup
 4. System automatically uses unified Supabase architecture
 
-<!-- Last updated: 2025-08-25 via Claude Code - CLOUDINARY TO SUPABASE STORAGE MIGRATION COMPLETED -->
+<!-- Last updated: 2025-08-26 via Claude Code - PDF VISUALIZATION ISSUES RESOLVED, DOCUMENTATION UPDATED -->
