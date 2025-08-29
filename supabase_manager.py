@@ -294,17 +294,16 @@ class SupabaseManager:
                     except:
                         fecha_dt = datetime.now()
             
-            # Query de inserción/actualización
+            # Query de inserción/actualización SIN CONDICIONES (temporal hasta resolver timeout)
             query = """
                 INSERT INTO cotizaciones (
-                    numero_cotizacion, datos_generales, items, condiciones, revision, 
+                    numero_cotizacion, datos_generales, items, revision, 
                     version, fecha_creacion, timestamp, usuario, observaciones
                 ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s
                 ) ON CONFLICT (numero_cotizacion) DO UPDATE SET
                     datos_generales = EXCLUDED.datos_generales,
                     items = EXCLUDED.items,
-                    condiciones = EXCLUDED.condiciones,
                     revision = EXCLUDED.revision,
                     version = EXCLUDED.version,
                     usuario = EXCLUDED.usuario,
@@ -313,11 +312,14 @@ class SupabaseManager:
                 RETURNING id, numero_cotizacion;
             """
             
+            # NOTA: Condiciones se guardan dentro de datos_generales temporalmente
+            if condiciones:
+                datos_generales['condiciones'] = condiciones
+            
             cursor.execute(query, (
                 numero_cotizacion,
-                Json(datos_generales),  # JSONB
+                Json(datos_generales),  # JSONB (ahora incluye condiciones)
                 Json(items),  # JSONB
-                Json(condiciones),  # JSONB - AGREGAR: condiciones
                 revision,
                 version,
                 fecha_dt,
@@ -606,7 +608,7 @@ class SupabaseManager:
             cursor = self.pg_connection.cursor()
             
             query = """
-                SELECT id, numero_cotizacion, datos_generales, items, condiciones,
+                SELECT id, numero_cotizacion, datos_generales, items,
                        revision, fecha_creacion, timestamp, usuario, observaciones
                 FROM cotizaciones 
                 WHERE numero_cotizacion = %s;
@@ -619,12 +621,16 @@ class SupabaseManager:
             if not row:
                 return {"encontrado": False, "error": "Cotización no encontrada"}
             
+            # Extraer condiciones de datos_generales si existen
+            datos_generales = row['datos_generales'] or {}
+            condiciones = datos_generales.pop('condiciones', {}) if isinstance(datos_generales, dict) else {}
+            
             cotizacion = {
                 "_id": str(row['id']),
                 "numeroCotizacion": row['numero_cotizacion'],
-                "datosGenerales": row['datos_generales'],
+                "datosGenerales": datos_generales,
                 "items": row['items'],
-                "condiciones": row['condiciones'] or {},  # AGREGAR: condiciones
+                "condiciones": condiciones,  # Extraídas de datos_generales
                 "revision": row['revision'],
                 "fechaCreacion": row['fecha_creacion'].isoformat() if row['fecha_creacion'] else None,
                 "timestamp": row['timestamp'],

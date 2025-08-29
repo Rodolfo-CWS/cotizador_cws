@@ -14,6 +14,9 @@ CREATE TABLE cotizaciones (
     -- Items de la cotización
     items JSONB NOT NULL,
     
+    -- IMPORTANTE: Columna condiciones necesaria para supabase_manager.py
+    condiciones JSONB DEFAULT '{}'::jsonb,
+    
     -- Control de versiones
     revision INTEGER DEFAULT 1,
     version VARCHAR(10) DEFAULT '1.0.0',
