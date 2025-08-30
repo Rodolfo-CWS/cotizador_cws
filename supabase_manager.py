@@ -56,6 +56,8 @@ class SupabaseManager:
         # Control de estado
         self.modo_offline = True
         self.ultima_conexion = None
+        self.estado_anterior = None  # Para detectar cambios de estado
+        self.callbacks_cambio_estado = []  # Callbacks para cambios online/offline
         
         # Archivo JSON para fallback offline
         self.archivo_offline = os.path.join(os.getcwd(), "cotizaciones_offline.json")
@@ -111,10 +113,20 @@ class SupabaseManager:
             cursor.close()
             
             if result['test'] == 1:
+                # Detectar cambio de estado (offline → online)
+                estado_cambio = self.modo_offline and (self.estado_anterior != "online")
+                
                 self.modo_offline = False
                 self.ultima_conexion = datetime.now()
                 print("[SUPABASE] Conectado a PostgreSQL exitosamente")
                 print(f"[SUPABASE] URL: {self.supabase_url}")
+                
+                # Notificar cambio de estado si es necesario
+                if estado_cambio:
+                    print("[ESTADO_CAMBIO] Supabase RECUPERADO - offline -> online")
+                    self._notificar_cambio_estado("offline", "online")
+                
+                self.estado_anterior = "online"
                 
                 # Test adicional: verificar si existen las tablas
                 try:
@@ -133,7 +145,18 @@ class SupabaseManager:
             error_msg = safe_str(e)
             print(f"[SUPABASE] Error conectando: {error_msg}")
             print("[SUPABASE] Activando modo offline")
+            
+            # Detectar cambio de estado (online → offline)
+            estado_cambio = not self.modo_offline and (self.estado_anterior != "offline")
+            
             self.modo_offline = True
+            
+            # Notificar cambio de estado si es necesario
+            if estado_cambio:
+                print("[ESTADO_CAMBIO] Supabase PERDIDO - online -> offline")
+                self._notificar_cambio_estado("online", "offline")
+            
+            self.estado_anterior = "offline"
             
             if self.pg_connection:
                 try:
@@ -150,6 +173,63 @@ class SupabaseManager:
         print("[SUPABASE] Intentando reconexion...")
         self._inicializar_conexion()
         return not self.modo_offline
+    
+    def registrar_callback_cambio_estado(self, callback):
+        """
+        Registrar callback para cambios de estado online/offline
+        
+        Args:
+            callback: Función que recibe (estado_anterior, estado_nuevo)
+        """
+        if callback not in self.callbacks_cambio_estado:
+            self.callbacks_cambio_estado.append(callback)
+            print(f"[CALLBACKS] Callback registrado: {callback.__name__ if hasattr(callback, '__name__') else 'función'}")
+    
+    def _notificar_cambio_estado(self, estado_anterior: str, estado_nuevo: str):
+        """Notificar a todos los callbacks sobre cambio de estado"""
+        print(f"[CALLBACKS] Notificando cambio: {estado_anterior} -> {estado_nuevo}")
+        
+        for callback in self.callbacks_cambio_estado:
+            try:
+                callback(estado_anterior, estado_nuevo)
+            except Exception as e:
+                print(f"[CALLBACKS] Error ejecutando callback: {e}")
+    
+    def health_check(self) -> dict:
+        """
+        Verificar el estado actual de Supabase y detectar cambios
+        
+        Returns:
+            dict: Estado actual con información detallada
+        """
+        estado_anterior_temp = self.estado_anterior
+        
+        # Intentar reconectar si estamos offline
+        if self.modo_offline:
+            self._reconectar_si_es_necesario()
+        else:
+            # Si estamos online, verificar que la conexión siga activa
+            try:
+                cursor = self.pg_connection.cursor()
+                cursor.execute("SELECT 1;")
+                cursor.fetchone()
+                cursor.close()
+            except:
+                print("[HEALTH_CHECK] Conexión perdida, reactivando modo offline")
+                estado_cambio = not self.modo_offline
+                self.modo_offline = True
+                if estado_cambio:
+                    self._notificar_cambio_estado("online", "offline")
+                self.estado_anterior = "offline"
+        
+        return {
+            "online": not self.modo_offline,
+            "estado_actual": "online" if not self.modo_offline else "offline",
+            "estado_anterior": estado_anterior_temp,
+            "cambio_detectado": estado_anterior_temp != self.estado_anterior,
+            "ultima_conexion": self.ultima_conexion.isoformat() if self.ultima_conexion else None,
+            "url": self.supabase_url
+        }
     
     def _cargar_datos_offline(self) -> Dict:
         """Cargar datos desde archivo JSON offline"""

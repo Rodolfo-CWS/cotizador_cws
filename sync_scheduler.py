@@ -33,9 +33,15 @@ class SyncScheduler:
         self.sincronizaciones_fallidas = 0
         self.ultima_sincronizacion_resultado = None
         
+        # Control de detección de cambios de estado
+        self.health_check_interval = int(os.getenv('HEALTH_CHECK_INTERVAL', '30'))  # segundos
+        self.auto_sync_on_recovery = os.getenv('AUTO_SYNC_ON_RECOVERY', 'true').lower() == 'true'
+        
         print(f"SYNC: [SYNC_SCHEDULER] Inicializando scheduler...")
         print(f"   Intervalo: {self.intervalo_minutos} minutos")
         print(f"   Auto-sync: {'OK Habilitado' if self.auto_sync_enabled else 'NO Deshabilitado'}")
+        print(f"   Health check: {self.health_check_interval}s")
+        print(f"   Sync en recuperación: {'OK Habilitado' if self.auto_sync_on_recovery else 'NO Deshabilitado'}")
         
         # Intentar inicializar APScheduler
         try:
@@ -49,6 +55,11 @@ class SyncScheduler:
             self.scheduler_disponible = True
             
             print("OK: [SYNC_SCHEDULER] APScheduler disponible")
+            
+            # Registrar callback para cambios de estado Supabase
+            if hasattr(self.db_manager, 'registrar_callback_cambio_estado'):
+                self.db_manager.registrar_callback_cambio_estado(self._on_supabase_state_change)
+                print("OK: [SYNC_SCHEDULER] Callback de estado registrado")
             
         except ImportError:
             print("ERROR: [SYNC_SCHEDULER] APScheduler no disponible: pip install APScheduler")
@@ -84,7 +95,7 @@ class SyncScheduler:
             # Crear scheduler
             self.scheduler = self.BackgroundScheduler()
             
-            # Agregar job de sincronización
+            # Agregar job de sincronización periódica
             self.scheduler.add_job(
                 func=self._ejecutar_sincronizacion,
                 trigger=self.IntervalTrigger(minutes=self.intervalo_minutos),
@@ -92,6 +103,17 @@ class SyncScheduler:
                 name='Sincronizacion Bidireccional JSON a Supabase',
                 max_instances=1,  # Solo una instancia a la vez
                 coalesce=True,    # Combinar ejecuciones pendientes
+                replace_existing=True
+            )
+            
+            # Agregar job de health check para detección de recuperación
+            self.scheduler.add_job(
+                func=self._health_check,
+                trigger=self.IntervalTrigger(seconds=self.health_check_interval),
+                id='health_check_supabase',
+                name='Health Check Supabase para Auto-Sync',
+                max_instances=1,
+                coalesce=True,
                 replace_existing=True
             )
             
@@ -297,6 +319,95 @@ class SyncScheduler:
             })
         
         return logs_simulados[-ultimos:] if logs_simulados else []
+    
+    def _on_supabase_state_change(self, estado_anterior: str, estado_nuevo: str):
+        """
+        Callback ejecutado cuando cambia el estado de Supabase
+        
+        Args:
+            estado_anterior: Estado previo ("online"/"offline")  
+            estado_nuevo: Nuevo estado ("online"/"offline")
+        """
+        print(f"SYNC: [STATE_CHANGE] Supabase {estado_anterior} -> {estado_nuevo}")
+        
+        # Si Supabase se recuperó (offline -> online) y tenemos auto-sync habilitado
+        if (estado_anterior == "offline" and 
+            estado_nuevo == "online" and 
+            self.auto_sync_on_recovery):
+            
+            print("SYNC: [RECOVERY] Supabase recuperado - ejecutando sincronizacion automatica")
+            
+            try:
+                # Ejecutar sincronización inmediata
+                resultado = self._ejecutar_sincronizacion_inmediata()
+                
+                if resultado.get("success"):
+                    print(f"SYNC: [RECOVERY] Sincronizacion de recuperacion exitosa: {resultado.get('mensaje')}")
+                else:
+                    print(f"SYNC: [RECOVERY] Error en sincronizacion de recuperacion: {resultado.get('error')}")
+                    
+            except Exception as e:
+                print(f"SYNC: [RECOVERY] Excepcion durante sync de recuperacion: {e}")
+    
+    def _health_check(self):
+        """
+        Health check periódico para detectar cambios de estado
+        Se ejecuta cada health_check_interval segundos
+        """
+        try:
+            if hasattr(self.db_manager, 'health_check'):
+                status = self.db_manager.health_check()
+                
+                # El health_check ya maneja la detección de cambios internamente
+                # Solo loggeamos si hay cambios significativos
+                if status.get("cambio_detectado"):
+                    print(f"SYNC: [HEALTH_CHECK] Estado cambio: {status.get('estado_anterior')} -> {status.get('estado_actual')}")
+                    
+        except Exception as e:
+            print(f"SYNC: [HEALTH_CHECK] Error durante health check: {e}")
+    
+    def _ejecutar_sincronizacion_inmediata(self) -> dict:
+        """
+        Ejecuta sincronización inmediata (para recuperación)
+        
+        Returns:
+            dict: Resultado de la sincronización
+        """
+        timestamp_inicio = datetime.datetime.now()
+        
+        try:
+            print(f"SYNC: [IMMEDIATE] Sincronizacion inmediata - {timestamp_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            if self.db_manager.modo_offline:
+                return {
+                    "success": False,
+                    "error": "Supabase aún offline",
+                    "timestamp": timestamp_inicio.isoformat()
+                }
+            
+            # Ejecutar sincronización bidireccional
+            resultado = self.db_manager.sincronizar_bidireccional()
+            
+            # Actualizar estadísticas
+            self.ultima_sincronizacion = timestamp_inicio
+            self.ultima_sincronizacion_resultado = resultado
+            
+            if resultado.get("success", False):
+                self.sincronizaciones_exitosas += 1
+            else:
+                self.sincronizaciones_fallidas += 1
+                
+            return resultado
+                
+        except Exception as e:
+            error_result = {
+                "success": False, 
+                "error": str(e),
+                "timestamp": timestamp_inicio.isoformat()
+            }
+            self.sincronizaciones_fallidas += 1
+            self.ultima_sincronizacion_resultado = error_result
+            return error_result
 
 
 # Función de utilidad para testing
