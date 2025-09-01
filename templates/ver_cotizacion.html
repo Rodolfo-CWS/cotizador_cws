@@ -7,100 +7,163 @@
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            max-width: 1000px;
+            max-width: 900px;
             margin: 0 auto;
-            padding: 20px;
-            background-color: #f8f9fa;
+            padding: 30px;
+            background-color: #f8fafc;
             color: #212529;
+            line-height: 1.6;
         }
         .container {
             background: white;
-            padding: 32px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
-            border: 1px solid #e9ecef;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid #e2e8f0;
         }
         .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
             text-align: center;
-            margin-bottom: 32px;
-            border-bottom: 1px solid #dee2e6;
-            padding-bottom: 20px;
         }
         .header h1 {
-            color: #495057;
+            color: white;
             font-weight: 600;
-            font-size: 28px;
-            margin-bottom: 12px;
+            font-size: 24px;
+            margin: 0;
         }
         .section {
-            margin-bottom: 20px;
-            padding: 16px;
-            border: 1px solid #e9ecef;
+            margin-bottom: 25px;
+            padding: 25px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
             border-radius: 8px;
-            background-color: #ffffff;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
         }
         .section h3 {
-            margin-top: 0;
-            color: #495057;
-            border-bottom: 1px solid #dee2e6;
-            padding-bottom: 8px;
-            font-weight: 500;
-        }
-        .field {
-            margin-bottom: 10px;
+            color: #1e293b;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3b82f6;
             display: flex;
-            align-items: flex-start;
+            align-items: center;
+        }
+        .section h3::before {
+            content: "📋";
+            margin-right: 10px;
+        }
+        /* MEJORA PRINCIPAL: CSS Grid para alineación perfecta */
+        .field {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 15px;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+            margin: 0;
+        }
+        .field:last-child {
+            border-bottom: none;
         }
         .field strong {
-            width: 150px;
-            display: inline-block;
-            flex-shrink: 0;
-            color: #6c757d;
-            font-weight: 500;
+            color: #475569;
+            font-weight: 600;
             font-size: 14px;
+            text-align: right;
+            width: auto;
+            display: block;
         }
         .field span {
-            background: #f8f9fa;
-            padding: 8px 12px;
-            border: 1px solid #e9ecef;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
             border-radius: 6px;
-            flex: 1;
+            padding: 10px 15px;
+            color: #1e293b;
+            font-size: 14px;
+            box-shadow: inset 0 1px 2px 0 rgba(0, 0, 0, 0.05);
             word-wrap: break-word;
-            color: #212529;
         }
+        /* Estilos especiales para campos importantes */
+        .field strong:contains("Total") + span,
+        .field strong:contains("Subtotal") + span {
+            background: #fef3c7;
+            border-color: #f59e0b;
+            font-weight: 600;
+        }
+        
+        .field strong:contains("Cliente") + span {
+            background: #dbeafe;
+            border-color: #3b82f6;
+        }
+        
+        .field strong:contains("Proyecto") + span {
+            background: #d1fae5;
+            border-color: #10b981;
+        }
+
+        /* Iconos visuales para campos */
+        .field strong:contains("Cliente")::before { 
+            content: "👤 "; 
+        }
+        .field strong:contains("Proyecto")::before { 
+            content: "📁 "; 
+        }
+        .field strong:contains("Fecha")::before { 
+            content: "📅 "; 
+        }
+        .field strong:contains("Total")::before { 
+            content: "💰 "; 
+        }
+        .field strong:contains("Moneda")::before { 
+            content: "💱 "; 
+        }
+        .field strong:contains("Vendedor")::before { 
+            content: "👨‍💼 "; 
+        }
+
         .actions {
-            text-align: center;
-            margin-top: 32px;
-            padding-top: 20px;
-            border-top: 1px solid #dee2e6;
-        }
-        .btn {
-            padding: 12px 16px;
-            margin: 0 8px;
-            border: 1px solid #dee2e6;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8fafc;
             border-radius: 8px;
+            text-align: center;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            margin: 8px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.3s ease;
             cursor: pointer;
+            border: 1px solid #d1d5db;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
             gap: 8px;
             background-color: #ffffff;
             color: #495057;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s ease;
         }
+        
         .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             text-decoration: none;
             color: #495057;
         }
+        
         .btn.primary {
-            background-color: #4f46e5;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
             color: white;
-            border-color: #4f46e5;
+            border-color: #1d4ed8;
         }
+        
         .btn.primary:hover {
             color: white;
         }
@@ -143,9 +206,99 @@
             font-weight: 600;
         }
         
+        /* Mejoras para tablas de items */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        table th {
+            background: #f1f5f9;
+            color: #374151;
+            font-weight: 600;
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f3f4f6;
+            color: #374151;
+        }
+        
+        table tr:hover {
+            background: #f9fafb;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            .field {
+                grid-template-columns: 1fr;
+                gap: 5px;
+                text-align: left;
+            }
+            
+            .field strong {
+                text-align: left;
+                padding-right: 0;
+                margin-bottom: 5px;
+                font-size: 13px;
+            }
+            
+            .header {
+                padding: 20px 15px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .section {
+                padding: 20px 15px;
+                margin-bottom: 20px;
+            }
+            
+            .section h3 {
+                font-size: 16px;
+            }
+            
+            table {
+                font-size: 12px;
+            }
+            
+            table th, table td {
+                padding: 8px 10px;
+            }
+        }
+
         @media print {
             .actions {
                 display: none;
+            }
+            
+            body {
+                background-color: white;
+                padding: 0;
+            }
+            
+            .container {
+                box-shadow: none;
+                border: none;
+                padding: 20px 0;
             }
         }
         
@@ -441,6 +594,23 @@
                 Nueva Revisión
             </a>
             {% endif %}
+            
+            <!-- Botón para análisis BOM con Gemini AI -->
+            {% if numero_cotizacion %}
+            <button onclick="analizarBOM('{{ numero_cotizacion }}')" class="btn" style="background-color: #9333ea; color: white; border-color: #9333ea;" title="Analizar PDF con Gemini AI para extraer Bill of Materials">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z"/>
+                </svg>
+                Analizar BOM
+            </button>
+            <a href="/bom_analysis?cotizacion={{ numero_cotizacion | urlencode }}" class="btn" style="background-color: #0891b2; color: white; border-color: #0891b2;" title="Ver análisis BOM existentes para {{ numero_cotizacion }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                </svg>
+                Ver BOM
+            </a>
+            {% endif %}
+            
             <button onclick="window.print()" class="btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M18,3H6V7H18M19,12A1,1 0 0,1 18,11A1,1 0 0,1 19,10A1,1 0 0,1 20,11A1,1 0 0,1 19,12M16,19H8V14H16M19,8H5A3,3 0 0,0 2,11V17H6V21H18V17H22V11A3,3 0 0,0 19,8Z"/>
@@ -449,5 +619,168 @@
             </button>
         </div>
     </div>
+
+    <script>
+        async function analizarBOM(numeroCotizacion) {
+            const botonBOM = event.target;
+            const textoOriginal = botonBOM.innerHTML;
+            
+            // Deshabilitar botón y mostrar estado de carga
+            botonBOM.disabled = true;
+            botonBOM.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="animation: spin 1s linear infinite;">
+                    <path d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z"/>
+                </svg>
+                Analizando...
+            `;
+            
+            try {
+                console.log('Iniciando análisis BOM para:', numeroCotizacion);
+                
+                // Verificar capacidad del PDF primero
+                const verificarResponse = await fetch('/verificar_pdf_bom', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ruta_pdf: numeroCotizacion + '.pdf'
+                    })
+                });
+                
+                const verificacion = await verificarResponse.json();
+                console.log('Verificación PDF BOM:', verificacion);
+                
+                if (!verificacion.bom_disponible) {
+                    alert('❌ Sistema BOM no disponible\n\nEl análisis con Gemini AI no está configurado. Contacte al administrador.');
+                    return;
+                }
+                
+                if (!verificacion.capacidad.analizable) {
+                    alert('⚠️ PDF no analizable\n\nRazón: ' + (verificacion.capacidad.razon || 'PDF no encontrado o no válido'));
+                    return;
+                }
+                
+                // Confirmar análisis con el usuario
+                const confirmar = confirm(`🤖 Análisis BOM con Gemini AI\n\n` +
+                    `Cotización: ${numeroCotizacion}\n` +
+                    `PDF: ${verificacion.capacidad.estadisticas?.numero_paginas || 'N/A'} páginas\n\n` +
+                    `El análisis seguirá estos 5 pasos:\n` +
+                    `1. Análisis página por página\n` +
+                    `2. Extracción de tablas de materiales\n` +
+                    `3. Procesamiento completo\n` +
+                    `4. Consolidación en tabla master\n` +
+                    `5. Grand total con materiales repetidos\n\n` +
+                    `¿Continuar con el análisis?`
+                );
+                
+                if (!confirmar) {
+                    return;
+                }
+                
+                // Ejecutar análisis BOM completo
+                console.log('Ejecutando análisis BOM completo...');
+                const analisisResponse = await fetch('/analizar_pdf_bom', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ruta_pdf: numeroCotizacion + '.pdf',
+                        numero_cotizacion: numeroCotizacion
+                    })
+                });
+                
+                const resultado = await analisisResponse.json();
+                console.log('Resultado análisis BOM:', resultado);
+                
+                if (resultado.exito) {
+                    const stats = resultado.resultado.estadisticas;
+                    const mensaje = `✅ Análisis BOM completado exitosamente!\n\n` +
+                        `📊 Resultados:\n` +
+                        `• Páginas analizadas: ${stats.total_paginas_analizadas || 0}\n` +
+                        `• Items encontrados: ${stats.total_items_encontrados || 0}\n` +
+                        `• Items únicos: ${stats.total_items_unicos || 0}\n` +
+                        `• Items consolidados: ${stats.total_items_consolidados || 0}\n` +
+                        `• Páginas con tablas: ${stats.paginas_con_tablas || 0}\n\n` +
+                        `¿Ver resultados detallados?`;
+                    
+                    if (confirm(mensaje)) {
+                        window.open(`/bom_analysis?id=${resultado.resultado.analysis_id}`, '_blank');
+                    }
+                } else {
+                    const error = resultado.error || resultado.resultado?.error || 'Error desconocido';
+                    let mensajeError = `❌ Error en análisis BOM\n\n${error}`;
+                    
+                    // Agregar contexto específico para errores conocidos
+                    if (error.includes('[Errno 22]') || error.includes('Invalid argument')) {
+                        mensajeError += `\n\n🔧 SOLUCIÓN APLICADA:\n` +
+                            `• Se instaló poppler-utils automáticamente\n` +
+                            `• Se mejoró el manejo de rutas de Windows\n` +
+                            `• Se activó sistema fallback (solo texto)\n\n` +
+                            `Si persiste, el PDF puede no ser compatible.`;
+                    } else if (error.includes('pdf2image')) {
+                        mensajeError += `\n\n🔧 PROBLEMA PDF2IMAGE:\n` +
+                            `• Error de conversión PDF a imagen\n` +
+                            `• Se intentará usar sistema fallback\n` +
+                            `• Verifique que el PDF no esté corrupto`;
+                    } else if (error.includes('Permission denied')) {
+                        mensajeError += `\n\n🔐 PROBLEMA PERMISOS:\n` +
+                            `• Sin acceso al archivo PDF\n` +
+                            `• Cierre el PDF si está abierto\n` +
+                            `• Ejecute como administrador si es necesario`;
+                    } else if (error.includes('File not found') || error.includes('No such file')) {
+                        mensajeError += `\n\n📁 ARCHIVO NO ENCONTRADO:\n` +
+                            `• Verifique que el PDF esté subido\n` +
+                            `• Revise el nombre de la cotización\n` +
+                            `• El archivo debe existir en el sistema`;
+                    } else if (error.includes('quota') || error.includes('limit')) {
+                        mensajeError += `\n\n⏱️ LÍMITE GEMINI AI:\n` +
+                            `• Cuota de API agotada temporalmente\n` +
+                            `• Espere unos minutos e intente de nuevo\n` +
+                            `• Considere usar un modelo más eficiente`;
+                    }
+                    
+                    mensajeError += `\n\n📋 Detalles técnicos disponibles en logs del sistema.`;
+                    alert(mensajeError);
+                }
+                
+            } catch (error) {
+                console.error('Error en análisis BOM:', error);
+                let mensajeConexion = `🚨 Error de conexión\n\nNo se pudo ejecutar el análisis BOM.\nError: ${error.message}`;
+                
+                // Contexto adicional según el tipo de error
+                if (error.message.includes('fetch')) {
+                    mensajeConexion += `\n\n🌐 PROBLEMA DE RED:\n` +
+                        `• Verifique conexión a internet\n` +
+                        `• El servidor Flask debe estar ejecutándose\n` +
+                        `• Puerto 5000 debe estar disponible`;
+                } else if (error.message.includes('timeout')) {
+                    mensajeConexion += `\n\n⏱️ TIMEOUT:\n` +
+                        `• El análisis tomó más tiempo del esperado\n` +
+                        `• PDFs grandes pueden tardar varios minutos\n` +
+                        `• Intente con un PDF más pequeño`;
+                } else if (error.message.includes('JSON')) {
+                    mensajeConexion += `\n\n📄 RESPUESTA INVÁLIDA:\n` +
+                        `• Error en el formato de respuesta del servidor\n` +
+                        `• Revise logs del servidor Flask\n` +
+                        `• Posible error interno del sistema`;
+                }
+                
+                alert(mensajeConexion);
+            } finally {
+                // Restaurar botón original
+                botonBOM.disabled = false;
+                botonBOM.innerHTML = textoOriginal;
+            }
+        }
+    </script>
+    
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </body>
 </html>
