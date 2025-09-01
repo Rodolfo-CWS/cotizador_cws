@@ -299,16 +299,19 @@ class SupabaseManager:
         Mantiene API compatible con DatabaseManager
         """
         try:
-            numero_cotizacion = datos.get('numeroCotizacion')
+            # FIX ISSUE #1: SIEMPRE priorizar número en datosGenerales.numeroCotizacion
+            numero_cotizacion = None
             
-            # FIX ISSUE #1: Priorizar número en datosGenerales.numeroCotizacion
+            # Verificar PRIMERO si hay número en datosGenerales (caso de revisiones)
+            if 'datosGenerales' in datos and 'numeroCotizacion' in datos['datosGenerales']:
+                if datos['datosGenerales']['numeroCotizacion'] and datos['datosGenerales']['numeroCotizacion'].strip():
+                    numero_cotizacion = datos['datosGenerales']['numeroCotizacion']
+                    print(f"[REVISIÓN] Usando número de datosGenerales: {numero_cotizacion}")
+                    datos['numeroCotizacion'] = numero_cotizacion
+            
+            # Si no hay en datosGenerales, usar el del nivel raíz
             if not numero_cotizacion:
-                # Verificar si hay número en datosGenerales (caso de revisiones)
-                if 'datosGenerales' in datos and 'numeroCotizacion' in datos['datosGenerales']:
-                    if datos['datosGenerales']['numeroCotizacion'].strip():
-                        numero_cotizacion = datos['datosGenerales']['numeroCotizacion']
-                        print(f"[REVISIÓN] Usando número existente: {numero_cotizacion}")
-                        datos['numeroCotizacion'] = numero_cotizacion
+                numero_cotizacion = datos.get('numeroCotizacion')
             
             if not numero_cotizacion:
                 # Generar número usando el sistema consecutivo irrepetible
