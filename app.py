@@ -431,7 +431,7 @@ def generar_pdf_reportlab(datos_cotizacion):
         fontSize=14,
         spaceAfter=6,
         alignment=1,  # Centro
-        textColor=colors.HexColor('#4A5568'),  # Gris corporativo
+        textColor=colors.HexColor('#2C5282'),  # Azul corporativo
         fontName='Helvetica-Bold'
     )
     
@@ -500,7 +500,7 @@ def generar_pdf_reportlab(datos_cotizacion):
         parent=styles['Normal'],
         fontSize=8,
         fontName='Helvetica-Bold',
-        textColor=colors.HexColor('#4A5568'),
+        textColor=colors.HexColor('#2C5282'),
         alignment=2  # Derecha
     ))
     
@@ -521,7 +521,7 @@ def generar_pdf_reportlab(datos_cotizacion):
     # Línea separadora
     from reportlab.graphics.shapes import Drawing, Line as GraphicsLine
     line_drawing = Drawing(400, 1)
-    line_drawing.add(GraphicsLine(0, 0, 400, 0, strokeColor=colors.HexColor('#4A5568'), strokeWidth=2))
+    line_drawing.add(GraphicsLine(0, 0, 400, 0, strokeColor=colors.HexColor('#2C5282'), strokeWidth=2))
     story.append(line_drawing)
     story.append(Spacer(1, 8))
     
@@ -537,7 +537,7 @@ def generar_pdf_reportlab(datos_cotizacion):
             fontSize=9,
             fontName='Helvetica-Bold',
             textColor=colors.white,
-            backColor=colors.HexColor('#4A5568'),
+            backColor=colors.HexColor('#2C5282'),
             borderPadding=5,
             alignment=1  # Centro
         )
@@ -567,8 +567,8 @@ def generar_pdf_reportlab(datos_cotizacion):
         # Labels (columnas 0 y 2) - Estilo destacado
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#4A5568')),
-        ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor('#4A5568')),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2C5282')),
+        ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor('#2C5282')),
         ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#EDF2F7')),
         ('BACKGROUND', (2, 0), (2, -1), colors.HexColor('#EDF2F7')),
         
@@ -583,7 +583,7 @@ def generar_pdf_reportlab(datos_cotizacion):
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         
         # Bordes elegantes
-        ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#4A5568')),
+        ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#2C5282')),
         ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E0')),
         ('BACKGROUND', (1, 0), (1, -1), colors.white),
         ('BACKGROUND', (3, 0), (3, -1), colors.white),
@@ -681,7 +681,7 @@ def generar_pdf_reportlab(datos_cotizacion):
         items_table = Table(items_data, colWidths=[0.5*inch, 2.5*inch, 0.7*inch, 0.6*inch, 1.1*inch, 1.1*inch])
         items_table.setStyle(TableStyle([
             # Encabezado mejorado - reducido
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4A5568')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2C5282')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 8),
@@ -699,7 +699,7 @@ def generar_pdf_reportlab(datos_cotizacion):
             
             # Estilo de fuentes para precios
             ('FONTNAME', (4, 1), (-1, -1), 'Helvetica-Bold'),
-            ('TEXTCOLOR', (4, 1), (-1, -1), colors.HexColor('#4A5568')),
+            ('TEXTCOLOR', (4, 1), (-1, -1), colors.HexColor('#2C5282')),
             
             # Padding mejorado - reducido
             ('TOPPADDING', (0, 0), (-1, -1), 4),
@@ -708,12 +708,12 @@ def generar_pdf_reportlab(datos_cotizacion):
             ('RIGHTPADDING', (0, 0), (-1, -1), 4),
             
             # Bordes profesionales
-            ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#4A5568')),
+            ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#2C5282')),
             ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E0')),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F7FAFC')]),
             
             # Línea destacada debajo del encabezado
-            ('LINEBELOW', (0, 0), (-1, 0), 3, colors.HexColor('#2D3748')),
+            ('LINEBELOW', (0, 0), (-1, 0), 3, colors.HexColor('#1A365D')),
         ]))
         
         story.append(items_table)
@@ -765,7 +765,7 @@ def generar_pdf_reportlab(datos_cotizacion):
             
             # Colores
             ('TEXTCOLOR', (0, 0), (-1, -2), colors.HexColor('#2D3748')),
-            ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#4A5568')),
+            ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#2C5282')),
             
             # Padding - reducido
             ('TOPPADDING', (0, 0), (-1, -1), 3),
@@ -775,7 +775,7 @@ def generar_pdf_reportlab(datos_cotizacion):
             
             # Bordes
             ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#CBD5E0')),
-            ('LINEABOVE', (0, -1), (-1, -1), 2, colors.HexColor('#4A5568')),
+            ('LINEABOVE', (0, -1), (-1, -1), 2, colors.HexColor('#2C5282')),
             ('BACKGROUND', (0, 0), (-1, -2), colors.HexColor('#F7FAFC')),
             ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#EDF2F7')),
         ]))
@@ -862,7 +862,7 @@ def generar_pdf_reportlab(datos_cotizacion):
     
     # Línea separadora
     footer_line = Drawing(400, 1)
-    footer_line.add(GraphicsLine(0, 0, 400, 0, strokeColor=colors.HexColor('#4A5568'), strokeWidth=1))
+    footer_line.add(GraphicsLine(0, 0, 400, 0, strokeColor=colors.HexColor('#2C5282'), strokeWidth=1))
     story.append(footer_line)
     story.append(Spacer(1, 6))
     
@@ -886,7 +886,7 @@ def generar_pdf_reportlab(datos_cotizacion):
         parent=styles['Normal'],
         fontSize=9,
         fontName='Helvetica-Bold',
-        textColor=colors.HexColor('#4A5568'),
+        textColor=colors.HexColor('#2C5282'),
         alignment=0
     )
     
@@ -3825,7 +3825,7 @@ def actualizar_timestamps():
             <style>
                 body {{ font-family: Arial; margin: 20px; }}
                 .success {{ color: green; }}
-                .info {{ color: #4A5568; }}
+                .info {{ color: blue; }}
                 .error {{ color: red; }}
                 .container {{ max-width: 800px; margin: 0 auto; }}
                 .log {{ background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; }}
@@ -4383,282 +4383,6 @@ def servir_pdf_local(numero_cotizacion):
     except Exception as e:
         print(f"[LOCAL_PDF] Error sirviendo PDF: {e}")
         return jsonify({"error": str(e)}), 500
-
-# ============================================
-# NUEVOS ENDPOINTS - ANÁLISIS BOM CON GEMINI AI
-# ============================================
-
-@app.route("/analizar_pdf_bom", methods=["POST"])
-def analizar_pdf_bom():
-    """
-    Endpoint para ejecutar análisis BOM completo de un PDF usando Gemini AI
-    Implementa la estrategia de 5 pasos específica para extracción de BOMs
-    """
-    try:
-        data = request.get_json()
-        ruta_pdf = data.get("ruta_pdf")
-        numero_cotizacion = data.get("numero_cotizacion")
-        
-        if not ruta_pdf:
-            return jsonify({
-                "error": "ruta_pdf requerida",
-                "exito": False
-            }), 400
-        
-        print(f"[BOM_ENDPOINT] Iniciando análisis BOM mejorado: {ruta_pdf}")
-        print(f"[BOM_ENDPOINT] Cotización: {numero_cotizacion}")
-        
-        # Verificar disponibilidad del sistema BOM
-        if not hasattr(pdf_manager, 'bom_analysis_disponible') or not pdf_manager.bom_analysis_disponible:
-            return jsonify({
-                "error": "Sistema de análisis BOM no disponible",
-                "detalles": "Gemini AI no está configurado correctamente",
-                "exito": False
-            }), 503
-        
-        # Ejecutar análisis completo con manejo de errores mejorado
-        try:
-            resultado = pdf_manager.analizar_pdf_bom(
-                ruta_pdf=ruta_pdf,
-                numero_cotizacion=numero_cotizacion
-            )
-            
-            if resultado.get("exito", False):
-                return jsonify({
-                    "mensaje": "Análisis BOM completado exitosamente",
-                    "resultado": resultado,
-                    "exito": True
-                })
-            else:
-                error_msg = resultado.get("error", "Error desconocido en análisis")
-                
-                # Manejo específico de errores de cuota
-                if "quota" in error_msg.lower() or "429" in error_msg:
-                    return jsonify({
-                        "error": "Límite de cuota de Gemini AI alcanzado",
-                        "detalles": "Intenta nuevamente en unos minutos",
-                        "tipo_error": "quota_exceeded",
-                        "exito": False
-                    }), 429
-                else:
-                    return jsonify({
-                        "error": error_msg,
-                        "resultado": resultado,
-                        "exito": False
-                    }), 500
-                    
-        except Exception as analysis_error:
-            print(f"[BOM_ENDPOINT] ERROR en análisis: {analysis_error}")
-            
-            # Manejo específico de errores comunes
-            error_str = str(analysis_error)
-            if "quota" in error_str.lower() or "429" in error_str:
-                return jsonify({
-                    "error": "Límite de cuota de Gemini AI alcanzado",
-                    "detalles": "Has alcanzado el límite diario/por minuto. Intenta más tarde.",
-                    "tipo_error": "quota_exceeded",
-                    "exito": False
-                }), 429
-            elif "not found" in error_str.lower() or "no such file" in error_str.lower():
-                return jsonify({
-                    "error": "PDF no encontrado",
-                    "detalles": f"No se pudo localizar el archivo: {ruta_pdf}",
-                    "tipo_error": "file_not_found",
-                    "exito": False
-                }), 404
-            else:
-                return jsonify({
-                    "error": f"Error interno en análisis: {error_str}",
-                    "tipo_error": "internal_error",
-                    "exito": False
-                }), 500
-            
-    except Exception as e:
-        print(f"[BOM_ENDPOINT] ERROR: {e}")
-        return jsonify({
-            "error": f"Error interno en análisis BOM: {str(e)}",
-            "exito": False
-        }), 500
-
-@app.route("/verificar_pdf_bom", methods=["POST"])
-def verificar_pdf_bom():
-    """Verifica si un PDF puede ser analizado para BOM (análisis rápido)"""
-    try:
-        data = request.get_json()
-        ruta_pdf = data.get("ruta_pdf")
-        
-        if not ruta_pdf:
-            return jsonify({
-                "error": "ruta_pdf requerida"
-            }), 400
-        
-        # Verificar capacidad de análisis
-        capacidad = pdf_manager.verificar_capacidad_bom(ruta_pdf)
-        
-        return jsonify({
-            "capacidad": capacidad,
-            "bom_disponible": pdf_manager.bom_analysis_disponible
-        })
-        
-    except Exception as e:
-        return jsonify({
-            "error": f"Error verificando capacidad BOM: {str(e)}",
-            "analizable": False
-        }), 500
-
-@app.route("/obtener_analisis_bom/<int:analysis_id>", methods=["GET"])
-def obtener_analisis_bom(analysis_id):
-    """Obtiene un análisis BOM específico por ID"""
-    try:
-        analisis = pdf_manager.obtener_analisis_bom(analysis_id=analysis_id)
-        
-        if analisis:
-            if "error" in analisis:
-                return jsonify(analisis), 404
-            return jsonify({
-                "analisis": analisis,
-                "encontrado": True
-            })
-        else:
-            return jsonify({
-                "error": f"Análisis BOM {analysis_id} no encontrado",
-                "encontrado": False
-            }), 404
-            
-    except Exception as e:
-        return jsonify({
-            "error": f"Error obteniendo análisis BOM: {str(e)}"
-        }), 500
-
-@app.route("/buscar_analisis_bom", methods=["GET"])
-def buscar_analisis_bom():
-    """Busca análisis BOM por número de cotización"""
-    try:
-        numero_cotizacion = request.args.get("numero_cotizacion", "")
-        limit = int(request.args.get("limit", "20"))
-        
-        if numero_cotizacion:
-            analisis = pdf_manager.obtener_analisis_bom(numero_cotizacion=numero_cotizacion)
-            if analisis:
-                return jsonify({
-                    "analisis": analisis,
-                    "encontrado": True
-                })
-            else:
-                return jsonify({
-                    "mensaje": f"No se encontró análisis BOM para cotización: {numero_cotizacion}",
-                    "encontrado": False
-                })
-        else:
-            # Listar análisis recientes
-            analisis_lista = pdf_manager.listar_analisis_bom(limit=limit)
-            return jsonify({
-                "analisis": analisis_lista,
-                "total": len(analisis_lista)
-            })
-            
-    except Exception as e:
-        return jsonify({
-            "error": f"Error buscando análisis BOM: {str(e)}"
-        }), 500
-
-@app.route("/listar_analisis_bom", methods=["GET"])
-def listar_analisis_bom():
-    """Lista todos los análisis BOM recientes"""
-    try:
-        limit = int(request.args.get("limit", "50"))
-        
-        analisis_lista = pdf_manager.listar_analisis_bom(limit=limit)
-        
-        return jsonify({
-            "analisis": analisis_lista,
-            "total": len(analisis_lista),
-            "bom_disponible": pdf_manager.bom_analysis_disponible
-        })
-        
-    except Exception as e:
-        return jsonify({
-            "error": f"Error listando análisis BOM: {str(e)}"
-        }), 500
-
-@app.route("/estadisticas_bom", methods=["GET"])
-def estadisticas_bom():
-    """Obtiene estadísticas generales del sistema BOM"""
-    try:
-        stats = pdf_manager.obtener_estadisticas_bom()
-        
-        return jsonify({
-            "estadisticas": stats,
-            "timestamp": datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        return jsonify({
-            "error": f"Error obteniendo estadísticas BOM: {str(e)}"
-        }), 500
-
-@app.route("/eliminar_analisis_bom/<int:analysis_id>", methods=["DELETE"])
-def eliminar_analisis_bom(analysis_id):
-    """Elimina un análisis BOM específico"""
-    try:
-        eliminado = pdf_manager.eliminar_analisis_bom(analysis_id)
-        
-        if eliminado:
-            return jsonify({
-                "mensaje": f"Análisis BOM {analysis_id} eliminado exitosamente",
-                "eliminado": True
-            })
-        else:
-            return jsonify({
-                "error": f"No se pudo eliminar análisis BOM {analysis_id}",
-                "eliminado": False
-            }), 404
-            
-    except Exception as e:
-        return jsonify({
-            "error": f"Error eliminando análisis BOM: {str(e)}"
-        }), 500
-
-@app.route("/bom_analysis", methods=["GET"])
-def ver_analisis_bom_interfaz():
-    """Interfaz web para ver análisis BOM"""
-    try:
-        # Obtener parámetros de consulta
-        analysis_id = request.args.get("id")
-        numero_cotizacion = request.args.get("cotizacion")
-        
-        analisis = None
-        if analysis_id:
-            try:
-                analisis = pdf_manager.obtener_analisis_bom(analysis_id=int(analysis_id))
-            except ValueError:
-                pass
-        elif numero_cotizacion:
-            analisis = pdf_manager.obtener_analisis_bom(numero_cotizacion=numero_cotizacion)
-        
-        # Obtener lista reciente para mostrar en interfaz
-        analisis_recientes = pdf_manager.listar_analisis_bom(limit=10)
-        
-        # Estadísticas básicas
-        estadisticas = pdf_manager.obtener_estadisticas_bom()
-        
-        return render_template(
-            "bom_analysis.html",
-            analisis_actual=analisis,
-            analisis_recientes=analisis_recientes,
-            estadisticas=estadisticas,
-            bom_disponible=pdf_manager.bom_analysis_disponible,
-            analysis_id=analysis_id,
-            numero_cotizacion=numero_cotizacion
-        )
-        
-    except Exception as e:
-        print(f"[BOM_INTERFAZ] ERROR: {e}")
-        return render_template(
-            "bom_analysis.html",
-            error=f"Error cargando interfaz BOM: {str(e)}",
-            bom_disponible=False
-        )
 
 # ============================================
 
