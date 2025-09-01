@@ -300,6 +300,16 @@ class SupabaseManager:
         """
         try:
             numero_cotizacion = datos.get('numeroCotizacion')
+            
+            # FIX ISSUE #1: Priorizar número en datosGenerales.numeroCotizacion
+            if not numero_cotizacion:
+                # Verificar si hay número en datosGenerales (caso de revisiones)
+                if 'datosGenerales' in datos and 'numeroCotizacion' in datos['datosGenerales']:
+                    if datos['datosGenerales']['numeroCotizacion'].strip():
+                        numero_cotizacion = datos['datosGenerales']['numeroCotizacion']
+                        print(f"[REVISIÓN] Usando número existente: {numero_cotizacion}")
+                        datos['numeroCotizacion'] = numero_cotizacion
+            
             if not numero_cotizacion:
                 # Generar número usando el sistema consecutivo irrepetible
                 print("[GUARDAR] Número no provisto, generando con sistema consecutivo...")
