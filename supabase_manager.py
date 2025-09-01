@@ -302,6 +302,11 @@ class SupabaseManager:
             # FIX ISSUE #1: SIEMPRE priorizar número en datosGenerales.numeroCotizacion
             numero_cotizacion = None
             
+            print(f"[DEBUG_ISSUE1] === INICIO DEBUG GUARDAR_COTIZACION ===")
+            print(f"[DEBUG_ISSUE1] datos['numeroCotizacion']: '{datos.get('numeroCotizacion', 'VACIO')}'")
+            print(f"[DEBUG_ISSUE1] datos['numeroCotizacionHidden']: '{datos.get('numeroCotizacionHidden', 'VACIO')}'")
+            print(f"[DEBUG_ISSUE1] datosGenerales['numeroCotizacion']: '{datos.get('datosGenerales', {}).get('numeroCotizacion', 'VACIO')}'")
+            
             # Verificar PRIMERO si hay número en datosGenerales (caso de revisiones)
             if 'datosGenerales' in datos and 'numeroCotizacion' in datos['datosGenerales']:
                 if datos['datosGenerales']['numeroCotizacion'] and datos['datosGenerales']['numeroCotizacion'].strip():
@@ -309,7 +314,15 @@ class SupabaseManager:
                     print(f"[REVISIÓN] Usando número de datosGenerales: {numero_cotizacion}")
                     datos['numeroCotizacion'] = numero_cotizacion
             
-            # Si no hay en datosGenerales, usar el del nivel raíz
+            # Si no hay en datosGenerales, verificar numeroCotizacionHidden (desde formulario)
+            if not numero_cotizacion:
+                numero_hidden = datos.get('numeroCotizacionHidden')
+                if numero_hidden and numero_hidden.strip():
+                    numero_cotizacion = numero_hidden
+                    print(f"[REVISIÓN] Usando número de numeroCotizacionHidden: {numero_cotizacion}")
+                    datos['numeroCotizacion'] = numero_cotizacion
+            
+            # Si no hay en Hidden, usar el del nivel raíz
             if not numero_cotizacion:
                 numero_cotizacion = datos.get('numeroCotizacion')
             

@@ -1093,6 +1093,15 @@ def formulario():
             print("[FORM] FORMULARIO: Datos del formulario recibidos")
             print(f"[FORM] FORMULARIO: Cliente='{datos.get('datosGenerales', {}).get('cliente', 'N/A')}' | Items={len(datos.get('items', []))}")
             
+            # DEBUG ISSUE #1: Mostrar exactamente qué números llegan
+            print(f"[ISSUE1_DEBUG] ======= DEBUGGING ISSUE #1 =======")
+            print(f"[ISSUE1_DEBUG] datos['numeroCotizacion']: '{datos.get('numeroCotizacion', 'NO_ENCONTRADO')}'")
+            print(f"[ISSUE1_DEBUG] datos['numeroCotizacionHidden']: '{datos.get('numeroCotizacionHidden', 'NO_ENCONTRADO')}'")
+            datos_generales = datos.get('datosGenerales', {})
+            print(f"[ISSUE1_DEBUG] datosGenerales['numeroCotizacion']: '{datos_generales.get('numeroCotizacion', 'NO_ENCONTRADO')}'")
+            print(f"[ISSUE1_DEBUG] datosGenerales['revision']: '{datos_generales.get('revision', 'NO_ENCONTRADO')}'")
+            print(f"[ISSUE1_DEBUG] ======= FIN DEBUG ISSUE #1 =======")
+            
             # DEBUG: Diagnóstico completo de condiciones recibidas
             print(f"[FORM_DEBUG] ======= DIAGNÓSTICO FORMULARIO =======")
             condiciones_recibidas = datos.get('condiciones', {})
