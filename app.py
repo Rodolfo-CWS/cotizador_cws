@@ -951,8 +951,13 @@ def preparar_datos_nueva_revision(cotizacion_original):
         if numero_original:
             # Usar la función del DatabaseManager para generar el número de revisión
             nuevo_numero = db_manager.generar_numero_revision(numero_original, nueva_revision)
+            
+            # FIX ISSUE #1: Poner el número en AMBOS lugares para asegurar que se use
             datos['datosGenerales']['numeroCotizacion'] = nuevo_numero
+            datos['numeroCotizacion'] = nuevo_numero  # NIVEL RAÍZ también
+            
             print(f"[REVISION] Número actualizado: '{nuevo_numero}'")
+            print(f"[REVISION] FIX ISSUE #1: Número puesto en datosGenerales Y nivel raíz")
         else:
             # Si no hay número original, generar uno nuevo completo
             cliente = datos['datosGenerales'].get('cliente', '')
