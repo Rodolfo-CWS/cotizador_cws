@@ -68,6 +68,23 @@
             word-wrap: break-word;
             color: #212529;
         }
+        
+        /* Mejora alineación datos financieros */
+        .grid-4 .field {
+            flex-direction: column;
+            text-align: center;
+            margin-bottom: 0;
+        }
+        .grid-4 .field strong {
+            width: 100%;
+            margin-bottom: 8px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .grid-4 .field span {
+            text-align: center;
+            font-weight: 500;
+        }
         .actions {
             text-align: center;
             margin-top: 32px;
@@ -124,23 +141,26 @@
         .grid-4 {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
+            gap: 15px;
+            align-items: start;
         }
         .total-value {
-            background: #f8f9fa;
-            padding: 10px 16px;
+            background: #e8f5e8;
+            padding: 12px 16px;
             border-radius: 6px;
-            font-weight: 600;
-            color: #495057;
-            border: 1px solid #e9ecef;
+            font-weight: 700;
+            color: #2d5a2d;
+            border: 1px solid #c3e6c3;
+            font-size: 16px;
         }
         .costo-value {
-            background: #f8f9fa;
-            padding: 10px 16px;
+            background: #f0f9ff;
+            padding: 12px 16px;
             border-radius: 6px;
-            color: #495057;
-            border: 1px solid #e9ecef;
+            color: #1e3a8a;
+            border: 1px solid #bfdbfe;
             font-weight: 600;
+            font-size: 15px;
         }
         
         @media print {
