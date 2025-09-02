@@ -327,25 +327,40 @@ class SupabaseManager:
                 numero_cotizacion = datos.get('numeroCotizacion')
             
             if not numero_cotizacion:
-                # Generar número usando el sistema consecutivo irrepetible
-                print("[GUARDAR] Número no provisto, generando con sistema consecutivo...")
+                # Extraer datos para análisis
                 datos_generales = datos.get('datosGenerales', {})
-                
-                # Extraer datos necesarios para generación consecutiva
-                cliente = datos_generales.get('cliente', 'CLIENTE')
-                vendedor = datos_generales.get('vendedor', 'VENDEDOR')  
-                proyecto = datos_generales.get('proyecto', 'PROYECTO')
                 revision = datos_generales.get('revision', 1)
                 
-                print(f"[GUARDAR] Generando consecutivo para: Cliente='{cliente}', Vendedor='{vendedor}', Proyecto='{proyecto}', Rev={revision}")
+                # FIX ISSUE #1: NUNCA generar nuevo número secuencial para revisiones (R2+)
+                if isinstance(revision, str):
+                    try:
+                        revision = int(revision)
+                    except (ValueError, TypeError):
+                        revision = 1
                 
-                # Usar el método consecutivo irrepetible (no el método viejo)
-                numero_cotizacion = self.generar_numero_cotizacion(cliente, vendedor, proyecto, revision)
-                datos['numeroCotizacion'] = numero_cotizacion
-                
-                # Actualizar también en datosGenerales para consistencia
-                datos['datosGenerales']['numeroCotizacion'] = numero_cotizacion
-                print(f"[GUARDAR] Número consecutivo generado: {numero_cotizacion}")
+                if revision > 1:
+                    # ES UNA REVISIÓN - ERROR CRÍTICO: no debería llegar aquí sin número
+                    error_msg = f"[CRÍTICO] Revisión R{revision} sin número de cotización base. Esto NO debe ocurrir."
+                    print(error_msg)
+                    return {"success": False, "error": f"Issue #1 - Revisión sin número base: R{revision}"}
+                else:
+                    # Es una nueva cotización (R1) - generar número consecutivo
+                    print("[GUARDAR] Nueva cotización (R1), generando número consecutivo...")
+                    
+                    # Extraer datos necesarios para generación consecutiva
+                    cliente = datos_generales.get('cliente', 'CLIENTE')
+                    vendedor = datos_generales.get('vendedor', 'VENDEDOR')  
+                    proyecto = datos_generales.get('proyecto', 'PROYECTO')
+                    
+                    print(f"[GUARDAR] Generando consecutivo para: Cliente='{cliente}', Vendedor='{vendedor}', Proyecto='{proyecto}', Rev={revision}")
+                    
+                    # Usar el método consecutivo irrepetible solo para NUEVAS cotizaciones
+                    numero_cotizacion = self.generar_numero_cotizacion(cliente, vendedor, proyecto, revision)
+                    datos['numeroCotizacion'] = numero_cotizacion
+                    
+                    # Actualizar también en datosGenerales para consistencia
+                    datos['datosGenerales']['numeroCotizacion'] = numero_cotizacion
+                    print(f"[GUARDAR] Número consecutivo generado: {numero_cotizacion}")
             
             print(f"[GUARDAR] Procesando cotización: {numero_cotizacion}")
             
