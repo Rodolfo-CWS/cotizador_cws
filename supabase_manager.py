@@ -100,8 +100,17 @@ class SupabaseManager:
             self.pg_connection = psycopg2.connect(
                 self.database_url,
                 cursor_factory=RealDictCursor,
-                connect_timeout=10,
-                application_name="CWS_Cotizador"
+                connect_timeout=30,
+                application_name="CWS_Cotizador",
+                # Configuración SSL robusta
+                sslmode='require',
+                sslcert='',
+                sslkey='',
+                sslrootcert='',
+                # Configuración de conexión estable
+                keepalives_idle=600,
+                keepalives_interval=30,
+                keepalives_count=3
             )
             
             print(f"[SUPABASE] Conexión PostgreSQL establecida")
@@ -173,6 +182,42 @@ class SupabaseManager:
         print("[SUPABASE] Intentando reconexion...")
         self._inicializar_conexion()
         return not self.modo_offline
+    
+    def _verificar_conexion_activa(self) -> bool:
+        """
+        Verificar si la conexión PostgreSQL sigue activa y reconectar si es necesario
+        Returns: True si la conexión está activa, False si no se pudo establecer
+        """
+        if self.modo_offline or not self.pg_connection:
+            return self._reconectar_si_es_necesario()
+        
+        try:
+            # Test ping simple para verificar conexión
+            cursor = self.pg_connection.cursor()
+            cursor.execute("SELECT 1;")
+            result = cursor.fetchone()
+            cursor.close()
+            
+            if not result or result[0] != 1:
+                raise Exception("Test ping falló")
+            
+            return True
+            
+        except (psycopg2.OperationalError, psycopg2.InterfaceError, Exception) as e:
+            print(f"[SUPABASE] Conexión perdida: {safe_str(e)}")
+            print("[SUPABASE] Intentando reconexión automática...")
+            
+            # Cerrar conexión problemática
+            if self.pg_connection:
+                try:
+                    self.pg_connection.close()
+                except:
+                    pass
+                self.pg_connection = None
+            
+            # Marcar como offline y intentar reconectar
+            self.modo_offline = True
+            return self._reconectar_si_es_necesario()
     
     def registrar_callback_cambio_estado(self, callback):
         """
