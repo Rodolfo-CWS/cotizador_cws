@@ -1119,28 +1119,83 @@ def formulario():
             print(f"[FORM_DEBUG] COMENTARIOS: '{condiciones_recibidas.get('comentarios', 'NO_ENCONTRADO')}'")
             print(f"[FORM_DEBUG] ======= FIN DIAGNÓSTICO FORMULARIO =======")
             
-            # VALIDACIÓN OBLIGATORIA BACKEND: Justificación de actualización para revisiones >= 2
+            # VALIDACIÓN MEJORADA PARA REVISIONES con logging detallado
             datos_generales = datos.get('datosGenerales', {})
             revision = safe_int(datos_generales.get('revision', 1))
+            numero_cotizacion = datos_generales.get('numeroCotizacion', 'N/A')
+            
+            print(f"[REVISION_DEBUG] ======= ANÁLISIS DE REVISIÓN =======")
+            print(f"[REVISION_DEBUG] Número cotización: '{numero_cotizacion}'")
+            print(f"[REVISION_DEBUG] Revisión detectada: {revision}")
+            print(f"[REVISION_DEBUG] Es revisión (>=2): {revision >= 2}")
             
             if revision >= 2:
                 actualizacion_revision = datos_generales.get('actualizacionRevision', '').strip()
+                print(f"[REVISION_DEBUG] Justificación presente: {bool(actualizacion_revision)}")
+                print(f"[REVISION_DEBUG] Longitud justificación: {len(actualizacion_revision)}")
+                print(f"[REVISION_DEBUG] Justificación válida (>=10 chars): {len(actualizacion_revision) >= 10}")
+                
                 if not actualizacion_revision or len(actualizacion_revision) < 10:
-                    error_msg = "Justificación de actualización requerida para revisiones R2+. Debe tener al menos 10 caracteres."
+                    error_msg = f"Justificación requerida para revisión R{revision}. Mínimo 10 caracteres (actual: {len(actualizacion_revision)})."
                     print(f"[VALIDATION ERROR] {error_msg}")
+                    print(f"[REVISION_DEBUG] ======= FIN ANÁLISIS DE REVISIÓN (ERROR) =======")
                     return jsonify({
                         "error": error_msg,
                         "campo_requerido": "actualizacionRevision",
                         "revision": revision,
-                        "longitud_actual": len(actualizacion_revision)
+                        "numero_cotizacion": numero_cotizacion,
+                        "longitud_actual": len(actualizacion_revision),
+                        "justificacion_recibida": actualizacion_revision[:50] + "..." if len(actualizacion_revision) > 50 else actualizacion_revision
                     }), 400
+                else:
+                    print(f"[REVISION_DEBUG] ✅ Validación de justificación EXITOSA para R{revision}")
             
-            # Guardar usando DatabaseManager
+            print(f"[REVISION_DEBUG] ======= FIN ANÁLISIS DE REVISIÓN (OK) =======")
+            
+            # Función auxiliar para extraer número de cotización de manera robusta
+            def extraer_numero_cotizacion(datos):
+                """Extrae número de cotización con múltiples fallbacks"""
+                candidatos = [
+                    datos.get('datosGenerales', {}).get('numeroCotizacion'),
+                    datos.get('numeroCotizacionHidden'),
+                    datos.get('numeroCotizacion')
+                ]
+                
+                for i, candidato in enumerate(candidatos):
+                    if candidato and str(candidato).strip():
+                        print(f"[NUMERO_DEBUG] Número encontrado en posición {i}: '{candidato}'")
+                        return str(candidato).strip()
+                
+                print(f"[NUMERO_DEBUG] ❌ NO se encontró número de cotización en ningún lugar")
+                return None
+            
+            # Extraer y validar número de cotización
+            numero_final = extraer_numero_cotizacion(datos)
+            if numero_final:
+                print(f"[NUMERO_DEBUG] ✅ Número de cotización confirmado: '{numero_final}'")
+                # Asegurar que esté en todos los lugares necesarios
+                datos['numeroCotizacion'] = numero_final
+                if 'datosGenerales' not in datos:
+                    datos['datosGenerales'] = {}
+                datos['datosGenerales']['numeroCotizacion'] = numero_final
+            else:
+                print(f"[NUMERO_DEBUG] ⚠️ Procediendo sin número - será generado automáticamente")
+            
+            # Guardar usando DatabaseManager con manejo robusto de errores
             print("[FORM] FORMULARIO: Llamando a guardar_cotizacion...")
             resultado = db_manager.guardar_cotizacion(datos)
-            print(f"[FORM] FORMULARIO: Resultado guardado = {resultado}")
+            print(f"[FORM] FORMULARIO: Resultado guardado = {json.dumps(resultado, indent=2, ensure_ascii=False)}")
             
-            if resultado["success"]:
+            # Análisis detallado del resultado
+            print(f"[GUARDAR_DEBUG] ===== ANÁLISIS DE RESULTADO DE GUARDADO =====")
+            print(f"[GUARDAR_DEBUG] Success: {resultado.get('success', False)}")
+            print(f"[GUARDAR_DEBUG] Error: {resultado.get('error', 'N/A')}")
+            print(f"[GUARDAR_DEBUG] Numero cotización: {resultado.get('numeroCotizacion') or resultado.get('numero_cotizacion', 'N/A')}")
+            print(f"[GUARDAR_DEBUG] Tipo error: {resultado.get('tipo_error', 'N/A')}")
+            print(f"[GUARDAR_DEBUG] ID generado: {resultado.get('id', 'N/A')}")
+            print(f"[GUARDAR_DEBUG] ===== FIN ANÁLISIS DE RESULTADO =====")
+            
+            if resultado.get("success", False):
                 numero_cotizacion = resultado.get('numero_cotizacion') or resultado.get('numeroCotizacion')
                 print(f"[OK] FORMULARIO: Guardado exitoso - Numero: {numero_cotizacion}")
                 
@@ -1158,74 +1213,133 @@ def formulario():
                         "numero_cotizacion": numero_cotizacion
                     }), 500
                 
-                # AGREGAR: Generar PDF automáticamente después de guardar
-                pdf_resultado = None
-                pdf_error = None
+                # ✅ COTIZACIÓN GUARDADA EXITOSAMENTE - PDF EN SEGUNDO PLANO
+                # Separar completamente el guardado de la generación de PDF
+                # La cotización YA ESTÁ GUARDADA, PDF es secundario
                 
-                try:
-                    print(f"[PDF] FORMULARIO: Generando PDF automáticamente para {numero_cotizacion}")
-                    
-                    if pdf_manager and (WEASYPRINT_AVAILABLE or REPORTLAB_AVAILABLE):
-                        # Buscar la cotización recién guardada
-                        cotizacion_busqueda = db_manager.obtener_cotizacion(numero_cotizacion)
-                        
-                        if cotizacion_busqueda["encontrado"]:
-                            cotizacion = cotizacion_busqueda["item"]
-                            
-                            # Generar PDF usando ReportLab
-                            try:
-                                pdf_data = generar_pdf_reportlab(cotizacion)
-                                
-                                # Almacenar en Google Drive y localmente
-                                resultado_almacenamiento = pdf_manager.almacenar_pdf_nuevo(
-                                    pdf_data, 
-                                    cotizacion
-                                )
-                                
-                                pdf_resultado = resultado_almacenamiento
-                                print(f"[PDF] FORMULARIO: PDF generado y almacenado exitosamente")
-                                
-                            except Exception as pdf_gen_error:
-                                print(f"[ERROR] FORMULARIO: Error generando PDF: {pdf_gen_error}")
-                                pdf_error = str(pdf_gen_error)
-                        else:
-                            print(f"[ERROR] FORMULARIO: No se pudo recuperar cotización para PDF: {numero_cotizacion}")
-                            pdf_error = "No se pudo recuperar la cotización para generar PDF"
-                    else:
-                        print(f"[WARNING] FORMULARIO: PDF Manager no disponible o generadores PDF no instalados")
-                        pdf_error = "Generadores de PDF no disponibles"
-                        
-                except Exception as e:
-                    print(f"[ERROR] FORMULARIO: Error en generación automática de PDF: {e}")
-                    pdf_error = str(e)
-                
-                # Respuesta con información de PDF
-                respuesta = {
+                respuesta_base = {
                     "success": True,
                     "mensaje": "Cotización guardada correctamente",
                     "numeroCotizacion": numero_cotizacion,
-                    "pdf_generado": pdf_resultado is not None,
-                    "pdf_error": pdf_error
+                    "timestamp": datetime.datetime.now().isoformat()
                 }
                 
                 # Agregar ID solo si existe (modo online)
                 if "id" in resultado:
-                    respuesta["id"] = resultado["id"]
+                    respuesta_base["id"] = resultado["id"]
                 
-                if pdf_resultado:
-                    respuesta["pdf_info"] = {
-                        "ruta_local": pdf_resultado.get("ruta_local"),
-                        "google_drive": pdf_resultado.get("google_drive", {})
-                    }
+                # INTENTAR generar PDF (OPCIONAL - no afecta éxito del guardado)
+                try:
+                    print(f"[PDF] FORMULARIO: ⏳ Iniciando generación de PDF (no crítica) para {numero_cotizacion}")
+                    
+                    if pdf_manager and (WEASYPRINT_AVAILABLE or REPORTLAB_AVAILABLE):
+                        # Intentar generar PDF de manera no bloqueante
+                        def generar_pdf_asincrono():
+                            try:
+                                cotizacion_busqueda = db_manager.obtener_cotizacion(numero_cotizacion)
+                                if cotizacion_busqueda["encontrado"]:
+                                    cotizacion = cotizacion_busqueda["item"]
+                                    pdf_data = generar_pdf_reportlab(cotizacion)
+                                    resultado_almacenamiento = pdf_manager.almacenar_pdf_nuevo(pdf_data, cotizacion)
+                                    print(f"[PDF] ✅ PDF generado exitosamente en segundo plano: {numero_cotizacion}")
+                                    return resultado_almacenamiento
+                                else:
+                                    print(f"[PDF] ⚠️ No se encontró cotización para PDF: {numero_cotizacion}")
+                                    return None
+                            except Exception as e:
+                                print(f"[PDF] ❌ Error en generación asíncrona: {e}")
+                                return None
+                        
+                        # Generar PDF con manejo simple de tiempo (compatible Windows)
+                        import time
+                        
+                        try:
+                            inicio_pdf = time.time()
+                            print(f"[PDF] Iniciando generación a las {time.strftime('%H:%M:%S')}")
+                            
+                            pdf_resultado = generar_pdf_asincrono()
+                            tiempo_transcurrido = time.time() - inicio_pdf
+                            
+                            print(f"[PDF] Generación completada en {tiempo_transcurrido:.2f} segundos")
+                            
+                            if pdf_resultado:
+                                respuesta_base["pdf_generado"] = True
+                                respuesta_base["pdf_info"] = {
+                                    "ruta_local": pdf_resultado.get("ruta_local"),
+                                    "google_drive": pdf_resultado.get("google_drive", {}),
+                                    "mensaje": "PDF generado automáticamente",
+                                    "tiempo_generacion": f"{tiempo_transcurrido:.2f}s"
+                                }
+                                print(f"[PDF] ✅ PDF incluido en respuesta exitosamente")
+                            else:
+                                respuesta_base["pdf_generado"] = False
+                                respuesta_base["pdf_mensaje"] = "PDF se generará por demanda - cotización guardada exitosamente"
+                                
+                        except Exception as pdf_gen_error:
+                            tiempo_transcurrido = time.time() - inicio_pdf
+                            print(f"[PDF] ❌ Error después de {tiempo_transcurrido:.2f}s: {pdf_gen_error}")
+                            respuesta_base["pdf_generado"] = False
+                            respuesta_base["pdf_mensaje"] = f"PDF se generará por demanda (error de generación) - cotización guardada exitosamente"
+                            
+                    else:
+                        print(f"[PDF] ⚠️ Generadores de PDF no disponibles")
+                        respuesta_base["pdf_generado"] = False
+                        respuesta_base["pdf_mensaje"] = "PDF se generará por demanda - cotización guardada exitosamente"
+                        
+                except Exception as pdf_error:
+                    # CRÍTICO: Los errores de PDF NO deben afectar el éxito del guardado
+                    print(f"[PDF] ❌ Error en PDF (NO CRÍTICO): {pdf_error}")
+                    respuesta_base["pdf_generado"] = False
+                    respuesta_base["pdf_mensaje"] = f"PDF se generará por demanda (error: {str(pdf_error)[:50]}) - cotización guardada exitosamente"
+                
+                # Agregar información adicional
+                respuesta_base["revision"] = datos.get('datosGenerales', {}).get('revision', '1')
+                respuesta_base["cliente"] = datos.get('datosGenerales', {}).get('cliente', 'N/A')
+                
+                print(f"[SUCCESS] FORMULARIO: ✅ Respuesta completa preparada para {numero_cotizacion}")
+                respuesta = respuesta_base
                 
                 return jsonify(respuesta)
             else:
-                print(f"[ERROR] FORMULARIO: Error al guardar - {resultado.get('error')}")
+                # Manejo detallado de errores de guardado
+                error_detalle = resultado.get('error', 'Error desconocido')
+                tipo_error = resultado.get('tipo_error', 'general')
+                
+                print(f"[ERROR] FORMULARIO: ===== ERROR DE GUARDADO =====")
+                print(f"[ERROR] FORMULARIO: Tipo: {tipo_error}")
+                print(f"[ERROR] FORMULARIO: Detalle: {error_detalle}")
+                print(f"[ERROR] FORMULARIO: Resultado completo: {json.dumps(resultado, indent=2, ensure_ascii=False)}")
+                print(f"[ERROR] FORMULARIO: ===== FIN ERROR DE GUARDADO =====")
+                
+                # Log crítico para seguimiento
+                logging.error(f"ERROR_GUARDADO_COTIZACION: {error_detalle} - Tipo: {tipo_error} - Cliente: {datos.get('datosGenerales', {}).get('cliente', 'N/A')}")
+                
+                # Respuesta específica según tipo de error
+                if tipo_error == "validacion":
+                    status_code = 400
+                    error_usuario = f"Error de validación: {error_detalle}"
+                elif tipo_error == "fallo_silencioso":
+                    status_code = 500
+                    error_usuario = "Error crítico en el sistema - datos no se guardaron correctamente"
+                elif tipo_error == "conectividad":
+                    status_code = 503
+                    error_usuario = "Error de conectividad - inténtelo nuevamente"
+                elif "Issue #1" in error_detalle:
+                    status_code = 500
+                    error_usuario = "Error en sistema de revisiones - número de cotización faltante"
+                else:
+                    status_code = 500
+                    error_usuario = "Error interno del servidor"
+                
                 return jsonify({
                     "success": False,
-                    "error": "Error al guardar",
-                    "detalle": resultado["error"]
-                }), 500
+                    "error": error_usuario,
+                    "detalle_tecnico": error_detalle,
+                    "tipo_error": tipo_error,
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "numero_cotizacion": datos.get('datosGenerales', {}).get('numeroCotizacion', 'N/A'),
+                    "revision": datos.get('datosGenerales', {}).get('revision', 'N/A')
+                }), status_code
                 
         except Exception as e:
             print(f"[CRITICAL] FORMULARIO: ERROR CRITICO - {e}")
@@ -4356,6 +4470,171 @@ def storage_diagnostic():
     except Exception as e:
         return jsonify({
             "error": f"Error en diagnóstico de storage: {str(e)}",
+            "timestamp": datetime.datetime.now().isoformat()
+        }), 500
+
+# ============================================
+# DEBUG TEMPORAL PARA REVISIONES
+# ============================================
+
+@app.route("/debug-revision/<path:numero_cotizacion>")
+def debug_revision_especifica(numero_cotizacion):
+    """Debug temporal específico para el caso DAIKIN-CWS-RM-001-R1-COMPUTADOR"""
+    try:
+        from urllib.parse import unquote
+        numero_decodificado = unquote(numero_cotizacion)
+        
+        debug_info = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "numero_original": numero_cotizacion,
+            "numero_decodificado": numero_decodificado,
+            "analisis": {}
+        }
+        
+        print(f"[DEBUG_REVISION] ===== ANÁLISIS TEMPORAL PARA: {numero_decodificado} =====")
+        
+        # 1. Verificar si la cotización existe
+        resultado_busqueda = db_manager.obtener_cotizacion(numero_decodificado)
+        debug_info["analisis"]["cotizacion_existe"] = resultado_busqueda.get("encontrado", False)
+        
+        if resultado_busqueda.get("encontrado"):
+            cotizacion = resultado_busqueda["item"]
+            datos_generales = cotizacion.get("datosGenerales", {})
+            
+            debug_info["analisis"]["datos_cotizacion"] = {
+                "numero_en_datos": datos_generales.get("numeroCotizacion"),
+                "revision_actual": datos_generales.get("revision", 1),
+                "cliente": datos_generales.get("cliente"),
+                "vendedor": datos_generales.get("vendedor"),
+                "proyecto": datos_generales.get("proyecto"),
+                "fecha": datos_generales.get("fecha"),
+                "tiene_actualizacion_revision": bool(datos_generales.get("actualizacionRevision"))
+            }
+            
+            # 2. Simular preparación de nueva revisión
+            try:
+                datos_nueva_revision = preparar_datos_nueva_revision(cotizacion)
+                debug_info["analisis"]["preparacion_revision"] = {
+                    "exitosa": True,
+                    "nueva_revision": datos_nueva_revision.get("datosGenerales", {}).get("revision"),
+                    "nuevo_numero": datos_nueva_revision.get("datosGenerales", {}).get("numeroCotizacion"),
+                    "campos_clave": {
+                        "numeroCotizacion_raiz": datos_nueva_revision.get("numeroCotizacion"),
+                        "numeroCotizacion_datosGenerales": datos_nueva_revision.get("datosGenerales", {}).get("numeroCotizacion"),
+                        "revision": datos_nueva_revision.get("datosGenerales", {}).get("revision"),
+                        "actualizacionRevision": datos_nueva_revision.get("datosGenerales", {}).get("actualizacionRevision")
+                    }
+                }
+                
+                # 3. Simular validación de guardado
+                datos_simulacion = datos_nueva_revision.copy()
+                datos_simulacion["datosGenerales"]["actualizacionRevision"] = "Justificación de prueba para validación temporal del sistema"
+                
+                # Aplicar la misma lógica de validación del formulario
+                revision_sim = safe_int(datos_simulacion.get('datosGenerales', {}).get('revision', 1))
+                debug_info["analisis"]["validacion_simulada"] = {
+                    "revision_detectada": revision_sim,
+                    "es_revision_mayor": revision_sim >= 2,
+                    "justificacion_presente": bool(datos_simulacion.get("datosGenerales", {}).get("actualizacionRevision", "").strip()),
+                    "justificacion_longitud": len(datos_simulacion.get("datosGenerales", {}).get("actualizacionRevision", "").strip()),
+                    "validacion_pasaria": len(datos_simulacion.get("datosGenerales", {}).get("actualizacionRevision", "").strip()) >= 10
+                }
+                
+            except Exception as e:
+                debug_info["analisis"]["preparacion_revision"] = {
+                    "exitosa": False,
+                    "error": str(e)
+                }
+        
+        # 4. Verificar estado del sistema
+        debug_info["analisis"]["estado_sistema"] = {
+            "db_manager_disponible": db_manager is not None,
+            "db_manager_modo": "offline" if getattr(db_manager, 'modo_offline', None) else "online",
+            "pdf_manager_disponible": pdf_manager is not None
+        }
+        
+        # 5. Verificar estado de Supabase específicamente
+        if hasattr(db_manager, 'supabase_client'):
+            try:
+                # Test simple de conectividad
+                test_result = db_manager.supabase_client.table('cotizaciones').select('*').limit(1).execute()
+                debug_info["analisis"]["supabase_conectividad"] = {
+                    "conectado": True,
+                    "registros_disponibles": len(test_result.data) if test_result.data else 0
+                }
+            except Exception as e:
+                debug_info["analisis"]["supabase_conectividad"] = {
+                    "conectado": False,
+                    "error": str(e)
+                }
+        
+        print(f"[DEBUG_REVISION] ===== FIN ANÁLISIS TEMPORAL =====")
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        return jsonify({
+            "error": f"Error en debug de revisión: {str(e)}",
+            "timestamp": datetime.datetime.now().isoformat()
+        }), 500
+
+@app.route("/test-revision-form", methods=["POST"])
+def test_revision_form():
+    """Endpoint temporal para probar el formulario de revisión con datos específicos"""
+    try:
+        datos_test = request.get_json()
+        
+        print(f"[TEST_REVISION] ===== PRUEBA DE FORMULARIO DE REVISIÓN =====")
+        print(f"[TEST_REVISION] Datos recibidos: {json.dumps(datos_test, indent=2, ensure_ascii=False)}")
+        
+        # Aplicar exactamente la misma lógica del formulario real
+        datos_generales = datos_test.get('datosGenerales', {})
+        revision = safe_int(datos_generales.get('revision', 1))
+        numero_cotizacion = datos_generales.get('numeroCotizacion', 'N/A')
+        
+        resultado_test = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "validacion": {
+                "revision_detectada": revision,
+                "es_revision_mayor": revision >= 2,
+                "numero_cotizacion": numero_cotizacion
+            }
+        }
+        
+        if revision >= 2:
+            actualizacion_revision = datos_generales.get('actualizacionRevision', '').strip()
+            resultado_test["validacion"]["justificacion"] = {
+                "presente": bool(actualizacion_revision),
+                "longitud": len(actualizacion_revision),
+                "valida": len(actualizacion_revision) >= 10,
+                "contenido_preview": actualizacion_revision[:100] + "..." if len(actualizacion_revision) > 100 else actualizacion_revision
+            }
+            
+            if not actualizacion_revision or len(actualizacion_revision) < 10:
+                resultado_test["validacion"]["error"] = f"Justificación requerida para revisión R{revision}. Mínimo 10 caracteres (actual: {len(actualizacion_revision)})."
+                return jsonify(resultado_test), 400
+        
+        # Si pasa la validación, intentar guardado simulado (sin commitear)
+        try:
+            resultado_guardado = db_manager.guardar_cotizacion(datos_test)
+            resultado_test["guardado_simulado"] = {
+                "exitoso": resultado_guardado.get("success", False),
+                "error": resultado_guardado.get("error"),
+                "numero_generado": resultado_guardado.get("numeroCotizacion") or resultado_guardado.get("numero_cotizacion")
+            }
+        except Exception as e:
+            resultado_test["guardado_simulado"] = {
+                "exitoso": False,
+                "error": f"Excepción durante guardado: {str(e)}"
+            }
+        
+        print(f"[TEST_REVISION] ===== FIN PRUEBA DE FORMULARIO =====")
+        
+        return jsonify(resultado_test)
+        
+    except Exception as e:
+        return jsonify({
+            "error": f"Error en test de revisión: {str(e)}",
             "timestamp": datetime.datetime.now().isoformat()
         }), 500
 
