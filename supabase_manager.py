@@ -183,6 +183,87 @@ class SupabaseManager:
         self._inicializar_conexion()
         return not self.modo_offline
     
+    def _ejecutar_con_reintentos(self, operacion, max_reintentos=3, descripcion="operación"):
+        """
+        Ejecutar operación de base de datos con reintentos automáticos para errores SSL
+        
+        Args:
+            operacion: Función que ejecuta la operación
+            max_reintentos: Número máximo de reintentos
+            descripcion: Descripción de la operación para logs
+            
+        Returns:
+            Resultado de la operación o None si fallan todos los reintentos
+        """
+        ultimo_error = None
+        
+        for intento in range(max_reintentos + 1):
+            try:
+                # Verificar conexión antes de cada intento
+                if not self._verificar_conexion_activa():
+                    if intento < max_reintentos:
+                        print(f"[REINTENTOS] Intento {intento + 1}/{max_reintentos + 1}: Reconectando para {descripcion}")
+                        continue
+                    else:
+                        print(f"[REINTENTOS] {descripcion} FALLO: Sin conexión después de {max_reintentos} reintentos")
+                        self.modo_offline = True
+                        return None
+                
+                # Ejecutar operación
+                print(f"[REINTENTOS] Ejecutando {descripcion} (intento {intento + 1})")
+                resultado = operacion()
+                
+                if intento > 0:
+                    print(f"[REINTENTOS] {descripcion} ÉXITO en intento {intento + 1}")
+                    
+                return resultado
+                
+            except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+                error_msg = str(e).lower()
+                ultimo_error = e
+                
+                if 'ssl connection has been closed' in error_msg or 'connection closed' in error_msg:
+                    print(f"[REINTENTOS] Intento {intento + 1}: Error SSL - {str(e)}")
+                    
+                    # Cerrar conexión problemática
+                    if self.pg_connection:
+                        try:
+                            self.pg_connection.close()
+                        except:
+                            pass
+                        self.pg_connection = None
+                    
+                    if intento < max_reintentos:
+                        import time
+                        tiempo_espera = (intento + 1) * 2  # Backoff exponencial: 2s, 4s, 6s
+                        print(f"[REINTENTOS] Esperando {tiempo_espera}s antes del siguiente intento...")
+                        time.sleep(tiempo_espera)
+                        
+                        # Intentar reconectar
+                        try:
+                            self._conectar_postgresql()
+                        except Exception as reconect_error:
+                            print(f"[REINTENTOS] Error reconectando: {reconect_error}")
+                            continue
+                    else:
+                        print(f"[REINTENTOS] {descripcion} FALLO DEFINITIVO: {str(e)}")
+                        self.modo_offline = True
+                        break
+                else:
+                    # Error que no es SSL - no reintentar
+                    print(f"[REINTENTOS] {descripcion} error no-SSL: {str(e)}")
+                    raise e
+                    
+            except Exception as e:
+                # Otros errores - no reintentar
+                print(f"[REINTENTOS] {descripcion} error inesperado: {str(e)}")
+                raise e
+        
+        print(f"[REINTENTOS] {descripcion} FALLO FINAL después de {max_reintentos + 1} intentos")
+        if ultimo_error:
+            raise ultimo_error
+        return None
+    
     def _verificar_conexion_activa(self) -> bool:
         """
         Verificar si la conexión PostgreSQL sigue activa y reconectar si es necesario
@@ -313,30 +394,53 @@ class SupabaseManager:
                 "archivo": self.archivo_offline
             }
         else:
-            try:
+            def _operacion_estadisticas():
+                """Operación de estadísticas que será ejecutada con reintentos"""
                 cursor = self.pg_connection.cursor()
                 
-                # Contar cotizaciones
-                cursor.execute("SELECT COUNT(*) as total FROM cotizaciones;")
-                total = cursor.fetchone()['total']
-                
-                # Contar PDFs
-                cursor.execute("SELECT COUNT(*) as total FROM pdf_storage WHERE pdf_data IS NOT NULL;")
-                pdfs = cursor.fetchone()['total']
-                
-                cursor.close()
+                try:
+                    # Contar cotizaciones
+                    cursor.execute("SELECT COUNT(*) as total FROM cotizaciones;")
+                    total = cursor.fetchone()['total']
+                    
+                    # Contar PDFs
+                    cursor.execute("SELECT COUNT(*) as total FROM pdf_storage WHERE pdf_data IS NOT NULL;")
+                    pdfs = cursor.fetchone()['total']
+                    
+                    cursor.close()
+                    
+                    return {
+                        "total_cotizaciones": total,
+                        "total_pdfs": pdfs,
+                        "modo": "online",
+                        "fuente": "Supabase PostgreSQL",
+                        "url": self.supabase_url
+                    }
+                except Exception as e:
+                    cursor.close()
+                    raise e
+            
+            # Ejecutar con reintentos automáticos
+            resultado = self._ejecutar_con_reintentos(
+                _operacion_estadisticas,
+                max_reintentos=3,
+                descripcion="obtener estadísticas"
+            )
+            
+            if resultado is None:
+                # Falló después de reintentos - ya está en modo offline
+                print("[ESTADISTICAS] Fallback a modo offline después de reintentos SSL")
+                data = self._cargar_datos_offline()
+                cotizaciones = data.get("cotizaciones", [])
                 
                 return {
-                    "total_cotizaciones": total,
-                    "total_pdfs": pdfs,
-                    "modo": "online",
-                    "fuente": "Supabase PostgreSQL",
-                    "url": self.supabase_url
+                    "total_cotizaciones": len(cotizaciones),
+                    "modo": "offline_fallback",
+                    "fuente": "JSON local (después de error SSL)",
+                    "archivo": self.archivo_offline
                 }
-                
-            except Exception as e:
-                print(f"[SUPABASE] Error obteniendo estadísticas: {safe_str(e)}")
-                return {"error": safe_str(e)}
+            
+            return resultado
     
     def guardar_cotizacion(self, datos: Dict) -> Dict:
         """
@@ -433,94 +537,108 @@ class SupabaseManager:
             return {"success": False, "error": error_msg}
     
     def _guardar_cotizacion_supabase(self, datos: Dict) -> Dict:
-        """Guardar cotización en Supabase PostgreSQL"""
-        try:
+        """Guardar cotización en Supabase PostgreSQL con reintentos automáticos"""
+        
+        # Extraer datos fuera del método de reintentos
+        numero_cotizacion = datos.get('numeroCotizacion')
+        datos_generales = datos.get('datosGenerales', {})
+        items = datos.get('items', [])
+        condiciones = datos.get('condiciones', {})
+        revision = datos.get('revision', 1)
+        version = datos.get('version', '1.0.0')
+        usuario = datos.get('usuario')
+        observaciones = datos.get('observaciones')
+        
+        # Generar timestamp si no existe
+        timestamp = datos.get('timestamp', int(time.time() * 1000))
+        fecha_creacion = datos.get('fechaCreacion')
+        
+        # Convertir fecha_creacion si es string
+        fecha_dt = datetime.now()
+        if fecha_creacion:
+            if isinstance(fecha_creacion, str):
+                try:
+                    fecha_dt = datetime.fromisoformat(fecha_creacion.replace('Z', '+00:00'))
+                except:
+                    fecha_dt = datetime.now()
+        
+        # NOTA: Condiciones se guardan dentro de datos_generales temporalmente
+        if condiciones:
+            datos_generales['condiciones'] = condiciones
+        
+        def _operacion_guardar():
+            """Operación de guardado que será ejecutada con reintentos"""
             cursor = self.pg_connection.cursor()
             
-            # Extraer datos
-            numero_cotizacion = datos.get('numeroCotizacion')
-            datos_generales = datos.get('datosGenerales', {})
-            items = datos.get('items', [])
-            condiciones = datos.get('condiciones', {})  # AGREGAR: condiciones
-            revision = datos.get('revision', 1)
-            version = datos.get('version', '1.0.0')
-            usuario = datos.get('usuario')
-            observaciones = datos.get('observaciones')
-            
-            # Generar timestamp si no existe
-            timestamp = datos.get('timestamp', int(time.time() * 1000))
-            fecha_creacion = datos.get('fechaCreacion')
-            
-            # Convertir fecha_creacion si es string
-            fecha_dt = datetime.now()
-            if fecha_creacion:
-                if isinstance(fecha_creacion, str):
-                    try:
-                        fecha_dt = datetime.fromisoformat(fecha_creacion.replace('Z', '+00:00'))
-                    except:
-                        fecha_dt = datetime.now()
-            
-            # Query de inserción/actualización SIN CONDICIONES (temporal hasta resolver timeout)
-            query = """
-                INSERT INTO cotizaciones (
-                    numero_cotizacion, datos_generales, items, revision, 
-                    version, fecha_creacion, timestamp, usuario, observaciones
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s
-                ) ON CONFLICT (numero_cotizacion) DO UPDATE SET
-                    datos_generales = EXCLUDED.datos_generales,
-                    items = EXCLUDED.items,
-                    revision = EXCLUDED.revision,
-                    version = EXCLUDED.version,
-                    usuario = EXCLUDED.usuario,
-                    observaciones = EXCLUDED.observaciones,
-                    updated_at = NOW()
-                RETURNING id, numero_cotizacion;
-            """
-            
-            # NOTA: Condiciones se guardan dentro de datos_generales temporalmente
-            if condiciones:
-                datos_generales['condiciones'] = condiciones
-            
-            cursor.execute(query, (
-                numero_cotizacion,
-                Json(datos_generales),  # JSONB (ahora incluye condiciones)
-                Json(items),  # JSONB
-                revision,
-                version,
-                fecha_dt,
-                timestamp,
-                usuario,
-                observaciones
-            ))
-            
-            resultado = cursor.fetchone()
-            cotizacion_id = resultado['id']
-            
-            # Commit
-            self.pg_connection.commit()
-            cursor.close()
-            
-            print(f"[SUPABASE] Cotizacion guardada: ID={cotizacion_id}")
-            
-            return {
-                "success": True,
-                "id": cotizacion_id,
-                "numero_cotizacion": numero_cotizacion,
-                "modo": "online",
-                "mensaje": "Guardado en Supabase PostgreSQL"
-            }
-            
-        except Exception as e:
-            # Rollback en caso de error
             try:
-                self.pg_connection.rollback()
-            except:
-                pass
-            
-            error_msg = safe_str(e)
-            print(f"[SUPABASE] Error guardando: {error_msg}")
-            raise e
+                # Query de inserción/actualización
+                query = """
+                    INSERT INTO cotizaciones (
+                        numero_cotizacion, datos_generales, items, revision, 
+                        version, fecha_creacion, timestamp, usuario, observaciones
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    ) ON CONFLICT (numero_cotizacion) DO UPDATE SET
+                        datos_generales = EXCLUDED.datos_generales,
+                        items = EXCLUDED.items,
+                        revision = EXCLUDED.revision,
+                        version = EXCLUDED.version,
+                        usuario = EXCLUDED.usuario,
+                        observaciones = EXCLUDED.observaciones,
+                        updated_at = NOW()
+                    RETURNING id, numero_cotizacion;
+                """
+                
+                cursor.execute(query, (
+                    numero_cotizacion,
+                    Json(datos_generales),  # JSONB (ahora incluye condiciones)
+                    Json(items),  # JSONB
+                    revision,
+                    version,
+                    fecha_dt,
+                    timestamp,
+                    usuario,
+                    observaciones
+                ))
+                
+                resultado = cursor.fetchone()
+                cotizacion_id = resultado['id']
+                
+                # Commit
+                self.pg_connection.commit()
+                cursor.close()
+                
+                print(f"[SUPABASE] Cotizacion guardada: ID={cotizacion_id}")
+                
+                return {
+                    "success": True,
+                    "id": cotizacion_id,
+                    "numero_cotizacion": numero_cotizacion,
+                    "modo": "online",
+                    "mensaje": "Guardado en Supabase PostgreSQL con reintentos"
+                }
+                
+            except Exception as e:
+                # Rollback en caso de error
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor.close()
+                raise e
+        
+        # Ejecutar con reintentos automáticos
+        resultado = self._ejecutar_con_reintentos(
+            _operacion_guardar,
+            max_reintentos=3,
+            descripcion=f"guardar cotización {numero_cotizacion}"
+        )
+        
+        if resultado is None:
+            # Los reintentos fallaron - el sistema ya está en modo offline
+            raise Exception("Falló después de reintentos automáticos - modo offline activado")
+        
+        return resultado
     
     def _guardar_cotizacion_offline(self, datos: Dict) -> Dict:
         """Guardar cotización en JSON (modo offline)"""
