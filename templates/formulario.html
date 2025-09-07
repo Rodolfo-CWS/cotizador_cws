@@ -479,6 +479,15 @@ function cargarDatosPrecargados() {
             }
         });
         
+        // FIX ISSUE #1: Establecer también el campo hidden para revisiones
+        if (datosGenerales.numeroCotizacion) {
+            const campoHidden = document.querySelector('[name="numeroCotizacionHidden"]');
+            if (campoHidden) {
+                campoHidden.value = datosGenerales.numeroCotizacion;
+                console.log('[REVISION] Campo hidden establecido:', datosGenerales.numeroCotizacion);
+            }
+        }
+        
         // Cargar condiciones/términos
         if (DATOS_PRECARGADOS.condiciones) {
             const condiciones = DATOS_PRECARGADOS.condiciones;
