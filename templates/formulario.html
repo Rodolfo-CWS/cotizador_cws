@@ -1805,11 +1805,23 @@ async function guardarCotizacion() {
             return;
         }
 
+        // FIX ISSUE #1: Incluir numeroCotizacionHidden para revisiones
+        const numeroHidden = document.querySelector('[name="numeroCotizacionHidden"]')?.value?.trim();
+        
         const datosCompletos = {
             datosGenerales: datosGenerales,
             items: items,
-            condiciones: condiciones
+            condiciones: condiciones,
+            // Agregar campos de numeración que espera el servidor
+            numeroCotizacionHidden: numeroHidden || datosGenerales.numeroCotizacion,
+            numeroCotizacion: datosGenerales.numeroCotizacion
         };
+        
+        // Debug para Issue #1
+        console.log('[ISSUE1_DEBUG] Enviando al servidor:');
+        console.log('[ISSUE1_DEBUG] numeroCotizacionHidden:', datosCompletos.numeroCotizacionHidden);
+        console.log('[ISSUE1_DEBUG] numeroCotizacion:', datosCompletos.numeroCotizacion);
+        console.log('[ISSUE1_DEBUG] datosGenerales.numeroCotizacion:', datosCompletos.datosGenerales.numeroCotizacion);
 
         const respuesta = await fetch("/formulario", {
             method: "POST",
