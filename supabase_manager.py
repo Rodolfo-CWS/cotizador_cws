@@ -555,10 +555,26 @@ class SupabaseManager:
             
             print(f"[GUARDAR] Procesando cotización: {numero_cotizacion}")
             
-            # SISTEMA HÍBRIDO TRIPLE LAYER:
-            # 1. Intentar PostgreSQL directo (más rápido)
+            # SISTEMA HÍBRIDO TRIPLE LAYER (REORDENADO PARA ESTABILIDAD):
+            # 1. PRIORIDAD: SDK REST de Supabase (más estable y rápido)
+            if self.supabase_client and not self.modo_offline:
+                print("[HIBRIDO] PRIORIDAD 1: Intentando SDK REST de Supabase...")
+                resultado_sdk = self._guardar_cotizacion_sdk(datos)
+                
+                # Verificar si SDK REST realmente funcionó
+                if resultado_sdk.get('success'):
+                    print("[HIBRIDO] SDK REST exitoso - operación completada")
+                    # También guardar en JSON como backup
+                    self._guardar_cotizacion_offline(datos)
+                    return resultado_sdk
+                else:
+                    print(f"[HIBRIDO] SDK REST falló: {resultado_sdk.get('error', 'unknown')}")
+                    print("[HIBRIDO] Intentando fallback a PostgreSQL directo...")
+            
+            # 2. FALLBACK: PostgreSQL directo (backup si SDK REST falla)  
             if not self.modo_offline:
                 try:
+                    print("[HIBRIDO] FALLBACK: Intentando PostgreSQL directo...")
                     resultado_online = self._guardar_cotizacion_supabase(datos)
                     
                     # También guardar en JSON como backup
@@ -568,22 +584,7 @@ class SupabaseManager:
                     
                 except Exception as pg_error:
                     print(f"[POSTGRES] Error guardando: {safe_str(pg_error)}")
-                    print("[POSTGRES] Intentando fallback a SDK REST...")
-            
-            # 2. Fallback a SDK REST (estable)
-            if self.supabase_client:
-                print("[HIBRIDO] Intentando SDK REST como fallback...")
-                resultado_sdk = self._guardar_cotizacion_sdk(datos)
-                
-                # Verificar si SDK REST realmente funcionó
-                if resultado_sdk.get('success'):
-                    print("[HIBRIDO] SDK REST exitoso")
-                    # También guardar en JSON como backup
-                    self._guardar_cotizacion_offline(datos)
-                    return resultado_sdk
-                else:
-                    print(f"[HIBRIDO] SDK REST falló: {resultado_sdk.get('error', 'unknown')}")
-                    print("[HIBRIDO] Continuando a fallback JSON...")
+                    print("[POSTGRES] Activando modo offline...")
                     self.modo_offline = True
             
             # Guardar en JSON (modo offline o fallback)
