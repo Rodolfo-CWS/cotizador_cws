@@ -55,6 +55,7 @@ class SupabaseManager:
         
         # Control de estado
         self.modo_offline = True
+        self.postgresql_disponible = False  # Control específico de PostgreSQL
         self.ultima_conexion = None
         self.estado_anterior = None  # Para detectar cambios de estado
         self.callbacks_cambio_estado = []  # Callbacks para cambios online/offline
@@ -124,6 +125,7 @@ class SupabaseManager:
                 # Detectar cambio de estado (offline → online)
                 estado_cambio = self.modo_offline and (self.estado_anterior != "online")
                 
+                self.postgresql_disponible = True
                 self.modo_offline = False
                 self.ultima_conexion = datetime.now()
                 print("[SUPABASE] Conectado a PostgreSQL exitosamente")
@@ -154,10 +156,13 @@ class SupabaseManager:
             print(f"[SUPABASE] Error conectando: {error_msg}")
             print("[SUPABASE] Activando modo offline")
             
-            # Detectar cambio de estado (online → offline)
-            estado_cambio = not self.modo_offline and (self.estado_anterior != "offline")
+            # IMPORTANTE: PostgreSQL puede fallar, pero SDK REST aún puede funcionar
+            # NO activar modo offline permanente solo por fallo PostgreSQL
+            print("[SUPABASE] PostgreSQL falló, pero SDK REST puede seguir funcionando")
+            print("[SUPABASE] Manteniendo disponibilidad de SDK REST para operaciones")
             
-            self.modo_offline = True
+            # Solo marcar PostgreSQL como no disponible, no todo el sistema offline
+            self.postgresql_disponible = False
             
             # Notificar cambio de estado si es necesario
             if estado_cambio:
@@ -556,8 +561,8 @@ class SupabaseManager:
             print(f"[GUARDAR] Procesando cotización: {numero_cotizacion}")
             
             # SISTEMA HÍBRIDO TRIPLE LAYER (REORDENADO PARA ESTABILIDAD):
-            # 1. PRIORIDAD: SDK REST de Supabase (más estable y rápido)
-            if self.supabase_client and not self.modo_offline:
+            # 1. PRIORIDAD: SDK REST de Supabase (funciona independiente de PostgreSQL)
+            if self.supabase_client:
                 print("[HIBRIDO] PRIORIDAD 1: Intentando SDK REST de Supabase...")
                 resultado_sdk = self._guardar_cotizacion_sdk(datos)
                 
@@ -572,8 +577,8 @@ class SupabaseManager:
                     print(f"[HIBRIDO] SDK REST resultado completo: {json.dumps(resultado_sdk, default=str, indent=2)}")
                     print("[HIBRIDO] Intentando fallback a PostgreSQL directo...")
             
-            # 2. FALLBACK: PostgreSQL directo (backup si SDK REST falla)  
-            if not self.modo_offline:
+            # 2. FALLBACK: PostgreSQL directo (solo si está disponible)  
+            if self.postgresql_disponible:
                 try:
                     print("[HIBRIDO] FALLBACK: Intentando PostgreSQL directo...")
                     resultado_online = self._guardar_cotizacion_supabase(datos)
@@ -1126,8 +1131,8 @@ class SupabaseManager:
         """
         try:
             # SISTEMA HÍBRIDO TRIPLE LAYER (REORDENADO PARA ESTABILIDAD):
-            # 1. PRIORIDAD: SDK REST de Supabase (más estable y rápido) 
-            if self.supabase_client and not self.modo_offline:
+            # 1. PRIORIDAD: SDK REST de Supabase (funciona independiente de PostgreSQL) 
+            if self.supabase_client:
                 try:
                     print("[HIBRIDO_GET] PRIORIDAD 1: Intentando SDK REST para obtener cotización...")
                     return self._obtener_cotizacion_sdk(numero_cotizacion)
@@ -1135,8 +1140,8 @@ class SupabaseManager:
                     print(f"[SDK_REST] Error obteniendo cotización: {safe_str(sdk_error)}")
                     print("[SDK_REST] Intentando fallback a PostgreSQL directo...")
             
-            # 2. FALLBACK: PostgreSQL directo (backup si SDK REST falla)
-            if not self.modo_offline:
+            # 2. FALLBACK: PostgreSQL directo (solo si está disponible)
+            if self.postgresql_disponible:
                 try:
                     print("[HIBRIDO_GET] FALLBACK: Intentando PostgreSQL directo...")
                     return self._obtener_cotizacion_supabase(numero_cotizacion)
