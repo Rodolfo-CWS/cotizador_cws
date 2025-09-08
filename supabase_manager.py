@@ -164,6 +164,9 @@ class SupabaseManager:
             # Solo marcar PostgreSQL como no disponible, no todo el sistema offline
             self.postgresql_disponible = False
             
+            # Detectar cambio de estado (online → offline)
+            estado_cambio = not self.modo_offline and (self.estado_anterior == "online")
+            
             # CRÍTICO: Si SDK REST está disponible, mantener sistema ONLINE
             if self.supabase_client:
                 print("[SUPABASE] SDK REST disponible - MANTENIENDO SISTEMA ONLINE")
