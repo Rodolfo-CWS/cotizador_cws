@@ -17,7 +17,17 @@
       "Bash(heroku:*)",
       "Bash(git push:*)",
       "Bash(git remote remove:*)",
-      "Bash(git remote add:*)"
+      "Bash(git remote add:*)",
+      "Bash(git pull:*)",
+      "Bash(git revert:*)",
+      "WebFetch(domain:cotizador-cws.onrender.com)",
+      "Bash(npm install)",
+      "Bash(npx playwright install:*)",
+      "Bash(npx playwright test:*)",
+      "Bash(git checkout:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue view:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": []
   }

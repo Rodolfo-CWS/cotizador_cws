@@ -1,0 +1,332 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - img "CWS Company" [ref=e6]
+        - generic [ref=e7]:
+          - heading "Cotizador CWS" [level=1] [ref=e8]
+          - paragraph [ref=e9]: Sistema de Cotizaciones - Nuevo Formulario
+      - generic [ref=e10]:
+        - paragraph [ref=e11]:
+          - generic [ref=e12]: lunes, 1 de septiembre de 2025
+        - paragraph [ref=e13]: Versión 2.0
+  - generic [ref=e15]:
+    - generic [ref=e16]:
+      - heading "Datos Generales" [level=2] [ref=e17]
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - generic [ref=e21]: "Vendedor:"
+          - textbox [ref=e22]
+        - generic [ref=e23]:
+          - generic [ref=e24]: "Proyecto:"
+          - textbox [ref=e25]
+        - generic [ref=e26]:
+          - generic [ref=e27]: "Cliente:"
+          - textbox [ref=e28]
+        - generic [ref=e29]:
+          - generic [ref=e30]: "Atención A:"
+          - textbox [ref=e31]
+        - generic [ref=e32]:
+          - generic [ref=e33]: "Contacto:"
+          - textbox [ref=e34]
+        - generic [ref=e35]:
+          - generic [ref=e36]: "No. Cotización:"
+          - textbox "Se generará automáticamente" [disabled] [ref=e37]
+        - generic [ref=e38]:
+          - generic [ref=e39]: "Revisión:"
+          - spinbutton [ref=e40]: "1"
+    - generic [ref=e41]:
+      - heading "Items de Cotización" [level=2] [ref=e43]
+      - group [ref=e45]:
+        - generic [ref=e47]:
+          - generic [ref=e48]:
+            - generic [ref=e49]:
+              - generic [ref=e50]: "Descripción:"
+              - textbox "Ej. Rack Metálico" [ref=e51]
+            - generic [ref=e52]:
+              - generic [ref=e53]:
+                - generic [ref=e54]: "UOM:"
+                - combobox [ref=e55]:
+                  - option "Pieza" [selected]
+                  - option "Servicio"
+              - generic [ref=e56]:
+                - generic [ref=e57]: "Cantidad:"
+                - spinbutton [ref=e58]
+          - generic [ref=e59]:
+            - heading "🔧 Materiales" [level=3] [ref=e60]
+            - generic [ref=e62]:
+              - generic [ref=e63]:
+                - generic [ref=e64]: "Material:"
+                - combobox [ref=e65]:
+                  - option "Seleccione Material" [selected]
+                  - option "Cotizar por peso"
+                  - option "PTR 3/4 x 3/4 CAL 14"
+                  - option "PTR 1\" x 1\" CAL 14"
+                  - option "PTR 1\" x 1\" CAL 13"
+                  - option "PTR 1\" x 1\" CAL 11"
+                  - option "PTR 1\" x 1\" CAL 10"
+                  - option "PTR 1 1/4\" x 1 1/4\" CAL 14"
+                  - option "PTR 1 1/4\" x 1 1/4\" CAL 12"
+                  - option "PTR 1 1/4\" x 1 1/4\" CAL 11"
+                  - option "PTR 1 1/2\" x 1 1/2\" CAL 14"
+                  - option "PTR 1 1/2\" x 1 1/2\" CAL 12"
+                  - option "PTR 1 1/2\" x 1 1/2\" CAL 11"
+                  - option "PTR 1 1/2\" x 1 1/2\" CAL 10"
+                  - option "PTR 1 3/4\" x 1 3/4\" CAL 14"
+                  - option "PTR 2\" x 1\" CAL 14"
+                  - option "PTR 2\" x 1\" CAL 11"
+                  - option "PTR 2\" x 2\" CAL 14"
+                  - option "PTR 2\" x 2\" CAL 12"
+                  - option "PTR 2\" x 2\" CAL 11"
+                  - option "PTR 2\" x 2\" CAL 10"
+                  - option "PTR 2\" x 2\" CAL 3/16"
+                  - option "PTR 2\" x 2\" CAL 1/4"
+                  - option "PTR 2 1/2\" x 1 1/4\" CAL 14"
+                  - option "PTR 2 1/2\" x 1 1/2\" CAL 14"
+                  - option "PTR 2 1/2\" x 2 1/2\" CAL 14"
+                  - option "PTR 2 1/2\" x 2 1/2\" CAL 12"
+                  - option "PTR 2 1/2\" x 2 1/2\" CAL 11"
+                  - option "PTR 2 1/2\" x 2 1/2\" CAL 10"
+                  - option "PTR 2 1/2\" x 2 1/2\" CAL 3/16"
+                  - option "PTR 2 1/2\" x 2 1/2\" CAL 9"
+                  - option "PTR 3\" x 1 1/2\" CAL 14"
+                  - option "PTR 3\" x 2\" CAL 14"
+                  - option "PTR 3\" x 2\" CAL 11"
+                  - option "PTR 3\" x 2\" CAL 10"
+                  - option "PTR 3\" x 2\" CAL 3/16"
+                  - option "PTR 3\" x 3\" CAL 14"
+                  - option "PTR 3\" x 3\" CAL 11"
+                  - option "PTR 3\" x 3\" CAL 10"
+                  - option "PTR 3\" x 3\" CAL 3/16"
+                  - option "PTR 3\" x 3\" CAL 1/4"
+                  - option "PTR 3 1/2\" x 2 1/2\" CAL 11"
+                  - option "PTR 3 1/2\" x 2 1/2\" CAL 10"
+                  - option "PTR 3 1/2\" x 2 1/2\" CAL 3/16"
+                  - option "PTR 4\" x 1 1/2\" CAL 14"
+                  - option "PTR 4\" x 2\" CAL 14"
+                  - option "PTR 4\" x 2\" CAL 11"
+                  - option "PTR 4\" x 2\" CAL 10"
+                  - option "PTR 4\" x 2\" CAL 3/16"
+                  - option "PTR 4\" x 3\" CAL 14"
+                  - option "PTR 4\" x 3\" CAL 12"
+                  - option "PTR 4\" x 3\" CAL 11"
+                  - option "PTR 4\" x 3\" CAL 10"
+                  - option "PTR 4\" x 3\" CAL 3/16"
+                  - option "PTR 4\" x 4\" CAL 14"
+                  - option "PTR 4\" x 4\" CAL 11"
+                  - option "PTR 4\" x 4\" CAL 10"
+                  - option "PTR 4\" x 4\" CAL 3/16"
+                  - option "PTR 4\" x 4\" CAL 1/4"
+                  - option "PTR 5\" x 3\" CAL 11"
+                  - option "PTR 5\" x 3\" CAL 10"
+                  - option "PTR 5\" x 3\" CAL 3/16"
+                  - option "PTR 6\" x 2\" CAL 14"
+                  - option "PTR 6\" x 2\" CAL 11"
+                  - option "PTR 6\" x 2\" CAL 10"
+                  - option "PTR 6\" x 2\" CAL 3/16"
+                  - option "LAMINA CAL 8"
+                  - option "LAMINA CAL 9"
+                  - option "LAMINA CAL 10"
+                  - option "LAMINA CAL 11"
+                  - option "LAMINA CAL 12"
+                  - option "LAMINA CAL 13"
+                  - option "LAMINA CAL 14"
+                  - option "LAMINA CAL 16"
+                  - option "LAMINA CAL 18"
+                  - option "LAMINA CAL 20"
+                  - option "LAMINA CAL 22"
+                  - option "LAMINA CAL 24"
+                  - option "LAMINA CAL 16"
+                  - option "LAMINA CAL 28"
+                  - option "LAMINA CAL 30"
+                  - option "LAMINA Antiderrapante CAL 16"
+                  - option "LAMINA Antiderrapante CAL 14"
+                  - option "LAMINA Antiderrapante CAL 12"
+                  - option "LAMINA Antiderrapante CAL 1/8"
+                  - option "LAMINA Antiderrapante CAL 3/16"
+                  - option "LAMINA Antiderrapante CAL 1/4"
+                  - option "Placa 3/16"
+                  - option "Placa 1/4"
+                  - option "Placa 5/16"
+                  - option "Placa 3/8"
+                  - option "Placa 7/16"
+                  - option "Placa 1/2"
+                  - option "Placa 9/16"
+                  - option "Placa 5/8"
+                  - option "Placa 3/4"
+                  - option "Placa 7/8"
+                  - option "Placa 1"
+                  - option "Metal desplegado C14"
+                  - option "Canal 3\" (4mm esp)"
+                  - option "Canal 4\" (5mm esp)"
+                  - option "Canal 5\" (4mm esp)"
+                  - option "Canal 6\" (5mm esp)"
+                  - option "Canal 6\" (8mm esp)"
+                  - option "Canal 6\" (11mm esp)"
+                  - option "Canal 8\" (6mm esp)"
+                  - option "Canal 8\" (8mm esp)"
+                  - option "Canal 8\" (12mm esp)"
+                  - option "Canal 10\" (6mm esp)"
+                  - option "Canal 10\" (10mm esp)"
+                  - option "Canal 10\" (13mm esp)"
+                  - option "Canal 10\" (17mm esp)"
+                  - option "Tubo 1/2\" Cédula 30"
+                  - option "Tubo 3/4\" Cédula 30"
+                  - option "Tubo 1\" Cédula 30"
+                  - option "Tubo 1 1/4\" Cédula 30"
+                  - option "Tubo 1 1/2\" Cédula 30"
+                  - option "Tubo 2\" Cédula 30"
+                  - option "Tubo 2 1/2\" Cédula 30"
+                  - option "Tubo 3\" Cédula 30"
+                  - option "Tubo 4\" Cédula 30"
+                  - option "Tubo 1/2\" Cédula 40"
+                  - option "Tubo 3/4\" Cédula 40"
+                  - option "Tubo 1\" Cédula 40"
+                  - option "Tubo 1 1/4\" Cédula 40"
+                  - option "Tubo 1 1/2\" Cédula 40"
+                  - option "Tubo 2\" Cédula 40"
+                  - option "Tubo 2 1/2\" Cédula 40"
+                  - option "Tubo 3\" Cédula 40"
+                  - option "Tubo 4\" Cédula 40"
+                  - option "Tubo 6\" Cédula 40"
+                  - option "Solera 1\" 1/8 Esp"
+                  - option "Solera 1\" 3/16 Esp"
+                  - option "Solera 1\" 1/4 Esp"
+                  - option "Solera 1\" 1/2 Esp"
+                  - option "Solera 2\" 1/8 Esp"
+                  - option "Solera 2\" 3/16 Esp"
+                  - option "Solera 2\" 1/4 Esp"
+                  - option "Solera 3\" 1/8 Esp"
+                  - option "Solera 3\" 3/16 Esp"
+                  - option "Solera 3\" 1/4 Esp"
+                  - option "Solera 3\" 5/16 Esp"
+                  - option "Solera 3\" 1/2 Esp"
+                  - option "Angulo 1\" 1/8 Esp"
+                  - option "Angulo 1\" 3/16 Esp"
+                  - option "Angulo 1\" 1/4 Esp"
+                  - option "Angulo 2\" 1/8 Esp"
+                  - option "Angulo 2\" 3/16 Esp"
+                  - option "Angulo 2\" 1/4 Esp"
+                  - option "Angulo 2\" 3/8 Esp"
+                  - option "Angulo 3\" 3/16 Esp"
+                  - option "Angulo 3\" 1/4 Esp"
+                  - option "Angulo 3\" 5/16 Esp"
+                  - option "Angulo 3\" 1/2 Esp"
+                  - option "Viga IPR 6x4\""
+                  - option "Viga IPR 6x6\""
+                  - option "Viga IPR 8x4\""
+                  - option "Viga IPS 3\""
+                  - option "Viga IPS 4\""
+                  - option "Viga IPS 5\""
+                  - option "Viga IPS 6\""
+                  - option "Viga IPS 8\""
+              - generic [ref=e66]:
+                - generic [ref=e67]:
+                  - generic [ref=e68]: "Peso/Kg:"
+                  - spinbutton [ref=e69]
+                - generic [ref=e70]:
+                  - generic [ref=e71]: "Cantidad:"
+                  - spinbutton [ref=e72]
+                - generic [ref=e73]:
+                  - generic [ref=e74]: "$/Kg:"
+                  - spinbutton [ref=e75]
+                - generic [ref=e76]:
+                  - generic [ref=e77]: "Subtotal ($):"
+                  - spinbutton [ref=e78]
+              - button "✕" [ref=e80] [cursor=pointer]
+            - button [ref=e81] [cursor=pointer]:
+              - img [ref=e82] [cursor=pointer]
+          - generic [ref=e84]:
+            - heading "Otros Materiales" [level=3] [ref=e85]
+            - generic [ref=e87]:
+              - generic [ref=e88]:
+                - generic [ref=e89]: "Descripción:"
+                - textbox "Descripción del material" [ref=e90]
+              - generic [ref=e91]:
+                - generic [ref=e92]: "Precio ($):"
+                - spinbutton [ref=e93]
+              - generic [ref=e94]:
+                - generic [ref=e95]: "Cantidad:"
+                - spinbutton [ref=e96]
+              - generic [ref=e97]:
+                - generic [ref=e98]: "Subtotal ($):"
+                - spinbutton [ref=e99]
+              - button "✕" [ref=e101] [cursor=pointer]
+            - button [ref=e102] [cursor=pointer]:
+              - img [ref=e103] [cursor=pointer]
+          - generic [ref=e105]:
+            - heading "Costos y Totales" [level=3] [ref=e106]
+            - generic [ref=e107]:
+              - generic [ref=e108]:
+                - generic [ref=e109]: "Transporte ($):"
+                - spinbutton [ref=e110]
+              - generic [ref=e111]:
+                - generic [ref=e112]: "Instalación ($):"
+                - spinbutton [ref=e113]
+              - generic [ref=e114]:
+                - generic [ref=e115]: "Seguridad (%):"
+                - spinbutton [ref=e116]
+              - generic [ref=e117]:
+                - generic [ref=e118]: "Descuento (%):"
+                - spinbutton [ref=e119]
+            - generic [ref=e120]:
+              - generic [ref=e121]:
+                - generic [ref=e122]: "Costo por Unidad ($):"
+                - spinbutton [ref=e123]: "0.00"
+              - generic [ref=e124]:
+                - generic [ref=e125]: "Total del Item ($):"
+                - spinbutton [ref=e126]: "0.00"
+      - button "Agregar Item" [ref=e128] [cursor=pointer]:
+        - img [ref=e129] [cursor=pointer]
+        - text: Agregar Item
+    - generic [ref=e131]:
+      - heading "Términos y Condiciones" [level=2] [ref=e132]
+      - generic [ref=e133]:
+        - generic [ref=e134]:
+          - generic [ref=e135]: "Moneda:"
+          - combobox [ref=e136]:
+            - option "Seleccione moneda" [selected]
+            - option "MXN - Peso Mexicano"
+            - option "USD - Dólar Americano"
+        - generic [ref=e137]:
+          - generic [ref=e138]: "Tiempo de Entrega:"
+          - textbox "Ej. 15 días hábiles" [ref=e139]
+        - generic [ref=e140]:
+          - generic [ref=e141]: "Entregar En:"
+          - textbox "Ubicación de entrega" [ref=e142]
+        - generic [ref=e143]:
+          - generic [ref=e144]: "Términos de Pago:"
+          - textbox "Ej. 50% anticipo, 50% contra entrega" [ref=e145]
+      - generic [ref=e146]:
+        - generic [ref=e147]: "Comentarios Adicionales:"
+        - textbox "Comentarios o notas adicionales..." [ref=e148]
+    - generic [ref=e149]:
+      - heading "Resumen Financiero" [level=2] [ref=e150]
+      - generic [ref=e151]:
+        - generic [ref=e152]:
+          - heading "Subtotal Items:" [level=3] [ref=e153]
+          - paragraph [ref=e154]: $0.00
+        - generic [ref=e155]:
+          - heading "IVA (16%):" [level=3] [ref=e156]
+          - paragraph [ref=e157]: $0.00
+        - generic [ref=e158]:
+          - heading "GRAN TOTAL:" [level=3] [ref=e159]
+          - paragraph [ref=e160]: $0.00
+    - generic [ref=e162]:
+      - button "Guardar" [ref=e163] [cursor=pointer]:
+        - img [ref=e164] [cursor=pointer]
+        - text: Guardar
+      - button "PDF" [disabled] [ref=e166]:
+        - img [ref=e167]
+        - text: PDF
+      - button "Limpiar" [ref=e169] [cursor=pointer]:
+        - img [ref=e170] [cursor=pointer]
+        - text: Limpiar
+      - link "Home" [ref=e172] [cursor=pointer]:
+        - /url: /
+        - img [ref=e173] [cursor=pointer]
+        - text: Home
+```

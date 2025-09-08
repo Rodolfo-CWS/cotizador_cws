@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PREVIEW: Desglose Optimizado - ANTES vs DESPUÉS</title>
+    <style>
+        /* Base styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        .preview-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .preview-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+        }
+
+        .preview-header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .comparison-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .before-after {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 3px solid;
+        }
+
+        .before .section-title {
+            color: #64748b;
+            border-bottom-color: #cbd5e1;
+        }
+
+        .after .section-title {
+            color: #10b981;
+            border-bottom-color: #10b981;
+        }
+
+        /* CURRENT DESIGN STYLES */
+        .current-header {
+            text-align: center;
+            margin-bottom: 32px;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .current-logo {
+            width: 60px;
+            height: 40px;
+            background: #e2e8f0;
+            margin: 0 auto 16px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #64748b;
+        }
+
+        .current-title {
+            font-size: 28px;
+            color: #495057;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .current-section {
+            margin-bottom: 20px;
+            padding: 16px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            background-color: #ffffff;
+        }
+
+        .current-section h3 {
+            color: #495057;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 8px;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+
+        .current-field {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .current-field strong {
+            width: 150px;
+            color: #6c757d;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .current-field span {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            flex: 1;
+        }
+
+        .current-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .current-table th, .current-table td {
+            border: 1px solid #d1d5db;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .current-table th {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .current-buttons {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .current-btn {
+            padding: 12px 16px;
+            margin: 0 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background-color: #ffffff;
+            color: #495057;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+        }
+
+        /* OPTIMIZED DESIGN STYLES */
+        .optimized-header {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+            padding: 40px 32px;
+            text-align: center;
+            border-radius: 16px 16px 0 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .optimized-header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="0.5" fill="%23ffffff" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
+        }
+
+        .optimized-logo {
+            width: 80px;
+            height: 60px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            margin: 0 auto 24px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: white;
+            font-weight: bold;
+            filter: brightness(1.2) contrast(1.1);
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .optimized-title {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .optimized-revision {
+            font-size: 16px;
+            opacity: 0.9;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+
+        .optimized-content {
+            padding: 32px;
+            background: white;
+            border-radius: 0 0 16px 16px;
+        }
+
+        .optimized-section {
+            margin-bottom: 24px;
+            padding: 24px;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .optimized-section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+        }
+
+        .optimized-section.primary {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-left: 4px solid #4f46e5;
+        }
+
+        .optimized-section.financial {
+            background: linear-gradient(135deg, #fefce8 0%, #f7fee7 100%);
+            border-left: 4px solid #10b981;
+        }
+
+        .optimized-section h3 {
+            margin: 0 0 20px 0;
+            color: #1e293b;
+            font-weight: 600;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .optimized-section h3::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+            border-radius: 2px;
+        }
+
+        .optimized-section.financial h3::before {
+            background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+        }
+
+        .optimized-field {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .optimized-field strong {
+            width: 180px;
+            color: #64748b;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        .optimized-field span {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            flex: 1;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .optimized-field span:hover {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .cost-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .cost-item {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .cost-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .cost-item-label {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .cost-item-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .total-value {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: white;
+            border-radius: 10px;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .total-value::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .materials-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 13px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        .materials-table thead tr {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+        }
+
+        .materials-table th {
+            padding: 16px 12px;
+            text-align: left;
+            font-weight: 600;
+            border: none;
+        }
+
+        .materials-table td {
+            padding: 12px;
+            background: white;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .materials-table tr:nth-child(even) td {
+            background: #f8fafc !important;
+        }
+
+        .materials-table tr:hover td {
+            background: #e2e8f0 !important;
+            transform: scale(1.005);
+        }
+
+        .optimized-buttons {
+            text-align: center;
+            margin-top: 40px;
+            padding: 32px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 0 0 16px 16px;
+        }
+
+        .btn-system {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: none;
+            margin: 0 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-system::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-system:hover::before {
+            left: 100%;
+        }
+
+        .btn-system:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            color: white;
+        }
+
+        .btn-outline {
+            background: white;
+            color: #64748b;
+            border: 2px solid #e2e8f0;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .comparison-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .cost-breakdown {
+                grid-template-columns: 1fr;
+            }
+            
+            .btn-system {
+                width: 100%;
+                justify-content: center;
+                margin: 8px 0;
+            }
+        }
+
+        .feature-list {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border-left: 4px solid #10b981;
+        }
+
+        .feature-list h4 {
+            color: #10b981;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .feature-list ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 4px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .feature-list li::before {
+            content: '✅';
+            position: absolute;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        <!-- Header -->
+        <div class="preview-header">
+            <h1>🎨 PREVIEW: Optimización UI/UX Desglose</h1>
+            <p>Comparación visual ANTES vs DESPUÉS - Vista previa en tiempo real</p>
+        </div>
+
+        <!-- Header Comparison -->
+        <div class="comparison-section">
+            <div class="before-after before">
+                <h2 class="section-title">🔴 ACTUAL (Básico)</h2>
+                
+                <div class="current-header">
+                    <div class="current-logo">CWS</div>
+                    <h1 class="current-title">Cotización BMW-CWS-CM-001-R1-GROW</h1>
+                    <p><strong>Revisión:</strong> R1</p>
+                </div>
+
+                <div class="current-section">
+                    <h3>Información General</h3>
+                    <div class="current-field">
+                        <strong>Cliente:</strong>
+                        <span>BMW</span>
+                    </div>
+                    <div class="current-field">
+                        <strong>Vendedor:</strong>
+                        <span>Chris Moren</span>
+                    </div>
+                    <div class="current-field">
+                        <strong>Proyecto:</strong>
+                        <span>GROW</span>
+                    </div>
+                </div>
+
+                <div class="current-buttons">
+                    <a href="#" class="current-btn">Inicio</a>
+                    <a href="#" class="current-btn">Nueva Cotización</a>
+                    <a href="#" class="current-btn">Imprimir</a>
+                </div>
+            </div>
+
+            <div class="before-after after">
+                <h2 class="section-title">🟢 OPTIMIZADO (Premium)</h2>
+                
+                <div class="optimized-header">
+                    <div class="optimized-logo">CWS ✨</div>
+                    <h1 class="optimized-title">BMW-CWS-CM-001-R1-GROW</h1>
+                    <p class="optimized-revision">📝 Revisión: R1</p>
+                </div>
+
+                <div class="optimized-content">
+                    <div class="optimized-section primary">
+                        <h3>📄 Información General</h3>
+                        <div class="optimized-field">
+                            <strong>Cliente:</strong>
+                            <span>BMW</span>
+                        </div>
+                        <div class="optimized-field">
+                            <strong>Vendedor:</strong>
+                            <span>Chris Moren</span>
+                        </div>
+                        <div class="optimized-field">
+                            <strong>Proyecto:</strong>
+                            <span>GROW</span>
+                        </div>
+                    </div>
+
+                    <div class="optimized-buttons">
+                        <a href="#" class="btn-system btn-outline">🏠 Inicio</a>
+                        <a href="#" class="btn-system btn-primary">➕ Nueva Cotización</a>
+                        <a href="#" class="btn-system btn-success">🔄 Nueva Revisión</a>
+                        <a href="#" class="btn-system btn-secondary">🖨️ Imprimir</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Data Comparison -->
+        <div class="comparison-section">
+            <div class="before-after before">
+                <h2 class="section-title">💰 Datos Financieros - ACTUAL</h2>
+                
+                <div class="current-section">
+                    <h3>Información básica del item</h3>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                        <div class="current-field" style="flex-direction: column;">
+                            <strong>UOM:</strong>
+                            <span>Pieza</span>
+                        </div>
+                        <div class="current-field" style="flex-direction: column;">
+                            <strong>Cantidad:</strong>
+                            <span>10</span>
+                        </div>
+                        <div class="current-field" style="flex-direction: column;">
+                            <strong>Costo/Unidad:</strong>
+                            <span>$8,000.00</span>
+                        </div>
+                        <div class="current-field" style="flex-direction: column;">
+                            <strong>Total Item:</strong>
+                            <span>$80,000.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <table class="current-table">
+                    <thead>
+                        <tr>
+                            <th>Descripción</th>
+                            <th>Detalle</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Material Acero</td>
+                            <td>100 KG × $80/KG</td>
+                            <td>$8,000.00</td>
+                        </tr>
+                        <tr>
+                            <td>Material Aluminio</td>
+                            <td>50 KG × $60/KG</td>
+                            <td>$3,000.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="before-after after">
+                <h2 class="section-title">💰 Datos Financieros - OPTIMIZADO</h2>
+                
+                <div class="optimized-section financial">
+                    <h3>💰 Items de Cotización</h3>
+                    
+                    <div class="cost-breakdown">
+                        <div class="cost-item">
+                            <div class="cost-item-label">🎯 UOM</div>
+                            <div class="cost-item-value">Pieza</div>
+                        </div>
+                        <div class="cost-item">
+                            <div class="cost-item-label">📊 Cantidad</div>
+                            <div class="cost-item-value">10</div>
+                        </div>
+                        <div class="cost-item">
+                            <div class="cost-item-label">💵 Costo/Unidad</div>
+                            <div class="cost-item-value" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 12px 20px; border-radius: 10px;">$8,000.00</div>
+                        </div>
+                        <div class="cost-item">
+                            <div class="cost-item-label">🏆 Total Item</div>
+                            <div class="cost-item-value total-value" style="padding: 12px 20px;">$80,000.00</div>
+                        </div>
+                    </div>
+
+                    <table class="materials-table">
+                        <thead>
+                            <tr>
+                                <th>Descripción</th>
+                                <th>Detalle</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Material Acero</strong></td>
+                                <td>100 KG × $80/KG</td>
+                                <td style="background: linear-gradient(135deg, #fef3c7 0%, #fbbf24 100%); color: #92400e; font-weight: bold; border-radius: 6px; text-align: center;">$8,000.00</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Material Aluminio</strong></td>
+                                <td>50 KG × $60/KG</td>
+                                <td style="background: linear-gradient(135deg, #fef3c7 0%, #fbbf24 100%); color: #92400e; font-weight: bold; border-radius: 6px; text-align: center;">$3,000.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Summary -->
+        <div style="background: white; border-radius: 16px; padding: 40px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12); margin-top: 40px;">
+            <h2 style="text-align: center; color: #1e293b; margin-bottom: 30px; font-size: 28px;">🚀 Resumen de Mejoras</h2>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
+                <div class="feature-list">
+                    <h4>🎨 Visual Premium</h4>
+                    <ul>
+                        <li>Header corporativo con gradientes</li>
+                        <li>Secciones color-coded por tipo</li>
+                        <li>Efectos hover profesionales</li>
+                        <li>Sombras y profundidad visual</li>
+                    </ul>
+                </div>
+                
+                <div class="feature-list">
+                    <h4>💰 Datos Financieros</h4>
+                    <ul>
+                        <li>Cards destacados para totales</li>
+                        <li>Gradientes dorados en importes</li>
+                        <li>Efectos shimmer en valores clave</li>
+                        <li>Jerarquía visual clara</li>
+                    </ul>
+                </div>
+                
+                <div class="feature-list">
+                    <h4>📊 Tablas Modernas</h4>
+                    <ul>
+                        <li>Headers con gradientes oscuros</li>
+                        <li>Hover effects en filas</li>
+                        <li>Esquinas redondeadas</li>
+                        <li>Alternancia de colores sutil</li>
+                    </ul>
+                </div>
+                
+                <div class="feature-list">
+                    <h4>🔘 Sistema de Botones</h4>
+                    <ul>
+                        <li>Gradientes por categoría</li>
+                        <li>Efectos shimmer al hover</li>
+                        <li>Elevación 3D interactiva</li>
+                        <li>Iconos y tipografía premium</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Implementation Decision -->
+        <div style="background: linear-gradient(135deg, #10b981 0%, #047857 100%); color: white; border-radius: 16px; padding: 40px; text-align: center; margin: 40px 0; box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);">
+            <h2 style="font-size: 32px; margin-bottom: 20px;">🎯 ¿Listo para Implementar?</h2>
+            <p style="font-size: 18px; margin-bottom: 30px; opacity: 0.9;">
+                Esta vista previa muestra la transformación completa de básico a ejecutivo-premium.
+                <br>¿Te gusta lo que ves y quieres proceder con la implementación?
+            </p>
+            <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+                <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 12px; backdrop-filter: blur(10px);">
+                    <h3>✅ Si apruebas</h3>
+                    <p>Implementación en 10-15 minutos<br>Funcionalidad 100% preservada</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 12px; backdrop-filter: blur(10px);">
+                    <h3>🔧 Si necesitas ajustes</h3>
+                    <p>Puedo modificar cualquier aspecto<br>Colores, efectos, espaciados</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

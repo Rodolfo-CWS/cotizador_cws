@@ -1,0 +1,224 @@
+{
+  "cotizaciones": [
+    {
+      "datosGenerales": {
+        "cliente": "TEST-CORRECCIONES",
+        "vendedor": "TEST",
+        "proyecto": "PRUEBA-IMPLEMENTACION",
+        "numeroCotizacion": "TEST-CORRE-CWS-TE-001-R1-PRUEBA-IMP"
+      },
+      "items": [
+        {
+          "descripcion": "Item de prueba",
+          "cantidad": 1,
+          "precio": 100
+        }
+      ],
+      "fechaCreacion": "2025-08-13T09:52:35.629614",
+      "timestamp": 1755100355629,
+      "version": "1.0.0",
+      "numeroCotizacion": "TEST-CORRE-CWS-TE-001-R1-PRUEBA-IMP",
+      "revision": 1,
+      "_id": "df54b575-300d-4120-a3df-005a26cf2f31"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "CLIENTE-PRUEBA",
+        "vendedor": "TEST",
+        "proyecto": "VERIFICACION-SUPABASE",
+        "atencionA": "Usuario Test",
+        "contacto": "test@ejemplo.com",
+        "fecha": "2025-01-20",
+        "validez": "30 dias"
+      },
+      "items": [
+        {
+          "descripcion": "Item de prueba",
+          "cantidad": 1,
+          "precio_unitario": 100.0,
+          "subtotal": 100.0
+        }
+      ],
+      "observaciones": "Cotizacion de prueba para verificar sistema Supabase",
+      "revision": 1,
+      "version": "1.0.0",
+      "numeroCotizacion": "CLIENTE-PR-CWS-TES-001-R1-VERIFICACION-SU",
+      "timestamp": 1755701411640,
+      "fechaCreacion": "2025-08-20T08:50:11.640537"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "TEST-CLIENTE",
+        "vendedor": "TEST",
+        "proyecto": "PROYECTO-TEST"
+      },
+      "items": [],
+      "numeroCotizacion": "TEST-CLIEN-CWS-T-001-R1-PROYECTO-TEST",
+      "timestamp": 1755887158890,
+      "fechaCreacion": "2025-08-22T12:25:58.890260"
+    },
+    {
+      "numeroCotizacion": "TEST-CWS-VE-001-R1-UNICO",
+      "datosGenerales": {
+        "cliente": "TEST",
+        "vendedor": "Verificacion",
+        "proyecto": "UNICO",
+        "numeroCotizacion": "TEST-CWS-VE-001-R1-UNICO",
+        "revision": 1
+      },
+      "items": [],
+      "timestamp": 1756139681947,
+      "fechaCreacion": "2025-08-25T10:34:41.947422"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-JP-001-R1-TEST1",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "vendedor": "Juan Perez",
+        "proyecto": "TEST1",
+        "numeroCotizacion": "BMW-CWS-JP-001-R1-TEST1",
+        "revision": 1
+      },
+      "items": [],
+      "timestamp": 1756139735912,
+      "fechaCreacion": "2025-08-25T10:35:35.912770"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-JP-002-R1-TEST2",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "vendedor": "Juan Perez",
+        "proyecto": "TEST2",
+        "numeroCotizacion": "BMW-CWS-JP-002-R1-TEST2",
+        "revision": 1
+      },
+      "items": [],
+      "timestamp": 1756139736668,
+      "fechaCreacion": "2025-08-25T10:35:36.668028"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-JP-003-R1-PROYECTO-1",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "vendedor": "Juan Perez",
+        "proyecto": "PROYECTO-1",
+        "numeroCotizacion": "BMW-CWS-JP-003-R1-PROYECTO-1",
+        "revision": 1
+      },
+      "items": [],
+      "timestamp": 1756139815723,
+      "fechaCreacion": "2025-08-25T10:36:55.723399"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-JP-004-R1-PROYECTO-2",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "vendedor": "Juan Perez",
+        "proyecto": "PROYECTO-2",
+        "numeroCotizacion": "BMW-CWS-JP-004-R1-PROYECTO-2",
+        "revision": 1
+      },
+      "items": [],
+      "timestamp": 1756139816290,
+      "fechaCreacion": "2025-08-25T10:36:56.290754"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-JP-005-R1-PROYECTO-3",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "vendedor": "Juan Perez",
+        "proyecto": "PROYECTO-3",
+        "numeroCotizacion": "BMW-CWS-JP-005-R1-PROYECTO-3",
+        "revision": 1
+      },
+      "items": [],
+      "timestamp": 1756139816718,
+      "fechaCreacion": "2025-08-25T10:36:56.718422"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "TESTFIX",
+        "vendedor": "Roberto Martinez",
+        "proyecto": "CORRECCION-1",
+        "revision": 1,
+        "numeroCotizacion": "TESTFIX-CWS-RM-001-R1-CORRECCION"
+      },
+      "items": [
+        {
+          "descripcion": "Test item",
+          "cantidad": 1,
+          "precio_unitario": 100
+        }
+      ],
+      "numeroCotizacion": "TESTFIX-CWS-RM-001-R1-CORRECCION",
+      "timestamp": 1756142741088,
+      "fechaCreacion": "2025-08-25T11:25:41.088759"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "TESTFIX",
+        "vendedor": "Roberto Martinez",
+        "proyecto": "CORRECCION-2",
+        "revision": 1,
+        "numeroCotizacion": "TESTFIX-CWS-RM-002-R1-CORRECCION"
+      },
+      "items": [
+        {
+          "descripcion": "Test item 2",
+          "cantidad": 1,
+          "precio_unitario": 200
+        }
+      ],
+      "numeroCotizacion": "TESTFIX-CWS-RM-002-R1-CORRECCION",
+      "timestamp": 1756142741632,
+      "fechaCreacion": "2025-08-25T11:25:41.632796"
+    },
+    {
+      "numeroCotizacion": "DISPOSITIVO-1-CWS-JU-001-R1-PROYECTO-A",
+      "datosGenerales": {
+        "cliente": "DISPOSITIVO-1",
+        "vendedor": "Juan",
+        "proyecto": "PROYECTO-A",
+        "numeroCotizacion": "DISPOSITIVO-1-CWS-JU-001-R1-PROYECTO-A",
+        "revision": 1
+      },
+      "items": [
+        {
+          "descripcion": "Item de prueba PROYECTO-A",
+          "cantidad": 1,
+          "precio_unitario": 100
+        }
+      ],
+      "timestamp": 1756149210771,
+      "fechaCreacion": "2025-08-25T13:13:30.771000"
+    },
+    {
+      "numeroCotizacion": "DISPOSITIVO-1-CWS-JU-001-R1-PROYECTO-B",
+      "datosGenerales": {
+        "cliente": "DISPOSITIVO-1",
+        "vendedor": "Juan",
+        "proyecto": "PROYECTO-B",
+        "numeroCotizacion": "DISPOSITIVO-1-CWS-JU-001-R1-PROYECTO-B",
+        "revision": 1
+      },
+      "items": [
+        {
+          "descripcion": "Item de prueba PROYECTO-B",
+          "cantidad": 1,
+          "precio_unitario": 101
+        }
+      ],
+      "timestamp": 1756149211771,
+      "fechaCreacion": "2025-08-25T13:13:31.771000"
+    }
+  ],
+  "metadata": {
+    "created": "2025-08-13T08:27:49.872326",
+    "version": "1.0.0",
+    "total_cotizaciones": 1,
+    "modo": "offline",
+    "limpiado_en": "2025-08-13T08:27:49.873329",
+    "cotizaciones_eliminadas": 47,
+    "last_updated": "2025-08-25T13:13:30.771789"
+  }
+}

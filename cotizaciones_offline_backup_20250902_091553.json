@@ -1,0 +1,1565 @@
+{
+  "cotizaciones": [
+    {
+      "datosGenerales": {
+        "cliente": "TEST-CORRECCIONES",
+        "vendedor": "TEST",
+        "proyecto": "PRUEBA-IMPLEMENTACION",
+        "numeroCotizacion": "TEST-CORRE-CWS-TE-001-R1-PRUEBA-IMP"
+      },
+      "items": [
+        {
+          "descripcion": "Item de prueba",
+          "cantidad": 1,
+          "precio": 100
+        }
+      ],
+      "fechaCreacion": "2025-08-13T09:52:35.629614",
+      "timestamp": 1755100355629,
+      "version": "1.0.0",
+      "numeroCotizacion": "TEST-CORRE-CWS-TE-001-R1-PRUEBA-IMP",
+      "revision": 1,
+      "_id": "df54b575-300d-4120-a3df-005a26cf2f31"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "CLIENTE-PRUEBA",
+        "vendedor": "TEST",
+        "proyecto": "VERIFICACION-SUPABASE",
+        "atencionA": "Usuario Test",
+        "contacto": "test@ejemplo.com",
+        "fecha": "2025-01-20",
+        "validez": "30 dias"
+      },
+      "items": [
+        {
+          "descripcion": "Item de prueba",
+          "cantidad": 1,
+          "precio_unitario": 100.0,
+          "subtotal": 100.0
+        }
+      ],
+      "observaciones": "Cotizacion de prueba para verificar sistema Supabase",
+      "revision": 1,
+      "version": "1.0.0",
+      "numeroCotizacion": "CLIENTE-PR-CWS-TES-001-R1-VERIFICACION-SU",
+      "timestamp": 1755701411640,
+      "fechaCreacion": "2025-08-20T08:50:11.640537"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "TEST-CLIENTE",
+        "vendedor": "TEST",
+        "proyecto": "PROYECTO-TEST"
+      },
+      "items": [],
+      "numeroCotizacion": "TEST-CLIEN-CWS-T-001-R1-PROYECTO-TEST",
+      "timestamp": 1755887158890,
+      "fechaCreacion": "2025-08-22T12:25:58.890260"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-CM-001-R1-GROW",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "GROW",
+        "revision": "1",
+        "vendedor": "Chris Moren",
+        "atencionA": "Roberto Gomes"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "80000.00",
+          "cantidad": "10",
+          "descuento": "0",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "80",
+              "subtotal": "8000.00",
+              "pesoEstructura": "100",
+              "tipoCotizacion": "peso"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "8000.00",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756095732835,
+      "fechaCreacion": "2025-08-25T04:22:12.835433+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 59,
+      "_id": "59",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.306280"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-CM-001-R1-NUEVO-FORMULARI",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "NUEVO FORMULARIO",
+        "revision": "1",
+        "vendedor": "Chris Mor",
+        "atencionA": "Faustino Oro"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "50000.00",
+          "cantidad": "20",
+          "descuento": "0",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "100",
+              "subtotal": "2500.00",
+              "pesoEstructura": "25",
+              "tipoCotizacion": "peso"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "2500.00",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756005451903,
+      "fechaCreacion": "2025-08-24T03:17:31.903223+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 60,
+      "_id": "60",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-CM-002-R2-GROW",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "GROW",
+        "revision": "2",
+        "vendedor": "Chris Moren",
+        "atencionA": "Roberto Gomes",
+        "condiciones": {
+          "moneda": "MXN",
+          "terminos": "30 dias de crédito",
+          "entregaEn": "Walmart",
+          "tipoCambio": "",
+          "comentarios": "",
+          "tiempoEntrega": "20 dudas"
+        },
+        "numeroCotizacion": "BMW-CWS-CM-002-R2-GROW",
+        "actualizacionRevision": "Revisión 2 basada en cotización original"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "72000.00",
+          "cantidad": "10",
+          "descuento": "10",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "80",
+              "subtotal": "8000.00",
+              "pesoEstructura": "100",
+              "tipoCotizacion": "peso"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "7200.00",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756568909664,
+      "fechaCreacion": "2025-08-30T15:48:29.664987+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 66,
+      "_id": "66",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-CM-003-R3-GROW",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "GROW",
+        "revision": "3",
+        "vendedor": "Chris Moren",
+        "atencionA": "Roberto Gomes",
+        "condiciones": {
+          "moneda": "MXN",
+          "terminos": "30 dias de crédito",
+          "entregaEn": "Walmart",
+          "tipoCambio": "",
+          "comentarios": "",
+          "tiempoEntrega": "20 dudas"
+        },
+        "numeroCotizacion": "BMW-CWS-CM-003-R3-GROW",
+        "actualizacionRevision": "Revisión 3 basada en cotización original"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "73600.00",
+          "cantidad": "10",
+          "descuento": "8",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "80",
+              "subtotal": "8000.00",
+              "pesoEstructura": "100",
+              "tipoCotizacion": "peso"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "7360.00",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756688739495,
+      "fechaCreacion": "2025-09-01T01:05:39.495453+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 67,
+      "_id": "67",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-CM-004-R1-GROW",
+      "datosGenerales": {
+        "fecha": "2025-09-01",
+        "cliente": "BMW",
+        "proyecto": "GROW",
+        "revision": "1",
+        "vendedor": "CM",
+        "condiciones": {
+          "iva": 16,
+          "total": 1160.0,
+          "moneda": "MXN"
+        },
+        "numeroCotizacion": "BMW-CWS-CM-004-R1-GROW"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "subtotal": 1000.0,
+          "descripcion": "Servicio original",
+          "precio_unitario": 1000.0
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756747646377,
+      "fechaCreacion": "2025-09-01T11:27:26.053741+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 68,
+      "_id": "68",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-CM-005-R1-GROW",
+      "datosGenerales": {
+        "fecha": "2025-09-01",
+        "cliente": "BMW",
+        "proyecto": "GROW",
+        "revision": "1",
+        "vendedor": "CM",
+        "condiciones": {
+          "iva": 16,
+          "total": 1160.0,
+          "moneda": "MXN"
+        },
+        "numeroCotizacion": "BMW-CWS-CM-005-R1-GROW"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "subtotal": 1000.0,
+          "descripcion": "Servicio original",
+          "precio_unitario": 1000.0
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756747682104,
+      "fechaCreacion": "2025-09-01T11:28:01.804898+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 69,
+      "_id": "69",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-CM-006-R1-GROW",
+      "datosGenerales": {
+        "fecha": "2025-09-01",
+        "cliente": "BMW",
+        "proyecto": "GROW",
+        "revision": "2",
+        "vendedor": "CM",
+        "condiciones": {
+          "iva": 16,
+          "total": 1160.0,
+          "moneda": "MXN"
+        },
+        "numeroCotizacion": "BMW-CWS-CM-006-R2-GROW",
+        "actualizacionRevision": "Cambio en especificaciones"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "subtotal": 1000.0,
+          "descripcion": "Servicio modificado - R2",
+          "precio_unitario": 1000.0
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756747722221,
+      "fechaCreacion": "2025-09-01T11:28:41.885258+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 70,
+      "_id": "70",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-CM-007-R1-GROW",
+      "datosGenerales": {
+        "fecha": "2025-09-01",
+        "cliente": "BMW",
+        "proyecto": "GROW",
+        "revision": "1",
+        "vendedor": "CM",
+        "condiciones": {
+          "iva": 16,
+          "total": 1160.0,
+          "moneda": "MXN"
+        },
+        "numeroCotizacion": "BMW-CWS-CM-007-R1-GROW"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "subtotal": 1000.0,
+          "descripcion": "Servicio original",
+          "precio_unitario": 1000.0
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756747770668,
+      "fechaCreacion": "2025-09-01T11:29:30.368520+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 72,
+      "_id": "72",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-CM-007-R2-GROW",
+      "datosGenerales": {
+        "fecha": "2025-09-01",
+        "cliente": "BMW",
+        "proyecto": "GROW",
+        "revision": "2",
+        "vendedor": "CM",
+        "condiciones": {
+          "iva": 16,
+          "total": 1160.0,
+          "moneda": "MXN"
+        },
+        "numeroCotizacion": "BMW-CWS-CM-007-R2-GROW",
+        "actualizacionRevision": "Cambio en especificaciones"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "subtotal": 1000.0,
+          "descripcion": "Servicio modificado - R2",
+          "precio_unitario": 1000.0
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756747770668,
+      "fechaCreacion": "2025-09-01T11:29:30.668952+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 73,
+      "_id": "73",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-CM-008-R1-GROW",
+      "datosGenerales": {
+        "fecha": "2025-09-01",
+        "cliente": "BMW",
+        "proyecto": "GROW",
+        "revision": "1",
+        "vendedor": "CM",
+        "condiciones": {
+          "iva": 16,
+          "total": 1160.0,
+          "moneda": "MXN"
+        },
+        "numeroCotizacion": "BMW-CWS-CM-008-R1-GROW"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "subtotal": 1000.0,
+          "descripcion": "Servicio original",
+          "precio_unitario": 1000.0
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756747796129,
+      "fechaCreacion": "2025-09-01T11:29:55.874118+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 76,
+      "_id": "76",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-CM-008-R2-GROW",
+      "datosGenerales": {
+        "fecha": "2025-09-01",
+        "cliente": "BMW",
+        "proyecto": "GROW",
+        "revision": "2",
+        "vendedor": "CM",
+        "condiciones": {
+          "iva": 16,
+          "total": 1160.0,
+          "moneda": "MXN"
+        },
+        "numeroCotizacion": "BMW-CWS-CM-008-R2-GROW",
+        "actualizacionRevision": "Cambio en especificaciones"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "subtotal": 1000.0,
+          "descripcion": "Servicio modificado - R2",
+          "precio_unitario": 1000.0
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756747796129,
+      "fechaCreacion": "2025-09-01T11:29:56.129633+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 77,
+      "_id": "77",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-CM-009-R4-GROW",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "GROW",
+        "revision": "4",
+        "vendedor": "Chris Moren",
+        "atencionA": "Roberto Gomes",
+        "condiciones": {
+          "moneda": "USD",
+          "terminos": "30 dias de crédito",
+          "entregaEn": "SLP",
+          "tipoCambio": "20",
+          "comentarios": "",
+          "tiempoEntrega": "20 dias"
+        },
+        "numeroCotizacion": "BMW-CWS-CM-009-R4-GROW",
+        "actualizacionRevision": "Revisión 4: Excelente precio"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "73608.00",
+          "cantidad": "10",
+          "descuento": "7.99",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "80",
+              "subtotal": "8000.00",
+              "pesoEstructura": "100",
+              "tipoCotizacion": "peso"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "7360.80",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756765404984,
+      "fechaCreacion": "2025-09-01T22:23:24.984025+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 81,
+      "_id": "81",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-JP-001-R1-TEST1",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "proyecto": "TEST1",
+        "revision": 1,
+        "vendedor": "Juan Perez",
+        "numeroCotizacion": "BMW-CWS-JP-001-R1-TEST1"
+      },
+      "items": [],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756139735912,
+      "fechaCreacion": "2025-08-25T10:35:35.912770+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 50,
+      "_id": "50",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-JP-002-R1-TEST2",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "proyecto": "TEST2",
+        "revision": 1,
+        "vendedor": "Juan Perez",
+        "numeroCotizacion": "BMW-CWS-JP-002-R1-TEST2"
+      },
+      "items": [],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756139736668,
+      "fechaCreacion": "2025-08-25T10:35:36.668028+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 51,
+      "_id": "51",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-JP-003-R1-PROYECTO-1",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "proyecto": "PROYECTO-1",
+        "revision": 1,
+        "vendedor": "Juan Perez",
+        "numeroCotizacion": "BMW-CWS-JP-003-R1-PROYECTO-1"
+      },
+      "items": [],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756139815723,
+      "fechaCreacion": "2025-08-25T10:36:55.723399+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 52,
+      "_id": "52",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-JP-004-R1-PROYECTO-2",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "proyecto": "PROYECTO-2",
+        "revision": 1,
+        "vendedor": "Juan Perez",
+        "numeroCotizacion": "BMW-CWS-JP-004-R1-PROYECTO-2"
+      },
+      "items": [],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756139816290,
+      "fechaCreacion": "2025-08-25T10:36:56.290754+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 53,
+      "_id": "53",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-JP-005-R1-PROYECTO-3",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "proyecto": "PROYECTO-3",
+        "revision": 1,
+        "vendedor": "Juan Perez",
+        "numeroCotizacion": "BMW-CWS-JP-005-R1-PROYECTO-3"
+      },
+      "items": [],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756139816718,
+      "fechaCreacion": "2025-08-25T10:36:56.718422+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 54,
+      "_id": "54",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "BOB-CWS-RM-001-R1-PRUEBA",
+      "datosGenerales": {
+        "cliente": "BOB",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "PRUEBA",
+        "revision": "2",
+        "vendedor": "Rodolfo Moreno",
+        "atencionA": "Roberto Gomes",
+        "actualizacionRevision": "Rev 2"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "16000.00",
+          "cantidad": "10",
+          "descuento": "0",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "80",
+              "subtotal": "1600.00",
+              "pesoEstructura": "20",
+              "tipoCotizacion": "peso"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "1600.00",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756133052859,
+      "fechaCreacion": "2025-08-25T14:44:12.859579+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 61,
+      "_id": "61",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "DISPOSITIVO-1-CWS-JU-001-R1-PROYECTO-A",
+      "datosGenerales": {
+        "cliente": "DISPOSITIVO-1",
+        "proyecto": "PROYECTO-A",
+        "revision": 1,
+        "vendedor": "Juan",
+        "numeroCotizacion": "DISPOSITIVO-1-CWS-JU-001-R1-PROYECTO-A"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "descripcion": "Item de prueba PROYECTO-A",
+          "precio_unitario": 100
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756149378264,
+      "fechaCreacion": "2025-08-25T13:16:18.264000+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 57,
+      "_id": "57",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "DISPOSITIVO-1-CWS-JU-001-R1-PROYECTO-B",
+      "datosGenerales": {
+        "cliente": "DISPOSITIVO-1",
+        "proyecto": "PROYECTO-B",
+        "revision": 1,
+        "vendedor": "Juan",
+        "numeroCotizacion": "DISPOSITIVO-1-CWS-JU-001-R1-PROYECTO-B"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "descripcion": "Item de prueba PROYECTO-B",
+          "precio_unitario": 101
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756149379264,
+      "fechaCreacion": "2025-08-25T13:16:19.264000+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 58,
+      "_id": "58",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "EMPRESAVIS-CWS-FO-001-R1-REVISIONDE",
+      "datosGenerales": {
+        "fecha": "2025-09-01",
+        "moneda": "MXN",
+        "cliente": "EMPRESA VISUAL TEST SA DE CV",
+        "proyecto": "REVISION DESGLOSE UI/UX",
+        "revision": "1",
+        "vendedor": "FORMATO",
+        "condiciones": {
+          "iva": 16,
+          "total": 112520.0,
+          "moneda": "MXN",
+          "subtotal": 97000.0,
+          "iva_monto": 15520.0,
+          "forma_pago": "Transferencia bancaria",
+          "tiempo_entrega": "15 días hábiles",
+          "validez_oferta": "30 días naturales",
+          "condiciones_adicionales": "Precios sujetos a cambios sin previo aviso. Se requiere el 50% de anticipo para iniciar los trabajos."
+        },
+        "observaciones": "Cotización creada específicamente para revisar el formato visual del desglose. Incluye múltiples items con diferentes tipos de datos para probar la alineación y presentación.",
+        "numeroCotizacion": "EMPRESAVIS-CWS-FO-001-R1-REVISIONDE"
+      },
+      "items": [
+        {
+          "cantidad": 2,
+          "subtotal": 30000.0,
+          "descripcion": "Servicio de consultoría técnica especializada en sistemas empresariales",
+          "precio_unitario": 15000.0
+        },
+        {
+          "cantidad": 1,
+          "subtotal": 5000.0,
+          "descripcion": "Licencia de software",
+          "precio_unitario": 5000.0
+        },
+        {
+          "cantidad": 40,
+          "subtotal": 32000.0,
+          "descripcion": "Capacitación del personal (40 horas)",
+          "precio_unitario": 800.0
+        },
+        {
+          "cantidad": 12,
+          "subtotal": 30000.0,
+          "descripcion": "Soporte técnico mensual",
+          "precio_unitario": 2500.0
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756748225881,
+      "fechaCreacion": "2025-09-01T11:37:05.273083+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 80,
+      "_id": "80",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "FIX-TEMPOR-CWS-FU-001-R1-SIN-COLUMN",
+      "datosGenerales": {
+        "cliente": "FIX-TEMPORAL",
+        "proyecto": "SIN-COLUMNA",
+        "vendedor": "Fix User",
+        "condiciones": {
+          "moneda": "USD",
+          "terminos": "NET 30"
+        },
+        "numeroCotizacion": "FIX-TEMPOR-CWS-FU-001-R1-SIN-COLUMN"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "descripcion": "Test sin columna condiciones",
+          "precio_unitario": 100
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756479454554,
+      "fechaCreacion": "2025-08-29T08:57:34.264086+00:00",
+      "usuario": null,
+      "observaciones": "Test guardado sin columna condiciones",
+      "id": 43,
+      "_id": "43",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "FORD-CWS-JM-001-R1-ELECTRICO",
+      "datosGenerales": {
+        "cliente": "FORD",
+        "proyecto": "ELECTRICO",
+        "revision": "1",
+        "vendedor": "JM",
+        "numeroCotizacion": "FORD-CWS-JM-001-R1-ELECTRICO"
+      },
+      "items": [],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756747772406,
+      "fechaCreacion": "2025-09-01T11:29:32.094479+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 74,
+      "_id": "74",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "FORD-CWS-JM-002-R1-HIBRIDO",
+      "datosGenerales": {
+        "cliente": "FORD",
+        "proyecto": "HIBRIDO",
+        "revision": "1",
+        "vendedor": "JM",
+        "numeroCotizacion": "FORD-CWS-JM-002-R1-HIBRIDO"
+      },
+      "items": [],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756747772906,
+      "fechaCreacion": "2025-09-01T11:29:32.659238+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 75,
+      "_id": "75",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "FORD-CWS-JM-003-R1-ELECTRICO",
+      "datosGenerales": {
+        "cliente": "FORD",
+        "proyecto": "ELECTRICO",
+        "revision": "1",
+        "vendedor": "JM",
+        "numeroCotizacion": "FORD-CWS-JM-003-R1-ELECTRICO"
+      },
+      "items": [],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756747798207,
+      "fechaCreacion": "2025-09-01T11:29:57.756756+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 78,
+      "_id": "78",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "FORD-CWS-JM-004-R1-HIBRIDO",
+      "datosGenerales": {
+        "cliente": "FORD",
+        "proyecto": "HIBRIDO",
+        "revision": "1",
+        "vendedor": "JM",
+        "numeroCotizacion": "FORD-CWS-JM-004-R1-HIBRIDO"
+      },
+      "items": [],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756747798890,
+      "fechaCreacion": "2025-09-01T11:29:58.507674+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 79,
+      "_id": "79",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "OFFLINE-RECOVERY-1756512274",
+      "datosGenerales": {
+        "fecha": "2025-08-29T18:04:34.658124",
+        "cliente": "CLIENTE-OFFLINE-TEST",
+        "proyecto": "SINCRONIZACION-AUTOMATICA",
+        "vendedor": "RECOVERY-DEMO",
+        "condiciones": {
+          "demo_recovery": true,
+          "timestamp_creacion": 1756512274,
+          "creada_en_modo_offline": true
+        }
+      },
+      "items": [
+        {
+          "notas": "Este item debe sincronizarse automaticamente",
+          "precio": 999.99,
+          "cantidad": 1,
+          "descripcion": "Item creado durante offline"
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756512274,
+      "fechaCreacion": "2025-08-29T18:04:34.658124+00:00",
+      "usuario": "demo-recovery",
+      "observaciones": "Cotizacion creada para demostrar sincronizacion automatica de recuperacion",
+      "id": 65,
+      "_id": "65",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "POST-FIX-CWS-TE-001-R1-VALIDACION",
+      "datosGenerales": {
+        "cliente": "POST-FIX",
+        "proyecto": "VALIDACION",
+        "vendedor": "Test",
+        "condiciones": {
+          "moneda": "USD"
+        },
+        "numeroCotizacion": "POST-FIX-CWS-TE-001-R1-VALIDACION"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "descripcion": "Test",
+          "precio_unitario": 100
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756478919315,
+      "fechaCreacion": "2025-08-29T08:48:39.315418+00:00",
+      "usuario": null,
+      "observaciones": "Test post-fix",
+      "id": 63,
+      "_id": "63",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.307242"
+    },
+    {
+      "numeroCotizacion": "SLMF-CWS-RM-001-R1-ESCALERAS",
+      "datosGenerales": {
+        "cliente": "SLMF",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "Escaleras",
+        "revision": "1",
+        "vendedor": "Rodolfo Moreno",
+        "atencionA": "Faustino Oro",
+        "condiciones": {
+          "moneda": "USD",
+          "terminos": "30 dias de crédito",
+          "entregaEn": "SLP",
+          "tipoCambio": "20",
+          "comentarios": "",
+          "tiempoEntrega": "20 dias"
+        },
+        "numeroCotizacion": "SLMF-CWS-RM-001-R1-ESCALERAS"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "120000.00",
+          "cantidad": "10",
+          "descuento": "0",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "80",
+              "subtotal": "12000.00",
+              "pesoEstructura": "150",
+              "tipoCotizacion": "peso"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "12000.00",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756488439908,
+      "fechaCreacion": "2025-08-29T17:27:19.908280+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 44,
+      "_id": "44",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.308279"
+    },
+    {
+      "numeroCotizacion": "TEST-CWS-VE-001-R1-UNICO",
+      "datosGenerales": {
+        "cliente": "TEST",
+        "proyecto": "UNICO",
+        "revision": 1,
+        "vendedor": "Verificacion",
+        "numeroCotizacion": "TEST-CWS-VE-001-R1-UNICO"
+      },
+      "items": [],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756139681947,
+      "fechaCreacion": "2025-08-25T10:34:41.947422+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 49,
+      "_id": "49",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.308279"
+    },
+    {
+      "numeroCotizacion": "TEST-SUPAB-CWS-TE-001-R1-VERIFICACI",
+      "datosGenerales": {
+        "fecha": "2025-08-29",
+        "cliente": "TEST-SUPABASE-FUNCIONANDO",
+        "proyecto": "VERIFICACION-GUARDADO",
+        "vendedor": "TEST-LOCAL",
+        "numeroCotizacion": "TEST-SUPAB-CWS-TE-001-R1-VERIFICACI",
+        "condicionesEspeciales": "Prueba desde entorno local"
+      },
+      "items": [
+        {
+          "precio": 100.0,
+          "cantidad": 1,
+          "descripcion": "Item prueba"
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756507403880,
+      "fechaCreacion": "2025-08-29T16:43:23.525277+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 45,
+      "_id": "45",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.308279"
+    },
+    {
+      "numeroCotizacion": "TEST-SYNC-AUTO-1756512205",
+      "datosGenerales": {
+        "fecha": "2025-08-29T18:03:25.422633",
+        "cliente": "TEST-SINCRONIZACION-AUTO",
+        "proyecto": "PRUEBA-RECUPERACION",
+        "vendedor": "AUTO-SYNC",
+        "condiciones": {
+          "created_for_sync_test": true
+        }
+      },
+      "items": [
+        {
+          "precio": 1.0,
+          "cantidad": 1,
+          "descripcion": "Item test sync automático"
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756512205,
+      "fechaCreacion": "2025-08-29T18:03:25.422633+00:00",
+      "usuario": "test-auto-sync",
+      "observaciones": "Cotización creada para probar sincronización automática",
+      "id": 64,
+      "_id": "64",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.308279"
+    },
+    {
+      "numeroCotizacion": "TEST-VERIF-CWS-TU-001-R1-PRUEBA-GUA",
+      "datosGenerales": {
+        "cliente": "TEST-VERIFICACION",
+        "proyecto": "PRUEBA-GUARDADO",
+        "vendedor": "Test User",
+        "condiciones": {
+          "moneda": "USD",
+          "terminos": "NET 30"
+        },
+        "numeroCotizacion": "TEST-VERIF-CWS-TU-001-R1-PRUEBA-GUA"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "descripcion": "Test item",
+          "precio_unitario": 100
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756478892253,
+      "fechaCreacion": "2025-08-29T08:48:12.253613+00:00",
+      "usuario": null,
+      "observaciones": "Test de guardado",
+      "id": 62,
+      "_id": "62",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.308279"
+    },
+    {
+      "numeroCotizacion": "TESTFIX-CWS-RM-001-R1-CORRECCION",
+      "datosGenerales": {
+        "cliente": "TESTFIX",
+        "proyecto": "CORRECCION-1",
+        "revision": 1,
+        "vendedor": "Roberto Martinez",
+        "numeroCotizacion": "TESTFIX-CWS-RM-001-R1-CORRECCION"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "descripcion": "Test item",
+          "precio_unitario": 100
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756142741088,
+      "fechaCreacion": "2025-08-25T11:25:41.088759+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 55,
+      "_id": "55",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.308279"
+    },
+    {
+      "numeroCotizacion": "TESTFIX-CWS-RM-002-R1-CORRECCION",
+      "datosGenerales": {
+        "cliente": "TESTFIX",
+        "proyecto": "CORRECCION-2",
+        "revision": 1,
+        "vendedor": "Roberto Martinez",
+        "numeroCotizacion": "TESTFIX-CWS-RM-002-R1-CORRECCION"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "descripcion": "Test item 2",
+          "precio_unitario": 200
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756142741632,
+      "fechaCreacion": "2025-08-25T11:25:41.632796+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 56,
+      "_id": "56",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:56:02.308279"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-CM-011-R2-GROW",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "GROW",
+        "revision": "2",
+        "vendedor": "Chris Moren",
+        "atencionA": "Roberto Gomes",
+        "condiciones": {
+          "moneda": "USD",
+          "terminos": "30 dias de crédito",
+          "entregaEn": "SLP",
+          "tipoCambio": "20",
+          "comentarios": "",
+          "tiempoEntrega": "20 dias"
+        },
+        "numeroCotizacion": "BMW-CWS-CM-011-R2-GROW",
+        "actualizacionRevision": "Revisión 2: Decuento"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "72000.00",
+          "cantidad": "10",
+          "descuento": "10",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "80",
+              "subtotal": "8000.00",
+              "pesoEstructura": "100",
+              "tipoCotizacion": "peso"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "7200.00",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756766817770,
+      "fechaCreacion": "2025-09-01T22:46:57.770281+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 82,
+      "_id": "82",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T16:58:38.120305"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "BMW",
+        "vendedor": "CM",
+        "proyecto": "GROW",
+        "revision": "2",
+        "fecha": "2025-09-01",
+        "numeroCotizacion": "BMW-CWS-CM-009-R2-GROW",
+        "condiciones": {
+          "moneda": "MXN",
+          "iva": 16,
+          "total": 1160.0
+        },
+        "actualizacionRevision": "Cambio en especificaciones"
+      },
+      "items": [
+        {
+          "descripcion": "Servicio modificado - R2",
+          "cantidad": 1,
+          "precio_unitario": 1000.0,
+          "subtotal": 1000.0
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "iva": 16,
+        "total": 1160.0
+      },
+      "numeroCotizacion": "BMW-CWS-CM-009-R1-GROW",
+      "timestamp": 1756768164098,
+      "fechaCreacion": "2025-09-01T17:09:24.098448"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "FORD",
+        "vendedor": "JM",
+        "proyecto": "ELECTRICO",
+        "revision": "1",
+        "numeroCotizacion": "FORD-CWS-JM-005-R1-ELECTRICO"
+      },
+      "items": [],
+      "numeroCotizacion": "FORD-CWS-JM-005-R1-ELECTRICO",
+      "timestamp": 1756768169420,
+      "fechaCreacion": "2025-09-01T17:09:29.420886"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "FORD",
+        "vendedor": "JM",
+        "proyecto": "HIBRIDO",
+        "revision": "1",
+        "numeroCotizacion": "FORD-CWS-JM-006-R1-HIBRIDO"
+      },
+      "items": [],
+      "numeroCotizacion": "FORD-CWS-JM-006-R1-HIBRIDO",
+      "timestamp": 1756768171481,
+      "fechaCreacion": "2025-09-01T17:09:31.481979"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "BMW",
+        "vendedor": "CM",
+        "proyecto": "GROW",
+        "revision": "1",
+        "fecha": "2025-09-01",
+        "numeroCotizacion": "BMW-CWS-CM-010-R1-GROW",
+        "condiciones": {
+          "moneda": "MXN",
+          "iva": 16,
+          "total": 1160.0
+        }
+      },
+      "items": [
+        {
+          "descripcion": "Servicio original",
+          "cantidad": 1,
+          "precio_unitario": 1000.0,
+          "subtotal": 1000.0
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "iva": 16,
+        "total": 1160.0
+      },
+      "numeroCotizacion": "BMW-CWS-CM-010-R1-GROW",
+      "timestamp": 1756768209731,
+      "fechaCreacion": "2025-09-01T17:10:09.731050"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "BMW",
+        "vendedor": "CM",
+        "proyecto": "GROW",
+        "revision": "2",
+        "fecha": "2025-09-01",
+        "numeroCotizacion": "BMW-CWS-CM-010-R2-GROW",
+        "condiciones": {
+          "moneda": "MXN",
+          "iva": 16,
+          "total": 1160.0
+        },
+        "actualizacionRevision": "Cambio en especificaciones"
+      },
+      "items": [
+        {
+          "descripcion": "Servicio modificado - R2",
+          "cantidad": 1,
+          "precio_unitario": 1000.0,
+          "subtotal": 1000.0
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "iva": 16,
+        "total": 1160.0
+      },
+      "numeroCotizacion": "BMW-CWS-CM-010-R2-GROW",
+      "timestamp": 1756768209731,
+      "fechaCreacion": "2025-09-01T17:10:09.731050"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "FORD",
+        "vendedor": "JM",
+        "proyecto": "ELECTRICO",
+        "revision": "1",
+        "numeroCotizacion": "FORD-CWS-JM-007-R1-ELECTRICO"
+      },
+      "items": [],
+      "numeroCotizacion": "FORD-CWS-JM-007-R1-ELECTRICO",
+      "timestamp": 1756768215648,
+      "fechaCreacion": "2025-09-01T17:10:15.648648"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "FORD",
+        "vendedor": "JM",
+        "proyecto": "HIBRIDO",
+        "revision": "1",
+        "numeroCotizacion": "FORD-CWS-JM-008-R1-HIBRIDO"
+      },
+      "items": [],
+      "numeroCotizacion": "FORD-CWS-JM-008-R1-HIBRIDO",
+      "timestamp": 1756768216426,
+      "fechaCreacion": "2025-09-01T17:10:16.426827"
+    },
+    {
+      "numeroCotizacion": "BMW-CWS-JP-006-R2-PROYECTO-3",
+      "datosGenerales": {
+        "cliente": "BMW",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "PROYECTO-3",
+        "revision": "2",
+        "vendedor": "Juan Perez",
+        "atencionA": "Faustino Oro",
+        "condiciones": {
+          "moneda": "USD",
+          "terminos": "30 dias de crédito",
+          "entregaEn": "SLP",
+          "tipoCambio": "20",
+          "comentarios": "",
+          "tiempoEntrega": "20"
+        },
+        "numeroCotizacion": "BMW-CWS-JP-006-R2-PROYECTO-3",
+        "actualizacionRevision": "Revisión 2 basada en cotización original"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "80000.00",
+          "cantidad": "10",
+          "descuento": "0",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "100",
+              "subtotal": "8000.00",
+              "pesoEstructura": "80",
+              "tipoCotizacion": "peso"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "8000.00",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1756770039100,
+      "fechaCreacion": "2025-09-01T23:40:39.100159+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 91,
+      "_id": "91",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-01T17:56:02.515828"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "BMW-TEST",
+        "vendedor": "Carlos Martinez",
+        "proyecto": "GROW-TEST",
+        "revision": "1",
+        "fecha": "2025-09-02",
+        "numeroCotizacion": "BMW-TEST-CWS-CM-001-R1-GROW-TEST",
+        "condiciones": {
+          "moneda": "MXN",
+          "tiempoEntrega": "5 días",
+          "terminos": "Contado"
+        }
+      },
+      "items": [
+        {
+          "descripcion": "Material de prueba",
+          "cantidad": 1,
+          "precio": 100.0,
+          "subtotal": 100.0
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tiempoEntrega": "5 días",
+        "terminos": "Contado"
+      },
+      "numeroCotizacion": "BMW-TEST-CWS-CM-001-R1-GROW-TEST",
+      "timestamp": 1756825637086,
+      "fechaCreacion": "2025-09-02T09:07:17.086391"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "BMW-TEST",
+        "vendedor": "Carlos Martinez",
+        "proyecto": "GROW-TEST",
+        "revision": "1",
+        "fecha": "2025-09-02",
+        "numeroCotizacion": "BMW-TEST-CWS-CM-002-R1-GROW-TEST",
+        "condiciones": {
+          "moneda": "MXN",
+          "tiempoEntrega": "5 días",
+          "terminos": "Contado"
+        }
+      },
+      "items": [
+        {
+          "descripcion": "Material de prueba",
+          "cantidad": 1,
+          "precio": 100.0,
+          "subtotal": 100.0
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tiempoEntrega": "5 días",
+        "terminos": "Contado"
+      },
+      "numeroCotizacion": "BMW-TEST-CWS-CM-002-R1-GROW-TEST",
+      "timestamp": 1756825700082,
+      "fechaCreacion": "2025-09-02T09:08:20.082073"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "BMW-TEST",
+        "vendedor": "Carlos Martinez",
+        "proyecto": "GROW-TEST",
+        "revision": "2",
+        "fecha": "2025-09-02",
+        "numeroCotizacion": "BMW-TEST-CWS-CM-002-R2-GROW-TEST",
+        "condiciones": {
+          "moneda": "MXN",
+          "tiempoEntrega": "5 días",
+          "terminos": "Contado"
+        }
+      },
+      "items": [
+        {
+          "descripcion": "Material de prueba",
+          "cantidad": 1,
+          "precio": 100.0,
+          "subtotal": 100.0
+        }
+      ],
+      "condiciones": {
+        "moneda": "MXN",
+        "tiempoEntrega": "5 días",
+        "terminos": "Contado"
+      },
+      "numeroCotizacion": "BMW-TEST-CWS-CM-002-R2-GROW-TEST",
+      "timestamp": 1756825700082,
+      "fechaCreacion": "2025-09-02T09:08:20.082073"
+    }
+  ],
+  "metadata": {
+    "created": "2025-08-13T08:27:49.872326",
+    "version": "1.0.0",
+    "total_cotizaciones": 1,
+    "modo": "offline",
+    "limpiado_en": "2025-08-13T08:27:49.873329",
+    "cotizaciones_eliminadas": 47,
+    "last_updated": "2025-08-13T09:52:35.630616"
+  },
+  "ultima_sincronizacion": "2025-09-01T17:56:02.515828",
+  "sincronizaciones": 3
+}

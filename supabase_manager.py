@@ -70,9 +70,11 @@ class SupabaseManager:
         print("[SUPABASE] Inicializando conexion...")
         
         # Debug de variables de entorno
+        service_key = os.getenv('SUPABASE_SERVICE_KEY')
         print(f"[SUPABASE] Variables disponibles:")
         print(f"   SUPABASE_URL: {'Configurada' if self.supabase_url else 'Faltante'}")
         print(f"   SUPABASE_ANON_KEY: {'Configurada' if self.supabase_key else 'Faltante'}")
+        print(f"   SUPABASE_SERVICE_KEY: {'Configurada' if service_key else '⚠️  FALTANTE - Requerida para escritura'}")
         print(f"   DATABASE_URL: {'Configurada' if self.database_url else 'Faltante'}")
         
         # Validar configuración
@@ -81,6 +83,12 @@ class SupabaseManager:
             print("   Necesitas: SUPABASE_URL, DATABASE_URL")
             self.modo_offline = True
             return
+        
+        # Advertir sobre SERVICE_KEY faltante (crítico para escritura en producción)
+        if not service_key:
+            print("[SUPABASE] ⚠️  ADVERTENCIA: SUPABASE_SERVICE_KEY no configurada")
+            print("[SUPABASE] ⚠️  Esto puede causar fallos de escritura en producción")
+            print("[SUPABASE] ⚠️  ANON_KEY tiene permisos limitados por RLS")
         
         try:
             # Cliente Supabase (APIs automáticas)
@@ -100,17 +108,8 @@ class SupabaseManager:
             self.pg_connection = psycopg2.connect(
                 self.database_url,
                 cursor_factory=RealDictCursor,
-                connect_timeout=30,
-                application_name="CWS_Cotizador",
-                # Configuración SSL robusta
-                sslmode='require',
-                sslcert='',
-                sslkey='',
-                sslrootcert='',
-                # Configuración de conexión estable
-                keepalives_idle=600,
-                keepalives_interval=30,
-                keepalives_count=3
+                connect_timeout=10,
+                application_name="CWS_Cotizador"
             )
             
             print(f"[SUPABASE] Conexión PostgreSQL establecida")
@@ -241,7 +240,7 @@ class SupabaseManager:
                         
                         # Intentar reconectar
                         try:
-                            self._conectar_postgresql()
+                            self._inicializar_conexion()
                         except Exception as reconect_error:
                             print(f"[REINTENTOS] Error reconectando: {reconect_error}")
                             continue
@@ -381,19 +380,10 @@ class SupabaseManager:
             return False
     
     def obtener_estadisticas(self) -> Dict:
-        """Obtener estadísticas de la base de datos"""
-        if self.modo_offline:
-            # Estadísticas desde JSON
-            data = self._cargar_datos_offline()
-            cotizaciones = data.get("cotizaciones", [])
-            
-            return {
-                "total_cotizaciones": len(cotizaciones),
-                "modo": "offline",
-                "fuente": "JSON local",
-                "archivo": self.archivo_offline
-            }
-        else:
+        """Obtener estadísticas de la base de datos - SISTEMA HÍBRIDO"""
+        # SISTEMA HÍBRIDO TRIPLE LAYER:
+        # 1. Intentar PostgreSQL directo (más rápido)
+        if not self.modo_offline:
             def _operacion_estadisticas():
                 """Operación de estadísticas que será ejecutada con reintentos"""
                 cursor = self.pg_connection.cursor()
@@ -428,19 +418,71 @@ class SupabaseManager:
             )
             
             if resultado is None:
-                # Falló después de reintentos - ya está en modo offline
-                print("[ESTADISTICAS] Fallback a modo offline después de reintentos SSL")
+                # PostgreSQL falló - intentar SDK REST
+                print("[ESTADISTICAS] PostgreSQL falló, intentando SDK REST...")
+                
+                # 2. Fallback a SDK REST (estable)
+                if self.supabase_client:
+                    try:
+                        return self._obtener_estadisticas_sdk()
+                    except Exception as sdk_error:
+                        print(f"[SDK_REST] Error obteniendo estadísticas: {safe_str(sdk_error)}")
+                        print("[SDK_REST] Fallback a modo offline")
+                
+                # 3. Último recurso: JSON offline
                 data = self._cargar_datos_offline()
                 cotizaciones = data.get("cotizaciones", [])
                 
                 return {
                     "total_cotizaciones": len(cotizaciones),
                     "modo": "offline_fallback",
-                    "fuente": "JSON local (después de error SSL)",
+                    "fuente": "JSON local (después de fallos PostgreSQL + SDK)",
                     "archivo": self.archivo_offline
                 }
             
             return resultado
+        
+        # Si modo_offline está activado, intentar SDK antes de JSON
+        if self.supabase_client:
+            try:
+                return self._obtener_estadisticas_sdk()
+            except Exception as sdk_error:
+                print(f"[SDK_REST] Error obteniendo estadísticas offline: {safe_str(sdk_error)}")
+        
+        # Último recurso: JSON offline
+        data = self._cargar_datos_offline()
+        cotizaciones = data.get("cotizaciones", [])
+        
+        return {
+            "total_cotizaciones": len(cotizaciones),
+            "modo": "offline",
+            "fuente": "JSON local",
+            "archivo": self.archivo_offline
+        }
+    
+    def _obtener_estadisticas_sdk(self) -> Dict:
+        """Obtener estadísticas usando Supabase SDK REST"""
+        try:
+            if not self.supabase_client:
+                raise Exception("SDK de Supabase no disponible")
+            
+            # Contar cotizaciones
+            response = self.supabase_client.table('cotizaciones').select('*', count='exact').execute()
+            total_cotizaciones = response.count
+            
+            print(f"[SDK_REST] Estadísticas obtenidas: {total_cotizaciones} cotizaciones")
+            
+            return {
+                "total_cotizaciones": total_cotizaciones,
+                "modo": "sdk_rest",
+                "fuente": "Supabase SDK REST",
+                "url": self.supabase_url
+            }
+            
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[SDK_REST] Error obteniendo estadísticas: {error_msg}")
+            raise e
     
     def guardar_cotizacion(self, datos: Dict) -> Dict:
         """
@@ -513,7 +555,8 @@ class SupabaseManager:
             
             print(f"[GUARDAR] Procesando cotización: {numero_cotizacion}")
             
-            # Intentar guardar en Supabase si estamos online
+            # SISTEMA HÍBRIDO TRIPLE LAYER:
+            # 1. Intentar PostgreSQL directo (más rápido)
             if not self.modo_offline:
                 try:
                     resultado_online = self._guardar_cotizacion_supabase(datos)
@@ -523,9 +566,24 @@ class SupabaseManager:
                     
                     return resultado_online
                     
-                except Exception as e:
-                    print(f"[SUPABASE] Error guardando online: {safe_str(e)}")
-                    print("[SUPABASE] Fallback a modo offline")
+                except Exception as pg_error:
+                    print(f"[POSTGRES] Error guardando: {safe_str(pg_error)}")
+                    print("[POSTGRES] Intentando fallback a SDK REST...")
+            
+            # 2. Fallback a SDK REST (estable)
+            if self.supabase_client:
+                print("[HIBRIDO] Intentando SDK REST como fallback...")
+                resultado_sdk = self._guardar_cotizacion_sdk(datos)
+                
+                # Verificar si SDK REST realmente funcionó
+                if resultado_sdk.get('success'):
+                    print("[HIBRIDO] SDK REST exitoso")
+                    # También guardar en JSON como backup
+                    self._guardar_cotizacion_offline(datos)
+                    return resultado_sdk
+                else:
+                    print(f"[HIBRIDO] SDK REST falló: {resultado_sdk.get('error', 'unknown')}")
+                    print("[HIBRIDO] Continuando a fallback JSON...")
                     self.modo_offline = True
             
             # Guardar en JSON (modo offline o fallback)
@@ -536,6 +594,119 @@ class SupabaseManager:
             print(f"[GUARDAR] Error general: {error_msg}")
             return {"success": False, "error": error_msg}
     
+    def _guardar_cotizacion_sdk(self, datos: Dict) -> Dict:
+        """Guardar cotización usando Supabase SDK REST (fallback estable)"""
+        try:
+            print(f"[SDK_REST] INICIO - Guardando cotización via SDK REST")
+            print(f"[SDK_REST] Cliente disponible: {'Sí' if self.supabase_client else 'No'}")
+            
+            if not self.supabase_client:
+                raise Exception("SDK de Supabase no disponible")
+            
+            numero_cotizacion = datos.get('numeroCotizacion')
+            datos_generales = datos.get('datosGenerales', {})
+            items = datos.get('items', [])
+            revision = datos.get('revision', 1)
+            version = datos.get('version', '1.0.0')
+            usuario = datos.get('usuario')
+            observaciones = datos.get('observaciones')
+            
+            print(f"[SDK_REST] Datos extraídos - Número: {numero_cotizacion}, Items: {len(items)}, Revisión: {revision}")
+            
+            # Timestamp y fecha
+            timestamp = datos.get('timestamp', int(time.time() * 1000))
+            fecha_creacion = datos.get('fechaCreacion')
+            if isinstance(fecha_creacion, str):
+                try:
+                    datetime.fromisoformat(fecha_creacion.replace('Z', '+00:00'))
+                except:
+                    fecha_creacion = datetime.now().isoformat()
+            else:
+                fecha_creacion = datetime.now().isoformat()
+            
+            print(f"[SDK_REST] Fecha procesada: {fecha_creacion}")
+            
+            # Preparar datos para SDK
+            sdk_data = {
+                'numero_cotizacion': numero_cotizacion,
+                'datos_generales': datos_generales,
+                'items': items,
+                'revision': revision,
+                'version': version,
+                'fecha_creacion': fecha_creacion,
+                'timestamp': timestamp,
+                'usuario': usuario,
+                'observaciones': observaciones
+            }
+            
+            print(f"[SDK_REST] Datos SDK preparados, verificando si cotización existe...")
+            
+            # Verificar si existe (para UPDATE vs INSERT)
+            try:
+                existing = self.supabase_client.table('cotizaciones').select('id').eq('numero_cotizacion', numero_cotizacion).execute()
+                print(f"[SDK_REST] Verificación existencia: {'Encontrada' if existing.data else 'Nueva'}")
+            except Exception as check_error:
+                print(f"[SDK_REST] Error verificando existencia: {safe_str(check_error)}")
+                raise Exception(f"Error verificando cotización existente: {safe_str(check_error)}")
+            
+            if existing.data:
+                # UPDATE existente
+                cotizacion_id = existing.data[0]['id']
+                print(f"[SDK_REST] Ejecutando UPDATE para ID {cotizacion_id}...")
+                try:
+                    response = self.supabase_client.table('cotizaciones').update(sdk_data).eq('id', cotizacion_id).execute()
+                    print(f"[SDK_REST] UPDATE exitoso - Cotización actualizada: {numero_cotizacion}")
+                except Exception as update_error:
+                    print(f"[SDK_REST] Error en UPDATE: {safe_str(update_error)}")
+                    raise Exception(f"Error actualizando cotización: {safe_str(update_error)}")
+            else:
+                # INSERT nueva
+                print(f"[SDK_REST] Ejecutando INSERT nueva cotización...")
+                try:
+                    response = self.supabase_client.table('cotizaciones').insert(sdk_data).execute()
+                    cotizacion_id = response.data[0]['id'] if response.data else None
+                    print(f"[SDK_REST] INSERT exitoso - ID asignado: {cotizacion_id}")
+                except Exception as insert_error:
+                    print(f"[SDK_REST] Error en INSERT: {safe_str(insert_error)}")
+                    print(f"[SDK_REST] Datos que causaron error: {json.dumps(sdk_data, default=str, indent=2)}")
+                    raise Exception(f"Error insertando cotización: {safe_str(insert_error)}")
+            
+            # Verificar que el guardado fue exitoso
+            print(f"[SDK_REST] Verificando guardado exitoso...")
+            try:
+                verify_response = self.supabase_client.table('cotizaciones').select('id').eq('numero_cotizacion', numero_cotizacion).execute()
+                if verify_response.data:
+                    print(f"[SDK_REST] VERIFICACIÓN OK - Cotización confirmada en Supabase")
+                else:
+                    print(f"[SDK_REST] VERIFICACIÓN FALLÓ - Cotización no encontrada después del guardado")
+                    raise Exception("Cotización no encontrada después del guardado - operación falló")
+            except Exception as verify_error:
+                print(f"[SDK_REST] Error en verificación: {safe_str(verify_error)}")
+                raise Exception(f"Error verificando guardado: {safe_str(verify_error)}")
+            
+            resultado = {
+                "success": True,
+                "id": cotizacion_id,
+                "numero_cotizacion": numero_cotizacion,
+                "modo": "sdk_rest",
+                "mensaje": "Guardado via Supabase SDK REST"
+            }
+            
+            print(f"[SDK_REST] ÉXITO - Operación completada: {numero_cotizacion}")
+            return resultado
+            
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[SDK_REST] ERROR CRÍTICO guardando: {error_msg}")
+            print(f"[SDK_REST] Tipo de error: {type(e).__name__}")
+            # NO hacer raise aquí - permitir que el sistema use el siguiente fallback
+            return {
+                "success": False,
+                "error": error_msg,
+                "modo": "sdk_rest_failed",
+                "numero_cotizacion": datos.get('numeroCotizacion', 'unknown')
+            }
+
     def _guardar_cotizacion_supabase(self, datos: Dict) -> Dict:
         """Guardar cotización en Supabase PostgreSQL con reintentos automáticos"""
         
@@ -695,21 +866,101 @@ class SupabaseManager:
         API compatible con DatabaseManager
         """
         try:
-            if self.modo_offline:
-                return self._buscar_cotizaciones_offline(query, page, per_page)
-            else:
+            # SISTEMA HÍBRIDO TRIPLE LAYER:
+            # 1. Intentar PostgreSQL directo (más rápido)
+            if not self.modo_offline:
                 try:
                     return self._buscar_cotizaciones_supabase(query, page, per_page)
-                except Exception as e:
-                    print(f"[SUPABASE] Error en búsqueda online: {safe_str(e)}")
-                    print("[SUPABASE] Fallback a busqueda offline")
-                    return self._buscar_cotizaciones_offline(query, page, per_page)
+                except Exception as pg_error:
+                    print(f"[POSTGRES] Error en búsqueda: {safe_str(pg_error)}")
+                    print("[POSTGRES] Intentando fallback a SDK REST...")
+            
+            # 2. Fallback a SDK REST (estable)
+            if self.supabase_client:
+                try:
+                    return self._buscar_cotizaciones_sdk(query, page, per_page)
+                except Exception as sdk_error:
+                    print(f"[SDK_REST] Error en búsqueda: {safe_str(sdk_error)}")
+                    print("[SDK_REST] Fallback a modo offline")
+            
+            # 3. Último recurso: JSON offline
+            return self._buscar_cotizaciones_offline(query, page, per_page)
                     
         except Exception as e:
             error_msg = safe_str(e)
             print(f"[BUSCAR] Error general: {error_msg}")
             return {"error": error_msg}
     
+    def _buscar_cotizaciones_sdk(self, query: str, page: int, per_page: int) -> Dict:
+        """Buscar cotizaciones usando Supabase SDK REST"""
+        try:
+            if not self.supabase_client:
+                raise Exception("SDK de Supabase no disponible")
+            
+            # Construir query base
+            base_query = self.supabase_client.table('cotizaciones').select('*')
+            
+            # Aplicar filtros si hay query
+            if query and query.strip():
+                # SDK REST usa filtros separados, no ILIKE múltiple como PostgreSQL
+                # Buscar por los campos más comunes primero
+                filtered_query = base_query.or_(f'numero_cotizacion.ilike.%{query}%,datos_generales->>cliente.ilike.%{query}%,datos_generales->>vendedor.ilike.%{query}%,datos_generales->>proyecto.ilike.%{query}%')
+            else:
+                filtered_query = base_query
+            
+            # Aplicar ordenamiento y paginación
+            start = (page - 1) * per_page
+            end = start + per_page - 1
+            
+            ordered_query = filtered_query.order('fecha_creacion', desc=True).range(start, end)
+            
+            # Ejecutar query
+            response = ordered_query.execute()
+            resultados_raw = response.data
+            
+            # Obtener total count (requiere query separada)
+            if query and query.strip():
+                count_query = self.supabase_client.table('cotizaciones').select('*', count='exact').or_(f'numero_cotizacion.ilike.%{query}%,datos_generales->>cliente.ilike.%{query}%,datos_generales->>vendedor.ilike.%{query}%,datos_generales->>proyecto.ilike.%{query}%')
+            else:
+                count_query = self.supabase_client.table('cotizaciones').select('*', count='exact')
+            
+            count_response = count_query.execute()
+            total = count_response.count
+            
+            # Convertir a formato compatible con PostgreSQL response
+            cotizaciones = []
+            for row in resultados_raw:
+                cotizacion = {
+                    "_id": str(row['id']),
+                    "numeroCotizacion": row['numero_cotizacion'],
+                    "datosGenerales": row['datos_generales'],
+                    "items": row['items'],
+                    "revision": row['revision'],
+                    "fechaCreacion": row['fecha_creacion'],
+                    "timestamp": row['timestamp'],
+                    "usuario": row['usuario'],
+                    "observaciones": row['observaciones']
+                }
+                cotizaciones.append(cotizacion)
+            
+            total_pages = (total + per_page - 1) // per_page
+            
+            print(f"[SDK_REST] Encontradas {len(cotizaciones)} de {total} cotizaciones")
+            
+            return {
+                "resultados": cotizaciones,
+                "total": total,
+                "page": page,
+                "per_page": per_page,
+                "pages": total_pages,
+                "modo": "sdk_rest"
+            }
+            
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[SDK_REST] Error en búsqueda: {error_msg}")
+            raise e
+
     def _buscar_cotizaciones_supabase(self, query: str, page: int, per_page: int) -> Dict:
         """Buscar cotizaciones en Supabase PostgreSQL"""
         try:
@@ -872,20 +1123,69 @@ class SupabaseManager:
         API compatible con DatabaseManager
         """
         try:
-            if self.modo_offline:
-                return self._obtener_cotizacion_offline(numero_cotizacion)
-            else:
+            # SISTEMA HÍBRIDO TRIPLE LAYER:
+            # 1. Intentar PostgreSQL directo (más rápido)
+            if not self.modo_offline:
                 try:
                     return self._obtener_cotizacion_supabase(numero_cotizacion)
-                except Exception as e:
-                    print(f"[SUPABASE] Error obteniendo cotización: {safe_str(e)}")
-                    return self._obtener_cotizacion_offline(numero_cotizacion)
+                except Exception as pg_error:
+                    print(f"[POSTGRES] Error obteniendo cotización: {safe_str(pg_error)}")
+                    print("[POSTGRES] Intentando fallback a SDK REST...")
+            
+            # 2. Fallback a SDK REST (estable) - CRÍTICO PARA REVISIONES
+            if self.supabase_client:
+                try:
+                    return self._obtener_cotizacion_sdk(numero_cotizacion)
+                except Exception as sdk_error:
+                    print(f"[SDK_REST] Error obteniendo cotización: {safe_str(sdk_error)}")
+                    print("[SDK_REST] Fallback a modo offline")
+            
+            # 3. Último recurso: JSON offline
+            return self._obtener_cotizacion_offline(numero_cotizacion)
         
         except Exception as e:
             error_msg = safe_str(e)
             print(f"[OBTENER] Error general: {error_msg}")
             return {"error": error_msg, "encontrado": False}
     
+    def _obtener_cotizacion_sdk(self, numero_cotizacion: str) -> Dict:
+        """Obtener cotización específica usando Supabase SDK REST"""
+        try:
+            if not self.supabase_client:
+                raise Exception("SDK de Supabase no disponible")
+            
+            response = self.supabase_client.table('cotizaciones').select('*').eq('numero_cotizacion', numero_cotizacion).execute()
+            
+            if not response.data:
+                return {"encontrado": False, "error": "Cotización no encontrada"}
+            
+            row = response.data[0]
+            
+            # Extraer condiciones de datos_generales si existen (compatibilidad)
+            datos_generales = row['datos_generales'] or {}
+            condiciones = datos_generales.pop('condiciones', {}) if isinstance(datos_generales, dict) else {}
+            
+            cotizacion = {
+                "_id": str(row['id']),
+                "numeroCotizacion": row['numero_cotizacion'],
+                "datosGenerales": datos_generales,
+                "items": row['items'],
+                "condiciones": condiciones,
+                "revision": row['revision'],
+                "fechaCreacion": row['fecha_creacion'],
+                "timestamp": row['timestamp'],
+                "usuario": row['usuario'],
+                "observaciones": row['observaciones']
+            }
+            
+            print(f"[SDK_REST] Cotización obtenida: {numero_cotizacion}")
+            return {"encontrado": True, "item": cotizacion}
+            
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[SDK_REST] Error obteniendo cotización: {error_msg}")
+            raise e
+
     def _obtener_cotizacion_supabase(self, numero_cotizacion: str) -> Dict:
         """Obtener cotización desde Supabase"""
         try:

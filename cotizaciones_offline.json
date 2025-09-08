@@ -1,70 +1,184 @@
 {
   "cotizaciones": [
     {
+      "numeroCotizacion": "CLIENTE-PR-CWS-TES-001-R1-VERIFICACION-SU",
+      "datosGenerales": {
+        "fecha": "2025-01-20",
+        "cliente": "CLIENTE-PRUEBA",
+        "validez": "30 dias",
+        "contacto": "test@ejemplo.com",
+        "proyecto": "VERIFICACION-SUPABASE",
+        "vendedor": "TEST",
+        "atencionA": "Usuario Test"
+      },
+      "items": [
+        {
+          "cantidad": 1,
+          "subtotal": 100.0,
+          "descripcion": "Item de prueba",
+          "precio_unitario": 100.0
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1755701411640,
+      "fechaCreacion": "2025-08-20T08:50:11.640537+00:00",
+      "usuario": null,
+      "observaciones": "Cotizacion de prueba para verificar sistema Supabase",
+      "id": 190,
+      "_id": "190",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-02T09:28:37.609546"
+    },
+    {
+      "numeroCotizacion": "TEST-CLIEN-CWS-T-001-R1-PROYECTO-TEST",
+      "datosGenerales": {
+        "cliente": "TEST-CLIENTE",
+        "proyecto": "PROYECTO-TEST",
+        "vendedor": "TEST"
+      },
+      "items": [],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1755887158890,
+      "fechaCreacion": "2025-08-22T12:25:58.890260+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 191,
+      "_id": "191",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-02T09:28:37.609546"
+    },
+    {
+      "numeroCotizacion": "TEST-CORRE-CWS-TE-001-R1-PRUEBA-IMP",
       "datosGenerales": {
         "cliente": "TEST-CORRECCIONES",
-        "vendedor": "TEST",
         "proyecto": "PRUEBA-IMPLEMENTACION",
+        "vendedor": "TEST",
         "numeroCotizacion": "TEST-CORRE-CWS-TE-001-R1-PRUEBA-IMP"
       },
       "items": [
         {
-          "descripcion": "Item de prueba",
+          "precio": 100,
+          "cantidad": 1,
+          "descripcion": "Item de prueba"
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1755100355629,
+      "fechaCreacion": "2025-08-13T09:52:35.629614+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 189,
+      "_id": "189",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-02T09:28:37.609546"
+    },
+    {
+      "datosGenerales": {
+        "cliente": "CLIENTE-TEST-HIBRIDO",
+        "vendedor": "HIBRIDO TESTER",
+        "proyecto": "VALIDACION-SDK",
+        "revision": 1,
+        "numeroCotizacion": "CLIENTE-TE-CWS-HT-001-R1-VALIDACION"
+      },
+      "items": [
+        {
+          "descripcion": "Item test",
           "cantidad": 1,
           "precio": 100
         }
       ],
-      "fechaCreacion": "2025-08-13T09:52:35.629614",
-      "timestamp": 1755100355629,
-      "version": "1.0.0",
-      "numeroCotizacion": "TEST-CORRE-CWS-TE-001-R1-PRUEBA-IMP",
-      "revision": 1,
-      "_id": "df54b575-300d-4120-a3df-005a26cf2f31"
+      "condiciones": {
+        "moneda": "USD",
+        "tipoCambio": 17.5
+      },
+      "numeroCotizacion": "CLIENTE-TE-CWS-HT-001-R1-VALIDACION",
+      "timestamp": 1757337054366,
+      "fechaCreacion": "2025-09-08T07:10:54.366189"
     },
     {
+      "_id": "197",
+      "numeroCotizacion": "CLIENTE-TE-CWS-HT-001-R2-VALIDACION",
       "datosGenerales": {
-        "cliente": "CLIENTE-PRUEBA",
-        "vendedor": "TEST",
-        "proyecto": "VERIFICACION-SUPABASE",
-        "atencionA": "Usuario Test",
-        "contacto": "test@ejemplo.com",
-        "fecha": "2025-01-20",
-        "validez": "30 dias"
+        "cliente": "CLIENTE-TEST-HIBRIDO",
+        "proyecto": "VALIDACION-SDK",
+        "revision": 2,
+        "vendedor": "HIBRIDO TESTER",
+        "numeroCotizacion": "CLIENTE-TE-CWS-HT-001-R2-VALIDACION"
       },
       "items": [
         {
-          "descripcion": "Item de prueba",
+          "precio": 100,
           "cantidad": 1,
-          "precio_unitario": 100.0,
-          "subtotal": 100.0
+          "descripcion": "Item test"
+        },
+        {
+          "descripcion": "Item REVISADO",
+          "cantidad": 2,
+          "precio": 200
         }
       ],
-      "observaciones": "Cotizacion de prueba para verificar sistema Supabase",
-      "revision": 1,
-      "version": "1.0.0",
-      "numeroCotizacion": "CLIENTE-PR-CWS-TES-001-R1-VERIFICACION-SU",
-      "timestamp": 1755701411640,
-      "fechaCreacion": "2025-08-20T08:50:11.640537"
+      "condiciones": {},
+      "revision": 2,
+      "fechaCreacion": "2025-09-08T07:10:52.477881+00:00",
+      "timestamp": 1757337052477,
+      "usuario": null,
+      "observaciones": "Revision R2 - item adicional agregado"
     },
     {
+      "numeroCotizacion": "TEST-DEBUG-R2-GUARDAR",
       "datosGenerales": {
-        "cliente": "TEST-CLIENTE",
-        "vendedor": "TEST",
-        "proyecto": "PROYECTO-TEST"
+        "cliente": "CLIENTE-DEBUG",
+        "vendedor": "DEBUG TESTER",
+        "proyecto": "TEST-GUARDAR",
+        "revision": 2,
+        "numeroCotizacion": "TEST-DEBUG-R2-GUARDAR"
       },
-      "items": [],
-      "numeroCotizacion": "TEST-CLIEN-CWS-T-001-R1-PROYECTO-TEST",
-      "timestamp": 1755887158890,
-      "fechaCreacion": "2025-08-22T12:25:58.890260"
+      "items": [
+        {
+          "descripcion": "Item test R2",
+          "cantidad": 1,
+          "precio": 100
+        }
+      ],
+      "condiciones": {},
+      "revision": 2,
+      "observaciones": "Test de guardado R2",
+      "timestamp": 1757338365191,
+      "fechaCreacion": "2025-09-08T07:32:45.191268"
+    },
+    {
+      "numeroCotizacion": "TEST-LOGGING-MEJORADO",
+      "datosGenerales": {
+        "cliente": "TEST-DEBUG",
+        "vendedor": "DEBUG",
+        "proyecto": "LOGGING",
+        "revision": 1
+      },
+      "items": [
+        {
+          "descripcion": "Test item",
+          "cantidad": 1,
+          "precio": 100
+        }
+      ],
+      "timestamp": 1757338943490,
+      "fechaCreacion": "2025-09-08T07:42:23.490672"
     }
   ],
-  "metadata": {
-    "created": "2025-08-13T08:27:49.872326",
-    "version": "1.0.0",
-    "total_cotizaciones": 1,
-    "modo": "offline",
-    "limpiado_en": "2025-08-13T08:27:49.873329",
-    "cotizaciones_eliminadas": 47,
-    "last_updated": "2025-08-13T09:52:35.630616"
-  }
+  "contadores": {
+    "CLIENTE-TE-CWS-HT": {
+      "ultimo_numero": 1,
+      "descripcion": "Contador offline para CLIENTE-TE-CWS-HT",
+      "created_at": "2025-09-08T07:10:52.477881",
+      "updated_at": "2025-09-08T07:10:52.477881"
+    }
+  },
+  "version": "1.0.0",
+  "limpieza_completa": "2025-09-02T09:15:53",
+  "backup_anterior": "cotizaciones_offline_backup_20250902_091553.json",
+  "ultima_sincronizacion": "2025-09-02T09:28:37.609546",
+  "sincronizaciones": 1
 }

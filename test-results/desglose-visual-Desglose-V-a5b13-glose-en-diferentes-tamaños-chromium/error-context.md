@@ -1,0 +1,149 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - link "Analizador de Planos" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - text: Analizador de Planos
+      - generic [ref=e5]:
+        - list [ref=e6]:
+          - listitem [ref=e7]:
+            - link " Inicio" [ref=e8] [cursor=pointer]:
+              - /url: /
+              - generic [ref=e9] [cursor=pointer]: 
+              - text: Inicio
+          - listitem [ref=e10]:
+            - link " Subir Plano" [ref=e11] [cursor=pointer]:
+              - /url: /upload/
+              - generic [ref=e12] [cursor=pointer]: 
+              - text: Subir Plano
+          - listitem [ref=e13]:
+            - link " Análisis" [ref=e14] [cursor=pointer]:
+              - /url: /analysis/
+              - generic [ref=e15] [cursor=pointer]: 
+              - text: Análisis
+          - listitem [ref=e16]:
+            - link " Materiales" [ref=e17] [cursor=pointer]:
+              - /url: /materials/
+              - generic [ref=e18] [cursor=pointer]: 
+              - text: Materiales
+        - list [ref=e19]:
+          - listitem [ref=e20]:
+            - button " Configuración" [ref=e21] [cursor=pointer]:
+              - generic [ref=e22] [cursor=pointer]: 
+              - text: Configuración
+            - text: 
+  - main [ref=e23]:
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - heading "Analizador de Planos de Ingeniería" [level=1] [ref=e28]
+        - paragraph [ref=e29]: Utiliza Inteligencia Artificial para extraer automáticamente listas de materiales de planos PDF, clasificarlos por categorías y generar estimaciones de costos precisas.
+        - generic [ref=e30]:
+          - link " Subir Plano" [ref=e31] [cursor=pointer]:
+            - /url: /upload/
+            - generic [ref=e32] [cursor=pointer]: 
+            - text: Subir Plano
+          - link " Conocer Más" [ref=e33] [cursor=pointer]:
+            - /url: "#features"
+            - generic [ref=e34] [cursor=pointer]: 
+            - text: Conocer Más
+      - generic [ref=e37]: 
+    - generic [ref=e39]:
+      - generic [ref=e41]:
+        - heading "Características Principales" [level=2] [ref=e42]
+        - paragraph [ref=e43]: Tecnología avanzada para el análisis profesional de planos de ingeniería
+      - generic [ref=e44]:
+        - generic [ref=e47]:
+          - generic [ref=e49]: 
+          - heading "Análisis con IA" [level=5] [ref=e50]
+          - paragraph [ref=e51]: Extracción inteligente de materiales y componentes usando modelos de IA avanzados.
+        - generic [ref=e54]:
+          - generic [ref=e56]: 
+          - heading "Clasificación Automática" [level=5] [ref=e57]
+          - paragraph [ref=e58]: "Organización por categorías: Estructurales, Instalaciones, Acabados y más."
+        - generic [ref=e61]:
+          - generic [ref=e63]: 
+          - heading "Cálculo de Costos" [level=5] [ref=e64]
+          - paragraph [ref=e65]: Estimaciones automáticas basadas en base de datos de precios de mercado.
+        - generic [ref=e68]:
+          - generic [ref=e70]: 
+          - heading "Reportes Detallados" [level=5] [ref=e71]
+          - paragraph [ref=e72]: Generación de informes completos en JSON, Excel y PDF.
+    - generic [ref=e74]:
+      - generic [ref=e76]:
+        - heading "¿Cómo Funciona?" [level=2] [ref=e77]
+        - paragraph [ref=e78]: Proceso simple en 4 pasos
+      - generic [ref=e79]:
+        - generic [ref=e81]:
+          - generic [ref=e83]: "1"
+          - heading "Subir Plano" [level=5] [ref=e84]
+          - paragraph [ref=e85]: Arrastra o selecciona tu archivo PDF de planos de ingeniería.
+        - generic [ref=e87]:
+          - generic [ref=e89]: "2"
+          - heading "Análisis Automático" [level=5] [ref=e90]
+          - paragraph [ref=e91]: La IA extrae texto, identifica materiales y los clasifica automáticamente.
+        - generic [ref=e93]:
+          - generic [ref=e95]: "3"
+          - heading "Revisión y Edición" [level=5] [ref=e96]
+          - paragraph [ref=e97]: Revisa los resultados y edita cantidades o especificaciones según necesites.
+        - generic [ref=e99]:
+          - generic [ref=e101]: "4"
+          - heading "Generar Reporte" [level=5] [ref=e102]
+          - paragraph [ref=e103]: Obtén informes detallados con costos, cantidades y recomendaciones.
+    - generic [ref=e106]:
+      - generic [ref=e108]:
+        - generic [ref=e109]: 
+        - heading "PDF" [level=3] [ref=e110]
+        - paragraph [ref=e111]: Formato compatible
+      - generic [ref=e113]:
+        - generic [ref=e114]: 
+        - heading "Rápido" [level=3] [ref=e115]
+        - paragraph [ref=e116]: Análisis en minutos
+      - generic [ref=e118]:
+        - generic [ref=e119]: 
+        - heading "Preciso" [level=3] [ref=e120]
+        - paragraph [ref=e121]: Alta confiabilidad
+      - generic [ref=e123]:
+        - generic [ref=e124]: 
+        - heading "Escalable" [level=3] [ref=e125]
+        - paragraph [ref=e126]: Cualquier tamaño de proyecto
+    - generic [ref=e129]:
+      - generic [ref=e130]:
+        - heading "¿Listo para comenzar?" [level=2] [ref=e131]
+        - paragraph [ref=e132]: Sube tu primer plano y descubre cómo la IA puede transformar tu proceso de presupuestación.
+      - link "Comenzar Ahora" [ref=e134] [cursor=pointer]:
+        - /url: /upload/
+        - text: Comenzar Ahora
+  - contentinfo [ref=e135]:
+    - generic [ref=e136]:
+      - generic [ref=e137]:
+        - generic [ref=e138]:
+          - heading "Analizador de Planos de Ingeniería" [level=5] [ref=e139]
+          - paragraph [ref=e140]: Análisis inteligente con IA para extracción automática de materiales y estimación de costos.
+        - generic [ref=e141]:
+          - heading "Características" [level=6] [ref=e142]
+          - list [ref=e143]:
+            - listitem [ref=e144]:
+              - generic [ref=e145]: 
+              - text: Análisis con IA
+            - listitem [ref=e146]:
+              - generic [ref=e147]: 
+              - text: Clasificación automática
+            - listitem [ref=e148]:
+              - generic [ref=e149]: 
+              - text: Cálculo de costos
+            - listitem [ref=e150]:
+              - generic [ref=e151]: 
+              - text: Reportes detallados
+      - separator [ref=e152]
+      - generic [ref=e153]:
+        - generic [ref=e155]: © 2024 Analizador de Planos. Versión 1.0
+        - generic [ref=e157]:
+          - link "Soporte" [ref=e158] [cursor=pointer]:
+            - /url: "#"
+          - text: "|"
+          - link "Documentación" [ref=e159] [cursor=pointer]:
+            - /url: "#"
+```
