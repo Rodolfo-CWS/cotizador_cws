@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, send_file
-# Updated: Sep 8, 2025 - SDK REST fix deployed - FORCE RESTART REQUIRED
+# CRITICAL FIX: Sep 8, 2025 - Deploy 2 - FORCE COMPLETE RESTART
+# Issue: SDK REST fix not being applied in production - quotations not appearing in Supabase
 
 # Intentar importar generadores de PDF
 WEASYPRINT_AVAILABLE = False
