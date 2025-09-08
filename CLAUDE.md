@@ -49,10 +49,70 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Data Mapping Inconsistencies**: ✅ **RESOLVED** - Standardized field names between frontend and backend
 - **Silent Unicode Failures**: ✅ **RESOLVED** - Eliminated emoji encoding issues causing crashes
 - **Production Environment Variables**: ✅ **RESOLVED** - Added required SUPABASE_SERVICE_KEY for Storage operations
+- **UnboundLocalError Deployment Crash**: ✅ **RESOLVED** - Fixed variable scope error preventing application startup (September 8, 2025)
 
-## 🔧 DETAILED PROBLEM RESOLUTION (August 26, 2025)
+## 🔧 DETAILED PROBLEM RESOLUTION
 
-### **Critical Issue: PDF Visualization Failures**
+### **CRITICAL ISSUE: UnboundLocalError Deployment Crash (September 8, 2025)**
+
+**Problem Identified:**
+- Application failing to start in Render with Python error: `UnboundLocalError: cannot access local variable 'estado_cambio' where it is not associated with a value`
+- Quotations showing "Success: True" locally but not appearing in Supabase database
+- Render deployment stopping at "Running 'gunicorn app:app'" and freezing
+- System appeared to be online based on logs, but no actual database operations working
+
+**Root Cause Analysis:**
+1. **Variable Scope Error**: In `supabase_manager.py`, the `estado_cambio` variable was defined inside a `try` block (line 126) but referenced in the corresponding `except` block (line 176)
+2. **PostgreSQL Connection Always Fails**: Due to SSL issues, PostgreSQL connection always raises an exception
+3. **Exception Handler Crash**: When PostgreSQL fails, the exception handler tries to access `estado_cambio` but the variable doesn't exist in that scope
+4. **Application Startup Failure**: The UnboundLocalError prevents the entire Flask application from starting
+5. **Silent Production Failure**: The error only manifested in production (Render) not in local development
+
+**Technical Details:**
+```python
+# PROBLEMATIC CODE (lines 125-126, 176):
+try:
+    # ... connection code ...
+    if result['test'] == 1:
+        estado_cambio = self.modo_offline and (self.estado_anterior != "online")  # Defined here
+        # ... more code ...
+except Exception as e:
+    # ... error handling ...
+    if estado_cambio:  # ERROR: Variable not accessible here!
+        # ... notification code ...
+```
+
+**Solution Implemented:**
+1. **Variable Scope Fix**: Moved `estado_cambio` definition to inside the exception handler where it's actually used
+2. **Proper State Detection**: Fixed logic to detect state changes correctly in error scenarios
+3. **Deployment Verification**: Ensured the fix was properly deployed and app startup successful
+
+**Technical Changes:**
+```python
+# FIXED CODE (line 168):
+except Exception as e:
+    # ... error handling ...
+    # Detectar cambio de estado (online → offline)
+    estado_cambio = not self.modo_offline and (self.estado_anterior == "online")
+    # ... rest of error handling ...
+    if estado_cambio:  # Now accessible and correct!
+        # ... notification code ...
+```
+
+**Verification Results:**
+- ✅ Application starts successfully in Render without Python errors
+- ✅ Quotations now save correctly to Supabase database via SDK REST
+- ✅ PDF generation working properly
+- ✅ Complete end-to-end functionality restored
+- ✅ System properly switches to SDK REST when PostgreSQL fails (as designed)
+
+**Production Impact:**
+- **Before**: Complete application failure - no quotations could be saved
+- **After**: Full functionality restored with proper fallback architecture
+- **Resolution Time**: Issue identified and resolved within same debugging session
+- **User Experience**: Seamless operation with all features working correctly
+
+### **Critical Issue: PDF Visualization Failures (August 26, 2025)**
 
 **Problem Identified:**
 - PDF visualization showing "Redirecting... You should be redirected automatically to the target URL: ." 
@@ -530,7 +590,18 @@ GOOGLE_DRIVE_FOLDER_ANTIGUAS=1GqM9yfwUKd9n8nN97IUiBSUrWUZ1Vida
 
 ## ✅ System Health & Troubleshooting
 
-### 🎉 Resolved Issues (August 12, 2025)
+### 🎉 Resolved Issues
+
+### ✅ **LATEST RESOLUTION: UnboundLocalError Crash (September 8, 2025)**
+**Problem**: Application startup failure with `UnboundLocalError: cannot access local variable 'estado_cambio'`
+- **Root Cause**: Variable scope error in exception handler - variable defined in try block, used in except block
+- **Impact**: Complete production failure - app wouldn't start, no quotations could be saved
+- **Solution**: Fixed variable scope by moving definition to exception handler where it's used
+- **Result**: Full system functionality restored, quotations saving to Supabase via SDK REST
+- **Files Modified**: `supabase_manager.py` (lines 168, 176-181)
+- **Commits**: `4b9d9f2` - HOTFIX: Fix UnboundLocalError preventing app startup
+
+### ✅ **Previous Major Issues (August 12, 2025)**
 **MongoDB Connectivity**: ✅ RESOLVED
 - **Previous**: SSL handshake failures with MongoDB Atlas
 - **Solution**: Hybrid architecture with JSON primary + MongoDB sync
@@ -671,7 +742,50 @@ GOOGLE_DRIVE_FOLDER_ANTIGUAS=1GqM9yfwUKd9n8nN97IUiBSUrWUZ1Vida
 3. **Performance validation** - Ensure sub-second search response times
 4. **User acceptance testing** - Confirm complete workflow functionality
 
-## 🔧 Troubleshooting Guide (Updated August 26, 2025)
+## 🔧 Troubleshooting Guide (Updated September 8, 2025)
+
+### **Application Startup Failures** 🚨 **CRITICAL**
+
+**Problem:** App won't start in Render, shows Python errors like `UnboundLocalError`, `NameError`, or similar variable scope issues
+
+**Symptoms:**
+- Render deployment stops at "Running 'gunicorn app:app'" and freezes
+- Python error messages in Render logs about undefined variables
+- Quotations show "Success: True" locally but don't appear in database
+- App works locally but fails in production
+
+**Diagnosis:**
+```bash
+# Check Render logs for Python errors during startup
+# Look for error patterns like:
+# - UnboundLocalError: cannot access local variable 'X' where it is not associated with a value
+# - NameError: name 'X' is not defined
+# - Similar variable scope errors
+```
+
+**Common Causes & Solutions:**
+1. **Variable Scope Errors** (like the September 8, 2025 issue)
+   - Variables defined in `try` blocks but used in `except` blocks
+   - Solution: Move variable definitions to the scope where they're used
+   - Files to check: `supabase_manager.py`, `app.py`
+
+2. **Import Errors in Production**
+   - Missing dependencies in `requirements.txt`
+   - Solution: Verify all imports have corresponding requirements
+
+3. **Environment Variable Issues**
+   - Variables available locally but not in Render
+   - Solution: Check Render environment variable configuration
+
+**Resolution Steps:**
+1. **Identify the exact error** from Render logs
+2. **Locate the problematic code** using line numbers from error
+3. **Fix variable scope** or import issues
+4. **Test locally** to ensure fix works
+5. **Deploy fix** via git commit and push
+6. **Verify startup** in Render logs
+
+**Status:** ✅ RESOLVED (September 8, 2025) - UnboundLocalError fixed in `supabase_manager.py`
 
 ### **PDF Visualization Issues** ⚡ RESOLVED
 
@@ -842,4 +956,4 @@ curl -I https://cotizador-cws.onrender.com/pdf/CLIENT-CWS-VEN-001-R1-PROJECT
 3. Run configurar_supabase_storage.py for policy setup
 4. System automatically uses unified Supabase architecture
 
-<!-- Last updated: 2025-08-26 via Claude Code - PDF VISUALIZATION ISSUES RESOLVED, DOCUMENTATION UPDATED -->
+<!-- Last updated: 2025-09-08 via Claude Code - UNBOUNDLOCALERROR DEPLOYMENT CRASH RESOLVED, SUPABASE SDK REST FUNCTIONALITY RESTORED -->
