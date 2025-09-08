@@ -569,6 +569,7 @@ class SupabaseManager:
                     return resultado_sdk
                 else:
                     print(f"[HIBRIDO] SDK REST falló: {resultado_sdk.get('error', 'unknown')}")
+                    print(f"[HIBRIDO] SDK REST resultado completo: {json.dumps(resultado_sdk, default=str, indent=2)}")
                     print("[HIBRIDO] Intentando fallback a PostgreSQL directo...")
             
             # 2. FALLBACK: PostgreSQL directo (backup si SDK REST falla)  
@@ -1124,21 +1125,24 @@ class SupabaseManager:
         API compatible con DatabaseManager
         """
         try:
-            # SISTEMA HÍBRIDO TRIPLE LAYER:
-            # 1. Intentar PostgreSQL directo (más rápido)
-            if not self.modo_offline:
+            # SISTEMA HÍBRIDO TRIPLE LAYER (REORDENADO PARA ESTABILIDAD):
+            # 1. PRIORIDAD: SDK REST de Supabase (más estable y rápido) 
+            if self.supabase_client and not self.modo_offline:
                 try:
-                    return self._obtener_cotizacion_supabase(numero_cotizacion)
-                except Exception as pg_error:
-                    print(f"[POSTGRES] Error obteniendo cotización: {safe_str(pg_error)}")
-                    print("[POSTGRES] Intentando fallback a SDK REST...")
-            
-            # 2. Fallback a SDK REST (estable) - CRÍTICO PARA REVISIONES
-            if self.supabase_client:
-                try:
+                    print("[HIBRIDO_GET] PRIORIDAD 1: Intentando SDK REST para obtener cotización...")
                     return self._obtener_cotizacion_sdk(numero_cotizacion)
                 except Exception as sdk_error:
                     print(f"[SDK_REST] Error obteniendo cotización: {safe_str(sdk_error)}")
+                    print("[SDK_REST] Intentando fallback a PostgreSQL directo...")
+            
+            # 2. FALLBACK: PostgreSQL directo (backup si SDK REST falla)
+            if not self.modo_offline:
+                try:
+                    print("[HIBRIDO_GET] FALLBACK: Intentando PostgreSQL directo...")
+                    return self._obtener_cotizacion_supabase(numero_cotizacion)
+                except Exception as pg_error:
+                    print(f"[POSTGRES] Error obteniendo cotización: {safe_str(pg_error)}")
+                    print("[POSTGRES] Activando modo offline para búsqueda...")
                     print("[SDK_REST] Fallback a modo offline")
             
             # 3. Último recurso: JSON offline
