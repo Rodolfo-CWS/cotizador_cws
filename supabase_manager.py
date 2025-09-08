@@ -624,12 +624,14 @@ class SupabaseManager:
             numero_cotizacion = datos.get('numeroCotizacion')
             datos_generales = datos.get('datosGenerales', {})
             items = datos.get('items', [])
+            condiciones = datos.get('condiciones', {})
             revision = datos.get('revision', 1)
             version = datos.get('version', '1.0.0')
             usuario = datos.get('usuario')
             observaciones = datos.get('observaciones')
             
             print(f"[SDK_REST] Datos extraídos - Número: {numero_cotizacion}, Items: {len(items)}, Revisión: {revision}")
+            print(f"[SDK_REST] Condiciones extraídas: {condiciones if condiciones else 'VACÍAS'}")
             
             # Timestamp y fecha
             timestamp = datos.get('timestamp', int(time.time() * 1000))
@@ -649,6 +651,7 @@ class SupabaseManager:
                 'numero_cotizacion': numero_cotizacion,
                 'datos_generales': datos_generales,
                 'items': items,
+                'condiciones': condiciones,
                 'revision': revision,
                 'version': version,
                 'fecha_creacion': fecha_creacion,
