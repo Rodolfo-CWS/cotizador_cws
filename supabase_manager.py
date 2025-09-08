@@ -154,7 +154,7 @@ class SupabaseManager:
         except Exception as e:
             error_msg = safe_str(e)
             print(f"[SUPABASE] Error conectando: {error_msg}")
-            print("[SUPABASE] Activando modo offline")
+            print("[SUPABASE] PostgreSQL falló - evaluando SDK REST...")
             
             # IMPORTANTE: PostgreSQL puede fallar, pero SDK REST aún puede funcionar
             # NO activar modo offline permanente solo por fallo PostgreSQL
@@ -163,6 +163,14 @@ class SupabaseManager:
             
             # Solo marcar PostgreSQL como no disponible, no todo el sistema offline
             self.postgresql_disponible = False
+            
+            # CRÍTICO: Si SDK REST está disponible, mantener sistema ONLINE
+            if self.supabase_client:
+                print("[SUPABASE] SDK REST disponible - MANTENIENDO SISTEMA ONLINE")
+                self.modo_offline = False  # ¡CLAVE! No activar modo offline si SDK REST funciona
+            else:
+                print("[SUPABASE] SDK REST no disponible - activando modo offline")
+                self.modo_offline = True
             
             # Notificar cambio de estado si es necesario
             if estado_cambio:
