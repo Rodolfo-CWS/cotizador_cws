@@ -95,6 +95,7 @@ app = Flask(__name__)
 # Configuración básica desde variables de entorno
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+app.config['TEMPLATES_AUTO_RELOAD'] = True  # FORZAR RECARGA DE TEMPLATES
 
 # Crear instancia de base de datos
 print("Inicializando DatabaseManager (SupabaseManager)...")

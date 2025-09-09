@@ -390,6 +390,26 @@ function configurarEventListeners() {
             if (e.target.matches('.precio-otro, .cantidad-otro')) {
                 calcularSubtotalOtro(e.target);
             }
+        }
+    });
+    
+    // NUEVO: Event listener para cambios en dropdown de unidades
+    document.addEventListener('change', function(e) {
+        if (e.target.matches('.unidad-select')) {
+            // Recalcular cuando cambia la unidad
+            const row = e.target.closest('.material-row');
+            if (row) {
+                const cantidadInput = row.querySelector('.cantidad-input');
+                if (cantidadInput) {
+                    calcularSubtotalMaterial(cantidadInput);
+                }
+            }
+        }
+    });
+    
+    document.addEventListener('input', function(e) {
+        const itemElement = e.target.closest('.item-block');
+        if (itemElement) {
             if (e.target.matches('.cantidad-item, .transporte, .instalacion, .seguridad, .descuento')) {
                 setTimeout(() => {
                     calcularCostosItem(itemElement);
@@ -1051,8 +1071,8 @@ function crearTemplateItem(numero) {
             <div class="border-t pt-4">
                 <h3 class="text-lg font-semibold text-blue-600 mb-3">🔧 Materiales</h3>
                 <div class="materiales-container space-y-2">
-                    <div class="material-row grid grid-cols-12 gap-2 items-end">
-                        <div class="col-span-4">
+                    <div class="material-row flex gap-2 items-end">
+                        <div class="w-1/4">
                             <label class="block text-xs mb-1">Material:</label>
                             <select class="material-select w-full p-2 border rounded text-sm">
                                 <option value="" data-peso="0" data-uom="">Seleccione Material</option>
@@ -1064,7 +1084,7 @@ function crearTemplateItem(numero) {
                         </div>
                         
                         <!-- Campos normales de materiales -->
-                        <div class="material-campos-normales col-span-8 grid grid-cols-4 gap-2">
+                        <div class="material-campos-normales flex-1 grid grid-cols-5 gap-2">
                             <div>
                                 <label class="block text-xs mb-1">Peso/Kg:</label>
                                 <input type="number" step="0.01" class="peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
@@ -1072,6 +1092,17 @@ function crearTemplateItem(numero) {
                             <div>
                                 <label class="block text-xs mb-1">Cantidad:</label>
                                 <input type="number" step="0.01" class="cantidad-input w-full p-2 border rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs mb-1">Unidad:</label>
+                                <select class="unidad-select w-full p-2 border rounded text-sm">
+                                    <option value="metros">Metros</option>
+                                    <option value="centimetros">Centímetros</option>
+                                    <option value="pulgadas">Pulgadas</option>
+                                    <option value="metros_cuadrados">Metros²</option>
+                                    <option value="centimetros_cuadrados">Centímetros²</option>
+                                    <option value="pulgadas_cuadradas">Pulgadas²</option>
+                                </select>
                             </div>
                             <div>
                                 <label class="block text-xs mb-1">$/Kg:</label>
@@ -1084,7 +1115,7 @@ function crearTemplateItem(numero) {
                         </div>
                         
                         <!-- Campos especiales para cotizar por peso (inicialmente ocultos) -->
-                        <div class="material-campos-peso col-span-8 grid grid-cols-3 gap-2" style="display: none;">
+                        <div class="material-campos-peso flex-1 grid grid-cols-3 gap-2" style="display: none;">
                             <div>
                                 <label class="block text-xs mb-1">¿Cuál es el peso de la estructura? (KG):</label>
                                 <input type="number" step="0.01" class="peso-estructura-input w-full p-2 border rounded text-sm" placeholder="Peso en KG">
@@ -1099,7 +1130,7 @@ function crearTemplateItem(numero) {
                             </div>
                         </div>
                         
-                        <div class="col-span-1 flex justify-center">
+                        <div class="w-10 flex justify-center">
                             <button type="button" onclick="eliminarFila(this, 'material')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
                         </div>
                     </div>
@@ -1187,9 +1218,9 @@ function agregarFila(button, tipo) {
     let nuevaFila = document.createElement('div');
     
     if (tipo === 'material') {
-        nuevaFila.className = 'material-row grid grid-cols-12 gap-2 items-end';
+        nuevaFila.className = 'material-row flex gap-2 items-end';
         nuevaFila.innerHTML = `
-            <div class="col-span-4">
+            <div class="w-1/4">
                 <label class="block text-xs mb-1">Material:</label>
                 <select class="material-select w-full p-2 border rounded text-sm">
                     ${generarOpcionesMateriales()}
@@ -1197,7 +1228,7 @@ function agregarFila(button, tipo) {
             </div>
             
             <!-- Campos normales de materiales -->
-            <div class="material-campos-normales col-span-8 grid grid-cols-4 gap-2">
+            <div class="material-campos-normales flex-1 grid grid-cols-5 gap-2">
                 <div>
                     <label class="block text-xs mb-1">Peso/Kg:</label>
                     <input type="number" step="0.01" class="peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
@@ -1205,6 +1236,17 @@ function agregarFila(button, tipo) {
                 <div>
                     <label class="block text-xs mb-1">Cantidad:</label>
                     <input type="number" step="0.01" class="cantidad-input w-full p-2 border rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs mb-1">Unidad:</label>
+                    <select class="unidad-select w-full p-2 border rounded text-sm">
+                        <option value="metros">Metros</option>
+                        <option value="centimetros">Centímetros</option>
+                        <option value="pulgadas">Pulgadas</option>
+                        <option value="metros_cuadrados">Metros²</option>
+                        <option value="centimetros_cuadrados">Centímetros²</option>
+                        <option value="pulgadas_cuadradas">Pulgadas²</option>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-xs mb-1">$/Kg:</label>
@@ -1217,7 +1259,7 @@ function agregarFila(button, tipo) {
             </div>
             
             <!-- Campos especiales para cotizar por peso (inicialmente ocultos) -->
-            <div class="material-campos-peso col-span-8 grid grid-cols-3 gap-2" style="display: none;">
+            <div class="material-campos-peso flex-1 grid grid-cols-3 gap-2" style="display: none;">
                 <div>
                     <label class="block text-xs mb-1">¿Cuál es el peso de la estructura? (KG):</label>
                     <input type="number" step="0.01" class="peso-estructura-input w-full p-2 border rounded text-sm" placeholder="Peso en KG">
@@ -1232,7 +1274,7 @@ function agregarFila(button, tipo) {
                 </div>
             </div>
             
-            <div class="col-span-1 flex justify-center">
+            <div class="w-10 flex justify-center">
                 <button type="button" onclick="eliminarFila(this, 'material')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
             </div>
         `;
@@ -1277,6 +1319,56 @@ function eliminarFila(button, tipo) {
     }
 }
 
+// Factores de conversión de unidades a metros
+const FACTORES_CONVERSION = {
+    // Lineales (a metros)
+    'metros': 1,
+    'centimetros': 0.01,
+    'pulgadas': 0.0254,
+    
+    // Área (a metros cuadrados)
+    'metros_cuadrados': 1,
+    'centimetros_cuadrados': 0.0001,
+    'pulgadas_cuadradas': 0.00064516
+};
+
+// Función para determinar si un material es lineal (kg/m) o área (kg/m²)
+function estipoArea(materialSelect) {
+    if (!materialSelect) return false;
+    
+    const selectedOption = materialSelect.selectedOptions[0];
+    if (!selectedOption) return false;
+    
+    const uom = selectedOption.getAttribute('data-uom');
+    return uom && uom.includes('metro cuadrado');
+}
+
+// Función para aplicar conversión según el tipo de material y unidad seleccionada
+function aplicarConversionUnidad(cantidad, unidadSeleccionada, materialSelect) {
+    if (!unidadSeleccionada || !materialSelect) return cantidad;
+    
+    const factor = FACTORES_CONVERSION[unidadSeleccionada];
+    if (!factor) return cantidad;
+    
+    // Determinar si el material requiere conversión de área o lineal
+    const requiereArea = estipoArea(materialSelect);
+    const unidadEsArea = unidadSeleccionada.includes('cuadrados') || unidadSeleccionada.includes('cuadradas');
+    
+    // Solo aplicar conversión si hay compatibilidad entre unidad y tipo de material
+    if (requiereArea && unidadEsArea) {
+        // Material de área (kg/m²) con unidad de área
+        return cantidad * factor;
+    } else if (!requiereArea && !unidadEsArea) {
+        // Material lineal (kg/m) con unidad lineal  
+        return cantidad * factor;
+    } else {
+        // Incompatibilidad: material lineal con unidad de área o viceversa
+        // En este caso, usamos metros como default y mostramos warning
+        console.warn(`Incompatibilidad: Material ${requiereArea ? 'de área' : 'lineal'} con unidad ${unidadEsArea ? 'de área' : 'lineal'}`);
+        return cantidad * (unidadEsArea ? FACTORES_CONVERSION['metros_cuadrados'] : FACTORES_CONVERSION['metros']);
+    }
+}
+
 function calcularSubtotalMaterial(input) {
     const row = input.closest('.material-row');
     if (!row) return;
@@ -1284,12 +1376,14 @@ function calcularSubtotalMaterial(input) {
     // Buscar campos de forma más flexible
     const pesoInput = row.querySelector('.peso-input') || row.querySelector('input[placeholder*="peso"]') || row.querySelector('input[placeholder*="Peso"]');
     const cantidadInput = row.querySelector('.cantidad-input') || row.querySelector('input[placeholder*="cantidad"]') || row.querySelector('input[placeholder*="Cantidad"]');
+    const unidadSelect = row.querySelector('.unidad-select'); // NUEVO: Campo de unidad
+    const materialSelect = row.querySelector('.material-select'); // NUEVO: Para determinar tipo de material
     const precioInput = row.querySelector('.precio-input') || row.querySelector('input[placeholder*="precio"]') || row.querySelector('input[placeholder*="Precio"]');
     const subtotalInput = row.querySelector('.subtotal-input') || row.querySelector('input[placeholder*="subtotal"]') || row.querySelector('input[placeholder*="Subtotal"]');
     
     // Obtener valores con mejor manejo de casos edge
     let peso = 1; // Default peso = 1 si no existe campo peso
-    let cantidad = 0;
+    let cantidadOriginal = 0;
     let precio = 0;
     
     if (pesoInput) {
@@ -1299,16 +1393,22 @@ function calcularSubtotalMaterial(input) {
     }
     
     if (cantidadInput) {
-        cantidad = parseFloat(cantidadInput.value) || 0;
+        cantidadOriginal = parseFloat(cantidadInput.value) || 0;
     }
     
     if (precioInput) {
         precio = parseFloat(precioInput.value) || 0;
     }
     
-    // FIJO: Calcular subtotal siempre como peso * cantidad * precio
-    // No usar fallback que ignore peso, ya que peso=1 es válido
-    const subtotal = peso * cantidad * precio;
+    // NUEVO: Aplicar conversión de unidades
+    let cantidadConvertida = cantidadOriginal;
+    if (unidadSelect && materialSelect) {
+        const unidadSeleccionada = unidadSelect.value;
+        cantidadConvertida = aplicarConversionUnidad(cantidadOriginal, unidadSeleccionada, materialSelect);
+    }
+    
+    // FIJO: Calcular subtotal con cantidad convertida: peso * cantidad_convertida * precio
+    const subtotal = peso * cantidadConvertida * precio;
     
     // Actualizar campo de subtotal
     if (subtotalInput) {
