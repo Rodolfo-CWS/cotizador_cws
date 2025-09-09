@@ -284,6 +284,132 @@
             border-radius: 3px;
             font-weight: bold;
         }
+        
+        /* Estilos para tabla de resultados - SIN ALTERAR FUNCIONALIDAD */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+            margin-top: 16px;
+        }
+        
+        .results-table thead th {
+            background: #f8f9fa;
+            color: #495057;
+            font-weight: 600;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 13px;
+        }
+        
+        .results-table tbody tr {
+            border-bottom: 1px solid #e9ecef;
+            transition: background-color 0.2s ease;
+        }
+        
+        .results-table tbody tr:nth-child(even) {
+            background: #fafafa;
+        }
+        
+        .results-table tbody tr:hover {
+            background: #e3f2fd;
+            cursor: default;
+        }
+        
+        .results-table td {
+            padding: 12px;
+            vertical-align: middle;
+            font-size: 13px;
+            color: #495057;
+        }
+        
+        .results-table .numero-column {
+            font-weight: bold;
+            color: #4f46e5;
+            min-width: 120px;
+        }
+        
+        .results-table .tipo-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .results-table .tipo-nueva {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .results-table .tipo-historica {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .results-table .acciones-column {
+            min-width: 140px;
+            white-space: nowrap;
+        }
+        
+        .results-table .btn-accion {
+            padding: 6px 10px;
+            margin: 0 2px;
+            font-size: 11px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .results-table .btn-pdf {
+            background: #4f46e5;
+            color: white;
+        }
+        
+        .results-table .btn-pdf:hover {
+            background: #3730a3;
+        }
+        
+        .results-table .btn-desglose {
+            background: #10b981;
+            color: white;
+        }
+        
+        .results-table .btn-desglose:hover {
+            background: #047857;
+        }
+        
+        .results-table .sin-desglose {
+            color: #6c757d;
+            font-size: 10px;
+            font-style: italic;
+        }
+        
+        /* Responsive para mantener compatibilidad móvil */
+        @media (max-width: 768px) {
+            .results-table {
+                font-size: 12px;
+            }
+            
+            .results-table th,
+            .results-table td {
+                padding: 8px;
+            }
+            
+            .results-table .btn-accion {
+                padding: 4px 6px;
+                font-size: 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -427,10 +553,23 @@
                     <strong>${pdfs.length}</strong> PDF(s) encontrado(s)
                     ${ultimaBusqueda ? `para "<em>${ultimaBusqueda}</em>"` : ''}
                 </div>
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Cliente</th>
+                            <th>Vendedor</th>
+                            <th>Proyecto</th>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th class="acciones-column">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
             `;
             
             pdfs.forEach((pdf, index) => {
-                // Detectar si es cotización (del fallback) o PDF real
+                // Detectar si es cotización (del fallback) o PDF real - SIN CAMBIOS
                 const esCotizacion = pdf._id && !pdf.numero_cotizacion;
                 const identificador = esCotizacion ? pdf._id : (pdf.numero_cotizacion || `PDF-${index + 1}`);
                 const numeroDisplay = esCotizacion ? (pdf.numeroCotizacion || pdf.datosGenerales?.numeroCotizacion || identificador) : (pdf.numero_cotizacion || `PDF-${index + 1}`);
@@ -441,7 +580,7 @@
                 const tipoDisplay = pdf.tipo === 'nueva' ? 'Nueva' : 'Histórica';
                 const tieneDesglose = esCotizacion ? true : pdf.tiene_desglose;
                 
-                // Función para resaltar coincidencias
+                // Función para resaltar coincidencias - SIN CAMBIOS
                 const resaltarTexto = (texto) => {
                     if (!ultimaBusqueda) return texto;
                     const regex = new RegExp(`(${ultimaBusqueda})`, 'gi');
@@ -449,62 +588,43 @@
                 };
                 
                 html += `
-                    <div class="result-item" style="cursor: default;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                            <div style="flex: 1;">
-                                <div class="result-field">
-                                    <strong>Número:</strong> 
-                                    <span class="value" style="color: #4f46e5; font-weight: bold;">${resaltarTexto(numeroDisplay)}</span>
-                                </div>
-                                <div class="result-field">
-                                    <strong>Cliente:</strong> 
-                                    <span class="value">${resaltarTexto(clienteDisplay)}</span>
-                                </div>
-                                <div class="result-field">
-                                    <strong>Vendedor:</strong> 
-                                    <span class="value">${resaltarTexto(vendedorDisplay)}</span>
-                                </div>
-                                <div class="result-field">
-                                    <strong>Proyecto:</strong> 
-                                    <span class="value">${resaltarTexto(proyectoDisplay)}</span>
-                                </div>
-                                <div class="result-field">
-                                    <strong>Fecha:</strong> 
-                                    <span class="value">${fechaDisplay}</span>
-                                </div>
-                                <div class="result-field">
-                                    <strong>Tipo:</strong> 
-                                    <span class="value" style="color: ${pdf.tipo === 'nueva' ? '#10b981' : '#f59e0b'};">${tipoDisplay}</span>
-                                </div>
-                            </div>
-                            <div style="display: flex; flex-direction: column; gap: 8px; margin-left: 15px;">
-                                <button onclick="verPDF('${numeroDisplay}')" 
-                                        class="icon-button btn-search" 
-                                        style="width: auto; padding: 8px 12px; font-size: 12px;">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                                    </svg>
-                                    Ver PDF
-                                </button>
-                                ${tieneDesglose ? `
-                                <button onclick="verDesglose('${esCotizacion ? identificador : numeroDisplay}')" 
-                                        class="icon-button" 
-                                        style="width: auto; padding: 8px 12px; font-size: 12px; background: #10b981; color: white; border-color: #10b981;">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M3,3H21V5H3V3M3,7H21V9H3V7M3,11H21V13H3V11M3,15H21V17H3V15M3,19H21V21H3V19Z"/>
-                                    </svg>
-                                    Desglose
-                                </button>
-                                ` : `
-                                <div style="font-size: 11px; color: #6c757d; text-align: center; padding: 8px;">
-                                    Sin desglose<br>disponible
-                                </div>
-                                `}
-                            </div>
-                        </div>
-                    </div>
+                    <tr>
+                        <td class="numero-column">${resaltarTexto(numeroDisplay)}</td>
+                        <td>${resaltarTexto(clienteDisplay)}</td>
+                        <td>${resaltarTexto(vendedorDisplay)}</td>
+                        <td>${resaltarTexto(proyectoDisplay)}</td>
+                        <td>${fechaDisplay}</td>
+                        <td>
+                            <span class="tipo-badge ${pdf.tipo === 'nueva' ? 'tipo-nueva' : 'tipo-historica'}">
+                                ${tipoDisplay}
+                            </span>
+                        </td>
+                        <td class="acciones-column">
+                            <button onclick="verPDF('${numeroDisplay}')" class="btn-accion btn-pdf">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                </svg>
+                                PDF
+                            </button>
+                            ${tieneDesglose ? `
+                            <button onclick="verDesglose('${esCotizacion ? identificador : numeroDisplay}')" class="btn-accion btn-desglose">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M3,3H21V5H3V3M3,7H21V9H3V7M3,11H21V13H3V11M3,15H21V17H3V15M3,19H21V21H3V19Z"/>
+                                </svg>
+                                Desglose
+                            </button>
+                            ` : `
+                            <span class="sin-desglose">Sin desglose</span>
+                            `}
+                        </td>
+                    </tr>
                 `;
             });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
             
             div.innerHTML = html;
         }
