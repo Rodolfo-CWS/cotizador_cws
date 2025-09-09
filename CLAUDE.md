@@ -50,6 +50,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Silent Unicode Failures**: ✅ **RESOLVED** - Eliminated emoji encoding issues causing crashes
 - **Production Environment Variables**: ✅ **RESOLVED** - Added required SUPABASE_SERVICE_KEY for Storage operations
 - **UnboundLocalError Deployment Crash**: ✅ **RESOLVED** - Fixed variable scope error preventing application startup (September 8, 2025)
+- **Missing Condiciones in SDK REST Save**: ✅ **RESOLVED** - Fixed USD quotations showing MXN and 'A definir' instead of real terms (September 8, 2025)
 
 ## 🔧 DETAILED PROBLEM RESOLUTION
 
@@ -111,6 +112,69 @@ except Exception as e:
 - **After**: Full functionality restored with proper fallback architecture
 - **Resolution Time**: Issue identified and resolved within same debugging session
 - **User Experience**: Seamless operation with all features working correctly
+
+### **CRITICAL ISSUE: Missing Condiciones in SDK REST Save (September 8, 2025)**
+
+**Problem Identified:**
+- USD quotations were showing MXN currency and "A definir" (To be defined) instead of actual terms in generated PDFs
+- Commercial conditions (delivery time, terms, comments, exchange rate) were lost during quotation processing
+- Professional quotation integrity compromised with default values instead of user-specified conditions
+
+**Root Cause Analysis:**
+1. **Missing Field in SDK REST**: The `_guardar_cotizacion_sdk()` method in `supabase_manager.py` was not including condiciones in the data saved to Supabase
+2. **Data Flow Break**: Condiciones were correctly extracted from forms but lost during database save operation
+3. **Default Fallback**: PDF generation used default values (MXN, "A definir") because condiciones returned as `None` when retrieved
+4. **Silent Data Loss**: No error thrown, system appeared to work but with incorrect data
+
+**Technical Details:**
+```python
+# PROBLEMATIC CODE - Missing condiciones field:
+sdk_data = {
+    'numero_cotizacion': numero_cotizacion,
+    'datos_generales': datos_generales, 
+    'items': items,
+    # ❌ condiciones missing from payload!
+    'revision': revision,
+    'version': version,
+    # ...
+}
+```
+
+**Solution Implemented:**
+1. **Added Condiciones Extraction**: `condiciones = datos.get('condiciones', {})` in SDK REST method
+2. **Added to Payload**: `'condiciones': condiciones` included in sdk_data for Supabase save
+3. **Enhanced Logging**: Added debug logs to track condiciones processing and identify future issues
+4. **Created Diagnostic Tools**: `debug_condiciones_usd.py` script for testing data flow integrity
+
+**Technical Changes:**
+```python
+# FIXED CODE:
+# Line 627 - Extract condiciones
+condiciones = datos.get('condiciones', {})
+
+# Line 653 - Include in save payload  
+sdk_data = {
+    # ... existing fields ...
+    'condiciones': condiciones,  # ✅ Now preserved!
+    # ... rest of fields ...
+}
+
+# Line 634 - Debug logging
+print(f"[SDK_REST] Condiciones extraídas: {condiciones if condiciones else 'VACÍAS'}")
+```
+
+**Verification Results:**
+- ✅ USD quotations now preserve currency correctly in PDFs
+- ✅ All commercial terms (delivery, payment, comments) display actual values
+- ✅ Exchange rate information properly included for USD quotations
+- ✅ Complete end-to-end data integrity from form to PDF
+- ✅ Professional quotation quality restored
+
+**Production Impact:**
+- **Before**: USD quotations showed MXN with generic "A definir" terms  
+- **After**: Accurate USD quotations with complete commercial conditions
+- **Resolution Time**: Issue identified and resolved within same session
+- **User Experience**: Professional, accurate quotation documents restored
 
 ### **Critical Issue: PDF Visualization Failures (August 26, 2025)**
 
@@ -956,4 +1020,4 @@ curl -I https://cotizador-cws.onrender.com/pdf/CLIENT-CWS-VEN-001-R1-PROJECT
 3. Run configurar_supabase_storage.py for policy setup
 4. System automatically uses unified Supabase architecture
 
-<!-- Last updated: 2025-09-08 via Claude Code - UNBOUNDLOCALERROR DEPLOYMENT CRASH RESOLVED, SUPABASE SDK REST FUNCTIONALITY RESTORED -->
+<!-- Last updated: 2025-09-08 via Claude Code - CRITICAL FIXES: UnboundLocalError + Missing Condiciones resolved, full USD quotation functionality restored -->
