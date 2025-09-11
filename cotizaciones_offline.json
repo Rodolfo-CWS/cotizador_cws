@@ -25,10 +25,73 @@
       "fechaCreacion": "2025-08-20T08:50:11.640537+00:00",
       "usuario": null,
       "observaciones": "Cotizacion de prueba para verificar sistema Supabase",
-      "id": 190,
-      "_id": "190",
+      "id": 219,
+      "_id": "219",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-09-02T09:28:37.609546"
+      "fecha_sincronizacion": "2025-09-10T17:13:38.730646"
+    },
+    {
+      "numeroCotizacion": "CLIENTE-TE-CWS-HT-001-R1-VALIDACION",
+      "datosGenerales": {
+        "cliente": "CLIENTE-TEST-HIBRIDO",
+        "proyecto": "VALIDACION-SDK",
+        "revision": 1,
+        "vendedor": "HIBRIDO TESTER",
+        "condiciones": {
+          "moneda": "USD",
+          "tipoCambio": 17.5
+        },
+        "numeroCotizacion": "CLIENTE-TE-CWS-HT-001-R1-VALIDACION"
+      },
+      "items": [
+        {
+          "precio": 100,
+          "cantidad": 1,
+          "descripcion": "Item test"
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1757337054366,
+      "fechaCreacion": "2025-09-08T07:10:54.366189+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 222,
+      "_id": "222",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-10T17:13:38.730646"
+    },
+    {
+      "numeroCotizacion": "CLIENTE-TE-CWS-HT-001-R2-VALIDACION",
+      "datosGenerales": {
+        "cliente": "CLIENTE-TEST-HIBRIDO",
+        "proyecto": "VALIDACION-SDK",
+        "revision": 2,
+        "vendedor": "HIBRIDO TESTER",
+        "numeroCotizacion": "CLIENTE-TE-CWS-HT-001-R2-VALIDACION"
+      },
+      "items": [
+        {
+          "precio": 100,
+          "cantidad": 1,
+          "descripcion": "Item test"
+        },
+        {
+          "precio": 200,
+          "cantidad": 2,
+          "descripcion": "Item REVISADO"
+        }
+      ],
+      "revision": 2,
+      "version": "1.0.0",
+      "timestamp": 1757337052477,
+      "fechaCreacion": "2025-09-08T07:10:52.477881+00:00",
+      "usuario": null,
+      "observaciones": "Revision R2 - item adicional agregado",
+      "id": 223,
+      "_id": "223",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-10T17:13:38.730646"
     },
     {
       "numeroCotizacion": "TEST-CLIEN-CWS-T-001-R1-PROYECTO-TEST",
@@ -44,10 +107,10 @@
       "fechaCreacion": "2025-08-22T12:25:58.890260+00:00",
       "usuario": null,
       "observaciones": null,
-      "id": 191,
-      "_id": "191",
+      "id": 220,
+      "_id": "220",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-09-02T09:28:37.609546"
+      "fecha_sincronizacion": "2025-09-10T17:13:38.730646"
     },
     {
       "numeroCotizacion": "TEST-CORRE-CWS-TE-001-R1-PRUEBA-IMP",
@@ -70,102 +133,132 @@
       "fechaCreacion": "2025-08-13T09:52:35.629614+00:00",
       "usuario": null,
       "observaciones": null,
-      "id": 189,
-      "_id": "189",
+      "id": 221,
+      "_id": "221",
       "sincronizada": true,
-      "fecha_sincronizacion": "2025-09-02T09:28:37.609546"
-    },
-    {
-      "datosGenerales": {
-        "cliente": "CLIENTE-TEST-HIBRIDO",
-        "vendedor": "HIBRIDO TESTER",
-        "proyecto": "VALIDACION-SDK",
-        "revision": 1,
-        "numeroCotizacion": "CLIENTE-TE-CWS-HT-001-R1-VALIDACION"
-      },
-      "items": [
-        {
-          "descripcion": "Item test",
-          "cantidad": 1,
-          "precio": 100
-        }
-      ],
-      "condiciones": {
-        "moneda": "USD",
-        "tipoCambio": 17.5
-      },
-      "numeroCotizacion": "CLIENTE-TE-CWS-HT-001-R1-VALIDACION",
-      "timestamp": 1757337054366,
-      "fechaCreacion": "2025-09-08T07:10:54.366189"
-    },
-    {
-      "_id": "197",
-      "numeroCotizacion": "CLIENTE-TE-CWS-HT-001-R2-VALIDACION",
-      "datosGenerales": {
-        "cliente": "CLIENTE-TEST-HIBRIDO",
-        "proyecto": "VALIDACION-SDK",
-        "revision": 2,
-        "vendedor": "HIBRIDO TESTER",
-        "numeroCotizacion": "CLIENTE-TE-CWS-HT-001-R2-VALIDACION"
-      },
-      "items": [
-        {
-          "precio": 100,
-          "cantidad": 1,
-          "descripcion": "Item test"
-        },
-        {
-          "descripcion": "Item REVISADO",
-          "cantidad": 2,
-          "precio": 200
-        }
-      ],
-      "condiciones": {},
-      "revision": 2,
-      "fechaCreacion": "2025-09-08T07:10:52.477881+00:00",
-      "timestamp": 1757337052477,
-      "usuario": null,
-      "observaciones": "Revision R2 - item adicional agregado"
+      "fecha_sincronizacion": "2025-09-10T17:13:38.730646"
     },
     {
       "numeroCotizacion": "TEST-DEBUG-R2-GUARDAR",
       "datosGenerales": {
         "cliente": "CLIENTE-DEBUG",
-        "vendedor": "DEBUG TESTER",
         "proyecto": "TEST-GUARDAR",
         "revision": 2,
+        "vendedor": "DEBUG TESTER",
         "numeroCotizacion": "TEST-DEBUG-R2-GUARDAR"
       },
       "items": [
         {
-          "descripcion": "Item test R2",
+          "precio": 100,
           "cantidad": 1,
-          "precio": 100
+          "descripcion": "Item test R2"
         }
       ],
-      "condiciones": {},
       "revision": 2,
-      "observaciones": "Test de guardado R2",
+      "version": "1.0.0",
       "timestamp": 1757338365191,
-      "fechaCreacion": "2025-09-08T07:32:45.191268"
+      "fechaCreacion": "2025-09-08T07:32:45.191268+00:00",
+      "usuario": null,
+      "observaciones": "Test de guardado R2",
+      "id": 224,
+      "_id": "224",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-10T17:13:38.730646"
     },
     {
       "numeroCotizacion": "TEST-LOGGING-MEJORADO",
       "datosGenerales": {
         "cliente": "TEST-DEBUG",
-        "vendedor": "DEBUG",
         "proyecto": "LOGGING",
-        "revision": 1
+        "revision": 1,
+        "vendedor": "DEBUG"
       },
       "items": [
         {
-          "descripcion": "Test item",
+          "precio": 100,
           "cantidad": 1,
-          "precio": 100
+          "descripcion": "Test item"
         }
       ],
+      "revision": 1,
+      "version": "1.0.0",
       "timestamp": 1757338943490,
-      "fechaCreacion": "2025-09-08T07:42:23.490672"
+      "fechaCreacion": "2025-09-08T07:42:23.490672+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 225,
+      "_id": "225",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-10T17:13:38.730646"
+    },
+    {
+      "numeroCotizacion": "DAIKIN-CWS-FM-001-R1-CARROPARAC",
+      "datosGenerales": {
+        "cliente": "Daikin",
+        "contacto": "Brenda.Patino@daikinmx.com",
+        "proyecto": "Carro para compresores",
+        "revision": "1",
+        "vendedor": "Francisco Moreno",
+        "atencionA": "Brenda Patiño",
+        "condiciones": {
+          "moneda": "MXN",
+          "terminos": "30 días de crédito",
+          "entregaEn": "Daikin SLP",
+          "tipoCambio": "",
+          "comentarios": "",
+          "tiempoEntrega": "21 días habiles"
+        },
+        "numeroCotizacion": "DAIKIN-CWS-FM-001-R1-CARROPARAC"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "77930.16",
+          "cantidad": "3",
+          "descuento": "0",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "peso": "1.83",
+              "precio": "80",
+              "cantidad": "18",
+              "material": "PTR 1 1/4\" x 1 1/4\" CAL 14",
+              "subtotal": "2635.20",
+              "tipoCotizacion": "normal"
+            },
+            {
+              "peso": "18.29",
+              "precio": "80",
+              "cantidad": "11.1",
+              "material": "LAMINA Antiderrapante CAL 14",
+              "subtotal": "16241.52",
+              "tipoCotizacion": "normal"
+            }
+          ],
+          "transporte": "500",
+          "costoUnidad": "25976.72",
+          "descripcion": "Carro metalico en PTR de 1 1/4 con calibre 14 y 6 charolas laterales, rodajas de 8\", tiron y contra",
+          "instalacion": "0",
+          "otrosMateriales": [
+            {
+              "precio": "1650",
+              "cantidad": "4",
+              "subtotal": "6600.00",
+              "descripcion": "Rodajas 8\"x2\""
+            }
+          ]
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1757550145106,
+      "fechaCreacion": "2025-09-11T00:22:24.873788+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 226,
+      "_id": "226",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-10T18:26:01.859357"
     }
   ],
   "contadores": {
@@ -179,6 +272,6 @@
   "version": "1.0.0",
   "limpieza_completa": "2025-09-02T09:15:53",
   "backup_anterior": "cotizaciones_offline_backup_20250902_091553.json",
-  "ultima_sincronizacion": "2025-09-02T09:28:37.609546",
-  "sincronizaciones": 1
+  "ultima_sincronizacion": "2025-09-10T18:26:01.859357",
+  "sincronizaciones": 6
 }

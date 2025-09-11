@@ -404,6 +404,34 @@ def cargar_materiales_csv():
 LISTA_MATERIALES = cargar_materiales_csv()
 print(f"[OK] Cargados {len(LISTA_MATERIALES)} materiales desde CSV")
 
+def wrap_description_text(text, max_chars_per_line=35):
+    """Utility function to wrap long description text for PDF cells"""
+    if not text or len(text) <= max_chars_per_line:
+        return text
+    
+    # Split text into words
+    words = text.split()
+    lines = []
+    current_line = ""
+    
+    for word in words:
+        # If adding this word would exceed the limit, start a new line
+        if len(current_line + " " + word) > max_chars_per_line and current_line:
+            lines.append(current_line)
+            current_line = word
+        else:
+            if current_line:
+                current_line += " " + word
+            else:
+                current_line = word
+    
+    # Add the last line if it has content
+    if current_line:
+        lines.append(current_line)
+    
+    # Join lines with line breaks
+    return "<br/>".join(lines)
+
 def generar_pdf_reportlab(datos_cotizacion):
     """Genera PDF usando ReportLab con formato profesional CWS"""
     if not REPORTLAB_AVAILABLE:
@@ -454,6 +482,20 @@ def generar_pdf_reportlab(datos_cotizacion):
         parent=styles['Normal'],
         fontSize=8,
         fontName='Helvetica'
+    )
+    
+    # Estilo para descripciones en tabla - soporta múltiples líneas
+    description_style = ParagraphStyle(
+        'DescriptionStyle',
+        parent=styles['Normal'],
+        fontSize=7,
+        fontName='Helvetica',
+        alignment=0,  # Alineación izquierda
+        leftIndent=0,
+        rightIndent=0,
+        spaceAfter=0,
+        spaceBefore=0,
+        leading=8  # Espaciado entre líneas
     )
     
     # Extraer datos
@@ -669,10 +711,14 @@ def generar_pdf_reportlab(datos_cotizacion):
                 precio_unitario_mostrar = precio_unitario_mxn
                 simbolo_item = '$'
             
-            # Agregar número de item y formatear datos
+            # Agregar número de item y formatear datos con descripción envuelta
+            descripcion_raw = item.get('descripcion', '')
+            descripcion_wrapped = wrap_description_text(descripcion_raw)
+            descripcion_paragraph = Paragraph(descripcion_wrapped, description_style)
+            
             items_data.append([
                 str(i + 1),  # Número de item
-                item.get('descripcion', ''),
+                descripcion_paragraph,  # Usar Paragraph con text wrapping
                 f"{cantidad:,.0f}",
                 item.get('uom', ''),
                 f"{simbolo_item}{precio_unitario_mostrar:,.2f}",
@@ -698,6 +744,9 @@ def generar_pdf_reportlab(datos_cotizacion):
             ('ALIGN', (1, 1), (1, -1), 'LEFT'),     # Descripción a la izquierda
             ('ALIGN', (2, 1), (3, -1), 'CENTER'),   # CANT y UOM centrados
             ('ALIGN', (4, 1), (-1, -1), 'RIGHT'),   # Precios a la derecha
+            
+            # Alineación vertical para soporte de Paragraph multi-línea
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),    # Alineación vertical superior para todas las celdas
             
             # Estilo de fuentes para precios
             ('FONTNAME', (4, 1), (-1, -1), 'Helvetica-Bold'),

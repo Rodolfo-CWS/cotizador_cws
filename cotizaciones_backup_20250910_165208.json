@@ -1,0 +1,270 @@
+{
+  "cotizaciones": [
+    {
+      "numeroCotizacion": "MAZDA-CWS-RM-001-R1-HOUSING",
+      "datosGenerales": {
+        "cliente": "Mazda",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "Housing",
+        "revision": "1",
+        "vendedor": "Rodolfo Moreno",
+        "atencionA": "Faustino Oro",
+        "numeroCotizacion": "MAZDA-CWS-RM-001-R1-HOUSING"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "80000.00",
+          "cantidad": "10",
+          "descuento": "0",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "80",
+              "subtotal": "8000.00",
+              "pesoEstructura": "100",
+              "tipoCotizacion": "peso"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "8000.00",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1757373603975,
+      "fechaCreacion": "2025-09-08T23:20:03.975915+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 204,
+      "_id": "204",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-09T08:22:33.126683"
+    },
+    {
+      "numeroCotizacion": "MAZDA-CWS-RM-001-R2-HOUSING",
+      "datosGenerales": {
+        "cliente": "Mazda",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "Housing",
+        "revision": "2",
+        "vendedor": "Rodolfo Moreno",
+        "atencionA": "Faustino Oro",
+        "numeroCotizacion": "MAZDA-CWS-RM-001-R2-HOUSING",
+        "actualizacionRevision": "Revisión 2 basada en cotización original"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "72000.00",
+          "cantidad": "10",
+          "descuento": "10",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "80",
+              "subtotal": "8000.00",
+              "pesoEstructura": "100",
+              "tipoCotizacion": "peso"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "7200.00",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1757373792285,
+      "fechaCreacion": "2025-09-08T23:23:12.285249+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 205,
+      "_id": "205",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-09T08:22:33.126683"
+    },
+    {
+      "numeroCotizacion": "MAZDA-CWS-RM-001-R3-HOUSING",
+      "datosGenerales": {
+        "cliente": "Mazda",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "Housing",
+        "revision": "3",
+        "vendedor": "Rodolfo Moreno",
+        "atencionA": "Faustino Oro",
+        "numeroCotizacion": "MAZDA-CWS-RM-001-R3-HOUSING",
+        "actualizacionRevision": "Revisión 3 basada en cotización original"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "70400.00",
+          "cantidad": "10",
+          "descuento": "12",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "80",
+              "subtotal": "8000.00",
+              "pesoEstructura": "100",
+              "tipoCotizacion": "peso"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "7040.00",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1757378799458,
+      "fechaCreacion": "2025-09-09T00:46:39.458479+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 207,
+      "_id": "207",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-09T08:22:33.126683"
+    },
+    {
+      "numeroCotizacion": "MAZDA-CWS-RM-001-R4-HOUSING",
+      "datosGenerales": {
+        "cliente": "Mazda",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "Housing",
+        "revision": "4",
+        "vendedor": "Rodolfo Moreno",
+        "atencionA": "Faustino Oro",
+        "condiciones": {
+          "moneda": "USD",
+          "terminos": "30 dias de crédito",
+          "entregaEn": "SLP",
+          "tipoCambio": "18",
+          "comentarios": "",
+          "tiempoEntrega": "20 dias"
+        },
+        "numeroCotizacion": "MAZDA-CWS-RM-001-R4-HOUSING",
+        "actualizacionRevision": "Revisión 4 basada en cotización original"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "69600.00",
+          "cantidad": "10",
+          "descuento": "13",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "80",
+              "subtotal": "8000.00",
+              "pesoEstructura": "100",
+              "tipoCotizacion": "peso"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "6960.00",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1757428182566,
+      "fechaCreacion": "2025-09-09T14:29:42.304027+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 209,
+      "_id": "209",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-09T08:41:01.550704"
+    },
+    {
+      "numeroCotizacion": "MAZDA-CWS-RM-001-R5-HOUSING",
+      "datosGenerales": {
+        "cliente": "Mazda",
+        "contacto": "fdfdf@gmail.com",
+        "proyecto": "Housing",
+        "revision": "5",
+        "vendedor": "Rodolfo Moreno",
+        "atencionA": "Faustino Oro",
+        "condiciones": {
+          "moneda": "USD",
+          "terminos": "30 dias de crédito",
+          "entregaEn": "SLP",
+          "tipoCambio": "18.5",
+          "comentarios": "",
+          "tiempoEntrega": "20 dias"
+        },
+        "numeroCotizacion": "MAZDA-CWS-RM-001-R5-HOUSING",
+        "actualizacionRevision": "Revisión 5 basada en cotización original"
+      },
+      "items": [
+        {
+          "uom": "Pieza",
+          "total": "146817.02",
+          "cantidad": "20",
+          "descuento": "13",
+          "seguridad": "0",
+          "materiales": [
+            {
+              "material": "COTIZAR_POR_PESO",
+              "precioKg": "80",
+              "subtotal": "8000.00",
+              "pesoEstructura": "100",
+              "tipoCotizacion": "peso"
+            },
+            {
+              "peso": "1.71",
+              "precio": "80",
+              "cantidad": "3.2",
+              "material": "PTR 1",
+              "subtotal": "437.76",
+              "tipoCotizacion": "normal"
+            }
+          ],
+          "transporte": "0",
+          "costoUnidad": "7340.85",
+          "descripcion": "Rack 1",
+          "instalacion": "0",
+          "otrosMateriales": []
+        }
+      ],
+      "revision": 1,
+      "version": "1.0.0",
+      "timestamp": 1757461146696,
+      "fechaCreacion": "2025-09-09T23:39:06.284073+00:00",
+      "usuario": null,
+      "observaciones": null,
+      "id": 218,
+      "_id": "218",
+      "sincronizada": true,
+      "fecha_sincronizacion": "2025-09-09T17:41:01.987598"
+    }
+  ],
+  "contadores": {
+    "CLIENTE-TE-CWS-HT": {
+      "ultimo_numero": 1,
+      "descripcion": "Contador offline para CLIENTE-TE-CWS-HT",
+      "created_at": "2025-09-08T07:10:52.477881",
+      "updated_at": "2025-09-08T07:10:52.477881"
+    }
+  },
+  "version": "1.0.0",
+  "limpieza_completa": "2025-09-02T09:15:53",
+  "backup_anterior": "cotizaciones_offline_backup_20250902_091553.json",
+  "ultima_sincronizacion": "2025-09-09T17:41:01.987598",
+  "sincronizaciones": 4
+}

@@ -29,7 +29,17 @@
       "Bash(gh issue view:*)",
       "WebFetch(domain:github.com)",
       "Bash(git rm:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(sed:*)",
+      "Bash(del test_conversiones_unidades.py)",
+      "Bash(set FLASK_ENV=development)",
+      "Bash(set TEMPLATES_AUTO_RELOAD=True)",
+      "Bash(findstr:*)",
+      "Bash(copy:*)",
+      "Bash(del test_table_format.py)",
+      "WebSearch",
+      "Bash(del test_descripcion_wrapping.py test_app_functionality.py test_descripcion_wrapping.pdf)",
+      "Bash(npx playwright:*)"
     ],
     "deny": []
   }
