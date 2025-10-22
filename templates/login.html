@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CWS - Iniciar Sesión</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: #ffffff;
+            padding: 48px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo {
+            margin-bottom: 48px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .logo img {
+            max-height: 120px;
+            max-width: 300px;
+            object-fit: contain;
+        }
+
+        .form-group {
+            text-align: left;
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            color: #495057;
+            font-weight: 500;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        select {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.2s ease;
+            background: #ffffff;
+            color: #212529;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23495057' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            padding-right: 48px;
+        }
+
+        select:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        select:disabled {
+            background-color: #e9ecef;
+            cursor: not-allowed;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-login:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn-login:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .message.error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            display: block;
+        }
+
+        .message.success {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+            display: block;
+        }
+
+        @media (max-width: 600px) {
+            .login-container {
+                padding: 32px 24px;
+            }
+
+            .logo {
+                margin-bottom: 32px;
+            }
+
+            .logo img {
+                max-height: 90px;
+                max-width: 230px;
+            }
+        }
+
+        /* Estilos para la opción de placeholder */
+        option[value=""] {
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <img src="/static/logo.png" alt="CWS Company">
+        </div>
+
+        <form id="loginForm" method="POST" action="/login">
+            <div class="form-group">
+                <label for="vendedor">¿Quién eres?</label>
+                <select name="vendedor" id="vendedor" required>
+                    <option value="" disabled selected>Selecciona tu nombre...</option>
+                    <option value="Rodolfo Moreno">Rodolfo Moreno</option>
+                    <option value="Francisco Moreno">Francisco Moreno</option>
+                    <option value="Anuar Bazan">Anuar Bazan</option>
+                    <option value="Armando Castillo">Armando Castillo</option>
+                    <option value="Santiago Vazquez">Santiago Vazquez</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn-login" id="btnLogin">
+                Iniciar Sesión
+            </button>
+
+            <div id="mensaje" class="message"></div>
+        </form>
+    </div>
+
+    <script>
+        const form = document.getElementById('loginForm');
+        const selectVendedor = document.getElementById('vendedor');
+        const btnLogin = document.getElementById('btnLogin');
+        const mensaje = document.getElementById('mensaje');
+
+        // Auto-submit cuando se selecciona un vendedor
+        selectVendedor.addEventListener('change', function() {
+            if (this.value) {
+                btnLogin.disabled = false;
+            }
+        });
+
+        // Manejar el envío del formulario
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const vendedor = selectVendedor.value;
+
+            if (!vendedor) {
+                mostrarMensaje('Por favor selecciona tu nombre', 'error');
+                return;
+            }
+
+            // Deshabilitar botón y select durante el proceso
+            btnLogin.disabled = true;
+            selectVendedor.disabled = true;
+            btnLogin.textContent = 'Iniciando sesión...';
+
+            // Enviar formulario
+            fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `vendedor=${encodeURIComponent(vendedor)}`
+            })
+            .then(response => {
+                if (response.ok) {
+                    mostrarMensaje('¡Bienvenido! Redirigiendo...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 500);
+                } else {
+                    throw new Error('Error al iniciar sesión');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarMensaje('Error al iniciar sesión. Intenta de nuevo.', 'error');
+                btnLogin.disabled = false;
+                selectVendedor.disabled = false;
+                btnLogin.textContent = 'Iniciar Sesión';
+            });
+        });
+
+        function mostrarMensaje(texto, tipo) {
+            mensaje.textContent = texto;
+            mensaje.className = 'message ' + tipo;
+        }
+
+        // Auto-focus en el select al cargar
+        document.addEventListener('DOMContentLoaded', function() {
+            selectVendedor.focus();
+        });
+    </script>
+</body>
+</html>
