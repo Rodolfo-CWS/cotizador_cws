@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 # CRITICAL FIX: Sep 8, 2025 - Deploy 2 - FORCE COMPLETE RESTART
 # Issue: SDK REST fix not being applied in production - quotations not appearing in Supabase
 
@@ -1101,10 +1101,52 @@ def timestamp_to_date(timestamp):
         return 'N/A'
 
 # ============================================
+# AUTENTICACIÓN Y SESSION MANAGEMENT
+# ============================================
+
+from functools import wraps
+
+def login_required(f):
+    """Decorator to require login for routes"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'vendedor' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """Página de login"""
+    if request.method == "POST":
+        vendedor = request.form.get('vendedor')
+        if vendedor:
+            session['vendedor'] = vendedor
+            print(f"Usuario autenticado: {vendedor}")
+            return redirect(url_for('home'))
+        else:
+            return render_template("login.html", error="Por favor selecciona tu nombre")
+
+    # Si ya está autenticado, redirigir al home
+    if 'vendedor' in session:
+        return redirect(url_for('home'))
+
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    """Cerrar sesión"""
+    vendedor = session.get('vendedor', 'Usuario')
+    session.pop('vendedor', None)
+    print(f"Usuario cerró sesión: {vendedor}")
+    return redirect(url_for('login'))
+
+# ============================================
 # RUTAS PRINCIPALES
 # ============================================
 
 @app.route("/", methods=["GET", "POST"])
+@login_required
 def home():
     """Página principal - Recibe cotizaciones completas"""
     if request.method == "POST":
@@ -1138,9 +1180,10 @@ def home():
             print(f"Error en ruta principal: {e}")
             return jsonify({"error": "Error del servidor"}), 500
 
-    return render_template("home.html")
+    return render_template("home.html", vendedor=session.get('vendedor', ''))
 
 @app.route("/formulario", methods=["GET", "POST"])
+@login_required
 def formulario():
     """Formulario de cotización"""
     if request.method == "POST":
@@ -1418,9 +1461,10 @@ def formulario():
         else:
             print(f"[REVISION] ⚠️ Cotización original no encontrada para: '{revision_id}'")
     
-    return render_template("formulario.html", 
-                         materiales=LISTA_MATERIALES, 
-                         datos_precargados=datos_precargados)
+    return render_template("formulario.html",
+                         materiales=LISTA_MATERIALES,
+                         datos_precargados=datos_precargados,
+                         vendedor_sesion=session.get('vendedor', ''))
 
 @app.route("/debug-materiales")
 def debug_materiales():
