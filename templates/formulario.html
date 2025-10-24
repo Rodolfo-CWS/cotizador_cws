@@ -84,9 +84,129 @@
             color: white;
             border-color: var(--danger);
         }
+
+        /* Modal de Descripción de Revisión */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            background: var(--gray-50);
+            border-radius: 0 0 12px 12px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .form-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        #descripcion-revision-input {
+            min-height: 120px;
+            resize: vertical;
+        }
     </style>
 </head>
 <body class="min-h-screen py-6">
+
+<!-- MODAL DE DESCRIPCIÓN DE REVISIÓN -->
+<div id="modal-revision" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="text-2xl font-bold mb-2">Nueva Revisión</h2>
+            <p class="text-sm opacity-90">Revisión <span id="numero-revision-modal"></span></p>
+        </div>
+
+        <div class="modal-body">
+            <div class="mb-4">
+                <p class="text-gray-700 mb-4">
+                    <strong>¿Cuál es el cambio principal de esta revisión?</strong>
+                </p>
+                <p class="text-sm text-gray-600 mb-4">
+                    Describa brevemente los cambios o actualizaciones que se realizaron en esta nueva versión de la cotización.
+                    Esta descripción será incluida automáticamente en la justificación de actualización.
+                </p>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Descripción del cambio:
+                    <span class="text-red-500">*</span>
+                </label>
+                <textarea
+                    id="descripcion-revision-input"
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ejemplo: Actualización de precios, cambio de materiales, ajuste de cantidades, etc."
+                    rows="4"
+                ></textarea>
+                <p class="text-xs text-gray-500 mt-1">
+                    Mínimo 10 caracteres. Caracteres actuales: <span id="contador-caracteres">0</span>
+                </p>
+            </div>
+
+            <div id="error-descripcion" class="text-red-600 text-sm mb-2" style="display: none;">
+                Por favor, ingrese una descripción de al menos 10 caracteres.
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button
+                type="button"
+                id="btn-confirmar-revision"
+                class="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled
+            >
+                Continuar con la Revisión
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- ENCABEZADO -->
 <header class="bg-gradient-to-r from-blue-700 to-blue-800 text-white shadow-lg mb-6">
@@ -363,7 +483,105 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     setTimeout(() => { agregarItem(); }, 500);
     configurarEventListeners();
+
+    // Inicializar modal de revisión si es necesario
+    inicializarModalRevision();
 });
+
+// ============================================
+// SISTEMA DE MODAL DE DESCRIPCIÓN DE REVISIÓN
+// ============================================
+
+function inicializarModalRevision() {
+    // Solo mostrar modal si es una revisión (DATOS_PRECARGADOS existe)
+    if (!DATOS_PRECARGADOS) {
+        console.log('[MODAL_REVISION] No es una revisión, modal no se mostrará');
+        return;
+    }
+
+    const datosGenerales = DATOS_PRECARGADOS.datosGenerales || {};
+    const numeroRevision = datosGenerales.revision || 2;
+
+    console.log('[MODAL_REVISION] Es una revisión R' + numeroRevision + ', mostrando modal');
+
+    // Elementos del modal
+    const modal = document.getElementById('modal-revision');
+    const numeroRevisionSpan = document.getElementById('numero-revision-modal');
+    const descripcionInput = document.getElementById('descripcion-revision-input');
+    const btnConfirmar = document.getElementById('btn-confirmar-revision');
+    const contadorCaracteres = document.getElementById('contador-caracteres');
+    const errorDescripcion = document.getElementById('error-descripcion');
+    const formularioPrincipal = document.getElementById('cotizacion-form');
+
+    if (!modal || !descripcionInput || !btnConfirmar) {
+        console.error('[MODAL_REVISION] Error: elementos del modal no encontrados');
+        return;
+    }
+
+    // Configurar número de revisión en el modal
+    numeroRevisionSpan.textContent = 'R' + numeroRevision;
+
+    // Deshabilitar formulario principal
+    formularioPrincipal.classList.add('form-disabled');
+    console.log('[MODAL_REVISION] Formulario principal deshabilitado');
+
+    // Mostrar modal
+    modal.style.display = 'flex';
+
+    // Event listener para contador de caracteres y validación
+    descripcionInput.addEventListener('input', function() {
+        const texto = descripcionInput.value.trim();
+        const longitudTexto = texto.length;
+
+        // Actualizar contador
+        contadorCaracteres.textContent = longitudTexto;
+
+        // Validar y habilitar/deshabilitar botón
+        if (longitudTexto >= 10) {
+            btnConfirmar.disabled = false;
+            errorDescripcion.style.display = 'none';
+            descripcionInput.style.borderColor = '';
+        } else {
+            btnConfirmar.disabled = true;
+        }
+    });
+
+    // Event listener para botón de confirmar
+    btnConfirmar.addEventListener('click', function() {
+        const descripcion = descripcionInput.value.trim();
+
+        // Validar longitud mínima
+        if (descripcion.length < 10) {
+            errorDescripcion.style.display = 'block';
+            descripcionInput.style.borderColor = '#dc2626';
+            descripcionInput.focus();
+            return;
+        }
+
+        // Rellenar campo de justificación con formato "Rev X: descripción"
+        const actualizacionTextarea = document.querySelector('textarea[name="actualizacionRevision"]');
+        if (actualizacionTextarea) {
+            const textoJustificacion = `Rev ${numeroRevision}: ${descripcion}`;
+            actualizacionTextarea.value = textoJustificacion;
+            console.log('[MODAL_REVISION] Justificación rellenada:', textoJustificacion);
+        }
+
+        // Cerrar modal
+        modal.style.display = 'none';
+
+        // Habilitar formulario principal
+        formularioPrincipal.classList.remove('form-disabled');
+        console.log('[MODAL_REVISION] Formulario principal habilitado');
+
+        // Mostrar mensaje de confirmación
+        console.log('[MODAL_REVISION] Modal cerrado, descripción guardada');
+    });
+
+    // Enfocar en el textarea al cargar
+    setTimeout(() => {
+        descripcionInput.focus();
+    }, 300);
+}
 
 function manejarRevision() {
     const revisionInput = document.getElementById('revision');
