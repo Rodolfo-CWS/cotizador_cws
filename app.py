@@ -973,11 +973,109 @@ def generar_pdf_reportlab(datos_cotizacion):
     
     return buffer.getvalue()
 
+def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
+    """
+    Verifica si una cotización es la revisión más reciente
+    Retorna dict con:
+    - es_mas_reciente: bool
+    - revision_actual: int
+    - revision_maxima: int
+    - numero_ultima_revision: str
+    """
+    try:
+        # Extraer el número base y revisión actual
+        # Formato típico: CLIENTE-CWS-VENDOR-###-R#-PROYECTO
+        partes = numero_cotizacion.split('-')
+
+        revision_actual = 1
+        indice_revision = -1
+
+        for i, parte in enumerate(partes):
+            if parte.startswith('R') and len(parte) > 1:
+                try:
+                    revision_actual = int(parte[1:])
+                    indice_revision = i
+                    break
+                except ValueError:
+                    continue
+
+        if indice_revision == -1:
+            print(f"[VERIFICAR_REVISION] No se encontró revisión en: {numero_cotizacion}")
+            return {
+                'es_mas_reciente': True,
+                'revision_actual': 1,
+                'revision_maxima': 1,
+                'numero_ultima_revision': numero_cotizacion
+            }
+
+        # Construir patrón base (sin R#)
+        patron_base = '-'.join(partes[:indice_revision] + partes[indice_revision+1:])
+
+        print(f"[VERIFICAR_REVISION] Cotización: {numero_cotizacion}")
+        print(f"[VERIFICAR_REVISION] Revisión actual: R{revision_actual}")
+        print(f"[VERIFICAR_REVISION] Patrón base: {patron_base}")
+
+        # Buscar todas las cotizaciones con ese patrón
+        resultado = db_manager.buscar_cotizaciones(patron_base, page=1, per_page=100)
+
+        if not resultado.get('items'):
+            return {
+                'es_mas_reciente': True,
+                'revision_actual': revision_actual,
+                'revision_maxima': revision_actual,
+                'numero_ultima_revision': numero_cotizacion
+            }
+
+        # Buscar revisión máxima
+        revision_maxima = revision_actual
+        numero_ultima_revision = numero_cotizacion
+
+        for item in resultado['items']:
+            num_cotiz = item.get('numeroCotizacion', '')
+            if patron_base not in num_cotiz:
+                continue
+
+            partes_item = num_cotiz.split('-')
+            for parte in partes_item:
+                if parte.startswith('R') and len(parte) > 1:
+                    try:
+                        rev = int(parte[1:])
+                        if rev > revision_maxima:
+                            revision_maxima = rev
+                            numero_ultima_revision = num_cotiz
+                    except ValueError:
+                        continue
+
+        es_mas_reciente = (revision_actual >= revision_maxima)
+
+        print(f"[VERIFICAR_REVISION] Revisión máxima: R{revision_maxima}")
+        print(f"[VERIFICAR_REVISION] ¿Es la más reciente?: {es_mas_reciente}")
+        print(f"[VERIFICAR_REVISION] Última revisión: {numero_ultima_revision}")
+
+        return {
+            'es_mas_reciente': es_mas_reciente,
+            'revision_actual': revision_actual,
+            'revision_maxima': revision_maxima,
+            'numero_ultima_revision': numero_ultima_revision
+        }
+
+    except Exception as e:
+        print(f"[VERIFICAR_REVISION] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        # En caso de error, permitir la revisión
+        return {
+            'es_mas_reciente': True,
+            'revision_actual': 1,
+            'revision_maxima': 1,
+            'numero_ultima_revision': numero_cotizacion
+        }
+
 def preparar_datos_nueva_revision(cotizacion_original):
     """Prepara los datos de una cotización para crear una nueva revisión"""
     try:
         import copy
-        
+
         # Copiar datos originales
         datos = copy.deepcopy(cotizacion_original)
         
@@ -1448,22 +1546,44 @@ def formulario():
     # Verificar si es una nueva revisión
     revision_id = request.args.get('revision')
     datos_precargados = None
-    
+    info_bloqueo_revision = None
+
     if revision_id:
         print(f"[REVISION] Solicitando nueva revisión de: '{revision_id}'")
         # Cargar datos de la cotización original para nueva revisión
         resultado = db_manager.obtener_cotizacion(revision_id)
         if resultado.get('encontrado'):
             cotizacion_original = resultado['item']
-            print(f"[REVISION] Cotización original encontrada: {cotizacion_original.get('numeroCotizacion', 'N/A')}")
-            datos_precargados = preparar_datos_nueva_revision(cotizacion_original)
-            print(f"[REVISION] Datos precargados preparados - Nueva revisión: {datos_precargados.get('datosGenerales', {}).get('revision', 'N/A')}")
+            numero_cotizacion = cotizacion_original.get('numeroCotizacion', '')
+            print(f"[REVISION] Cotización original encontrada: {numero_cotizacion}")
+
+            # Verificar si es la revisión más reciente
+            info_revision = verificar_revision_mas_reciente(numero_cotizacion, db_manager)
+
+            if info_revision['es_mas_reciente']:
+                # Es la más reciente, permitir crear nueva revisión
+                datos_precargados = preparar_datos_nueva_revision(cotizacion_original)
+                print(f"[REVISION] ✅ Es la más reciente - Nueva revisión: {datos_precargados.get('datosGenerales', {}).get('revision', 'N/A')}")
+            else:
+                # NO es la más reciente, bloquear y mostrar advertencia
+                print(f"[REVISION] ⚠️ BLOQUEADA - No es la más reciente")
+                print(f"[REVISION] Revisión actual: R{info_revision['revision_actual']}")
+                print(f"[REVISION] Última revisión: R{info_revision['revision_maxima']} ({info_revision['numero_ultima_revision']})")
+
+                info_bloqueo_revision = {
+                    'bloqueada': True,
+                    'numero_actual': numero_cotizacion,
+                    'revision_actual': info_revision['revision_actual'],
+                    'revision_maxima': info_revision['revision_maxima'],
+                    'numero_ultima_revision': info_revision['numero_ultima_revision']
+                }
         else:
             print(f"[REVISION] ⚠️ Cotización original no encontrada para: '{revision_id}'")
-    
+
     return render_template("formulario.html",
                          materiales=LISTA_MATERIALES,
                          datos_precargados=datos_precargados,
+                         info_bloqueo_revision=info_bloqueo_revision,
                          vendedor_sesion=session.get('vendedor', ''))
 
 @app.route("/debug-materiales")
