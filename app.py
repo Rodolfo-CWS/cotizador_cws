@@ -1666,6 +1666,183 @@ def admin_forzar_sincronizacion():
     resultado = db_manager.forzar_sincronizacion()
     return jsonify(resultado)
 
+# ========================================
+# ENDPOINTS DE GESTIÓN DE DRAFTS
+# ========================================
+
+@app.route("/api/draft/save", methods=["POST"])
+def guardar_draft():
+    """
+    Guarda o actualiza un draft (borrador) de cotización
+
+    Body JSON:
+        {
+            "vendedor": "RCWS",
+            "datos": {
+                "datosGenerales": {...},
+                "items": [...],
+                "condiciones": {...}
+            },
+            "draft_id": "draft_123" (opcional, para actualizar)
+        }
+
+    Returns:
+        {
+            "success": true,
+            "draft_id": "draft_1234567890",
+            "timestamp": 1234567890,
+            "nombre": "Cliente X - Proyecto Y"
+        }
+    """
+    try:
+        datos = request.get_json()
+
+        if not datos:
+            return jsonify({"success": False, "error": "No se recibieron datos"}), 400
+
+        # Validar que tenga vendedor y datos
+        if not datos.get('vendedor'):
+            return jsonify({"success": False, "error": "Campo 'vendedor' requerido"}), 400
+
+        if not datos.get('datos'):
+            return jsonify({"success": False, "error": "Campo 'datos' requerido"}), 400
+
+        # Guardar draft
+        resultado = db_manager.guardar_draft(datos)
+
+        if resultado.get('success'):
+            print(f"[API] Draft guardado exitosamente: {resultado.get('draft_id')}")
+            return jsonify(resultado), 200
+        else:
+            print(f"[API] Error guardando draft: {resultado.get('error')}")
+            return jsonify(resultado), 500
+
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[API] Excepción guardando draft: {error_msg}")
+        return jsonify({"success": False, "error": error_msg}), 500
+
+
+@app.route("/api/draft/list", methods=["GET"])
+def listar_drafts():
+    """
+    Lista todos los drafts, opcionalmente filtrados por vendedor
+
+    Query params:
+        vendedor (opcional): Iniciales del vendedor para filtrar
+
+    Returns:
+        {
+            "success": true,
+            "drafts": [
+                {
+                    "id": "draft_123",
+                    "vendedor": "RCWS",
+                    "nombre": "Cliente X - Proyecto Y",
+                    "timestamp": 1234567890,
+                    "fecha_creacion": "2025-10-24T10:30:00",
+                    "ultima_modificacion": "2025-10-24T11:00:00"
+                }
+            ],
+            "total": 1
+        }
+    """
+    try:
+        vendedor = request.args.get('vendedor')
+
+        drafts = db_manager.listar_drafts(vendedor)
+
+        print(f"[API] Listando drafts - Vendedor: {vendedor or 'Todos'} - Total: {len(drafts)}")
+
+        return jsonify({
+            "success": True,
+            "drafts": drafts,
+            "total": len(drafts)
+        }), 200
+
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[API] Error listando drafts: {error_msg}")
+        return jsonify({"success": False, "error": error_msg}), 500
+
+
+@app.route("/api/draft/load/<draft_id>", methods=["GET"])
+def cargar_draft(draft_id):
+    """
+    Obtiene los datos completos de un draft específico
+
+    Args:
+        draft_id: ID del draft a cargar
+
+    Returns:
+        {
+            "success": true,
+            "draft": {
+                "id": "draft_123",
+                "vendedor": "RCWS",
+                "nombre": "Cliente X - Proyecto Y",
+                "datos": {
+                    "datosGenerales": {...},
+                    "items": [...],
+                    "condiciones": {...}
+                },
+                "timestamp": 1234567890,
+                "fecha_creacion": "2025-10-24T10:30:00",
+                "ultima_modificacion": "2025-10-24T11:00:00"
+            }
+        }
+    """
+    try:
+        draft = db_manager.obtener_draft(draft_id)
+
+        if draft:
+            print(f"[API] Draft cargado: {draft_id}")
+            return jsonify({
+                "success": True,
+                "draft": draft
+            }), 200
+        else:
+            print(f"[API] Draft no encontrado: {draft_id}")
+            return jsonify({
+                "success": False,
+                "error": f"Draft {draft_id} no encontrado"
+            }), 404
+
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[API] Error cargando draft: {error_msg}")
+        return jsonify({"success": False, "error": error_msg}), 500
+
+
+@app.route("/api/draft/delete/<draft_id>", methods=["DELETE"])
+def eliminar_draft(draft_id):
+    """
+    Elimina un draft
+
+    Args:
+        draft_id: ID del draft a eliminar
+
+    Returns:
+        {
+            "success": true,
+            "mensaje": "Draft eliminado"
+        }
+    """
+    try:
+        resultado = db_manager.eliminar_draft(draft_id)
+
+        if resultado.get('success'):
+            print(f"[API] Draft eliminado: {draft_id}")
+            return jsonify(resultado), 200
+        else:
+            print(f"[API] Error eliminando draft: {resultado.get('error')}")
+            return jsonify(resultado), 500
+
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[API] Excepción eliminando draft: {error_msg}")
+        return jsonify({"success": False, "error": error_msg}), 500
+
 @app.route("/diagnostico-completo")
 def diagnostico_completo():
     """Diagnóstico completo del sistema para debugging de producción"""

@@ -515,6 +515,279 @@ function generarOpcionesMateriales() {
 let cotizacionGuardada = false;
 let estadoInicialFormulario = null; // Para detectar cambios en revisiones
 
+// ============================================
+// SISTEMA DE AUTO-GUARDADO DE DRAFTS
+// ============================================
+
+let draftActualId = null;
+let autoGuardadoTimer = null;
+let formModificado = false;
+let ultimoGuardadoTimestamp = null;
+
+function inicializarSistemaAutoGuardado() {
+    console.log('[DRAFT] Inicializando sistema de auto-guardado...');
+
+    // Detectar cambios en el formulario
+    const form = document.getElementById('cotizacion-form');
+    if (form) {
+        form.addEventListener('input', function() {
+            formModificado = true;
+        });
+
+        form.addEventListener('change', function() {
+            formModificado = true;
+        });
+    }
+
+    // Iniciar auto-guardado cada 30 segundos
+    autoGuardadoTimer = setInterval(autoGuardarDraft, 30000);
+
+    // Guardar antes de cerrar/recargar página
+    window.addEventListener('beforeunload', function(e) {
+        if (formModificado) {
+            autoGuardarDraftSincrono();
+        }
+    });
+
+    console.log('[DRAFT] Sistema de auto-guardado iniciado (cada 30 segundos)');
+}
+
+async function autoGuardarDraft() {
+    // Solo guardar si hay cambios y hay datos en el formulario
+    if (!formModificado) {
+        console.log('[DRAFT] Sin cambios, omitiendo auto-guardado');
+        return;
+    }
+
+    // Verificar que haya al menos cliente o vendedor antes de guardar
+    const vendedor = document.querySelector('[name="vendedor"]')?.value?.trim();
+    const cliente = document.querySelector('[name="cliente"]')?.value?.trim();
+
+    if (!vendedor && !cliente) {
+        console.log('[DRAFT] Formulario vacío, omitiendo auto-guardado');
+        return;
+    }
+
+    try {
+        console.log('[DRAFT] Ejecutando auto-guardado...');
+
+        // Recopilar datos del formulario
+        const datosGenerales = recopilarDatosGenerales();
+        const items = recopilarItems();
+        const condiciones = recopilarCondiciones();
+
+        const datosDraft = {
+            vendedor: vendedor || 'UNKNOWN',
+            datos: {
+                datosGenerales: datosGenerales,
+                items: items,
+                condiciones: condiciones
+            }
+        };
+
+        // Si ya existe un draft_id, incluirlo para actualizar
+        if (draftActualId) {
+            datosDraft.draft_id = draftActualId;
+        }
+
+        const respuesta = await fetch('/api/draft/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(datosDraft)
+        });
+
+        if (respuesta.ok) {
+            const resultado = await respuesta.json();
+
+            if (resultado.success) {
+                draftActualId = resultado.draft_id;
+                ultimoGuardadoTimestamp = resultado.timestamp;
+                formModificado = false;
+
+                console.log('[DRAFT] Auto-guardado exitoso:', resultado.draft_id);
+                mostrarNotificacionGuardado();
+            } else {
+                console.error('[DRAFT] Error auto-guardando:', resultado.error);
+            }
+        } else {
+            console.error('[DRAFT] Error HTTP auto-guardando:', respuesta.status);
+        }
+
+    } catch (error) {
+        console.error('[DRAFT] Excepción auto-guardando:', error);
+    }
+}
+
+function autoGuardarDraftSincrono() {
+    // Versión síncrona para beforeunload (no espera respuesta)
+    const vendedor = document.querySelector('[name="vendedor"]')?.value?.trim();
+
+    if (!vendedor) return;
+
+    const datosGenerales = recopilarDatosGenerales();
+    const items = recopilarItems();
+    const condiciones = recopilarCondiciones();
+
+    const datosDraft = {
+        vendedor: vendedor,
+        datos: {
+            datosGenerales: datosGenerales,
+            items: items,
+            condiciones: condiciones
+        }
+    };
+
+    if (draftActualId) {
+        datosDraft.draft_id = draftActualId;
+    }
+
+    // Usar sendBeacon para garantizar que se envíe antes de cerrar
+    const blob = new Blob([JSON.stringify(datosDraft)], { type: 'application/json' });
+    navigator.sendBeacon('/api/draft/save', blob);
+}
+
+function mostrarNotificacionGuardado() {
+    // Crear notificación temporal de guardado exitoso
+    const notif = document.createElement('div');
+    notif.textContent = 'Borrador guardado';
+    notif.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg text-sm z-50';
+    notif.style.animation = 'fadeIn 0.3s, fadeOut 0.3s 2s';
+
+    document.body.appendChild(notif);
+
+    setTimeout(() => {
+        notif.remove();
+    }, 2500);
+}
+
+function recopilarDatosGenerales() {
+    const campos = [
+        'fecha', 'vendedor', 'cliente', 'telefono', 'correo',
+        'proyecto', 'numeroProyecto', 'emitidaPor', 'numeroCotizacion'
+    ];
+
+    const datos = {};
+    campos.forEach(campo => {
+        const elemento = document.querySelector(`[name="${campo}"]`);
+        if (elemento) {
+            datos[campo] = elemento.value?.trim() || '';
+        }
+    });
+
+    return datos;
+}
+
+function recopilarItems() {
+    const itemsRows = document.querySelectorAll('#items-body tr');
+    const items = [];
+
+    itemsRows.forEach(row => {
+        const item = {
+            descripcion: row.querySelector('[name="descripcion"]')?.value || '',
+            unidad: row.querySelector('[name="unidad"]')?.value || '',
+            cantidad: parseFloat(row.querySelector('[name="cantidad"]')?.value) || 0,
+            precioUnitario: parseFloat(row.querySelector('[name="precioUnitario"]')?.value) || 0
+        };
+
+        // Solo agregar items con al menos descripción
+        if (item.descripcion) {
+            items.push(item);
+        }
+    });
+
+    return items;
+}
+
+function recopilarCondiciones() {
+    const moneda = document.querySelector('[name="moneda"]')?.value || 'MXN';
+
+    return {
+        tiempoEntrega: document.querySelector('[name="tiempoEntrega"]')?.value || '',
+        condicionesPago: document.querySelector('[name="condicionesPago"]')?.value || '',
+        comentariosAdicionales: document.querySelector('[name="comentariosAdicionales"]')?.value || '',
+        moneda: moneda,
+        tipoCambio: moneda === 'USD' ? (document.querySelector('[name="tipoCambio"]')?.value || '') : null
+    };
+}
+
+async function cargarDraftSeleccionado(draftId) {
+    try {
+        console.log('[DRAFT] Cargando draft:', draftId);
+
+        const respuesta = await fetch(`/api/draft/load/${draftId}`);
+
+        if (!respuesta.ok) {
+            throw new Error(`Error HTTP ${respuesta.status}`);
+        }
+
+        const resultado = await respuesta.json();
+
+        if (resultado.success && resultado.draft) {
+            const draft = resultado.draft;
+
+            // Establecer draft actual
+            draftActualId = draft.id;
+
+            // Cargar datos en el formulario
+            const datos = draft.datos || {};
+            const datosGenerales = datos.datosGenerales || {};
+            const items = datos.items || [];
+            const condiciones = datos.condiciones || {};
+
+            // Llenar datos generales
+            Object.keys(datosGenerales).forEach(key => {
+                const elemento = document.querySelector(`[name="${key}"]`);
+                if (elemento && datosGenerales[key]) {
+                    elemento.value = datosGenerales[key];
+                }
+            });
+
+            // Limpiar y cargar items
+            const itemsBody = document.getElementById('items-body');
+            if (itemsBody) {
+                itemsBody.innerHTML = '';
+
+                items.forEach((item, index) => {
+                    agregarItem();
+                    const row = itemsBody.lastElementChild;
+
+                    row.querySelector('[name="descripcion"]').value = item.descripcion || '';
+                    row.querySelector('[name="unidad"]').value = item.unidad || '';
+                    row.querySelector('[name="cantidad"]').value = item.cantidad || 0;
+                    row.querySelector('[name="precioUnitario"]').value = item.precioUnitario || 0;
+                });
+            }
+
+            // Llenar condiciones
+            Object.keys(condiciones).forEach(key => {
+                const elemento = document.querySelector(`[name="${key}"]`);
+                if (elemento && condiciones[key] !== null) {
+                    elemento.value = condiciones[key];
+                }
+            });
+
+            // Recalcular totales
+            if (typeof calcularTotales === 'function') {
+                calcularTotales();
+            }
+
+            formModificado = false;
+
+            console.log('[DRAFT] Draft cargado exitosamente:', draftId);
+            alert(`Borrador "${draft.nombre}" cargado exitosamente`);
+
+        } else {
+            throw new Error(resultado.error || 'Draft no encontrado');
+        }
+
+    } catch (error) {
+        console.error('[DRAFT] Error cargando draft:', error);
+        alert(`Error al cargar borrador: ${error.message}`);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const fechaElement = document.getElementById('fecha-actual');
     if (fechaElement) {
@@ -522,7 +795,7 @@ document.addEventListener('DOMContentLoaded', function() {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
     }
-    
+
     // FORZAR: Asegurar que el campo numeroCotizacion NO sea required y esté disabled
     const campoNumeroCotizacion = document.querySelector('[name="numeroCotizacion"]');
     if (campoNumeroCotizacion) {
@@ -530,7 +803,7 @@ document.addEventListener('DOMContentLoaded', function() {
         campoNumeroCotizacion.setAttribute('disabled', 'disabled');
         console.log('Campo numeroCotizacion configurado como disabled sin required');
     }
-    
+
     // Cargar datos precargados si existen
     if (DATOS_PRECARGADOS) {
         cargarDatosPrecargados();
@@ -540,6 +813,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Inicializar modal de revisión si es necesario
     inicializarModalRevision();
+
+    // Inicializar sistema de auto-guardado de drafts
+    inicializarSistemaAutoGuardado();
+
+    // Cargar draft si viene en URL (?draft=ID)
+    const urlParams = new URLSearchParams(window.location.search);
+    const draftId = urlParams.get('draft');
+    if (draftId) {
+        console.log('[DRAFT] Draft ID detectado en URL:', draftId);
+        setTimeout(() => {
+            cargarDraftSeleccionado(draftId);
+        }, 1000); // Esperar a que todo se inicialice
+    }
 });
 
 // ============================================

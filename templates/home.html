@@ -374,7 +374,7 @@
                 <div class="tooltip">Ver Todas</div>
             </button>
             
-            <button class="icon-button btn-new" 
+            <button class="icon-button btn-new"
                     onclick="nuevaCotizacion()"
                     title="Nueva cotización">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -382,9 +382,55 @@
                 </svg>
                 <div class="tooltip">Nueva Cotización</div>
             </button>
+
+            <button class="icon-button btn-drafts"
+                    onclick="abrirModalDrafts()"
+                    id="btnDrafts"
+                    title="Borradores pendientes"
+                    style="background: #f59e0b; color: white; border-color: #f59e0b; position: relative;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,19L12,15H9V10H13L11,14H14V19H10Z"/>
+                </svg>
+                <span id="badge-drafts"
+                      style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; display: none; align-items: center; justify-content: center; font-weight: bold;">
+                </span>
+                <div class="tooltip">Borradores</div>
+            </button>
         </div>
-        
+
         <div id="resultados" class="results-container"></div>
+    </div>
+
+    <!-- Modal de Borradores -->
+    <div id="modalDrafts" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 12px; max-width: 600px; width: 90%; max-height: 80vh; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <!-- Header -->
+            <div style="padding: 20px; border-bottom: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="font-size: 20px; font-weight: 600; color: #212529; margin: 0;">Borradores Pendientes</h2>
+                <button onclick="cerrarModalDrafts()"
+                        style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6c757d; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
+                    ×
+                </button>
+            </div>
+
+            <!-- Content -->
+            <div id="listaDrafts" style="padding: 20px; overflow-y: auto; max-height: calc(80vh - 140px);">
+                <div style="text-align: center; padding: 40px; color: #6c757d;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.3; margin-bottom: 16px;">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                    </svg>
+                    <p>Cargando borradores...</p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding: 16px 20px; border-top: 1px solid #e9ecef; text-align: right;">
+                <button onclick="cerrarModalDrafts()"
+                        style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                    Cerrar
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -619,6 +665,180 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Sistema CWS iniciado');
             document.getElementById('searchInput').focus();
+
+            // Cargar conteo de drafts
+            cargarConteoDrafts();
+        });
+
+        // ========================================
+        // GESTIÓN DE DRAFTS (BORRADORES)
+        // ========================================
+
+        async function cargarConteoDrafts() {
+            try {
+                const respuesta = await fetch('/api/draft/list');
+
+                if (respuesta.ok) {
+                    const resultado = await respuesta.json();
+
+                    if (resultado.success && resultado.total > 0) {
+                        const badge = document.getElementById('badge-drafts');
+                        badge.textContent = resultado.total;
+                        badge.style.display = 'flex';
+
+                        console.log(`[DRAFT] ${resultado.total} borradores pendientes`);
+                    }
+                }
+            } catch (error) {
+                console.error('[DRAFT] Error cargando conteo:', error);
+            }
+        }
+
+        async function abrirModalDrafts() {
+            const modal = document.getElementById('modalDrafts');
+            const listaDrafts = document.getElementById('listaDrafts');
+
+            // Mostrar modal
+            modal.style.display = 'flex';
+
+            // Cargar drafts
+            listaDrafts.innerHTML = '<div style="text-align: center; padding: 40px; color: #6c757d;"><p>Cargando borradores...</p></div>';
+
+            try {
+                const respuesta = await fetch('/api/draft/list');
+
+                if (!respuesta.ok) {
+                    throw new Error(`Error HTTP ${respuesta.status}`);
+                }
+
+                const resultado = await respuesta.json();
+
+                if (resultado.success) {
+                    const drafts = resultado.drafts || [];
+
+                    if (drafts.length === 0) {
+                        listaDrafts.innerHTML = `
+                            <div style="text-align: center; padding: 40px; color: #6c757d;">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.3; margin-bottom: 16px;">
+                                    <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"/>
+                                </svg>
+                                <p>No hay borradores pendientes</p>
+                            </div>
+                        `;
+                    } else {
+                        let html = '';
+
+                        drafts.forEach(draft => {
+                            const fecha = new Date(draft.ultima_modificacion || draft.fecha_creacion);
+                            const fechaFormateada = fecha.toLocaleString('es-MX', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+
+                            html += `
+                                <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 16px; margin-bottom: 12px; transition: all 0.2s;">
+                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                                        <div style="flex: 1;">
+                                            <h3 style="font-size: 16px; font-weight: 600; color: #212529; margin: 0 0 4px 0;">
+                                                ${draft.nombre || 'Sin nombre'}
+                                            </h3>
+                                            <p style="font-size: 12px; color: #6c757d; margin: 0;">
+                                                Vendedor: ${draft.vendedor} • ${fechaFormateada}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div style="display: flex; gap: 8px; margin-top: 12px;">
+                                        <button onclick="cargarDraft('${draft.id}')"
+                                                style="flex: 1; background: #4f46e5; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                                            Continuar editando
+                                        </button>
+                                        <button onclick="eliminarDraft('${draft.id}')"
+                                                style="background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        });
+
+                        listaDrafts.innerHTML = html;
+                    }
+                } else {
+                    throw new Error(resultado.error || 'Error desconocido');
+                }
+
+            } catch (error) {
+                console.error('[DRAFT] Error cargando drafts:', error);
+                listaDrafts.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #dc2626;">
+                        <p>Error al cargar borradores: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function cerrarModalDrafts() {
+            const modal = document.getElementById('modalDrafts');
+            modal.style.display = 'none';
+        }
+
+        async function cargarDraft(draftId) {
+            try {
+                console.log(`[DRAFT] Redirigiendo al formulario con draft: ${draftId}`);
+
+                // Redirigir al formulario con parámetro de draft
+                window.location.href = `/formulario?draft=${encodeURIComponent(draftId)}`;
+
+            } catch (error) {
+                console.error('[DRAFT] Error cargando draft:', error);
+                alert(`Error al cargar borrador: ${error.message}`);
+            }
+        }
+
+        async function eliminarDraft(draftId) {
+            if (!confirm('¿Estás seguro de que deseas eliminar este borrador?')) {
+                return;
+            }
+
+            try {
+                const respuesta = await fetch(`/api/draft/delete/${draftId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!respuesta.ok) {
+                    throw new Error(`Error HTTP ${respuesta.status}`);
+                }
+
+                const resultado = await respuesta.json();
+
+                if (resultado.success) {
+                    console.log('[DRAFT] Borrador eliminado:', draftId);
+
+                    // Recargar lista de drafts
+                    await abrirModalDrafts();
+
+                    // Actualizar conteo
+                    await cargarConteoDrafts();
+
+                } else {
+                    throw new Error(resultado.error || 'Error eliminando borrador');
+                }
+
+            } catch (error) {
+                console.error('[DRAFT] Error eliminando draft:', error);
+                alert(`Error al eliminar borrador: ${error.message}`);
+            }
+        }
+
+        // Cerrar modal al hacer clic fuera
+        document.getElementById('modalDrafts').addEventListener('click', function(e) {
+            if (e.target === this) {
+                cerrarModalDrafts();
+            }
         });
     </script>
 </body>
