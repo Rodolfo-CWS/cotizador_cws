@@ -208,7 +208,7 @@
 <div id="modal-revision-bloqueada" class="modal-overlay" style="display: none;">
     <div class="modal-content">
         <div class="modal-header" style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);">
-            <h2 class="text-2xl font-bold mb-2">⚠️ Revisión Antigua Detectada</h2>
+            <h2 class="text-2xl font-bold mb-2">Revisión Antigua Detectada</h2>
             <p class="text-sm opacity-90">No se puede crear nueva revisión desde esta versión</p>
         </div>
 
@@ -571,28 +571,22 @@ function mostrarModalRevisionBloqueada() {
         historialLista.innerHTML = '<p class="text-sm text-gray-500">No hay historial disponible</p>';
     } else {
         historial.forEach((rev, index) => {
-            const esActual = rev.revision === INFO_BLOQUEO_REVISION.revision_actual;
             const esUltima = rev.revision === INFO_BLOQUEO_REVISION.revision_maxima;
 
             const itemDiv = document.createElement('div');
-            itemDiv.className = `p-3 rounded border ${esUltima ? 'bg-green-50 border-green-300' : esActual ? 'bg-yellow-50 border-yellow-300' : 'bg-gray-50 border-gray-200'}`;
+            itemDiv.className = `p-3 rounded border ${esUltima ? 'bg-green-50 border-green-300' : 'bg-white border-gray-200'}`;
 
             const headerDiv = document.createElement('div');
             headerDiv.className = 'flex items-center justify-between mb-1';
 
             const revisionSpan = document.createElement('span');
-            revisionSpan.className = `font-semibold text-sm ${esUltima ? 'text-green-800' : esActual ? 'text-yellow-800' : 'text-gray-700'}`;
+            revisionSpan.className = `font-semibold text-sm ${esUltima ? 'text-green-800' : 'text-gray-700'}`;
             revisionSpan.textContent = `R${rev.revision}`;
 
             if (esUltima) {
                 const badge = document.createElement('span');
                 badge.className = 'text-xs bg-green-600 text-white px-2 py-1 rounded';
                 badge.textContent = 'Más reciente';
-                headerDiv.appendChild(badge);
-            } else if (esActual) {
-                const badge = document.createElement('span');
-                badge.className = 'text-xs bg-yellow-600 text-white px-2 py-1 rounded';
-                badge.textContent = 'Actual';
                 headerDiv.appendChild(badge);
             }
 
