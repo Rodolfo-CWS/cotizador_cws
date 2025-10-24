@@ -204,6 +204,71 @@
     </div>
 </div>
 
+<!-- MODAL DE BLOQUEO DE REVISIÓN ANTIGUA -->
+<div id="modal-revision-bloqueada" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header" style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);">
+            <h2 class="text-2xl font-bold mb-2">⚠️ Revisión Antigua Detectada</h2>
+            <p class="text-sm opacity-90">No se puede crear nueva revisión desde esta versión</p>
+        </div>
+
+        <div class="modal-body">
+            <div class="mb-6">
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+                    <p class="text-gray-800 font-semibold mb-2">
+                        Esta cotización tiene versiones más recientes disponibles.
+                    </p>
+                    <p class="text-gray-700 text-sm">
+                        Por seguridad y para mantener la integridad de las revisiones,
+                        las nuevas versiones deben crearse únicamente desde la revisión más reciente.
+                    </p>
+                </div>
+            </div>
+
+            <div class="space-y-3 mb-6">
+                <div class="bg-gray-50 p-3 rounded">
+                    <p class="text-sm text-gray-600">Versión actual:</p>
+                    <p class="font-semibold text-gray-900" id="revision-actual-texto"></p>
+                </div>
+
+                <div class="flex items-center justify-center">
+                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                    </svg>
+                </div>
+
+                <div class="bg-green-50 p-3 rounded border-2 border-green-300">
+                    <p class="text-sm text-gray-600">Última versión disponible:</p>
+                    <p class="font-semibold text-green-800" id="revision-maxima-texto"></p>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+                <p class="text-sm text-blue-800">
+                    <strong>💡 Tip:</strong> Para crear una nueva revisión, primero consulta la versión más reciente.
+                </p>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button
+                type="button"
+                id="btn-ir-ultima-revision"
+                class="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors mr-3"
+            >
+                Ir a la Última Revisión
+            </button>
+            <button
+                type="button"
+                id="btn-volver-busqueda"
+                class="px-6 py-3 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
+            >
+                Volver a Búsqueda
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- ENCABEZADO -->
 <header class="bg-gradient-to-r from-blue-700 to-blue-800 text-white shadow-lg mb-6">
     <div class="container mx-auto px-4 py-6">
@@ -445,6 +510,9 @@ const LISTA_MATERIALES = {{ materiales | tojson }};
 // Datos precargados (para nueva revisión)
 const DATOS_PRECARGADOS = {{ datos_precargados | tojson if datos_precargados else 'null' }};
 
+// Información de bloqueo de revisión (si intenta crear revisión desde versión antigua)
+const INFO_BLOQUEO_REVISION = {{ info_bloqueo_revision | tojson if info_bloqueo_revision else 'null' }};
+
 // Función para generar opciones de materiales
 function generarOpcionesMateriales() {
     let opciones = '<option value="" data-peso="0" data-uom="">Seleccione Material</option>';
@@ -489,7 +557,50 @@ document.addEventListener('DOMContentLoaded', function() {
 // SISTEMA DE MODAL DE DESCRIPCIÓN DE REVISIÓN
 // ============================================
 
+function mostrarModalRevisionBloqueada() {
+    const modal = document.getElementById('modal-revision-bloqueada');
+    const revisionActualTexto = document.getElementById('revision-actual-texto');
+    const revisionMaximaTexto = document.getElementById('revision-maxima-texto');
+    const btnIrUltima = document.getElementById('btn-ir-ultima-revision');
+    const btnVolver = document.getElementById('btn-volver-busqueda');
+    const formularioPrincipal = document.getElementById('cotizacion-form');
+
+    if (!modal || !INFO_BLOQUEO_REVISION) {
+        console.error('[MODAL_BLOQUEO] Error: elementos no encontrados');
+        return;
+    }
+
+    // Deshabilitar formulario principal
+    formularioPrincipal.classList.add('form-disabled');
+
+    // Rellenar información
+    revisionActualTexto.textContent = `${INFO_BLOQUEO_REVISION.numero_actual} (R${INFO_BLOQUEO_REVISION.revision_actual})`;
+    revisionMaximaTexto.textContent = `${INFO_BLOQUEO_REVISION.numero_ultima_revision} (R${INFO_BLOQUEO_REVISION.revision_maxima})`;
+
+    // Mostrar modal
+    modal.style.display = 'flex';
+
+    // Event listener para ir a última revisión
+    btnIrUltima.addEventListener('click', function() {
+        console.log('[MODAL_BLOQUEO] Redirigiendo a última revisión:', INFO_BLOQUEO_REVISION.numero_ultima_revision);
+        window.location.href = `/formulario?revision=${encodeURIComponent(INFO_BLOQUEO_REVISION.numero_ultima_revision)}`;
+    });
+
+    // Event listener para volver a búsqueda
+    btnVolver.addEventListener('click', function() {
+        console.log('[MODAL_BLOQUEO] Volviendo a búsqueda');
+        window.location.href = '/';
+    });
+}
+
 function inicializarModalRevision() {
+    // Verificar primero si la revisión está bloqueada
+    if (INFO_BLOQUEO_REVISION && INFO_BLOQUEO_REVISION.bloqueada) {
+        console.log('[MODAL_BLOQUEO] Revisión bloqueada, mostrando modal de advertencia');
+        mostrarModalRevisionBloqueada();
+        return;
+    }
+
     // Solo mostrar modal si es una revisión (DATOS_PRECARGADOS existe)
     if (!DATOS_PRECARGADOS) {
         console.log('[MODAL_REVISION] No es una revisión, modal no se mostrará');
