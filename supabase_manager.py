@@ -1953,7 +1953,13 @@ class SupabaseManager:
             datos_generales = datos_draft.get('datosGenerales', {})
             cliente = datos_generales.get('cliente', 'Sin cliente')
             proyecto = datos_generales.get('proyecto', 'Sin proyecto')
-            nombre_draft = f"{cliente} - {proyecto}"
+            numero_cotizacion = datos_generales.get('numeroCotizacion', '')
+
+            # Incluir número de cotización en el nombre si existe
+            if numero_cotizacion:
+                nombre_draft = f"{numero_cotizacion} - {cliente} - {proyecto}"
+            else:
+                nombre_draft = f"{cliente} - {proyecto}"
 
             timestamp = int(time.time() * 1000)
             fecha_actual = datetime.now().isoformat()

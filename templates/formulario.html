@@ -832,7 +832,7 @@ async function cargarDraftSeleccionado(draftId) {
                 condiciones: condicionesLlenadas
             });
 
-            alert(`Borrador "${draft.nombre}" cargado exitosamente\n\nCampos: ${camposLlenados}\nItems: ${items.length}\nCondiciones: ${condicionesLlenadas}`);
+            alert(`Borrador "${draft.nombre}" cargado exitosamente`);
 
         } else {
             throw new Error(resultado.error || 'Draft no encontrado');
@@ -2866,12 +2866,12 @@ async function guardarCotizacion() {
             // Actualizar el campo No. Cotización con el número generado automáticamente
             const numeroGenerado = resultado.numeroCotizacion;
             console.log('Número generado recibido:', numeroGenerado);
-            
+
             if (numeroGenerado) {
                 // Actualizar campo visible (disabled)
                 const campoNumeroCotizacion = document.querySelector('[name="numeroCotizacion"]');
                 console.log('Campo encontrado:', campoNumeroCotizacion);
-                
+
                 if (campoNumeroCotizacion) {
                     // Habilitar temporalmente para actualizar
                     campoNumeroCotizacion.removeAttribute('disabled');
@@ -2880,24 +2880,43 @@ async function guardarCotizacion() {
                     campoNumeroCotizacion.setAttribute('disabled', 'disabled');
                     console.log('Campo visible actualizado con:', numeroGenerado);
                 }
-                
+
                 // Actualizar campo hidden para envío del formulario
                 const campoHidden = document.querySelector('[name="numeroCotizacionHidden"]');
                 if (campoHidden) {
                     campoHidden.value = numeroGenerado;
                     console.log('Campo hidden actualizado con:', numeroGenerado);
                 }
-                
+
                 // Guardar en variables auxiliares para uso posterior (como PDF)
                 window.ultimoNumeroCotizacion = numeroGenerado;
                 sessionStorage.setItem('ultimoNumeroCotizacion', numeroGenerado);
             }
-            
+
+            // ELIMINAR DRAFT si existe (la cotización ya se completó)
+            if (draftActualId) {
+                console.log('[DRAFT] Eliminando draft después de completar cotización:', draftActualId);
+                try {
+                    const respuestaDraft = await fetch(`/api/draft/delete/${draftActualId}`, {
+                        method: 'DELETE'
+                    });
+                    if (respuestaDraft.ok) {
+                        console.log('[DRAFT] Draft eliminado exitosamente:', draftActualId);
+                        draftActualId = null; // Limpiar ID
+                    } else {
+                        console.warn('[DRAFT] No se pudo eliminar draft:', draftActualId);
+                    }
+                } catch (errorDraft) {
+                    console.error('[DRAFT] Error eliminando draft:', errorDraft);
+                    // No bloquear el flujo por error en draft
+                }
+            }
+
             const mensaje = `¡Cotización guardada exitosamente!\n\nNúmero: ${numeroGenerado || datosGenerales.numeroCotizacion}\nRevisión: ${datosGenerales.revision}\nID: ${resultado.id || 'Generado automáticamente'}\nCliente: ${datosGenerales.cliente}\nVendedor: ${datosGenerales.vendedor}\nItems procesados: ${items.length}\nTotal: ${document.getElementById('gran-total')?.textContent || 'N/A'}`;
-            
+
             alert(mensaje);
             cotizacionGuardada = true;
-            
+
             const botonGenerar = document.getElementById("btn-generar");
             if (botonGenerar) {
                 botonGenerar.disabled = false;
@@ -2905,11 +2924,11 @@ async function guardarCotizacion() {
                 botonGenerar.classList.add("bg-green-600", "hover:bg-green-700");
                 botonGenerar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg> PDF';
             }
-            
+
             btnGuardar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/></svg> Guardado';
             btnGuardar.classList.remove("bg-blue-600", "hover:bg-blue-700");
             btnGuardar.classList.add("bg-green-600");
-            
+
         } else {
             const errorMensaje = resultado.error || resultado.detalle || "Error desconocido del servidor";
             
