@@ -168,10 +168,6 @@
                 <p class="text-gray-700 mb-4">
                     <strong>¿Cuál es el cambio principal de esta revisión?</strong>
                 </p>
-                <p class="text-sm text-gray-600 mb-4">
-                    Describa brevemente los cambios o actualizaciones que se realizaron en esta nueva versión de la cotización.
-                    Esta descripción será incluida automáticamente en la justificación de actualización.
-                </p>
             </div>
 
             <div class="mb-4">
@@ -460,6 +456,7 @@ function generarOpcionesMateriales() {
 }
 
 let cotizacionGuardada = false;
+let estadoInicialFormulario = null; // Para detectar cambios en revisiones
 
 document.addEventListener('DOMContentLoaded', function() {
     const fechaElement = document.getElementById('fecha-actual');
@@ -581,6 +578,74 @@ function inicializarModalRevision() {
     setTimeout(() => {
         descripcionInput.focus();
     }, 300);
+}
+
+// ============================================
+// SISTEMA DE DETECCIÓN DE CAMBIOS EN REVISIONES
+// ============================================
+
+function capturarEstadoFormulario() {
+    const estado = {
+        datosGenerales: {},
+        items: [],
+        condiciones: {}
+    };
+
+    // Capturar datos generales (excepto revisión y justificación)
+    const camposDatosGenerales = ['vendedor', 'proyecto', 'cliente', 'atencionA', 'contacto', 'numeroCotizacion'];
+    camposDatosGenerales.forEach(campo => {
+        const elemento = document.querySelector(`[name="${campo}"]`);
+        if (elemento) {
+            estado.datosGenerales[campo] = elemento.value.trim();
+        }
+    });
+
+    // Capturar condiciones
+    const camposCondiciones = ['moneda', 'tipoCambio', 'tiempoEntrega', 'entregaEn', 'terminos', 'comentarios'];
+    camposCondiciones.forEach(campo => {
+        const elemento = document.querySelector(`[name="${campo}"]`);
+        if (elemento) {
+            estado.condiciones[campo] = elemento.value.trim();
+        }
+    });
+
+    // Capturar items
+    const itemsBlocks = document.querySelectorAll('.item-block');
+    itemsBlocks.forEach((block, index) => {
+        const item = {
+            material: block.querySelector('[name="material[]"]')?.value || '',
+            cantidad: block.querySelector('[name="cantidad[]"]')?.value || '',
+            peso: block.querySelector('[name="peso[]"]')?.value || '',
+            precio: block.querySelector('[name="precio[]"]')?.value || '',
+            descripcion: block.querySelector('[name="descripcion[]"]')?.value || '',
+            notas: block.querySelector('[name="notas[]"]')?.value || ''
+        };
+        estado.items.push(item);
+    });
+
+    return estado;
+}
+
+function compararEstados(estadoInicial, estadoActual) {
+    // Comparar como JSON para facilitar la comparación profunda
+    const jsonInicial = JSON.stringify(estadoInicial);
+    const jsonActual = JSON.stringify(estadoActual);
+    return jsonInicial === jsonActual;
+}
+
+function formularioTieneCambios() {
+    if (!estadoInicialFormulario) {
+        // Si no hay estado inicial, asumimos que hay cambios (cotización nueva)
+        return true;
+    }
+
+    const estadoActual = capturarEstadoFormulario();
+    const sinCambios = compararEstados(estadoInicialFormulario, estadoActual);
+
+    console.log('[DETECCION_CAMBIOS] Comparando estados...');
+    console.log('[DETECCION_CAMBIOS] Sin cambios:', sinCambios);
+
+    return !sinCambios; // Retorna true si HAY cambios
 }
 
 function manejarRevision() {
@@ -775,7 +840,14 @@ function cargarDatosPrecargados() {
         setTimeout(() => {
             mostrarNotificacion('Datos cargados para nueva revisión', 'success');
         }, 500);
-        
+
+        // Capturar estado inicial después de cargar todos los datos
+        // Usamos un timeout largo para asegurar que todos los items se hayan cargado
+        setTimeout(() => {
+            estadoInicialFormulario = capturarEstadoFormulario();
+            console.log('[DETECCION_CAMBIOS] Estado inicial capturado:', estadoInicialFormulario);
+        }, 1500); // Suficiente tiempo para que se carguen todos los items
+
     } catch (error) {
         console.error('Error cargando datos precargados:', error);
         mostrarNotificacion('Error cargando algunos datos', 'warning');
@@ -1990,6 +2062,24 @@ async function guardarCotizacion() {
                 }, 3000);
                 
                 return;
+            }
+        }
+
+        // VALIDACIÓN: Verificar que se hayan hecho cambios en revisiones
+        if (estadoInicialFormulario !== null) {
+            const hayCambios = formularioTieneCambios();
+
+            if (!hayCambios) {
+                alert('No se han detectado cambios en el formulario.\n\nDebe realizar al menos una modificación (en items, cantidades, precios, términos, etc.) antes de guardar la revisión.');
+
+                btnGuardar.disabled = false;
+                btnGuardar.classList.remove('btn-loading');
+                btnGuardar.innerHTML = textoOriginal;
+
+                console.log('[DETECCION_CAMBIOS] Guardado cancelado: No hay cambios');
+                return;
+            } else {
+                console.log('[DETECCION_CAMBIOS] Cambios detectados, procediendo con guardado');
             }
         }
 
