@@ -1030,8 +1030,12 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
         print(f"[VERIFICAR_REVISION] Buscando cotizaciones con patrón: '{patron_busqueda}'")
         resultado = db_manager.buscar_cotizaciones(patron_busqueda, page=1, per_page=100)
 
-        if not resultado.get('items'):
+        # IMPORTANTE: La API puede retornar 'items' o 'resultados' dependiendo del manager
+        items_encontrados = resultado.get('items') or resultado.get('resultados') or []
+
+        if not items_encontrados:
             print(f"[VERIFICAR_REVISION] ⚠️ No se encontraron items en la búsqueda")
+            print(f"[VERIFICAR_REVISION] Keys en resultado: {resultado.keys()}")
             print(f"[VERIFICAR_REVISION] Resultado completo: {resultado}")
             return {
                 'es_mas_reciente': True,
@@ -1040,14 +1044,14 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
                 'numero_ultima_revision': numero_cotizacion
             }
 
-        print(f"[VERIFICAR_REVISION] Se encontraron {len(resultado['items'])} cotizaciones")
+        print(f"[VERIFICAR_REVISION] Se encontraron {len(items_encontrados)} cotizaciones")
 
         # Buscar revisión máxima en las cotizaciones encontradas
         revision_maxima = revision_actual
         numero_ultima_revision = numero_cotizacion
         revisiones_encontradas = []
 
-        for item in resultado['items']:
+        for item in items_encontrados:
             num_cotiz = item.get('numeroCotizacion', '')
             print(f"[VERIFICAR_REVISION] Analizando cotización: {num_cotiz}")
 
