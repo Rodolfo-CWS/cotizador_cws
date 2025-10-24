@@ -609,17 +609,65 @@ function capturarEstadoFormulario() {
         }
     });
 
-    // Capturar items
+    // Capturar items CON TODOS sus campos y materiales
     const itemsBlocks = document.querySelectorAll('.item-block');
-    itemsBlocks.forEach((block, index) => {
+    itemsBlocks.forEach((itemBlock, index) => {
         const item = {
-            material: block.querySelector('[name="material[]"]')?.value || '',
-            cantidad: block.querySelector('[name="cantidad[]"]')?.value || '',
-            peso: block.querySelector('[name="peso[]"]')?.value || '',
-            precio: block.querySelector('[name="precio[]"]')?.value || '',
-            descripcion: block.querySelector('[name="descripcion[]"]')?.value || '',
-            notas: block.querySelector('[name="notas[]"]')?.value || ''
+            // Campos principales del item
+            descripcion: itemBlock.querySelector('.descripcion-item')?.value || '',
+            cantidad: itemBlock.querySelector('.cantidad-item')?.value || '',
+            uom: itemBlock.querySelector('.uom-item')?.value || '',
+            peso: itemBlock.querySelector('[name="peso[]"]')?.value || '',
+            precio: itemBlock.querySelector('[name="precio[]"]')?.value || '',
+            costoUnidad: itemBlock.querySelector('.costo-unidad')?.value || '',
+            totalItem: itemBlock.querySelector('.total-item')?.value || '',
+            notas: itemBlock.querySelector('[name="notas[]"]')?.value || '',
+
+            // Costos adicionales
+            transporte: itemBlock.querySelector('.transporte')?.value || '',
+            instalacion: itemBlock.querySelector('.instalacion')?.value || '',
+            seguridad: itemBlock.querySelector('.seguridad')?.value || '',
+            descuento: itemBlock.querySelector('.descuento')?.value || '',
+
+            // Materiales
+            materiales: [],
+            otrosMateriales: []
         };
+
+        // Capturar materiales
+        itemBlock.querySelectorAll('.materiales-container .material-row').forEach(row => {
+            const material = row.querySelector('.material-select')?.value || '';
+            if (material && material.trim() !== "") {
+                const materialData = {
+                    material: material,
+                    cantidad: row.querySelector('.cantidad-material')?.value || '',
+                    precio: row.querySelector('.precio-material')?.value || '',
+                    subtotal: row.querySelector('.subtotal-material')?.value || ''
+                };
+
+                // Si es cotización por peso, capturar campos adicionales
+                if (material === 'COTIZAR_POR_PESO') {
+                    materialData.pesoEstructura = row.querySelector('.peso-estructura-input')?.value || '';
+                    materialData.precioKg = row.querySelector('.precio-kg-input')?.value || '';
+                }
+
+                item.materiales.push(materialData);
+            }
+        });
+
+        // Capturar otros materiales
+        itemBlock.querySelectorAll('.otros-materiales-container .otro-material-row').forEach(row => {
+            const descripcion = row.querySelector('.descripcion-otro')?.value?.trim() || '';
+            if (descripcion !== "") {
+                item.otrosMateriales.push({
+                    descripcion: descripcion,
+                    precio: row.querySelector('.precio-otro')?.value || '',
+                    cantidad: row.querySelector('.cantidad-otro')?.value || '',
+                    subtotal: row.querySelector('.subtotal-otro')?.value || ''
+                });
+            }
+        });
+
         estado.items.push(item);
     });
 
@@ -636,14 +684,18 @@ function compararEstados(estadoInicial, estadoActual) {
 function formularioTieneCambios() {
     if (!estadoInicialFormulario) {
         // Si no hay estado inicial, asumimos que hay cambios (cotización nueva)
+        console.log('[DETECCION_CAMBIOS] No hay estado inicial - es cotización nueva');
         return true;
     }
 
     const estadoActual = capturarEstadoFormulario();
     const sinCambios = compararEstados(estadoInicialFormulario, estadoActual);
 
-    console.log('[DETECCION_CAMBIOS] Comparando estados...');
-    console.log('[DETECCION_CAMBIOS] Sin cambios:', sinCambios);
+    console.log('[DETECCION_CAMBIOS] ====== COMPARACIÓN DE ESTADOS ======');
+    console.log('[DETECCION_CAMBIOS] Estado inicial:', estadoInicialFormulario);
+    console.log('[DETECCION_CAMBIOS] Estado actual:', estadoActual);
+    console.log('[DETECCION_CAMBIOS] ¿Son idénticos?:', sinCambios);
+    console.log('[DETECCION_CAMBIOS] ¿Hay cambios?:', !sinCambios);
 
     return !sinCambios; // Retorna true si HAY cambios
 }
@@ -843,10 +895,22 @@ function cargarDatosPrecargados() {
 
         // Capturar estado inicial después de cargar todos los datos
         // Usamos un timeout largo para asegurar que todos los items se hayan cargado
+        const numItems = DATOS_PRECARGADOS.items ? DATOS_PRECARGADOS.items.length : 0;
+        const tiempoEspera = Math.max(2000, numItems * 150); // Mínimo 2 segundos, más tiempo si hay muchos items
+
         setTimeout(() => {
             estadoInicialFormulario = capturarEstadoFormulario();
-            console.log('[DETECCION_CAMBIOS] Estado inicial capturado:', estadoInicialFormulario);
-        }, 1500); // Suficiente tiempo para que se carguen todos los items
+            console.log('[DETECCION_CAMBIOS] ====== ESTADO INICIAL CAPTURADO ======');
+            console.log('[DETECCION_CAMBIOS] Número de items:', estadoInicialFormulario.items.length);
+            console.log('[DETECCION_CAMBIOS] Estado completo:', estadoInicialFormulario);
+            console.log('[DETECCION_CAMBIOS] Items con materiales:',
+                estadoInicialFormulario.items.map(item => ({
+                    desc: item.descripcion,
+                    numMateriales: item.materiales.length,
+                    numOtrosMateriales: item.otrosMateriales.length
+                }))
+            );
+        }, tiempoEspera);
 
     } catch (error) {
         console.error('Error cargando datos precargados:', error);
