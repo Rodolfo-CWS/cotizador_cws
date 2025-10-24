@@ -736,54 +736,110 @@ async function cargarDraftSeleccionado(draftId) {
             const items = datos.items || [];
             const condiciones = datos.condiciones || {};
 
-            // Llenar datos generales
+            console.log('[DRAFT] Datos a cargar:', { datosGenerales, items: items.length, condiciones });
+
+            // Llenar datos generales con verificación
+            let camposLlenados = 0;
             Object.keys(datosGenerales).forEach(key => {
                 const elemento = document.querySelector(`[name="${key}"]`);
-                if (elemento && datosGenerales[key]) {
-                    elemento.value = datosGenerales[key];
+                if (elemento) {
+                    if (datosGenerales[key]) {
+                        elemento.value = datosGenerales[key];
+                        // Disparar evento para que se actualice visualmente
+                        elemento.dispatchEvent(new Event('input', { bubbles: true }));
+                        elemento.dispatchEvent(new Event('change', { bubbles: true }));
+                        camposLlenados++;
+                        console.log(`[DRAFT] Campo ${key} llenado:`, datosGenerales[key]);
+                    }
+                } else {
+                    console.warn(`[DRAFT] Campo ${key} no encontrado en formulario`);
                 }
             });
+            console.log(`[DRAFT] ${camposLlenados} campos generales llenados`);
 
             // Limpiar y cargar items
             const itemsBody = document.getElementById('items-body');
-            if (itemsBody) {
+            if (itemsBody && items.length > 0) {
+                console.log('[DRAFT] Limpiando items existentes...');
                 itemsBody.innerHTML = '';
 
+                console.log(`[DRAFT] Agregando ${items.length} items...`);
                 items.forEach((item, index) => {
-                    agregarItem();
-                    const row = itemsBody.lastElementChild;
+                    // Verificar que agregarItem existe
+                    if (typeof agregarItem === 'function') {
+                        agregarItem();
+                        const row = itemsBody.lastElementChild;
 
-                    row.querySelector('[name="descripcion"]').value = item.descripcion || '';
-                    row.querySelector('[name="unidad"]').value = item.unidad || '';
-                    row.querySelector('[name="cantidad"]').value = item.cantidad || 0;
-                    row.querySelector('[name="precioUnitario"]').value = item.precioUnitario || 0;
+                        if (row) {
+                            const descField = row.querySelector('[name="descripcion"]');
+                            const unidadField = row.querySelector('[name="unidad"]');
+                            const cantField = row.querySelector('[name="cantidad"]');
+                            const precioField = row.querySelector('[name="precioUnitario"]');
+
+                            if (descField) descField.value = item.descripcion || '';
+                            if (unidadField) unidadField.value = item.unidad || '';
+                            if (cantField) cantField.value = item.cantidad || 0;
+                            if (precioField) precioField.value = item.precioUnitario || 0;
+
+                            // Disparar eventos para actualizar cálculos
+                            if (cantField) cantField.dispatchEvent(new Event('input', { bubbles: true }));
+                            if (precioField) precioField.dispatchEvent(new Event('input', { bubbles: true }));
+
+                            console.log(`[DRAFT] Item ${index + 1} agregado:`, item.descripcion);
+                        }
+                    } else {
+                        console.error('[DRAFT] Función agregarItem() no encontrada');
+                    }
                 });
+            } else if (items.length === 0) {
+                console.log('[DRAFT] No hay items para cargar');
+            } else {
+                console.error('[DRAFT] items-body no encontrado');
             }
 
-            // Llenar condiciones
+            // Llenar condiciones con verificación
+            let condicionesLlenadas = 0;
             Object.keys(condiciones).forEach(key => {
                 const elemento = document.querySelector(`[name="${key}"]`);
-                if (elemento && condiciones[key] !== null) {
-                    elemento.value = condiciones[key];
+                if (elemento) {
+                    if (condiciones[key] !== null && condiciones[key] !== undefined) {
+                        elemento.value = condiciones[key];
+                        elemento.dispatchEvent(new Event('change', { bubbles: true }));
+                        condicionesLlenadas++;
+                        console.log(`[DRAFT] Condición ${key} llenada:`, condiciones[key]);
+                    }
+                } else {
+                    console.warn(`[DRAFT] Campo condición ${key} no encontrado`);
                 }
             });
+            console.log(`[DRAFT] ${condicionesLlenadas} condiciones llenadas`);
 
             // Recalcular totales
+            console.log('[DRAFT] Recalculando totales...');
             if (typeof calcularTotales === 'function') {
                 calcularTotales();
+                console.log('[DRAFT] Totales recalculados');
+            } else {
+                console.warn('[DRAFT] Función calcularTotales() no encontrada');
             }
 
             formModificado = false;
 
-            console.log('[DRAFT] Draft cargado exitosamente:', draftId);
-            alert(`Borrador "${draft.nombre}" cargado exitosamente`);
+            console.log('[DRAFT] ✅ Draft cargado exitosamente:', draftId);
+            console.log('[DRAFT] Resumen:', {
+                camposGenerales: camposLlenados,
+                items: items.length,
+                condiciones: condicionesLlenadas
+            });
+
+            alert(`Borrador "${draft.nombre}" cargado exitosamente\n\nCampos: ${camposLlenados}\nItems: ${items.length}\nCondiciones: ${condicionesLlenadas}`);
 
         } else {
             throw new Error(resultado.error || 'Draft no encontrado');
         }
 
     } catch (error) {
-        console.error('[DRAFT] Error cargando draft:', error);
+        console.error('[DRAFT] ❌ Error cargando draft:', error);
         alert(`Error al cargar borrador: ${error.message}`);
     }
 }
