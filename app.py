@@ -983,9 +983,13 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
     - numero_ultima_revision: str
     """
     try:
+        print(f"\n[VERIFICAR_REVISION] ========== INICIO VERIFICACIÓN ==========")
+        print(f"[VERIFICAR_REVISION] Número cotización a verificar: {numero_cotizacion}")
+
         # Extraer el número base y revisión actual
         # Formato típico: CLIENTE-CWS-VENDOR-###-R#-PROYECTO
         partes = numero_cotizacion.split('-')
+        print(f"[VERIFICAR_REVISION] Partes del número: {partes}")
 
         revision_actual = 1
         indice_revision = -1
@@ -995,12 +999,14 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
                 try:
                     revision_actual = int(parte[1:])
                     indice_revision = i
+                    print(f"[VERIFICAR_REVISION] Encontrada revisión R{revision_actual} en índice {i}")
                     break
                 except ValueError:
+                    print(f"[VERIFICAR_REVISION] Parte '{parte}' parece revisión pero no es número válido")
                     continue
 
         if indice_revision == -1:
-            print(f"[VERIFICAR_REVISION] No se encontró revisión en: {numero_cotizacion}")
+            print(f"[VERIFICAR_REVISION] ⚠️ No se encontró revisión en formato R# - Asumiendo es la más reciente")
             return {
                 'es_mas_reciente': True,
                 'revision_actual': 1,
@@ -1009,16 +1015,28 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
             }
 
         # Construir patrón base (sin R#)
+        # Ejemplo: BMW-CWS-RAE-001-R2-PROYECTO -> BMW-CWS-RAE-001-PROYECTO
         patron_base = '-'.join(partes[:indice_revision] + partes[indice_revision+1:])
 
-        print(f"[VERIFICAR_REVISION] Cotización: {numero_cotizacion}")
-        print(f"[VERIFICAR_REVISION] Revisión actual: R{revision_actual}")
+        # También crear versión simplificada para búsqueda más amplia
+        # Buscar por las primeras 4 partes (CLIENTE-CWS-VENDOR-###)
+        patron_busqueda = '-'.join(partes[:min(4, len(partes))])
+
         print(f"[VERIFICAR_REVISION] Patrón base: {patron_base}")
+        print(f"[VERIFICAR_REVISION] Patrón búsqueda: {patron_busqueda}")
+        print(f"[VERIFICAR_REVISION] Revisión actual: R{revision_actual}")
 
-        # Buscar todas las cotizaciones con ese patrón
-        resultado = db_manager.buscar_cotizaciones(patron_base, page=1, per_page=100)
+        # Buscar todas las cotizaciones relacionadas usando el patrón de búsqueda
+        print(f"[VERIFICAR_REVISION] Buscando cotizaciones con patrón: '{patron_busqueda}'")
+        resultado = db_manager.buscar_cotizaciones(patron_busqueda, page=1, per_page=100)
 
-        if not resultado.get('items'):
+        # IMPORTANTE: La API puede retornar 'items' o 'resultados' dependiendo del manager
+        items_encontrados = resultado.get('items') or resultado.get('resultados') or []
+
+        if not items_encontrados:
+            print(f"[VERIFICAR_REVISION] ⚠️ No se encontraron items en la búsqueda")
+            print(f"[VERIFICAR_REVISION] Keys en resultado: {resultado.keys()}")
+            print(f"[VERIFICAR_REVISION] Resultado completo: {resultado}")
             return {
                 'es_mas_reciente': True,
                 'revision_actual': revision_actual,
@@ -1026,44 +1044,84 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
                 'numero_ultima_revision': numero_cotizacion
             }
 
-        # Buscar revisión máxima
+        print(f"[VERIFICAR_REVISION] Se encontraron {len(items_encontrados)} cotizaciones")
+
+        # Buscar revisión máxima en las cotizaciones encontradas
         revision_maxima = revision_actual
         numero_ultima_revision = numero_cotizacion
+        revisiones_encontradas = []
 
-        for item in resultado['items']:
+        for item in items_encontrados:
             num_cotiz = item.get('numeroCotizacion', '')
-            if patron_base not in num_cotiz:
+            print(f"[VERIFICAR_REVISION] Analizando cotización: {num_cotiz}")
+
+            # Verificar que pertenezca a la misma familia (mismo patrón base)
+            # Debe contener las partes principales
+            if patron_busqueda not in num_cotiz:
+                print(f"[VERIFICAR_REVISION]   → Descartada (patrón no coincide)")
                 continue
 
+            # Extraer revisión de esta cotización
             partes_item = num_cotiz.split('-')
             for parte in partes_item:
                 if parte.startswith('R') and len(parte) > 1:
                     try:
                         rev = int(parte[1:])
+
+                        # Extraer justificación de actualización
+                        datos_generales = item.get('datosGenerales', {})
+                        justificacion = datos_generales.get('actualizacionRevision', '')
+
+                        # Extraer fecha si está disponible
+                        fecha_creacion = item.get('fechaCreacion', '')
+                        if not fecha_creacion:
+                            fecha_creacion = datos_generales.get('fecha', '')
+
+                        revisiones_encontradas.append({
+                            'numero': num_cotiz,
+                            'revision': rev,
+                            'justificacion': justificacion,
+                            'fecha': fecha_creacion
+                        })
+                        print(f"[VERIFICAR_REVISION]   → Revisión encontrada: R{rev}")
+                        if justificacion:
+                            print(f"[VERIFICAR_REVISION]   → Justificación: {justificacion[:50]}...")
+
                         if rev > revision_maxima:
                             revision_maxima = rev
                             numero_ultima_revision = num_cotiz
+                            print(f"[VERIFICAR_REVISION]   → ¡Nueva revisión máxima! R{rev}")
+                        break
                     except ValueError:
                         continue
 
+        # Ordenar revisiones de más reciente a más antigua
+        revisiones_encontradas.sort(key=lambda x: x['revision'], reverse=True)
+
         es_mas_reciente = (revision_actual >= revision_maxima)
 
+        print(f"\n[VERIFICAR_REVISION] ========== RESULTADO ==========")
+        print(f"[VERIFICAR_REVISION] Revisiones encontradas: {len(revisiones_encontradas)}")
+        print(f"[VERIFICAR_REVISION] Revisión actual: R{revision_actual}")
         print(f"[VERIFICAR_REVISION] Revisión máxima: R{revision_maxima}")
         print(f"[VERIFICAR_REVISION] ¿Es la más reciente?: {es_mas_reciente}")
         print(f"[VERIFICAR_REVISION] Última revisión: {numero_ultima_revision}")
+        print(f"[VERIFICAR_REVISION] ========== FIN VERIFICACIÓN ==========\n")
 
         return {
             'es_mas_reciente': es_mas_reciente,
             'revision_actual': revision_actual,
             'revision_maxima': revision_maxima,
-            'numero_ultima_revision': numero_ultima_revision
+            'numero_ultima_revision': numero_ultima_revision,
+            'historial_revisiones': revisiones_encontradas
         }
 
     except Exception as e:
-        print(f"[VERIFICAR_REVISION] Error: {e}")
+        print(f"[VERIFICAR_REVISION] ❌ ERROR: {e}")
         import traceback
         traceback.print_exc()
-        # En caso de error, permitir la revisión
+        # En caso de error, permitir la revisión para no bloquear el sistema
+        print(f"[VERIFICAR_REVISION] Por seguridad, permitiendo la revisión")
         return {
             'es_mas_reciente': True,
             'revision_actual': 1,
@@ -1575,7 +1633,8 @@ def formulario():
                     'numero_actual': numero_cotizacion,
                     'revision_actual': info_revision['revision_actual'],
                     'revision_maxima': info_revision['revision_maxima'],
-                    'numero_ultima_revision': info_revision['numero_ultima_revision']
+                    'numero_ultima_revision': info_revision['numero_ultima_revision'],
+                    'historial': info_revision.get('historial_revisiones', [])
                 }
         else:
             print(f"[REVISION] ⚠️ Cotización original no encontrada para: '{revision_id}'")
