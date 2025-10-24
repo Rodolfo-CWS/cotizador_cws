@@ -893,9 +893,16 @@ function cargarDatosPrecargados() {
             mostrarNotificacion('Datos cargados para nueva revisión', 'success');
         }, 500);
 
+        // Colapsar items vacíos después de cargar todos los datos
+        const numItems = DATOS_PRECARGADOS.items ? DATOS_PRECARGADOS.items.length : 0;
+        const tiempoParaColapsar = Math.max(1500, numItems * 100);
+
+        setTimeout(() => {
+            colapsarItemsVacios();
+        }, tiempoParaColapsar);
+
         // Capturar estado inicial después de cargar todos los datos
         // Usamos un timeout largo para asegurar que todos los items se hayan cargado
-        const numItems = DATOS_PRECARGADOS.items ? DATOS_PRECARGADOS.items.length : 0;
         const tiempoEspera = Math.max(2000, numItems * 150); // Mínimo 2 segundos, más tiempo si hay muchos items
 
         setTimeout(() => {
@@ -916,6 +923,71 @@ function cargarDatosPrecargados() {
         console.error('Error cargando datos precargados:', error);
         mostrarNotificacion('Error cargando algunos datos', 'warning');
     }
+}
+
+// ============================================
+// FUNCIÓN PARA COLAPSAR ITEMS VACÍOS EN REVISIONES
+// ============================================
+
+function itemEstaVacio(itemElement) {
+    // Verificar si un item está vacío (sin información significativa)
+
+    // Verificar descripción
+    const descripcion = itemElement.querySelector('.descripcion-item')?.value?.trim() || '';
+    if (descripcion !== '') return false;
+
+    // Verificar cantidad
+    const cantidad = itemElement.querySelector('.cantidad-item')?.value || '0';
+    if (parseFloat(cantidad) > 0) return false;
+
+    // Verificar materiales
+    const materiales = itemElement.querySelectorAll('.materiales-container .material-row');
+    let tieneMateriales = false;
+    materiales.forEach(row => {
+        const material = row.querySelector('.material-select')?.value || '';
+        if (material && material.trim() !== '') {
+            tieneMateriales = true;
+        }
+    });
+    if (tieneMateriales) return false;
+
+    // Verificar otros materiales
+    const otrosMateriales = itemElement.querySelectorAll('.otros-materiales-container .otro-material-row');
+    let tieneOtrosMateriales = false;
+    otrosMateriales.forEach(row => {
+        const descripcion = row.querySelector('.descripcion-otro')?.value?.trim() || '';
+        if (descripcion !== '') {
+            tieneOtrosMateriales = true;
+        }
+    });
+    if (tieneOtrosMateriales) return false;
+
+    // Verificar notas
+    const notas = itemElement.querySelector('[name="notas[]"]')?.value?.trim() || '';
+    if (notas !== '') return false;
+
+    // Si llegamos aquí, el item está vacío
+    return true;
+}
+
+function colapsarItemsVacios() {
+    const items = document.querySelectorAll('.item-block');
+    let itemsColapsados = 0;
+    let itemsExpandidos = 0;
+
+    items.forEach((item, index) => {
+        if (itemEstaVacio(item)) {
+            // Remover el atributo 'open' para colapsar
+            item.removeAttribute('open');
+            itemsColapsados++;
+            console.log(`[COLAPSO] Item ${index + 1}: Colapsado (vacío)`);
+        } else {
+            itemsExpandidos++;
+            console.log(`[COLAPSO] Item ${index + 1}: Expandido (tiene datos)`);
+        }
+    });
+
+    console.log(`[COLAPSO] Resumen: ${itemsExpandidos} items con datos (expandidos), ${itemsColapsados} items vacíos (colapsados)`);
 }
 
 function cargarDatosItem(itemData, index) {
