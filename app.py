@@ -1067,11 +1067,25 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
                 if parte.startswith('R') and len(parte) > 1:
                     try:
                         rev = int(parte[1:])
+
+                        # Extraer justificación de actualización
+                        datos_generales = item.get('datosGenerales', {})
+                        justificacion = datos_generales.get('actualizacionRevision', '')
+
+                        # Extraer fecha si está disponible
+                        fecha_creacion = item.get('fechaCreacion', '')
+                        if not fecha_creacion:
+                            fecha_creacion = datos_generales.get('fecha', '')
+
                         revisiones_encontradas.append({
                             'numero': num_cotiz,
-                            'revision': rev
+                            'revision': rev,
+                            'justificacion': justificacion,
+                            'fecha': fecha_creacion
                         })
                         print(f"[VERIFICAR_REVISION]   → Revisión encontrada: R{rev}")
+                        if justificacion:
+                            print(f"[VERIFICAR_REVISION]   → Justificación: {justificacion[:50]}...")
 
                         if rev > revision_maxima:
                             revision_maxima = rev
@@ -1081,10 +1095,13 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
                     except ValueError:
                         continue
 
+        # Ordenar revisiones de más reciente a más antigua
+        revisiones_encontradas.sort(key=lambda x: x['revision'], reverse=True)
+
         es_mas_reciente = (revision_actual >= revision_maxima)
 
         print(f"\n[VERIFICAR_REVISION] ========== RESULTADO ==========")
-        print(f"[VERIFICAR_REVISION] Revisiones encontradas: {revisiones_encontradas}")
+        print(f"[VERIFICAR_REVISION] Revisiones encontradas: {len(revisiones_encontradas)}")
         print(f"[VERIFICAR_REVISION] Revisión actual: R{revision_actual}")
         print(f"[VERIFICAR_REVISION] Revisión máxima: R{revision_maxima}")
         print(f"[VERIFICAR_REVISION] ¿Es la más reciente?: {es_mas_reciente}")
@@ -1095,7 +1112,8 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
             'es_mas_reciente': es_mas_reciente,
             'revision_actual': revision_actual,
             'revision_maxima': revision_maxima,
-            'numero_ultima_revision': numero_ultima_revision
+            'numero_ultima_revision': numero_ultima_revision,
+            'historial_revisiones': revisiones_encontradas
         }
 
     except Exception as e:
@@ -1615,7 +1633,8 @@ def formulario():
                     'numero_actual': numero_cotizacion,
                     'revision_actual': info_revision['revision_actual'],
                     'revision_maxima': info_revision['revision_maxima'],
-                    'numero_ultima_revision': info_revision['numero_ultima_revision']
+                    'numero_ultima_revision': info_revision['numero_ultima_revision'],
+                    'historial': info_revision.get('historial_revisiones', [])
                 }
         else:
             print(f"[REVISION] ⚠️ Cotización original no encontrada para: '{revision_id}'")
