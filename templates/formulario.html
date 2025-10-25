@@ -707,6 +707,15 @@ function inicializarModalRevision() {
         formularioPrincipal.classList.remove('form-disabled');
         console.log('[MODAL_REVISION] Formulario principal habilitado');
 
+        // CRÍTICO: Capturar estado inicial AHORA (después de cerrar modal)
+        // Esto previene race condition donde el usuario guardaba antes del timeout
+        setTimeout(() => {
+            estadoInicialFormulario = capturarEstadoFormulario();
+            console.log('[DETECCION_CAMBIOS] ====== ESTADO INICIAL CAPTURADO (POST-MODAL) ======');
+            console.log('[DETECCION_CAMBIOS] Número de items:', estadoInicialFormulario.items.length);
+            console.log('[DETECCION_CAMBIOS] Estado completo:', estadoInicialFormulario);
+        }, 500); // 500ms para asegurar que el campo de justificación se haya actualizado
+
         // Mostrar mensaje de confirmación
         console.log('[MODAL_REVISION] Modal cerrado, descripción guardada');
     });
@@ -813,9 +822,55 @@ function capturarEstadoFormulario() {
 
 function compararEstados(estadoInicial, estadoActual) {
     // Comparar como JSON para facilitar la comparación profunda
-    const jsonInicial = JSON.stringify(estadoInicial);
-    const jsonActual = JSON.stringify(estadoActual);
-    return jsonInicial === jsonActual;
+    const jsonInicial = JSON.stringify(estadoInicial, null, 2);
+    const jsonActual = JSON.stringify(estadoActual, null, 2);
+
+    const sonIguales = jsonInicial === jsonActual;
+
+    // Si son diferentes, mostrar las diferencias en consola
+    if (!sonIguales) {
+        console.log('[DETECCION_CAMBIOS] ========== DIFERENCIAS DETECTADAS ==========');
+        console.log('[DETECCION_CAMBIOS] Estado Inicial (JSON):', jsonInicial);
+        console.log('[DETECCION_CAMBIOS] Estado Actual (JSON):', jsonActual);
+
+        // Comparar sección por sección
+        const seccionesIguales = {
+            datosGenerales: JSON.stringify(estadoInicial.datosGenerales) === JSON.stringify(estadoActual.datosGenerales),
+            condiciones: JSON.stringify(estadoInicial.condiciones) === JSON.stringify(estadoActual.condiciones),
+            items: JSON.stringify(estadoInicial.items) === JSON.stringify(estadoActual.items)
+        };
+
+        console.log('[DETECCION_CAMBIOS] Comparación por secciones:', seccionesIguales);
+
+        // Mostrar qué cambió en cada sección
+        if (!seccionesIguales.datosGenerales) {
+            console.log('[DETECCION_CAMBIOS] Cambios en datosGenerales:');
+            console.log('  Inicial:', estadoInicial.datosGenerales);
+            console.log('  Actual:', estadoActual.datosGenerales);
+        }
+        if (!seccionesIguales.condiciones) {
+            console.log('[DETECCION_CAMBIOS] Cambios en condiciones:');
+            console.log('  Inicial:', estadoInicial.condiciones);
+            console.log('  Actual:', estadoActual.condiciones);
+        }
+        if (!seccionesIguales.items) {
+            console.log('[DETECCION_CAMBIOS] Cambios en items:');
+            console.log('  Número de items inicial:', estadoInicial.items.length);
+            console.log('  Número de items actual:', estadoActual.items.length);
+
+            // Comparar item por item
+            estadoInicial.items.forEach((itemInicial, index) => {
+                const itemActual = estadoActual.items[index];
+                if (itemActual && JSON.stringify(itemInicial) !== JSON.stringify(itemActual)) {
+                    console.log(`[DETECCION_CAMBIOS] Item ${index} cambió:`);
+                    console.log('  Inicial:', itemInicial);
+                    console.log('  Actual:', itemActual);
+                }
+            });
+        }
+    }
+
+    return sonIguales;
 }
 
 function formularioTieneCambios() {
