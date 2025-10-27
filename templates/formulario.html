@@ -882,6 +882,24 @@ document.addEventListener('DOMContentLoaded', function() {
             cargarDraftSeleccionado(draftId);
         }, 1000); // Esperar a que todo se inicialice
     }
+
+    // CAPTURAR ESTADO INICIAL para validación de cambios en revisiones
+    // Esto debe ejecutarse incluso si NO hay DATOS_PRECARGADOS
+    setTimeout(() => {
+        const revisionInput = document.getElementById('revision');
+        const numeroRevision = revisionInput ? parseInt(revisionInput.value) : 1;
+
+        // Solo capturar si es revisión (R2+) o si hay datos precargados
+        if (numeroRevision >= 2 || DATOS_PRECARGADOS) {
+            estadoInicialFormulario = capturarEstadoFormulario();
+            console.log('[DETECCION_CAMBIOS] ====== ESTADO INICIAL CAPTURADO (R' + numeroRevision + ') ======');
+            console.log('[DETECCION_CAMBIOS] Número de items:', estadoInicialFormulario.items.length);
+            console.log('[DETECCION_CAMBIOS] Estado completo:', estadoInicialFormulario);
+            console.log('[DETECCION_CAMBIOS] ⚠️ Se validarán cambios antes de permitir guardar');
+        } else {
+            console.log('[DETECCION_CAMBIOS] Cotización nueva (R1), no se valida cambios');
+        }
+    }, 2500); // Esperar a que todo se cargue (items, materiales, etc.)
 });
 
 // ============================================
