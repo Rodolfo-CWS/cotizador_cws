@@ -740,97 +740,130 @@ async function cargarDraftSeleccionado(draftId) {
 
             // Llenar datos generales con verificación
             let camposLlenados = 0;
-            Object.keys(datosGenerales).forEach(key => {
-                const elemento = document.querySelector(`[name="${key}"]`);
-                if (elemento) {
-                    if (datosGenerales[key]) {
-                        elemento.value = datosGenerales[key];
-                        // Disparar evento para que se actualice visualmente
-                        elemento.dispatchEvent(new Event('input', { bubbles: true }));
+
+            // Usar el mismo mapeo que cargarDatosPrecargados
+            const campos = {
+                'cliente': datosGenerales.cliente,
+                'atencionA': datosGenerales.atencionA,
+                'contacto': datosGenerales.contacto,
+                'vendedor': datosGenerales.vendedor,
+                'numeroCotizacion': datosGenerales.numeroCotizacion,
+                'revision': datosGenerales.revision,
+                'proyecto': datosGenerales.proyecto,
+                'fecha': datosGenerales.fecha
+            };
+
+            Object.entries(campos).forEach(([campo, valor]) => {
+                if (valor !== undefined && valor !== null) {
+                    const elemento = document.getElementById(campo) || document.querySelector(`[name="${campo}"]`);
+                    if (elemento) {
+                        elemento.value = valor;
                         elemento.dispatchEvent(new Event('change', { bubbles: true }));
                         camposLlenados++;
-                        console.log(`[DRAFT] Campo ${key} llenado:`, datosGenerales[key]);
+                        console.log(`[DRAFT] Campo ${campo} llenado:`, valor);
+                    } else {
+                        console.warn(`[DRAFT] Campo ${campo} no encontrado en formulario`);
                     }
-                } else {
-                    console.warn(`[DRAFT] Campo ${key} no encontrado en formulario`);
                 }
             });
-            console.log(`[DRAFT] ${camposLlenados} campos generales llenados`);
 
-            // Limpiar y cargar items
-            const itemsBody = document.getElementById('items-body');
-            if (itemsBody && items.length > 0) {
-                console.log('[DRAFT] Limpiando items existentes...');
-                itemsBody.innerHTML = '';
-
-                console.log(`[DRAFT] Agregando ${items.length} items...`);
-                items.forEach((item, index) => {
-                    // Verificar que agregarItem existe
-                    if (typeof agregarItem === 'function') {
-                        agregarItem();
-                        const row = itemsBody.lastElementChild;
-
-                        if (row) {
-                            const descField = row.querySelector('[name="descripcion"]');
-                            const unidadField = row.querySelector('[name="unidad"]');
-                            const cantField = row.querySelector('[name="cantidad"]');
-                            const precioField = row.querySelector('[name="precioUnitario"]');
-
-                            if (descField) descField.value = item.descripcion || '';
-                            if (unidadField) unidadField.value = item.unidad || '';
-                            if (cantField) cantField.value = item.cantidad || 0;
-                            if (precioField) precioField.value = item.precioUnitario || 0;
-
-                            // Disparar eventos para actualizar cálculos
-                            if (cantField) cantField.dispatchEvent(new Event('input', { bubbles: true }));
-                            if (precioField) precioField.dispatchEvent(new Event('input', { bubbles: true }));
-
-                            console.log(`[DRAFT] Item ${index + 1} agregado:`, item.descripcion);
-                        }
-                    } else {
-                        console.error('[DRAFT] Función agregarItem() no encontrada');
-                    }
-                });
-            } else if (items.length === 0) {
-                console.log('[DRAFT] No hay items para cargar');
-            } else {
-                console.error('[DRAFT] items-body no encontrado');
+            // Establecer campo hidden para revisiones (igual que cargarDatosPrecargados)
+            if (datosGenerales.numeroCotizacion) {
+                const campoHidden = document.querySelector('[name="numeroCotizacionHidden"]');
+                if (campoHidden) {
+                    campoHidden.value = datosGenerales.numeroCotizacion;
+                    console.log('[DRAFT] Campo hidden establecido:', datosGenerales.numeroCotizacion);
+                }
             }
 
-            // Llenar condiciones con verificación
-            let condicionesLlenadas = 0;
-            Object.keys(condiciones).forEach(key => {
-                const elemento = document.querySelector(`[name="${key}"]`);
-                if (elemento) {
-                    if (condiciones[key] !== null && condiciones[key] !== undefined) {
-                        elemento.value = condiciones[key];
-                        elemento.dispatchEvent(new Event('change', { bubbles: true }));
-                        condicionesLlenadas++;
-                        console.log(`[DRAFT] Condición ${key} llenada:`, condiciones[key]);
-                    }
-                } else {
-                    console.warn(`[DRAFT] Campo condición ${key} no encontrado`);
-                }
-            });
-            console.log(`[DRAFT] ${condicionesLlenadas} condiciones llenadas`);
+            console.log(`[DRAFT] ${camposLlenados} campos generales llenados`);
 
-            // Recalcular totales
-            console.log('[DRAFT] Recalculando totales...');
-            if (typeof calcularTotales === 'function') {
-                calcularTotales();
-                console.log('[DRAFT] Totales recalculados');
+            // Llenar condiciones
+            if (condiciones) {
+                const camposCondiciones = {
+                    'moneda': condiciones.moneda,
+                    'tipoCambio': condiciones.tipoCambio,
+                    'tiempoEntrega': condiciones.tiempoEntrega,
+                    'entregaEn': condiciones.entregaEn,
+                    'terminos': condiciones.condicionesPago,
+                    'comentarios': condiciones.comentariosAdicionales
+                };
+
+                let condicionesLlenadas = 0;
+                Object.entries(camposCondiciones).forEach(([campo, valor]) => {
+                    if (valor !== undefined && valor !== null) {
+                        const elemento = document.getElementById(campo) || document.querySelector(`[name="${campo}"]`);
+                        if (elemento) {
+                            elemento.value = valor;
+                            elemento.dispatchEvent(new Event('change', { bubbles: true }));
+                            condicionesLlenadas++;
+                        }
+                    }
+                });
+                console.log(`[DRAFT] ${condicionesLlenadas} condiciones llenadas`);
+            }
+
+            // Mostrar campo de justificación si es revisión >= 2
+            setTimeout(() => {
+                manejarRevision();
+            }, 100);
+
+            // Cargar items usando el MISMO método que cargarDatosPrecargados
+            if (items && items.length > 0) {
+                console.log(`[DRAFT] Cargando ${items.length} items...`);
+
+                // Limpiar items existentes
+                const container = document.getElementById('items-container');
+                if (container) {
+                    container.innerHTML = '';
+                }
+
+                // Agregar cada item con delay (igual que cargarDatosPrecargados)
+                items.forEach((item, index) => {
+                    setTimeout(() => {
+                        agregarItem();
+                        // Usar la función especializada cargarDatosItem
+                        if (typeof cargarDatosItem === 'function') {
+                            cargarDatosItem(item, index);
+                            console.log(`[DRAFT] Item ${index + 1} cargado con cargarDatosItem():`, item.descripcion);
+                        } else {
+                            console.error('[DRAFT] Función cargarDatosItem() no encontrada');
+                        }
+                    }, index * 100);
+                });
             } else {
-                console.warn('[DRAFT] Función calcularTotales() no encontrada');
+                console.log('[DRAFT] No hay items para cargar');
+            }
+
+            // Recalcular totales después de cargar
+            const numItems = items.length;
+            const tiempoCalculos = Math.max(1000, numItems * 150);
+
+            setTimeout(() => {
+                console.log('[DRAFT] Recalculando totales...');
+                if (typeof calcularTotales === 'function') {
+                    calcularTotales();
+                    console.log('[DRAFT] Totales recalculados');
+                } else {
+                    console.warn('[DRAFT] Función calcularTotales() no encontrada');
+                }
+            }, tiempoCalculos);
+
+            // Capturar estado inicial si es revisión (igual que cargarDatosPrecargados)
+            const numeroRevision = datosGenerales.revision || 1;
+            if (numeroRevision >= 2) {
+                const tiempoEspera = Math.max(2000, numItems * 150);
+                setTimeout(() => {
+                    estadoInicialFormulario = capturarEstadoFormulario();
+                    console.log('[DRAFT] ====== ESTADO INICIAL CAPTURADO (R' + numeroRevision + ') ======');
+                    console.log('[DRAFT] Número de items:', estadoInicialFormulario.items.length);
+                    console.log('[DRAFT] ⚠️ Se validarán cambios antes de permitir guardar');
+                }, tiempoEspera);
             }
 
             formModificado = false;
 
             console.log('[DRAFT] ✅ Draft cargado exitosamente:', draftId);
-            console.log('[DRAFT] Resumen:', {
-                camposGenerales: camposLlenados,
-                items: items.length,
-                condiciones: condicionesLlenadas
-            });
 
             alert(`Borrador "${draft.nombre}" cargado exitosamente`);
 
