@@ -790,7 +790,7 @@ function mostrarNotificacionGuardado() {
 function recopilarDatosGenerales() {
     const campos = [
         'fecha', 'vendedor', 'cliente', 'telefono', 'correo',
-        'proyecto', 'numeroProyecto', 'emitidaPor', 'numeroCotizacion'
+        'proyecto', 'numeroProyecto', 'emitidaPor', 'numeroCotizacion', 'revision'
     ];
 
     const datos = {};
@@ -805,19 +805,68 @@ function recopilarDatosGenerales() {
 }
 
 function recopilarItems() {
-    const itemsRows = document.querySelectorAll('#items-body tr');
     const items = [];
+    const itemsBlocks = document.querySelectorAll('.item-block');
 
-    itemsRows.forEach(row => {
+    itemsBlocks.forEach((itemBlock, index) => {
         const item = {
-            descripcion: row.querySelector('[name="descripcion"]')?.value || '',
-            unidad: row.querySelector('[name="unidad"]')?.value || '',
-            cantidad: parseFloat(row.querySelector('[name="cantidad"]')?.value) || 0,
-            precioUnitario: parseFloat(row.querySelector('[name="precioUnitario"]')?.value) || 0
+            // Campos principales del item
+            descripcion: itemBlock.querySelector('.descripcion-item')?.value || '',
+            cantidad: itemBlock.querySelector('.cantidad-item')?.value || '',
+            uom: itemBlock.querySelector('.uom-item')?.value || '',
+            peso: itemBlock.querySelector('[name="peso[]"]')?.value || '',
+            precio: itemBlock.querySelector('[name="precio[]"]')?.value || '',
+            costoUnidad: itemBlock.querySelector('.costo-unidad')?.value || '',
+            totalItem: itemBlock.querySelector('.total-item')?.value || '',
+            notas: itemBlock.querySelector('[name="notas[]"]')?.value || '',
+
+            // Costos adicionales
+            transporte: itemBlock.querySelector('.transporte')?.value || '',
+            instalacion: itemBlock.querySelector('.instalacion')?.value || '',
+            seguridad: itemBlock.querySelector('.seguridad')?.value || '',
+            descuento: itemBlock.querySelector('.descuento')?.value || '',
+
+            // Materiales
+            materiales: [],
+            otrosMateriales: []
         };
 
+        // Capturar materiales
+        itemBlock.querySelectorAll('.materiales-container .material-row').forEach(row => {
+            const material = row.querySelector('.material-select')?.value || '';
+            if (material && material.trim() !== "") {
+                const materialData = {
+                    material: material,
+                    cantidad: row.querySelector('.cantidad-material')?.value || '',
+                    precio: row.querySelector('.precio-material')?.value || '',
+                    subtotal: row.querySelector('.subtotal-material')?.value || ''
+                };
+
+                // Si es cotización por peso, capturar campos adicionales
+                if (material === 'COTIZAR_POR_PESO') {
+                    materialData.pesoEstructura = row.querySelector('.peso-estructura-input')?.value || '';
+                    materialData.precioKg = row.querySelector('.precio-kg-input')?.value || '';
+                }
+
+                item.materiales.push(materialData);
+            }
+        });
+
+        // Capturar otros materiales
+        itemBlock.querySelectorAll('.otros-materiales-container .otro-material-row').forEach(row => {
+            const descripcion = row.querySelector('.descripcion-otro')?.value?.trim() || '';
+            if (descripcion !== "") {
+                item.otrosMateriales.push({
+                    descripcion: descripcion,
+                    precio: row.querySelector('.precio-otro')?.value || '',
+                    cantidad: row.querySelector('.cantidad-otro')?.value || '',
+                    subtotal: row.querySelector('.subtotal-otro')?.value || ''
+                });
+            }
+        });
+
         // Solo agregar items con al menos descripción
-        if (item.descripcion) {
+        if (item.descripcion && item.descripcion.trim() !== '') {
             items.push(item);
         }
     });
