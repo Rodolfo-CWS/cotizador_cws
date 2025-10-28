@@ -939,9 +939,19 @@ async function cargarDraftSeleccionado(draftId) {
                 if (valor !== undefined && valor !== null) {
                     const elemento = document.getElementById(campo) || document.querySelector(`[name="${campo}"]`);
                     if (elemento) {
+                        const valorAntes = elemento.value;
+                        agregarLog(`Campo ${campo}: ANTES="${valorAntes}"`, 'info');
+
                         elemento.value = valor;
                         elemento.dispatchEvent(new Event('change', { bubbles: true }));
-                        agregarLog(`Campo ${campo} = ${valor}`, 'success');
+
+                        // Verificar si realmente se estableció
+                        const valorDespues = elemento.value;
+                        if (valorDespues === valor) {
+                            agregarLog(`Campo ${campo}: DESPUES="${valorDespues}" ✓`, 'success');
+                        } else {
+                            agregarLog(`Campo ${campo}: FALLO - esperaba "${valor}", tiene "${valorDespues}"`, 'error');
+                        }
                     } else {
                         agregarLog(`Campo ${campo} no encontrado en DOM`, 'warning');
                     }
