@@ -714,7 +714,9 @@ function recopilarCondiciones() {
 
 async function cargarDraftSeleccionado(draftId) {
     try {
-        console.log('[DRAFT] Cargando draft:', draftId);
+        console.log('[DRAFT] ========================================');
+        console.log('[DRAFT] Iniciando carga de draft:', draftId);
+        console.log('[DRAFT] ========================================');
 
         const respuesta = await fetch(`/api/draft/load/${draftId}`);
 
@@ -723,6 +725,7 @@ async function cargarDraftSeleccionado(draftId) {
         }
 
         const resultado = await respuesta.json();
+        console.log('[DRAFT] Respuesta del servidor:', resultado);
 
         if (resultado.success && resultado.draft) {
             const draft = resultado.draft;
@@ -736,134 +739,192 @@ async function cargarDraftSeleccionado(draftId) {
             const items = datos.items || [];
             const condiciones = datos.condiciones || {};
 
-            console.log('[DRAFT] Datos a cargar:', { datosGenerales, items: items.length, condiciones });
+            console.log('[DRAFT] ========================================');
+            console.log('[DRAFT] DATOS EXTRAÍDOS DEL DRAFT:');
+            console.log('[DRAFT] datosGenerales:', datosGenerales);
+            console.log('[DRAFT] items:', items);
+            console.log('[DRAFT] condiciones:', condiciones);
+            console.log('[DRAFT] ========================================');
 
-            // Llenar datos generales con verificación
-            let camposLlenados = 0;
+            // ============================================
+            // PASO 1: LLENAR DATOS GENERALES
+            // ============================================
+            console.log('[DRAFT] PASO 1: Llenando datos generales...');
 
-            // Usar el mismo mapeo que cargarDatosPrecargados
-            const campos = {
-                'cliente': datosGenerales.cliente,
-                'atencionA': datosGenerales.atencionA,
-                'contacto': datosGenerales.contacto,
-                'vendedor': datosGenerales.vendedor,
-                'numeroCotizacion': datosGenerales.numeroCotizacion,
-                'revision': datosGenerales.revision,
-                'proyecto': datosGenerales.proyecto,
-                'fecha': datosGenerales.fecha
-            };
+            const camposGenerales = [
+                'cliente', 'atencionA', 'contacto', 'vendedor',
+                'numeroCotizacion', 'revision', 'proyecto', 'fecha'
+            ];
 
-            Object.entries(campos).forEach(([campo, valor]) => {
+            camposGenerales.forEach(campo => {
+                const valor = datosGenerales[campo];
                 if (valor !== undefined && valor !== null) {
                     const elemento = document.getElementById(campo) || document.querySelector(`[name="${campo}"]`);
                     if (elemento) {
                         elemento.value = valor;
                         elemento.dispatchEvent(new Event('change', { bubbles: true }));
-                        camposLlenados++;
-                        console.log(`[DRAFT] Campo ${campo} llenado:`, valor);
+                        console.log(`[DRAFT] ✅ ${campo} = ${valor}`);
                     } else {
-                        console.warn(`[DRAFT] Campo ${campo} no encontrado en formulario`);
+                        console.warn(`[DRAFT] ⚠️ Campo ${campo} no encontrado`);
                     }
                 }
             });
 
-            // Establecer campo hidden para revisiones (igual que cargarDatosPrecargados)
+            // Establecer campo hidden para revisiones
             if (datosGenerales.numeroCotizacion) {
                 const campoHidden = document.querySelector('[name="numeroCotizacionHidden"]');
                 if (campoHidden) {
                     campoHidden.value = datosGenerales.numeroCotizacion;
-                    console.log('[DRAFT] Campo hidden establecido:', datosGenerales.numeroCotizacion);
+                    console.log('[DRAFT] ✅ numeroCotizacionHidden establecido');
                 }
             }
 
-            console.log(`[DRAFT] ${camposLlenados} campos generales llenados`);
+            // ============================================
+            // PASO 2: LLENAR CONDICIONES
+            // ============================================
+            console.log('[DRAFT] PASO 2: Llenando condiciones...');
 
-            // Llenar condiciones
             if (condiciones) {
-                const camposCondiciones = {
-                    'moneda': condiciones.moneda,
-                    'tipoCambio': condiciones.tipoCambio,
-                    'tiempoEntrega': condiciones.tiempoEntrega,
-                    'entregaEn': condiciones.entregaEn,
-                    'terminos': condiciones.condicionesPago,
-                    'comentarios': condiciones.comentariosAdicionales
+                const mapeoCondiciones = {
+                    'moneda': 'moneda',
+                    'tipoCambio': 'tipoCambio',
+                    'tiempoEntrega': 'tiempoEntrega',
+                    'entregaEn': 'entregaEn',
+                    'condicionesPago': 'terminos',
+                    'comentariosAdicionales': 'comentarios'
                 };
 
-                let condicionesLlenadas = 0;
-                Object.entries(camposCondiciones).forEach(([campo, valor]) => {
+                Object.entries(mapeoCondiciones).forEach(([keyCondicion, keyFormulario]) => {
+                    const valor = condiciones[keyCondicion];
                     if (valor !== undefined && valor !== null) {
-                        const elemento = document.getElementById(campo) || document.querySelector(`[name="${campo}"]`);
+                        const elemento = document.getElementById(keyFormulario) || document.querySelector(`[name="${keyFormulario}"]`);
                         if (elemento) {
                             elemento.value = valor;
                             elemento.dispatchEvent(new Event('change', { bubbles: true }));
-                            condicionesLlenadas++;
+                            console.log(`[DRAFT] ✅ ${keyFormulario} = ${valor}`);
+                        } else {
+                            console.warn(`[DRAFT] ⚠️ Campo ${keyFormulario} no encontrado`);
                         }
                     }
                 });
-                console.log(`[DRAFT] ${condicionesLlenadas} condiciones llenadas`);
             }
 
-            // Mostrar campo de justificación si es revisión >= 2
-            setTimeout(() => {
-                manejarRevision();
-            }, 100);
+            // ============================================
+            // PASO 3: MOSTRAR CAMPO DE JUSTIFICACIÓN SI ES R2+
+            // ============================================
+            const numeroRevision = datosGenerales.revision || 1;
+            console.log('[DRAFT] PASO 3: Verificando revisión... R' + numeroRevision);
 
-            // Cargar items usando el MISMO método que cargarDatosPrecargados
+            if (numeroRevision >= 2) {
+                setTimeout(() => {
+                    console.log('[DRAFT] Llamando manejarRevision() para R' + numeroRevision);
+                    if (typeof manejarRevision === 'function') {
+                        manejarRevision();
+                        console.log('[DRAFT] ✅ manejarRevision() ejecutado');
+                    } else {
+                        console.error('[DRAFT] ❌ manejarRevision() no existe');
+                    }
+                }, 100);
+            }
+
+            // ============================================
+            // PASO 4: CARGAR ITEMS
+            // ============================================
+            console.log('[DRAFT] PASO 4: Cargando items...');
+            console.log('[DRAFT] Total de items a cargar:', items.length);
+
             if (items && items.length > 0) {
-                console.log(`[DRAFT] Cargando ${items.length} items...`);
-
                 // Limpiar items existentes
                 const container = document.getElementById('items-container');
-                if (container) {
-                    container.innerHTML = '';
+                if (!container) {
+                    console.error('[DRAFT] ❌ items-container NO encontrado');
+                    throw new Error('items-container no encontrado en el DOM');
                 }
 
-                // Agregar cada item con delay (igual que cargarDatosPrecargados)
-                items.forEach((item, index) => {
+                console.log('[DRAFT] ✅ items-container encontrado');
+                console.log('[DRAFT] Items actuales en container:', container.children.length);
+
+                // Limpiar
+                container.innerHTML = '';
+                console.log('[DRAFT] ✅ Container limpiado');
+
+                // Verificar que agregarItem existe
+                if (typeof agregarItem !== 'function') {
+                    console.error('[DRAFT] ❌ agregarItem() no existe');
+                    throw new Error('agregarItem() no está definida');
+                }
+
+                // Verificar que cargarDatosItem existe
+                if (typeof cargarDatosItem !== 'function') {
+                    console.error('[DRAFT] ❌ cargarDatosItem() no existe');
+                    throw new Error('cargarDatosItem() no está definida');
+                }
+
+                console.log('[DRAFT] ✅ Funciones agregarItem() y cargarDatosItem() disponibles');
+
+                // Agregar cada item con delay
+                items.forEach((itemData, index) => {
                     setTimeout(() => {
+                        console.log(`[DRAFT] ➡️ Procesando item ${index + 1}/${items.length}:`, itemData.descripcion);
+
+                        // Agregar item vacío
                         agregarItem();
-                        // Usar la función especializada cargarDatosItem
-                        if (typeof cargarDatosItem === 'function') {
-                            cargarDatosItem(item, index);
-                            console.log(`[DRAFT] Item ${index + 1} cargado con cargarDatosItem():`, item.descripcion);
-                        } else {
-                            console.error('[DRAFT] Función cargarDatosItem() no encontrada');
-                        }
-                    }, index * 100);
+                        console.log(`[DRAFT] ✅ agregarItem() llamado para item ${index + 1}`);
+
+                        // Verificar que se agregó
+                        const itemsAhora = document.querySelectorAll('.item-block');
+                        console.log(`[DRAFT] Items en DOM ahora: ${itemsAhora.length}`);
+
+                        // Cargar datos del item
+                        cargarDatosItem(itemData, index);
+                        console.log(`[DRAFT] ✅ cargarDatosItem() llamado para item ${index + 1}`);
+
+                    }, index * 150); // 150ms de delay entre items
                 });
-            } else {
-                console.log('[DRAFT] No hay items para cargar');
-            }
 
-            // Recalcular totales después de cargar
-            const numItems = items.length;
-            const tiempoCalculos = Math.max(1000, numItems * 150);
+                // ============================================
+                // PASO 5: RECALCULAR TOTALES
+                // ============================================
+                const tiempoCalculos = Math.max(1500, items.length * 200);
+                console.log(`[DRAFT] PASO 5: Recalculando totales en ${tiempoCalculos}ms...`);
 
-            setTimeout(() => {
-                console.log('[DRAFT] Recalculando totales...');
-                if (typeof calcularTotales === 'function') {
-                    calcularTotales();
-                    console.log('[DRAFT] Totales recalculados');
-                } else {
-                    console.warn('[DRAFT] Función calcularTotales() no encontrada');
-                }
-            }, tiempoCalculos);
-
-            // Capturar estado inicial si es revisión (igual que cargarDatosPrecargados)
-            const numeroRevision = datosGenerales.revision || 1;
-            if (numeroRevision >= 2) {
-                const tiempoEspera = Math.max(2000, numItems * 150);
                 setTimeout(() => {
-                    estadoInicialFormulario = capturarEstadoFormulario();
-                    console.log('[DRAFT] ====== ESTADO INICIAL CAPTURADO (R' + numeroRevision + ') ======');
-                    console.log('[DRAFT] Número de items:', estadoInicialFormulario.items.length);
-                    console.log('[DRAFT] ⚠️ Se validarán cambios antes de permitir guardar');
-                }, tiempoEspera);
+                    console.log('[DRAFT] Ejecutando calcularTotales()...');
+                    if (typeof calcularTotales === 'function') {
+                        calcularTotales();
+                        console.log('[DRAFT] ✅ Totales recalculados');
+                    } else {
+                        console.error('[DRAFT] ❌ calcularTotales() no existe');
+                    }
+                }, tiempoCalculos);
+
+                // ============================================
+                // PASO 6: CAPTURAR ESTADO INICIAL (para validación de cambios)
+                // ============================================
+                if (numeroRevision >= 2) {
+                    const tiempoEstado = Math.max(2500, items.length * 200);
+                    console.log(`[DRAFT] PASO 6: Capturando estado inicial en ${tiempoEstado}ms...`);
+
+                    setTimeout(() => {
+                        if (typeof capturarEstadoFormulario === 'function') {
+                            estadoInicialFormulario = capturarEstadoFormulario();
+                            console.log('[DRAFT] ✅ Estado inicial capturado para R' + numeroRevision);
+                            console.log('[DRAFT] Items en estado:', estadoInicialFormulario.items.length);
+                        } else {
+                            console.error('[DRAFT] ❌ capturarEstadoFormulario() no existe');
+                        }
+                    }, tiempoEstado);
+                }
+
+            } else {
+                console.log('[DRAFT] ℹ️ No hay items para cargar');
             }
 
             formModificado = false;
 
-            console.log('[DRAFT] ✅ Draft cargado exitosamente:', draftId);
+            console.log('[DRAFT] ========================================');
+            console.log('[DRAFT] ✅ DRAFT CARGADO EXITOSAMENTE');
+            console.log('[DRAFT] ========================================');
 
             alert(`Borrador "${draft.nombre}" cargado exitosamente`);
 
@@ -872,8 +933,12 @@ async function cargarDraftSeleccionado(draftId) {
         }
 
     } catch (error) {
-        console.error('[DRAFT] ❌ Error cargando draft:', error);
-        alert(`Error al cargar borrador: ${error.message}`);
+        console.error('[DRAFT] ========================================');
+        console.error('[DRAFT] ❌ ERROR CRÍTICO CARGANDO DRAFT');
+        console.error('[DRAFT] Error:', error);
+        console.error('[DRAFT] Stack:', error.stack);
+        console.error('[DRAFT] ========================================');
+        alert(`Error al cargar borrador: ${error.message}\n\nRevisa la consola (F12) para más detalles.`);
     }
 }
 
