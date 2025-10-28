@@ -524,6 +524,131 @@ let autoGuardadoTimer = null;
 let formModificado = false;
 let ultimoGuardadoTimestamp = null;
 
+// ============================================
+// VISOR DE LOGS EN PANTALLA (para móviles)
+// ============================================
+
+let logsPanel = null;
+let logsBuffer = [];
+
+function inicializarVisorLogs() {
+    // Crear panel de logs flotante
+    logsPanel = document.createElement('div');
+    logsPanel.id = 'logs-panel';
+    logsPanel.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        width: 350px;
+        max-height: 80vh;
+        background: rgba(0, 0, 0, 0.95);
+        color: #00ff00;
+        font-family: monospace;
+        font-size: 11px;
+        padding: 10px;
+        border-radius: 8px;
+        z-index: 10000;
+        overflow-y: auto;
+        display: none;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    `;
+
+    // Botón de cerrar
+    const btnCerrar = document.createElement('button');
+    btnCerrar.textContent = '✕ Cerrar';
+    btnCerrar.style.cssText = `
+        position: sticky;
+        top: 0;
+        background: #ff4444;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-bottom: 10px;
+        width: 100%;
+        font-size: 12px;
+        font-weight: bold;
+    `;
+    btnCerrar.onclick = () => {
+        logsPanel.style.display = 'none';
+    };
+
+    // Contenedor de logs
+    const logsContent = document.createElement('pre');
+    logsContent.id = 'logs-content';
+    logsContent.style.cssText = `
+        margin: 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        line-height: 1.4;
+    `;
+
+    logsPanel.appendChild(btnCerrar);
+    logsPanel.appendChild(logsContent);
+    document.body.appendChild(logsPanel);
+}
+
+function mostrarVisorLogs() {
+    if (!logsPanel) {
+        inicializarVisorLogs();
+    }
+    logsPanel.style.display = 'block';
+
+    // Scroll al final
+    setTimeout(() => {
+        logsPanel.scrollTop = logsPanel.scrollHeight;
+    }, 100);
+}
+
+function agregarLog(mensaje, tipo = 'info') {
+    const timestamp = new Date().toLocaleTimeString('es-MX', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+
+    let color = '#00ff00'; // verde por defecto
+    let icon = 'ℹ️';
+
+    if (tipo === 'success') {
+        color = '#00ff00';
+        icon = '✅';
+    } else if (tipo === 'warning') {
+        color = '#ffaa00';
+        icon = '⚠️';
+    } else if (tipo === 'error') {
+        color = '#ff4444';
+        icon = '❌';
+    } else if (tipo === 'step') {
+        color = '#00aaff';
+        icon = '➡️';
+    }
+
+    const logLine = `<span style="color: #888">[${timestamp}]</span> <span style="color: ${color}">${icon} ${mensaje}</span>\n`;
+    logsBuffer.push(logLine);
+
+    // Actualizar panel si existe
+    if (logsPanel) {
+        const logsContent = document.getElementById('logs-content');
+        if (logsContent) {
+            logsContent.innerHTML = logsBuffer.join('');
+            logsPanel.scrollTop = logsPanel.scrollHeight;
+        }
+    }
+
+    // También hacer console.log normal
+    console.log(mensaje);
+}
+
+function limpiarLogs() {
+    logsBuffer = [];
+    const logsContent = document.getElementById('logs-content');
+    if (logsContent) {
+        logsContent.innerHTML = '';
+    }
+}
+
 function inicializarSistemaAutoGuardado() {
     console.log('[DRAFT] Inicializando sistema de auto-guardado...');
 
@@ -714,9 +839,13 @@ function recopilarCondiciones() {
 
 async function cargarDraftSeleccionado(draftId) {
     try {
-        console.log('[DRAFT] ========================================');
-        console.log('[DRAFT] Iniciando carga de draft:', draftId);
-        console.log('[DRAFT] ========================================');
+        // Inicializar visor de logs para debugging en móvil
+        limpiarLogs();
+        mostrarVisorLogs();
+
+        agregarLog('========================================', 'info');
+        agregarLog(`Iniciando carga de draft: ${draftId}`, 'step');
+        agregarLog('========================================', 'info');
 
         const respuesta = await fetch(`/api/draft/load/${draftId}`);
 
@@ -725,7 +854,7 @@ async function cargarDraftSeleccionado(draftId) {
         }
 
         const resultado = await respuesta.json();
-        console.log('[DRAFT] Respuesta del servidor:', resultado);
+        agregarLog(`Respuesta del servidor recibida`, 'info');
 
         if (resultado.success && resultado.draft) {
             const draft = resultado.draft;
@@ -739,17 +868,17 @@ async function cargarDraftSeleccionado(draftId) {
             const items = datos.items || [];
             const condiciones = datos.condiciones || {};
 
-            console.log('[DRAFT] ========================================');
-            console.log('[DRAFT] DATOS EXTRAÍDOS DEL DRAFT:');
-            console.log('[DRAFT] datosGenerales:', datosGenerales);
-            console.log('[DRAFT] items:', items);
-            console.log('[DRAFT] condiciones:', condiciones);
-            console.log('[DRAFT] ========================================');
+            agregarLog('========================================', 'info');
+            agregarLog('DATOS EXTRAÍDOS DEL DRAFT:', 'info');
+            agregarLog(`datosGenerales: ${Object.keys(datosGenerales).length} campos`, 'info');
+            agregarLog(`items: ${items.length} items`, 'info');
+            agregarLog(`condiciones: ${Object.keys(condiciones).length} campos`, 'info');
+            agregarLog('========================================', 'info');
 
             // ============================================
             // PASO 1: LLENAR DATOS GENERALES
             // ============================================
-            console.log('[DRAFT] PASO 1: Llenando datos generales...');
+            agregarLog('PASO 1: Llenando datos generales...', 'step');
 
             const camposGenerales = [
                 'cliente', 'atencionA', 'contacto', 'vendedor',
@@ -763,9 +892,9 @@ async function cargarDraftSeleccionado(draftId) {
                     if (elemento) {
                         elemento.value = valor;
                         elemento.dispatchEvent(new Event('change', { bubbles: true }));
-                        console.log(`[DRAFT] ✅ ${campo} = ${valor}`);
+                        agregarLog(`Campo ${campo} = ${valor}`, 'success');
                     } else {
-                        console.warn(`[DRAFT] ⚠️ Campo ${campo} no encontrado`);
+                        agregarLog(`Campo ${campo} no encontrado en DOM`, 'warning');
                     }
                 }
             });
@@ -775,14 +904,14 @@ async function cargarDraftSeleccionado(draftId) {
                 const campoHidden = document.querySelector('[name="numeroCotizacionHidden"]');
                 if (campoHidden) {
                     campoHidden.value = datosGenerales.numeroCotizacion;
-                    console.log('[DRAFT] ✅ numeroCotizacionHidden establecido');
+                    agregarLog('numeroCotizacionHidden establecido', 'success');
                 }
             }
 
             // ============================================
             // PASO 2: LLENAR CONDICIONES
             // ============================================
-            console.log('[DRAFT] PASO 2: Llenando condiciones...');
+            agregarLog('PASO 2: Llenando condiciones...', 'step');
 
             if (condiciones) {
                 const mapeoCondiciones = {
@@ -801,9 +930,9 @@ async function cargarDraftSeleccionado(draftId) {
                         if (elemento) {
                             elemento.value = valor;
                             elemento.dispatchEvent(new Event('change', { bubbles: true }));
-                            console.log(`[DRAFT] ✅ ${keyFormulario} = ${valor}`);
+                            agregarLog(`Condicion ${keyFormulario} = ${valor}`, 'success');
                         } else {
-                            console.warn(`[DRAFT] ⚠️ Campo ${keyFormulario} no encontrado`);
+                            agregarLog(`Campo ${keyFormulario} no encontrado`, 'warning');
                         }
                     }
                 });
@@ -813,16 +942,16 @@ async function cargarDraftSeleccionado(draftId) {
             // PASO 3: MOSTRAR CAMPO DE JUSTIFICACIÓN SI ES R2+
             // ============================================
             const numeroRevision = datosGenerales.revision || 1;
-            console.log('[DRAFT] PASO 3: Verificando revisión... R' + numeroRevision);
+            agregarLog(`PASO 3: Verificando revision... R${numeroRevision}`, 'step');
 
             if (numeroRevision >= 2) {
                 setTimeout(() => {
-                    console.log('[DRAFT] Llamando manejarRevision() para R' + numeroRevision);
+                    agregarLog(`Llamando manejarRevision() para R${numeroRevision}`, 'info');
                     if (typeof manejarRevision === 'function') {
                         manejarRevision();
-                        console.log('[DRAFT] ✅ manejarRevision() ejecutado');
+                        agregarLog('manejarRevision() ejecutado', 'success');
                     } else {
-                        console.error('[DRAFT] ❌ manejarRevision() no existe');
+                        agregarLog('manejarRevision() no existe', 'error');
                     }
                 }, 100);
             }
@@ -830,54 +959,54 @@ async function cargarDraftSeleccionado(draftId) {
             // ============================================
             // PASO 4: CARGAR ITEMS
             // ============================================
-            console.log('[DRAFT] PASO 4: Cargando items...');
-            console.log('[DRAFT] Total de items a cargar:', items.length);
+            agregarLog('PASO 4: Cargando items...', 'step');
+            agregarLog(`Total de items a cargar: ${items.length}`, 'info');
 
             if (items && items.length > 0) {
                 // Limpiar items existentes
                 const container = document.getElementById('items-container');
                 if (!container) {
-                    console.error('[DRAFT] ❌ items-container NO encontrado');
+                    agregarLog('items-container NO encontrado', 'error');
                     throw new Error('items-container no encontrado en el DOM');
                 }
 
-                console.log('[DRAFT] ✅ items-container encontrado');
-                console.log('[DRAFT] Items actuales en container:', container.children.length);
+                agregarLog('items-container encontrado', 'success');
+                agregarLog(`Items actuales en container: ${container.children.length}`, 'info');
 
                 // Limpiar
                 container.innerHTML = '';
-                console.log('[DRAFT] ✅ Container limpiado');
+                agregarLog('Container limpiado', 'success');
 
                 // Verificar que agregarItem existe
                 if (typeof agregarItem !== 'function') {
-                    console.error('[DRAFT] ❌ agregarItem() no existe');
+                    agregarLog('agregarItem() no existe', 'error');
                     throw new Error('agregarItem() no está definida');
                 }
 
                 // Verificar que cargarDatosItem existe
                 if (typeof cargarDatosItem !== 'function') {
-                    console.error('[DRAFT] ❌ cargarDatosItem() no existe');
+                    agregarLog('cargarDatosItem() no existe', 'error');
                     throw new Error('cargarDatosItem() no está definida');
                 }
 
-                console.log('[DRAFT] ✅ Funciones agregarItem() y cargarDatosItem() disponibles');
+                agregarLog('Funciones agregarItem() y cargarDatosItem() disponibles', 'success');
 
                 // Agregar cada item con delay
                 items.forEach((itemData, index) => {
                     setTimeout(() => {
-                        console.log(`[DRAFT] ➡️ Procesando item ${index + 1}/${items.length}:`, itemData.descripcion);
+                        agregarLog(`Procesando item ${index + 1}/${items.length}: ${itemData.descripcion || 'Sin descripcion'}`, 'step');
 
                         // Agregar item vacío
                         agregarItem();
-                        console.log(`[DRAFT] ✅ agregarItem() llamado para item ${index + 1}`);
+                        agregarLog(`agregarItem() llamado para item ${index + 1}`, 'success');
 
                         // Verificar que se agregó
                         const itemsAhora = document.querySelectorAll('.item-block');
-                        console.log(`[DRAFT] Items en DOM ahora: ${itemsAhora.length}`);
+                        agregarLog(`Items en DOM ahora: ${itemsAhora.length}`, 'info');
 
                         // Cargar datos del item
                         cargarDatosItem(itemData, index);
-                        console.log(`[DRAFT] ✅ cargarDatosItem() llamado para item ${index + 1}`);
+                        agregarLog(`cargarDatosItem() llamado para item ${index + 1}`, 'success');
 
                     }, index * 150); // 150ms de delay entre items
                 });
@@ -886,15 +1015,15 @@ async function cargarDraftSeleccionado(draftId) {
                 // PASO 5: RECALCULAR TOTALES
                 // ============================================
                 const tiempoCalculos = Math.max(1500, items.length * 200);
-                console.log(`[DRAFT] PASO 5: Recalculando totales en ${tiempoCalculos}ms...`);
+                agregarLog(`PASO 5: Recalculando totales en ${tiempoCalculos}ms...`, 'step');
 
                 setTimeout(() => {
-                    console.log('[DRAFT] Ejecutando calcularTotales()...');
+                    agregarLog('Ejecutando calcularTotales()...', 'info');
                     if (typeof calcularTotales === 'function') {
                         calcularTotales();
-                        console.log('[DRAFT] ✅ Totales recalculados');
+                        agregarLog('Totales recalculados', 'success');
                     } else {
-                        console.error('[DRAFT] ❌ calcularTotales() no existe');
+                        agregarLog('calcularTotales() no existe', 'error');
                     }
                 }, tiempoCalculos);
 
@@ -903,28 +1032,28 @@ async function cargarDraftSeleccionado(draftId) {
                 // ============================================
                 if (numeroRevision >= 2) {
                     const tiempoEstado = Math.max(2500, items.length * 200);
-                    console.log(`[DRAFT] PASO 6: Capturando estado inicial en ${tiempoEstado}ms...`);
+                    agregarLog(`PASO 6: Capturando estado inicial en ${tiempoEstado}ms...`, 'step');
 
                     setTimeout(() => {
                         if (typeof capturarEstadoFormulario === 'function') {
                             estadoInicialFormulario = capturarEstadoFormulario();
-                            console.log('[DRAFT] ✅ Estado inicial capturado para R' + numeroRevision);
-                            console.log('[DRAFT] Items en estado:', estadoInicialFormulario.items.length);
+                            agregarLog(`Estado inicial capturado para R${numeroRevision}`, 'success');
+                            agregarLog(`Items en estado: ${estadoInicialFormulario.items.length}`, 'info');
                         } else {
-                            console.error('[DRAFT] ❌ capturarEstadoFormulario() no existe');
+                            agregarLog('capturarEstadoFormulario() no existe', 'error');
                         }
                     }, tiempoEstado);
                 }
 
             } else {
-                console.log('[DRAFT] ℹ️ No hay items para cargar');
+                agregarLog('No hay items para cargar', 'info');
             }
 
             formModificado = false;
 
-            console.log('[DRAFT] ========================================');
-            console.log('[DRAFT] ✅ DRAFT CARGADO EXITOSAMENTE');
-            console.log('[DRAFT] ========================================');
+            agregarLog('========================================', 'info');
+            agregarLog('DRAFT CARGADO EXITOSAMENTE', 'success');
+            agregarLog('========================================', 'info');
 
             alert(`Borrador "${draft.nombre}" cargado exitosamente`);
 
@@ -933,12 +1062,13 @@ async function cargarDraftSeleccionado(draftId) {
         }
 
     } catch (error) {
-        console.error('[DRAFT] ========================================');
-        console.error('[DRAFT] ❌ ERROR CRÍTICO CARGANDO DRAFT');
-        console.error('[DRAFT] Error:', error);
-        console.error('[DRAFT] Stack:', error.stack);
-        console.error('[DRAFT] ========================================');
-        alert(`Error al cargar borrador: ${error.message}\n\nRevisa la consola (F12) para más detalles.`);
+        agregarLog('========================================', 'info');
+        agregarLog('ERROR CRITICO CARGANDO DRAFT', 'error');
+        agregarLog(`Error: ${error.message}`, 'error');
+        agregarLog(`Stack: ${error.stack}`, 'error');
+        agregarLog('========================================', 'info');
+        console.error('[DRAFT] Error completo:', error);
+        alert(`Error al cargar borrador: ${error.message}\n\nMira el panel de logs en la pantalla para más detalles.`);
     }
 }
 
