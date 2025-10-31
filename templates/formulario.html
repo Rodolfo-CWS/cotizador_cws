@@ -892,7 +892,7 @@ async function cargarDraftSeleccionado(draftId) {
     try {
         // Inicializar visor de logs para debugging en móvil
         limpiarLogs();
-        mostrarVisorLogs();
+        // mostrarVisorLogs(); // ELIMINADO: No mostrar popup de logs al cargar draft
 
         agregarLog('========================================', 'info');
         agregarLog(`Iniciando carga de draft: ${draftId}`, 'step');
