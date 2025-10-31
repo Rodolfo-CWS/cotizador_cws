@@ -2034,12 +2034,20 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                                     const pesoEstructuraInput = ultimoMaterial.querySelector('.peso-estructura-input');
                                     const precioKgInput = ultimoMaterial.querySelector('.precio-kg-input');
                                     const subtotalPesoInput = ultimoMaterial.querySelector('.subtotal-peso-input');
-                                    
+
+                                    console.log(`[COTIZAR_POR_PESO] Cargando datos: peso=${material.pesoEstructura}, $/kg=${material.precioKg}`);
+
                                     if (pesoEstructuraInput && material.pesoEstructura !== undefined) {
+                                        console.log(`[COTIZAR_POR_PESO] ✅ Estableciendo peso estructura: ${material.pesoEstructura}`);
                                         pesoEstructuraInput.value = material.pesoEstructura;
+                                    } else {
+                                        console.warn(`[COTIZAR_POR_PESO] ❌ No se pudo cargar peso. elemento=${!!pesoEstructuraInput}, valor=${material.pesoEstructura}`);
                                     }
                                     if (precioKgInput && material.precioKg !== undefined) {
+                                        console.log(`[COTIZAR_POR_PESO] ✅ Estableciendo $/kg: ${material.precioKg}`);
                                         precioKgInput.value = material.precioKg;
+                                    } else {
+                                        console.warn(`[COTIZAR_POR_PESO] ❌ No se pudo cargar $/kg. elemento=${!!precioKgInput}, valor=${material.precioKg}`);
                                     }
                                     if (subtotalPesoInput && material.subtotal !== undefined) {
                                         subtotalPesoInput.value = material.subtotal;
@@ -2133,19 +2141,31 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                         
                         // Solo cargar precio y cantidad para materiales normales (no "Cotizar por peso")
                         if (!esCotizacionPorPeso(desc) && !esCotizacionPorPeso(material)) {
+                            console.log(`[MATERIAL] Cargando material normal: ${desc}`);
+                            console.log(`[MATERIAL] Datos: cantidad=${material.cantidad}, precio=${material.precio}`);
+
                             if (precio && material.precio !== undefined) {
+                                console.log(`[MATERIAL] ✅ Estableciendo precio: ${material.precio}`);
                                 precio.value = material.precio;
                                 // Disparar eventos para recálculo
                                 precio.dispatchEvent(new Event('input', { bubbles: true }));
                                 precio.dispatchEvent(new Event('change', { bubbles: true }));
+                            } else {
+                                console.warn(`[MATERIAL] ❌ No se pudo cargar precio. elemento=${!!precio}, valor=${material.precio}`);
                             }
-                            
+
                             if (cantidad && material.cantidad !== undefined) {
+                                console.log(`[MATERIAL] ✅ Estableciendo cantidad: ${material.cantidad}`);
                                 cantidad.value = material.cantidad;
                                 // Disparar eventos para recálculo
                                 cantidad.dispatchEvent(new Event('input', { bubbles: true }));
                                 cantidad.dispatchEvent(new Event('change', { bubbles: true }));
+                            } else {
+                                console.warn(`[MATERIAL] ❌ No se pudo cargar cantidad. elemento=${!!cantidad}, valor=${material.cantidad}`);
                             }
+                        } else {
+                            console.log(`[MATERIAL] Cargando COTIZAR_POR_PESO`);
+                            console.log(`[MATERIAL] Datos: pesoEstructura=${material.pesoEstructura}, precioKg=${material.precioKg}`);
                         }
                         
                         // CRÍTICO: Forzar recálculo después de cargar todos los datos
