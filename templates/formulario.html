@@ -838,9 +838,9 @@ function recopilarItems() {
             if (material && material.trim() !== "") {
                 const materialData = {
                     material: material,
-                    cantidad: row.querySelector('.cantidad-material')?.value || '',
-                    precio: row.querySelector('.precio-material')?.value || '',
-                    subtotal: row.querySelector('.subtotal-material')?.value || ''
+                    cantidad: row.querySelector('.cantidad-input')?.value || '',
+                    precio: row.querySelector('.precio-input')?.value || '',
+                    subtotal: row.querySelector('.subtotal-input')?.value || ''
                 };
 
                 // Si es cotización por peso, capturar campos adicionales
@@ -2703,10 +2703,11 @@ function calcularSubtotalMaterial(input) {
     // Debug mejorado para identificar problemas
     console.log('Cálculo material:', {
         peso: peso,
-        cantidad: cantidad,
+        cantidadOriginal: cantidadOriginal,
+        cantidadConvertida: cantidadConvertida,
         precio: precio,
         subtotal: subtotal,
-        formula: `${peso} * ${cantidad} * ${precio} = ${subtotal}`,
+        formula: `${peso} * ${cantidadConvertida} * ${precio} = ${subtotal}`,
         campos: {
             tienePeso: !!pesoInput,
             tieneCantidad: !!cantidadInput,
