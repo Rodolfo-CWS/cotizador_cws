@@ -790,7 +790,8 @@ function mostrarNotificacionGuardado() {
 function recopilarDatosGenerales() {
     const campos = [
         'fecha', 'vendedor', 'cliente', 'telefono', 'correo',
-        'proyecto', 'numeroProyecto', 'emitidaPor', 'numeroCotizacion', 'revision'
+        'proyecto', 'numeroProyecto', 'emitidaPor', 'numeroCotizacion', 'revision',
+        'atencionA', 'contacto', 'actualizacionRevision'
     ];
 
     const datos = {};
@@ -879,6 +880,7 @@ function recopilarCondiciones() {
 
     return {
         tiempoEntrega: document.querySelector('[name="tiempoEntrega"]')?.value || '',
+        entregaEn: document.querySelector('[name="entregaEn"]')?.value || '',
         condicionesPago: document.querySelector('[name="condicionesPago"]')?.value || '',
         comentariosAdicionales: document.querySelector('[name="comentariosAdicionales"]')?.value || '',
         moneda: moneda,
@@ -931,7 +933,7 @@ async function cargarDraftSeleccionado(draftId) {
 
             const camposGenerales = [
                 'cliente', 'atencionA', 'contacto', 'vendedor',
-                'numeroCotizacion', 'revision', 'proyecto', 'fecha'
+                'numeroCotizacion', 'revision', 'proyecto', 'fecha', 'actualizacionRevision'
             ];
 
             camposGenerales.forEach(campo => {
@@ -1119,7 +1121,7 @@ async function cargarDraftSeleccionado(draftId) {
                 agregarLog('========================================', 'info');
                 agregarLog('VERIFICACION FINAL (2 segundos después):', 'step');
 
-                const camposVerificar = ['cliente', 'vendedor', 'numeroCotizacion', 'revision', 'proyecto'];
+                const camposVerificar = ['cliente', 'atencionA', 'contacto', 'vendedor', 'numeroCotizacion', 'revision', 'proyecto', 'actualizacionRevision'];
                 camposVerificar.forEach(campo => {
                     const elemento = document.getElementById(campo) || document.querySelector(`[name="${campo}"]`);
                     if (elemento) {
