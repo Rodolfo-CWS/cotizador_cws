@@ -1800,27 +1800,57 @@ function cargarDatosItem(itemData, index) {
     try {
         const items = document.querySelectorAll('.item-block');
         const item = items[index];
-        
+
         if (!item) return;
-        
+
         // Cargar descripción
         const descripcion = item.querySelector('.descripcion-item');
         if (descripcion && itemData.descripcion) {
             descripcion.value = itemData.descripcion;
         }
-        
+
         // Cargar cantidad
         const cantidad = item.querySelector('.cantidad-item');
         if (cantidad && itemData.cantidad !== undefined) {
             cantidad.value = itemData.cantidad;
         }
-        
+
         // Cargar UOM
         const uom = item.querySelector('.uom-item');
         if (uom && itemData.uom) {
             uom.value = itemData.uom;
         }
-        
+
+        // Cargar peso del item
+        const peso = item.querySelector('[name="peso[]"]');
+        if (peso && itemData.peso !== undefined) {
+            peso.value = itemData.peso;
+        }
+
+        // Cargar precio del item
+        const precio = item.querySelector('[name="precio[]"]');
+        if (precio && itemData.precio !== undefined) {
+            precio.value = itemData.precio;
+        }
+
+        // Cargar costo por unidad (se calcula pero puede venir precargado)
+        const costoUnidad = item.querySelector('.costo-unidad');
+        if (costoUnidad && itemData.costoUnidad !== undefined) {
+            costoUnidad.value = itemData.costoUnidad;
+        }
+
+        // Cargar total del item (se calcula pero puede venir precargado)
+        const totalItem = item.querySelector('.total-item');
+        if (totalItem && itemData.totalItem !== undefined) {
+            totalItem.value = itemData.totalItem;
+        }
+
+        // Cargar notas del item
+        const notas = item.querySelector('[name="notas[]"]');
+        if (notas && itemData.notas) {
+            notas.value = itemData.notas;
+        }
+
         // Cargar costos adicionales
         const campos_costos = ['transporte', 'instalacion', 'seguridad', 'descuento'];
         campos_costos.forEach(campo => {
@@ -1829,21 +1859,21 @@ function cargarDatosItem(itemData, index) {
                 elemento.value = itemData[campo];
             }
         });
-        
+
         // Cargar materiales
         if (itemData.materiales && itemData.materiales.length > 0) {
             setTimeout(() => {
                 cargarMaterialesItem(item, itemData.materiales, 'materiales');
             }, 500);
         }
-        
+
         // Cargar otros materiales
         if (itemData.otrosMateriales && itemData.otrosMateriales.length > 0) {
             setTimeout(() => {
                 cargarMaterialesItem(item, itemData.otrosMateriales, 'otrosMateriales');
             }, 800);
         }
-        
+
     } catch (error) {
         console.error(`Error cargando item ${index}:`, error);
     }
