@@ -515,6 +515,646 @@ function generarOpcionesMateriales() {
 let cotizacionGuardada = false;
 let estadoInicialFormulario = null; // Para detectar cambios en revisiones
 
+// ============================================
+// SISTEMA DE AUTO-GUARDADO DE DRAFTS
+// ============================================
+
+let draftActualId = null;
+let autoGuardadoTimer = null;
+let formModificado = false;
+let ultimoGuardadoTimestamp = null;
+
+// ============================================
+// VISOR DE LOGS EN PANTALLA (para móviles)
+// ============================================
+
+let logsPanel = null;
+let logsBuffer = [];
+
+function inicializarVisorLogs() {
+    // Crear panel de logs flotante
+    logsPanel = document.createElement('div');
+    logsPanel.id = 'logs-panel';
+    logsPanel.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        width: 350px;
+        max-height: 80vh;
+        background: rgba(0, 0, 0, 0.95);
+        color: #00ff00;
+        font-family: monospace;
+        font-size: 11px;
+        padding: 10px;
+        border-radius: 8px;
+        z-index: 10000;
+        overflow-y: auto;
+        display: none;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    `;
+
+    // Botón de cerrar
+    const btnCerrar = document.createElement('button');
+    btnCerrar.textContent = '✕ Cerrar';
+    btnCerrar.style.cssText = `
+        position: sticky;
+        top: 0;
+        background: #ff4444;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-bottom: 10px;
+        width: 100%;
+        font-size: 12px;
+        font-weight: bold;
+    `;
+    btnCerrar.onclick = () => {
+        logsPanel.style.display = 'none';
+    };
+
+    // Contenedor de logs
+    const logsContent = document.createElement('pre');
+    logsContent.id = 'logs-content';
+    logsContent.style.cssText = `
+        margin: 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        line-height: 1.4;
+    `;
+
+    logsPanel.appendChild(btnCerrar);
+    logsPanel.appendChild(logsContent);
+    document.body.appendChild(logsPanel);
+}
+
+function mostrarVisorLogs() {
+    if (!logsPanel) {
+        inicializarVisorLogs();
+    }
+    logsPanel.style.display = 'block';
+
+    // Scroll al final
+    setTimeout(() => {
+        logsPanel.scrollTop = logsPanel.scrollHeight;
+    }, 100);
+}
+
+function agregarLog(mensaje, tipo = 'info') {
+    const timestamp = new Date().toLocaleTimeString('es-MX', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+
+    let color = '#00ff00'; // verde por defecto
+    let icon = 'ℹ️';
+
+    if (tipo === 'success') {
+        color = '#00ff00';
+        icon = '✅';
+    } else if (tipo === 'warning') {
+        color = '#ffaa00';
+        icon = '⚠️';
+    } else if (tipo === 'error') {
+        color = '#ff4444';
+        icon = '❌';
+    } else if (tipo === 'step') {
+        color = '#00aaff';
+        icon = '➡️';
+    }
+
+    const logLine = `<span style="color: #888">[${timestamp}]</span> <span style="color: ${color}">${icon} ${mensaje}</span>\n`;
+    logsBuffer.push(logLine);
+
+    // Actualizar panel si existe
+    if (logsPanel) {
+        const logsContent = document.getElementById('logs-content');
+        if (logsContent) {
+            logsContent.innerHTML = logsBuffer.join('');
+            logsPanel.scrollTop = logsPanel.scrollHeight;
+        }
+    }
+
+    // También hacer console.log normal
+    console.log(mensaje);
+}
+
+function limpiarLogs() {
+    logsBuffer = [];
+    const logsContent = document.getElementById('logs-content');
+    if (logsContent) {
+        logsContent.innerHTML = '';
+    }
+}
+
+function inicializarSistemaAutoGuardado() {
+    console.log('[DRAFT] Inicializando sistema de auto-guardado...');
+
+    // Detectar cambios en el formulario
+    const form = document.getElementById('cotizacion-form');
+    if (form) {
+        form.addEventListener('input', function() {
+            formModificado = true;
+        });
+
+        form.addEventListener('change', function() {
+            formModificado = true;
+        });
+    }
+
+    // Iniciar auto-guardado cada 30 segundos
+    autoGuardadoTimer = setInterval(autoGuardarDraft, 30000);
+
+    // Guardar antes de cerrar/recargar página
+    window.addEventListener('beforeunload', function(e) {
+        if (formModificado) {
+            autoGuardarDraftSincrono();
+        }
+    });
+
+    console.log('[DRAFT] Sistema de auto-guardado iniciado (cada 30 segundos)');
+}
+
+async function autoGuardarDraft() {
+    // Solo guardar si hay cambios y hay datos en el formulario
+    if (!formModificado) {
+        console.log('[DRAFT] Sin cambios, omitiendo auto-guardado');
+        return;
+    }
+
+    // Verificar que haya al menos cliente o vendedor antes de guardar
+    const vendedor = document.querySelector('[name="vendedor"]')?.value?.trim();
+    const cliente = document.querySelector('[name="cliente"]')?.value?.trim();
+
+    if (!vendedor && !cliente) {
+        console.log('[DRAFT] Formulario vacío, omitiendo auto-guardado');
+        return;
+    }
+
+    try {
+        console.log('[DRAFT] Ejecutando auto-guardado...');
+
+        // Recopilar datos del formulario
+        const datosGenerales = recopilarDatosGenerales();
+        const items = recopilarItems();
+        const condiciones = recopilarCondiciones();
+
+        const datosDraft = {
+            vendedor: vendedor || 'UNKNOWN',
+            datos: {
+                datosGenerales: datosGenerales,
+                items: items,
+                condiciones: condiciones
+            }
+        };
+
+        // Si ya existe un draft_id, incluirlo para actualizar
+        if (draftActualId) {
+            datosDraft.draft_id = draftActualId;
+        }
+
+        const respuesta = await fetch('/api/draft/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(datosDraft)
+        });
+
+        if (respuesta.ok) {
+            const resultado = await respuesta.json();
+
+            if (resultado.success) {
+                draftActualId = resultado.draft_id;
+                ultimoGuardadoTimestamp = resultado.timestamp;
+                formModificado = false;
+
+                console.log('[DRAFT] Auto-guardado exitoso:', resultado.draft_id);
+                mostrarNotificacionGuardado();
+            } else {
+                console.error('[DRAFT] Error auto-guardando:', resultado.error);
+            }
+        } else {
+            console.error('[DRAFT] Error HTTP auto-guardando:', respuesta.status);
+        }
+
+    } catch (error) {
+        console.error('[DRAFT] Excepción auto-guardando:', error);
+    }
+}
+
+function autoGuardarDraftSincrono() {
+    // Versión síncrona para beforeunload (no espera respuesta)
+    const vendedor = document.querySelector('[name="vendedor"]')?.value?.trim();
+
+    if (!vendedor) return;
+
+    const datosGenerales = recopilarDatosGenerales();
+    const items = recopilarItems();
+    const condiciones = recopilarCondiciones();
+
+    const datosDraft = {
+        vendedor: vendedor,
+        datos: {
+            datosGenerales: datosGenerales,
+            items: items,
+            condiciones: condiciones
+        }
+    };
+
+    if (draftActualId) {
+        datosDraft.draft_id = draftActualId;
+    }
+
+    // Usar sendBeacon para garantizar que se envíe antes de cerrar
+    const blob = new Blob([JSON.stringify(datosDraft)], { type: 'application/json' });
+    navigator.sendBeacon('/api/draft/save', blob);
+}
+
+function mostrarNotificacionGuardado() {
+    // Crear notificación temporal de guardado exitoso
+    const notif = document.createElement('div');
+    notif.textContent = 'Borrador guardado';
+    notif.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg text-sm z-50';
+    notif.style.animation = 'fadeIn 0.3s, fadeOut 0.3s 2s';
+
+    document.body.appendChild(notif);
+
+    setTimeout(() => {
+        notif.remove();
+    }, 2500);
+}
+
+function recopilarDatosGenerales() {
+    const campos = [
+        'fecha', 'vendedor', 'cliente', 'telefono', 'correo',
+        'proyecto', 'numeroProyecto', 'emitidaPor', 'numeroCotizacion', 'revision',
+        'atencionA', 'contacto', 'actualizacionRevision'
+    ];
+
+    const datos = {};
+    campos.forEach(campo => {
+        const elemento = document.querySelector(`[name="${campo}"]`);
+        if (elemento) {
+            datos[campo] = elemento.value?.trim() || '';
+        }
+    });
+
+    return datos;
+}
+
+function recopilarItems() {
+    const items = [];
+    const itemsBlocks = document.querySelectorAll('.item-block');
+
+    itemsBlocks.forEach((itemBlock, index) => {
+        const item = {
+            // Campos principales del item
+            descripcion: itemBlock.querySelector('.descripcion-item')?.value || '',
+            cantidad: itemBlock.querySelector('.cantidad-item')?.value || '',
+            uom: itemBlock.querySelector('.uom-item')?.value || '',
+            peso: itemBlock.querySelector('[name="peso[]"]')?.value || '',
+            precio: itemBlock.querySelector('[name="precio[]"]')?.value || '',
+            costoUnidad: itemBlock.querySelector('.costo-unidad')?.value || '',
+            totalItem: itemBlock.querySelector('.total-item')?.value || '',
+            notas: itemBlock.querySelector('[name="notas[]"]')?.value || '',
+
+            // Costos adicionales
+            transporte: itemBlock.querySelector('.transporte')?.value || '',
+            instalacion: itemBlock.querySelector('.instalacion')?.value || '',
+            seguridad: itemBlock.querySelector('.seguridad')?.value || '',
+            descuento: itemBlock.querySelector('.descuento')?.value || '',
+
+            // Materiales
+            materiales: [],
+            otrosMateriales: []
+        };
+
+        // Capturar materiales
+        itemBlock.querySelectorAll('.materiales-container .material-row').forEach(row => {
+            const material = row.querySelector('.material-select')?.value || '';
+            if (material && material.trim() !== "") {
+                const materialData = {
+                    material: material,
+                    cantidad: row.querySelector('.cantidad-input')?.value || '',
+                    precio: row.querySelector('.precio-input')?.value || '',
+                    subtotal: row.querySelector('.subtotal-input')?.value || ''
+                };
+
+                // Si es cotización por peso, capturar campos adicionales
+                if (material === 'COTIZAR_POR_PESO') {
+                    materialData.pesoEstructura = row.querySelector('.peso-estructura-input')?.value || '';
+                    materialData.precioKg = row.querySelector('.precio-kg-input')?.value || '';
+                }
+
+                item.materiales.push(materialData);
+            }
+        });
+
+        // Capturar otros materiales
+        itemBlock.querySelectorAll('.otros-materiales-container .otro-material-row').forEach(row => {
+            const descripcion = row.querySelector('.descripcion-otro')?.value?.trim() || '';
+            if (descripcion !== "") {
+                item.otrosMateriales.push({
+                    descripcion: descripcion,
+                    precio: row.querySelector('.precio-otro')?.value || '',
+                    cantidad: row.querySelector('.cantidad-otro')?.value || '',
+                    subtotal: row.querySelector('.subtotal-otro')?.value || ''
+                });
+            }
+        });
+
+        // Solo agregar items con al menos descripción
+        if (item.descripcion && item.descripcion.trim() !== '') {
+            items.push(item);
+        }
+    });
+
+    return items;
+}
+
+function recopilarCondiciones() {
+    const moneda = document.querySelector('[name="moneda"]')?.value || 'MXN';
+
+    return {
+        tiempoEntrega: document.querySelector('[name="tiempoEntrega"]')?.value || '',
+        entregaEn: document.querySelector('[name="entregaEn"]')?.value || '',
+        condicionesPago: document.querySelector('[name="terminos"]')?.value || '',
+        comentariosAdicionales: document.querySelector('[name="comentarios"]')?.value || '',
+        moneda: moneda,
+        tipoCambio: moneda === 'USD' ? (document.querySelector('[name="tipoCambio"]')?.value || '') : null
+    };
+}
+
+async function cargarDraftSeleccionado(draftId) {
+    try {
+        // Inicializar visor de logs para debugging en móvil
+        limpiarLogs();
+        mostrarVisorLogs();
+
+        agregarLog('========================================', 'info');
+        agregarLog(`Iniciando carga de draft: ${draftId}`, 'step');
+        agregarLog('========================================', 'info');
+
+        const respuesta = await fetch(`/api/draft/load/${draftId}`);
+
+        if (!respuesta.ok) {
+            throw new Error(`Error HTTP ${respuesta.status}`);
+        }
+
+        const resultado = await respuesta.json();
+        agregarLog(`Respuesta del servidor recibida`, 'info');
+
+        if (resultado.success && resultado.draft) {
+            const draft = resultado.draft;
+
+            // Establecer draft actual
+            draftActualId = draft.id;
+
+            // Cargar datos en el formulario
+            const datos = draft.datos || {};
+            const datosGenerales = datos.datosGenerales || {};
+            const items = datos.items || [];
+            const condiciones = datos.condiciones || {};
+
+            agregarLog('========================================', 'info');
+            agregarLog('DATOS EXTRAÍDOS DEL DRAFT:', 'info');
+            agregarLog(`datosGenerales: ${Object.keys(datosGenerales).length} campos`, 'info');
+            agregarLog(`items: ${items.length} items`, 'info');
+            agregarLog(`condiciones: ${Object.keys(condiciones).length} campos`, 'info');
+            agregarLog('========================================', 'info');
+
+            // ============================================
+            // PASO 1: LLENAR DATOS GENERALES
+            // ============================================
+            agregarLog('PASO 1: Llenando datos generales...', 'step');
+
+            const camposGenerales = [
+                'cliente', 'atencionA', 'contacto', 'vendedor',
+                'numeroCotizacion', 'revision', 'proyecto', 'fecha', 'actualizacionRevision'
+            ];
+
+            camposGenerales.forEach(campo => {
+                const valor = datosGenerales[campo];
+                if (valor !== undefined && valor !== null) {
+                    const elemento = document.getElementById(campo) || document.querySelector(`[name="${campo}"]`);
+                    if (elemento) {
+                        const valorAntes = elemento.value;
+                        agregarLog(`Campo ${campo}: ANTES="${valorAntes}"`, 'info');
+
+                        // NO usar dispatchEvent - igual que cargarDatosPrecargados()
+                        elemento.value = valor;
+
+                        // Verificar inmediatamente
+                        const valorDespues = elemento.value;
+                        if (valorDespues === valor) {
+                            agregarLog(`Campo ${campo}: DESPUES="${valorDespues}" ✓`, 'success');
+                        } else {
+                            agregarLog(`Campo ${campo}: FALLO - esperaba "${valor}", tiene "${valorDespues}"`, 'error');
+                        }
+                    } else {
+                        agregarLog(`Campo ${campo} no encontrado en DOM`, 'warning');
+                    }
+                }
+            });
+
+            // Establecer campo hidden para revisiones
+            if (datosGenerales.numeroCotizacion) {
+                const campoHidden = document.querySelector('[name="numeroCotizacionHidden"]');
+                if (campoHidden) {
+                    campoHidden.value = datosGenerales.numeroCotizacion;
+                    agregarLog('numeroCotizacionHidden establecido', 'success');
+                }
+            }
+
+            // ============================================
+            // PASO 2: LLENAR CONDICIONES
+            // ============================================
+            agregarLog('PASO 2: Llenando condiciones...', 'step');
+
+            if (condiciones) {
+                const mapeoCondiciones = {
+                    'moneda': 'moneda',
+                    'tipoCambio': 'tipoCambio',
+                    'tiempoEntrega': 'tiempoEntrega',
+                    'entregaEn': 'entregaEn',
+                    'condicionesPago': 'terminos',
+                    'comentariosAdicionales': 'comentarios'
+                };
+
+                Object.entries(mapeoCondiciones).forEach(([keyCondicion, keyFormulario]) => {
+                    const valor = condiciones[keyCondicion];
+                    if (valor !== undefined && valor !== null) {
+                        const elemento = document.getElementById(keyFormulario) || document.querySelector(`[name="${keyFormulario}"]`);
+                        if (elemento) {
+                            // NO usar dispatchEvent - igual que cargarDatosPrecargados()
+                            elemento.value = valor;
+                            agregarLog(`Condicion ${keyFormulario} = ${valor}`, 'success');
+                        } else {
+                            agregarLog(`Campo ${keyFormulario} no encontrado`, 'warning');
+                        }
+                    }
+                });
+            }
+
+            // ============================================
+            // PASO 3: MOSTRAR CAMPO DE JUSTIFICACIÓN SI ES R2+
+            // ============================================
+            const numeroRevision = datosGenerales.revision || 1;
+            agregarLog(`PASO 3: Verificando revision... R${numeroRevision}`, 'step');
+
+            if (numeroRevision >= 2) {
+                setTimeout(() => {
+                    agregarLog(`Llamando manejarRevision() para R${numeroRevision}`, 'info');
+                    if (typeof manejarRevision === 'function') {
+                        manejarRevision();
+                        agregarLog('manejarRevision() ejecutado', 'success');
+                    } else {
+                        agregarLog('manejarRevision() no existe', 'error');
+                    }
+                }, 100);
+            }
+
+            // ============================================
+            // PASO 4: CARGAR ITEMS
+            // ============================================
+            agregarLog('PASO 4: Cargando items...', 'step');
+            agregarLog(`Total de items a cargar: ${items.length}`, 'info');
+
+            if (items && items.length > 0) {
+                // Limpiar items existentes
+                const container = document.getElementById('items-container');
+                if (!container) {
+                    agregarLog('items-container NO encontrado', 'error');
+                    throw new Error('items-container no encontrado en el DOM');
+                }
+
+                agregarLog('items-container encontrado', 'success');
+                agregarLog(`Items actuales en container: ${container.children.length}`, 'info');
+
+                // Limpiar
+                container.innerHTML = '';
+                agregarLog('Container limpiado', 'success');
+
+                // Verificar que agregarItem existe
+                if (typeof agregarItem !== 'function') {
+                    agregarLog('agregarItem() no existe', 'error');
+                    throw new Error('agregarItem() no está definida');
+                }
+
+                // Verificar que cargarDatosItem existe
+                if (typeof cargarDatosItem !== 'function') {
+                    agregarLog('cargarDatosItem() no existe', 'error');
+                    throw new Error('cargarDatosItem() no está definida');
+                }
+
+                agregarLog('Funciones agregarItem() y cargarDatosItem() disponibles', 'success');
+
+                // Agregar cada item con delay
+                items.forEach((itemData, index) => {
+                    setTimeout(() => {
+                        agregarLog(`Procesando item ${index + 1}/${items.length}: ${itemData.descripcion || 'Sin descripcion'}`, 'step');
+
+                        // Agregar item vacío
+                        agregarItem();
+                        agregarLog(`agregarItem() llamado para item ${index + 1}`, 'success');
+
+                        // Verificar que se agregó
+                        const itemsAhora = document.querySelectorAll('.item-block');
+                        agregarLog(`Items en DOM ahora: ${itemsAhora.length}`, 'info');
+
+                        // Cargar datos del item
+                        cargarDatosItem(itemData, index);
+                        agregarLog(`cargarDatosItem() llamado para item ${index + 1}`, 'success');
+
+                    }, index * 150); // 150ms de delay entre items
+                });
+
+                // ============================================
+                // PASO 5: RECALCULAR TOTALES
+                // ============================================
+                const tiempoCalculos = Math.max(1500, items.length * 200);
+                agregarLog(`PASO 5: Recalculando totales en ${tiempoCalculos}ms...`, 'step');
+
+                setTimeout(() => {
+                    agregarLog('Ejecutando calcularTotales()...', 'info');
+                    if (typeof calcularTotales === 'function') {
+                        calcularTotales();
+                        agregarLog('Totales recalculados', 'success');
+                    } else {
+                        agregarLog('calcularTotales() no existe', 'error');
+                    }
+                }, tiempoCalculos);
+
+                // ============================================
+                // PASO 6: CAPTURAR ESTADO INICIAL (para validación de cambios)
+                // ============================================
+                if (numeroRevision >= 2) {
+                    const tiempoEstado = Math.max(2500, items.length * 200);
+                    agregarLog(`PASO 6: Capturando estado inicial en ${tiempoEstado}ms...`, 'step');
+
+                    setTimeout(() => {
+                        if (typeof capturarEstadoFormulario === 'function') {
+                            estadoInicialFormulario = capturarEstadoFormulario();
+                            agregarLog(`Estado inicial capturado para R${numeroRevision}`, 'success');
+                            agregarLog(`Items en estado: ${estadoInicialFormulario.items.length}`, 'info');
+                        } else {
+                            agregarLog('capturarEstadoFormulario() no existe', 'error');
+                        }
+                    }, tiempoEstado);
+                }
+
+            } else {
+                agregarLog('No hay items para cargar', 'info');
+            }
+
+            formModificado = false;
+
+            agregarLog('========================================', 'info');
+            agregarLog('DRAFT CARGADO EXITOSAMENTE', 'success');
+            agregarLog('========================================', 'info');
+
+            // VERIFICACIÓN FINAL: Verificar que los valores realmente están en los campos después de 2 segundos
+            setTimeout(() => {
+                agregarLog('========================================', 'info');
+                agregarLog('VERIFICACION FINAL (2 segundos después):', 'step');
+
+                const camposVerificar = ['cliente', 'atencionA', 'contacto', 'vendedor', 'numeroCotizacion', 'revision', 'proyecto', 'actualizacionRevision'];
+                camposVerificar.forEach(campo => {
+                    const elemento = document.getElementById(campo) || document.querySelector(`[name="${campo}"]`);
+                    if (elemento) {
+                        const valorActual = elemento.value;
+                        const valorEsperado = datosGenerales[campo];
+                        if (valorActual === valorEsperado) {
+                            agregarLog(`${campo}: "${valorActual}" ✓ CORRECTO`, 'success');
+                        } else {
+                            agregarLog(`${campo}: "${valorActual}" ✗ (esperaba "${valorEsperado}")`, 'error');
+                        }
+                    }
+                });
+
+                agregarLog('========================================', 'info');
+            }, 2000);
+
+            alert(`Borrador "${draft.nombre}" cargado exitosamente`);
+
+        } else {
+            throw new Error(resultado.error || 'Draft no encontrado');
+        }
+
+    } catch (error) {
+        agregarLog('========================================', 'info');
+        agregarLog('ERROR CRITICO CARGANDO DRAFT', 'error');
+        agregarLog(`Error: ${error.message}`, 'error');
+        agregarLog(`Stack: ${error.stack}`, 'error');
+        agregarLog('========================================', 'info');
+        console.error('[DRAFT] Error completo:', error);
+        alert(`Error al cargar borrador: ${error.message}\n\nMira el panel de logs en la pantalla para más detalles.`);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const fechaElement = document.getElementById('fecha-actual');
     if (fechaElement) {
@@ -522,7 +1162,7 @@ document.addEventListener('DOMContentLoaded', function() {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
     }
-    
+
     // FORZAR: Asegurar que el campo numeroCotizacion NO sea required y esté disabled
     const campoNumeroCotizacion = document.querySelector('[name="numeroCotizacion"]');
     if (campoNumeroCotizacion) {
@@ -530,7 +1170,7 @@ document.addEventListener('DOMContentLoaded', function() {
         campoNumeroCotizacion.setAttribute('disabled', 'disabled');
         console.log('Campo numeroCotizacion configurado como disabled sin required');
     }
-    
+
     // Cargar datos precargados si existen
     if (DATOS_PRECARGADOS) {
         cargarDatosPrecargados();
@@ -540,6 +1180,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Inicializar modal de revisión si es necesario
     inicializarModalRevision();
+
+    // Inicializar sistema de auto-guardado de drafts
+    inicializarSistemaAutoGuardado();
+
+    // Cargar draft si viene en URL (?draft=ID)
+    const urlParams = new URLSearchParams(window.location.search);
+    const draftId = urlParams.get('draft');
+    if (draftId) {
+        console.log('[DRAFT] Draft ID detectado en URL:', draftId);
+        setTimeout(() => {
+            cargarDraftSeleccionado(draftId);
+        }, 1000); // Esperar a que todo se inicialice
+    }
+
+    // CAPTURAR ESTADO INICIAL para validación de cambios en revisiones
+    // Esto debe ejecutarse incluso si NO hay DATOS_PRECARGADOS
+    setTimeout(() => {
+        const revisionInput = document.getElementById('revision');
+        const numeroRevision = revisionInput ? parseInt(revisionInput.value) : 1;
+
+        // Solo capturar si es revisión (R2+) o si hay datos precargados
+        if (numeroRevision >= 2 || DATOS_PRECARGADOS) {
+            estadoInicialFormulario = capturarEstadoFormulario();
+            console.log('[DETECCION_CAMBIOS] ====== ESTADO INICIAL CAPTURADO (R' + numeroRevision + ') ======');
+            console.log('[DETECCION_CAMBIOS] Número de items:', estadoInicialFormulario.items.length);
+            console.log('[DETECCION_CAMBIOS] Estado completo:', estadoInicialFormulario);
+            console.log('[DETECCION_CAMBIOS] ⚠️ Se validarán cambios antes de permitir guardar');
+        } else {
+            console.log('[DETECCION_CAMBIOS] Cotización nueva (R1), no se valida cambios');
+        }
+    }, 2500); // Esperar a que todo se cargue (items, materiales, etc.)
 });
 
 // ============================================
@@ -1186,27 +1857,57 @@ function cargarDatosItem(itemData, index) {
     try {
         const items = document.querySelectorAll('.item-block');
         const item = items[index];
-        
+
         if (!item) return;
-        
+
         // Cargar descripción
         const descripcion = item.querySelector('.descripcion-item');
         if (descripcion && itemData.descripcion) {
             descripcion.value = itemData.descripcion;
         }
-        
+
         // Cargar cantidad
         const cantidad = item.querySelector('.cantidad-item');
         if (cantidad && itemData.cantidad !== undefined) {
             cantidad.value = itemData.cantidad;
         }
-        
+
         // Cargar UOM
         const uom = item.querySelector('.uom-item');
         if (uom && itemData.uom) {
             uom.value = itemData.uom;
         }
-        
+
+        // Cargar peso del item
+        const peso = item.querySelector('[name="peso[]"]');
+        if (peso && itemData.peso !== undefined) {
+            peso.value = itemData.peso;
+        }
+
+        // Cargar precio del item
+        const precio = item.querySelector('[name="precio[]"]');
+        if (precio && itemData.precio !== undefined) {
+            precio.value = itemData.precio;
+        }
+
+        // Cargar costo por unidad (se calcula pero puede venir precargado)
+        const costoUnidad = item.querySelector('.costo-unidad');
+        if (costoUnidad && itemData.costoUnidad !== undefined) {
+            costoUnidad.value = itemData.costoUnidad;
+        }
+
+        // Cargar total del item (se calcula pero puede venir precargado)
+        const totalItem = item.querySelector('.total-item');
+        if (totalItem && itemData.totalItem !== undefined) {
+            totalItem.value = itemData.totalItem;
+        }
+
+        // Cargar notas del item
+        const notas = item.querySelector('[name="notas[]"]');
+        if (notas && itemData.notas) {
+            notas.value = itemData.notas;
+        }
+
         // Cargar costos adicionales
         const campos_costos = ['transporte', 'instalacion', 'seguridad', 'descuento'];
         campos_costos.forEach(campo => {
@@ -1215,21 +1916,21 @@ function cargarDatosItem(itemData, index) {
                 elemento.value = itemData[campo];
             }
         });
-        
+
         // Cargar materiales
         if (itemData.materiales && itemData.materiales.length > 0) {
             setTimeout(() => {
                 cargarMaterialesItem(item, itemData.materiales, 'materiales');
             }, 500);
         }
-        
+
         // Cargar otros materiales
         if (itemData.otrosMateriales && itemData.otrosMateriales.length > 0) {
             setTimeout(() => {
                 cargarMaterialesItem(item, itemData.otrosMateriales, 'otrosMateriales');
             }, 800);
         }
-        
+
     } catch (error) {
         console.error(`Error cargando item ${index}:`, error);
     }
@@ -1388,12 +2089,20 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                                     const pesoEstructuraInput = ultimoMaterial.querySelector('.peso-estructura-input');
                                     const precioKgInput = ultimoMaterial.querySelector('.precio-kg-input');
                                     const subtotalPesoInput = ultimoMaterial.querySelector('.subtotal-peso-input');
-                                    
+
+                                    console.log(`[COTIZAR_POR_PESO] Cargando datos: peso=${material.pesoEstructura}, $/kg=${material.precioKg}`);
+
                                     if (pesoEstructuraInput && material.pesoEstructura !== undefined) {
+                                        console.log(`[COTIZAR_POR_PESO] ✅ Estableciendo peso estructura: ${material.pesoEstructura}`);
                                         pesoEstructuraInput.value = material.pesoEstructura;
+                                    } else {
+                                        console.warn(`[COTIZAR_POR_PESO] ❌ No se pudo cargar peso. elemento=${!!pesoEstructuraInput}, valor=${material.pesoEstructura}`);
                                     }
                                     if (precioKgInput && material.precioKg !== undefined) {
+                                        console.log(`[COTIZAR_POR_PESO] ✅ Estableciendo $/kg: ${material.precioKg}`);
                                         precioKgInput.value = material.precioKg;
+                                    } else {
+                                        console.warn(`[COTIZAR_POR_PESO] ❌ No se pudo cargar $/kg. elemento=${!!precioKgInput}, valor=${material.precioKg}`);
                                     }
                                     if (subtotalPesoInput && material.subtotal !== undefined) {
                                         subtotalPesoInput.value = material.subtotal;
@@ -1487,19 +2196,31 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                         
                         // Solo cargar precio y cantidad para materiales normales (no "Cotizar por peso")
                         if (!esCotizacionPorPeso(desc) && !esCotizacionPorPeso(material)) {
+                            console.log(`[MATERIAL] Cargando material normal: ${desc}`);
+                            console.log(`[MATERIAL] Datos: cantidad=${material.cantidad}, precio=${material.precio}`);
+
                             if (precio && material.precio !== undefined) {
+                                console.log(`[MATERIAL] ✅ Estableciendo precio: ${material.precio}`);
                                 precio.value = material.precio;
                                 // Disparar eventos para recálculo
                                 precio.dispatchEvent(new Event('input', { bubbles: true }));
                                 precio.dispatchEvent(new Event('change', { bubbles: true }));
+                            } else {
+                                console.warn(`[MATERIAL] ❌ No se pudo cargar precio. elemento=${!!precio}, valor=${material.precio}`);
                             }
-                            
+
                             if (cantidad && material.cantidad !== undefined) {
+                                console.log(`[MATERIAL] ✅ Estableciendo cantidad: ${material.cantidad}`);
                                 cantidad.value = material.cantidad;
                                 // Disparar eventos para recálculo
                                 cantidad.dispatchEvent(new Event('input', { bubbles: true }));
                                 cantidad.dispatchEvent(new Event('change', { bubbles: true }));
+                            } else {
+                                console.warn(`[MATERIAL] ❌ No se pudo cargar cantidad. elemento=${!!cantidad}, valor=${material.cantidad}`);
                             }
+                        } else {
+                            console.log(`[MATERIAL] Cargando COTIZAR_POR_PESO`);
+                            console.log(`[MATERIAL] Datos: pesoEstructura=${material.pesoEstructura}, precioKg=${material.precioKg}`);
                         }
                         
                         // CRÍTICO: Forzar recálculo después de cargar todos los datos
@@ -2037,10 +2758,11 @@ function calcularSubtotalMaterial(input) {
     // Debug mejorado para identificar problemas
     console.log('Cálculo material:', {
         peso: peso,
-        cantidad: cantidad,
+        cantidadOriginal: cantidadOriginal,
+        cantidadConvertida: cantidadConvertida,
         precio: precio,
         subtotal: subtotal,
-        formula: `${peso} * ${cantidad} * ${precio} = ${subtotal}`,
+        formula: `${peso} * ${cantidadConvertida} * ${precio} = ${subtotal}`,
         campos: {
             tienePeso: !!pesoInput,
             tieneCantidad: !!cantidadInput,
@@ -2579,12 +3301,12 @@ async function guardarCotizacion() {
             // Actualizar el campo No. Cotización con el número generado automáticamente
             const numeroGenerado = resultado.numeroCotizacion;
             console.log('Número generado recibido:', numeroGenerado);
-            
+
             if (numeroGenerado) {
                 // Actualizar campo visible (disabled)
                 const campoNumeroCotizacion = document.querySelector('[name="numeroCotizacion"]');
                 console.log('Campo encontrado:', campoNumeroCotizacion);
-                
+
                 if (campoNumeroCotizacion) {
                     // Habilitar temporalmente para actualizar
                     campoNumeroCotizacion.removeAttribute('disabled');
@@ -2593,24 +3315,43 @@ async function guardarCotizacion() {
                     campoNumeroCotizacion.setAttribute('disabled', 'disabled');
                     console.log('Campo visible actualizado con:', numeroGenerado);
                 }
-                
+
                 // Actualizar campo hidden para envío del formulario
                 const campoHidden = document.querySelector('[name="numeroCotizacionHidden"]');
                 if (campoHidden) {
                     campoHidden.value = numeroGenerado;
                     console.log('Campo hidden actualizado con:', numeroGenerado);
                 }
-                
+
                 // Guardar en variables auxiliares para uso posterior (como PDF)
                 window.ultimoNumeroCotizacion = numeroGenerado;
                 sessionStorage.setItem('ultimoNumeroCotizacion', numeroGenerado);
             }
-            
+
+            // ELIMINAR DRAFT si existe (la cotización ya se completó)
+            if (draftActualId) {
+                console.log('[DRAFT] Eliminando draft después de completar cotización:', draftActualId);
+                try {
+                    const respuestaDraft = await fetch(`/api/draft/delete/${draftActualId}`, {
+                        method: 'DELETE'
+                    });
+                    if (respuestaDraft.ok) {
+                        console.log('[DRAFT] Draft eliminado exitosamente:', draftActualId);
+                        draftActualId = null; // Limpiar ID
+                    } else {
+                        console.warn('[DRAFT] No se pudo eliminar draft:', draftActualId);
+                    }
+                } catch (errorDraft) {
+                    console.error('[DRAFT] Error eliminando draft:', errorDraft);
+                    // No bloquear el flujo por error en draft
+                }
+            }
+
             const mensaje = `¡Cotización guardada exitosamente!\n\nNúmero: ${numeroGenerado || datosGenerales.numeroCotizacion}\nRevisión: ${datosGenerales.revision}\nID: ${resultado.id || 'Generado automáticamente'}\nCliente: ${datosGenerales.cliente}\nVendedor: ${datosGenerales.vendedor}\nItems procesados: ${items.length}\nTotal: ${document.getElementById('gran-total')?.textContent || 'N/A'}`;
-            
+
             alert(mensaje);
             cotizacionGuardada = true;
-            
+
             const botonGenerar = document.getElementById("btn-generar");
             if (botonGenerar) {
                 botonGenerar.disabled = false;
@@ -2618,11 +3359,11 @@ async function guardarCotizacion() {
                 botonGenerar.classList.add("bg-green-600", "hover:bg-green-700");
                 botonGenerar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg> PDF';
             }
-            
+
             btnGuardar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/></svg> Guardado';
             btnGuardar.classList.remove("bg-blue-600", "hover:bg-blue-700");
             btnGuardar.classList.add("bg-green-600");
-            
+
         } else {
             const errorMensaje = resultado.error || resultado.detalle || "Error desconocido del servidor";
             

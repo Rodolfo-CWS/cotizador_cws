@@ -1924,6 +1924,305 @@ class SupabaseManager:
                 "pendientes": 0
             }
     
+    # ========================================
+    # MÉTODOS DE GESTIÓN DE DRAFTS (BORRADORES)
+    # ========================================
+
+    def guardar_draft(self, datos: Dict) -> Dict:
+        """
+        Guarda o actualiza un draft (borrador) de cotización
+
+        Args:
+            datos: Diccionario con los datos del draft:
+                - vendedor: Iniciales del vendedor
+                - datos: {datosGenerales, items, condiciones}
+                - draft_id: (opcional) ID para actualizar draft existente
+
+        Returns:
+            Dict con success, draft_id, timestamp
+        """
+        try:
+            import uuid
+            from datetime import datetime
+
+            vendedor = datos.get('vendedor', 'UNKNOWN')
+            datos_draft = datos.get('datos', {})
+            draft_id = datos.get('draft_id') or f"draft_{int(time.time() * 1000)}"
+
+            # Generar nombre automático para el draft
+            datos_generales = datos_draft.get('datosGenerales', {})
+            cliente = datos_generales.get('cliente', 'Sin cliente')
+            proyecto = datos_generales.get('proyecto', 'Sin proyecto')
+            numero_cotizacion = datos_generales.get('numeroCotizacion', '')
+
+            # Incluir número de cotización en el nombre si existe
+            if numero_cotizacion:
+                nombre_draft = f"{numero_cotizacion} - {cliente} - {proyecto}"
+            else:
+                nombre_draft = f"{cliente} - {proyecto}"
+
+            timestamp = int(time.time() * 1000)
+            fecha_actual = datetime.now().isoformat()
+
+            draft_obj = {
+                'id': draft_id,
+                'vendedor': vendedor,
+                'nombre': nombre_draft,
+                'datos': datos_draft,
+                'timestamp': timestamp,
+                'fecha_creacion': fecha_actual,
+                'ultima_modificacion': fecha_actual
+            }
+
+            # Intentar guardar en Supabase si está disponible
+            if not self.modo_offline and self.supabase_client:
+                try:
+                    print(f"[DRAFT] Guardando draft en Supabase: {draft_id}")
+
+                    # Verificar si el draft ya existe
+                    existing = self.supabase_client.table('drafts').select('id').eq('id', draft_id).execute()
+
+                    if existing.data:
+                        # Actualizar draft existente
+                        self.supabase_client.table('drafts').update({
+                            'nombre': nombre_draft,
+                            'datos': datos_draft,
+                            'ultima_modificacion': fecha_actual,
+                            'timestamp': timestamp
+                        }).eq('id', draft_id).execute()
+                        print(f"[DRAFT] Draft actualizado en Supabase: {draft_id}")
+                    else:
+                        # Insertar nuevo draft
+                        self.supabase_client.table('drafts').insert(draft_obj).execute()
+                        print(f"[DRAFT] Draft creado en Supabase: {draft_id}")
+
+                except Exception as supabase_error:
+                    print(f"[DRAFT] Error guardando en Supabase: {safe_str(supabase_error)}")
+                    print("[DRAFT] Fallback a almacenamiento JSON local")
+
+            # Guardar en JSON local (siempre, como backup)
+            try:
+                archivo_drafts = os.path.join(os.getcwd(), "drafts_offline.json")
+
+                # Cargar drafts existentes
+                if os.path.exists(archivo_drafts):
+                    with open(archivo_drafts, 'r', encoding='utf-8') as f:
+                        drafts_data = json.load(f)
+                else:
+                    drafts_data = {"drafts": []}
+
+                # Buscar si el draft ya existe
+                draft_encontrado = False
+                for i, d in enumerate(drafts_data["drafts"]):
+                    if d.get('id') == draft_id:
+                        drafts_data["drafts"][i] = draft_obj
+                        draft_encontrado = True
+                        break
+
+                if not draft_encontrado:
+                    drafts_data["drafts"].append(draft_obj)
+
+                # Guardar archivo actualizado
+                with open(archivo_drafts, 'w', encoding='utf-8') as f:
+                    json.dump(drafts_data, f, ensure_ascii=False, indent=2)
+
+                print(f"[DRAFT] Draft guardado en JSON local: {draft_id}")
+
+            except Exception as json_error:
+                print(f"[DRAFT] Error guardando en JSON: {safe_str(json_error)}")
+                return {"success": False, "error": safe_str(json_error)}
+
+            return {
+                "success": True,
+                "draft_id": draft_id,
+                "timestamp": timestamp,
+                "nombre": nombre_draft
+            }
+
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[DRAFT] Error guardando draft: {error_msg}")
+            return {"success": False, "error": error_msg}
+
+    def listar_drafts(self, vendedor: Optional[str] = None) -> List[Dict]:
+        """
+        Lista todos los drafts, opcionalmente filtrados por vendedor
+
+        Args:
+            vendedor: (opcional) Iniciales del vendedor para filtrar
+
+        Returns:
+            Lista de drafts con id, vendedor, nombre, timestamp
+        """
+        try:
+            drafts = []
+
+            # Intentar obtener de Supabase si está disponible
+            if not self.modo_offline and self.supabase_client:
+                try:
+                    print(f"[DRAFT] Listando drafts desde Supabase")
+                    query = self.supabase_client.table('drafts').select('*')
+
+                    if vendedor:
+                        query = query.eq('vendedor', vendedor)
+
+                    response = query.order('ultima_modificacion', desc=True).execute()
+
+                    if response.data:
+                        drafts = [{
+                            'id': d['id'],
+                            'vendedor': d['vendedor'],
+                            'nombre': d['nombre'],
+                            'timestamp': d['timestamp'],
+                            'fecha_creacion': d['fecha_creacion'],
+                            'ultima_modificacion': d['ultima_modificacion']
+                        } for d in response.data]
+                        print(f"[DRAFT] {len(drafts)} drafts encontrados en Supabase")
+                        return drafts
+
+                except Exception as supabase_error:
+                    print(f"[DRAFT] Error listando desde Supabase: {safe_str(supabase_error)}")
+                    print("[DRAFT] Fallback a JSON local")
+
+            # Fallback a JSON local
+            archivo_drafts = os.path.join(os.getcwd(), "drafts_offline.json")
+
+            if not os.path.exists(archivo_drafts):
+                print("[DRAFT] No hay drafts en JSON local")
+                return []
+
+            with open(archivo_drafts, 'r', encoding='utf-8') as f:
+                drafts_data = json.load(f)
+
+            all_drafts = drafts_data.get("drafts", [])
+
+            # Filtrar por vendedor si se especifica
+            if vendedor:
+                drafts = [d for d in all_drafts if d.get('vendedor') == vendedor]
+            else:
+                drafts = all_drafts
+
+            # Ordenar por timestamp descendente
+            drafts.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+
+            # Devolver solo metadatos (sin datos completos)
+            result = [{
+                'id': d['id'],
+                'vendedor': d['vendedor'],
+                'nombre': d['nombre'],
+                'timestamp': d['timestamp'],
+                'fecha_creacion': d.get('fecha_creacion', ''),
+                'ultima_modificacion': d.get('ultima_modificacion', '')
+            } for d in drafts]
+
+            print(f"[DRAFT] {len(result)} drafts encontrados en JSON local")
+            return result
+
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[DRAFT] Error listando drafts: {error_msg}")
+            return []
+
+    def obtener_draft(self, draft_id: str) -> Optional[Dict]:
+        """
+        Obtiene los datos completos de un draft específico
+
+        Args:
+            draft_id: ID del draft a obtener
+
+        Returns:
+            Dict con todos los datos del draft o None si no se encuentra
+        """
+        try:
+            # Intentar obtener de Supabase si está disponible
+            if not self.modo_offline and self.supabase_client:
+                try:
+                    print(f"[DRAFT] Obteniendo draft desde Supabase: {draft_id}")
+                    response = self.supabase_client.table('drafts').select('*').eq('id', draft_id).execute()
+
+                    if response.data:
+                        draft = response.data[0]
+                        print(f"[DRAFT] Draft encontrado en Supabase: {draft_id}")
+                        return draft
+
+                except Exception as supabase_error:
+                    print(f"[DRAFT] Error obteniendo desde Supabase: {safe_str(supabase_error)}")
+                    print("[DRAFT] Fallback a JSON local")
+
+            # Fallback a JSON local
+            archivo_drafts = os.path.join(os.getcwd(), "drafts_offline.json")
+
+            if not os.path.exists(archivo_drafts):
+                print(f"[DRAFT] Archivo JSON no existe: {draft_id}")
+                return None
+
+            with open(archivo_drafts, 'r', encoding='utf-8') as f:
+                drafts_data = json.load(f)
+
+            all_drafts = drafts_data.get("drafts", [])
+
+            for draft in all_drafts:
+                if draft.get('id') == draft_id:
+                    print(f"[DRAFT] Draft encontrado en JSON local: {draft_id}")
+                    return draft
+
+            print(f"[DRAFT] Draft no encontrado: {draft_id}")
+            return None
+
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[DRAFT] Error obteniendo draft: {error_msg}")
+            return None
+
+    def eliminar_draft(self, draft_id: str) -> Dict:
+        """
+        Elimina un draft
+
+        Args:
+            draft_id: ID del draft a eliminar
+
+        Returns:
+            Dict con success y mensaje
+        """
+        try:
+            # Intentar eliminar de Supabase si está disponible
+            if not self.modo_offline and self.supabase_client:
+                try:
+                    print(f"[DRAFT] Eliminando draft de Supabase: {draft_id}")
+                    self.supabase_client.table('drafts').delete().eq('id', draft_id).execute()
+                    print(f"[DRAFT] Draft eliminado de Supabase: {draft_id}")
+
+                except Exception as supabase_error:
+                    print(f"[DRAFT] Error eliminando de Supabase: {safe_str(supabase_error)}")
+                    print("[DRAFT] Continuando con JSON local")
+
+            # Eliminar de JSON local
+            archivo_drafts = os.path.join(os.getcwd(), "drafts_offline.json")
+
+            if os.path.exists(archivo_drafts):
+                with open(archivo_drafts, 'r', encoding='utf-8') as f:
+                    drafts_data = json.load(f)
+
+                all_drafts = drafts_data.get("drafts", [])
+                drafts_filtrados = [d for d in all_drafts if d.get('id') != draft_id]
+
+                if len(drafts_filtrados) < len(all_drafts):
+                    drafts_data["drafts"] = drafts_filtrados
+
+                    with open(archivo_drafts, 'w', encoding='utf-8') as f:
+                        json.dump(drafts_data, f, ensure_ascii=False, indent=2)
+
+                    print(f"[DRAFT] Draft eliminado de JSON local: {draft_id}")
+                else:
+                    print(f"[DRAFT] Draft no encontrado en JSON local: {draft_id}")
+
+            return {"success": True, "mensaje": f"Draft {draft_id} eliminado"}
+
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[DRAFT] Error eliminando draft: {error_msg}")
+            return {"success": False, "error": error_msg}
+
     def close(self):
         """Cerrar conexiones"""
         if self.pg_connection:
@@ -1932,7 +2231,7 @@ class SupabaseManager:
                 print("[SUPABASE] Conexión PostgreSQL cerrada")
             except:
                 pass
-        
+
         # El cliente Supabase no necesita cierre explícito
         print("[SUPABASE] SupabaseManager cerrado")
     
