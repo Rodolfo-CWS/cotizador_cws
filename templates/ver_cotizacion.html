@@ -275,48 +275,61 @@
             {% for item in cotizacion.get('items', []) %}
             <div class="item-container">
                 <h4 class="item-header">Item {{ loop.index }}: {{ item.descripcion or 'Sin descripción' }}</h4>
-                
-                <!-- Información básica del item -->
-                <div class="grid-4">
-                    <div class="field">
-                        <strong>UOM:</strong>
-                        <span>{{ item.uom or 'N/A' }}</span>
-                    </div>
-                    <div class="field">
-                        <strong>Cantidad:</strong>
-                        <span>{{ item.cantidad or '0' }}</span>
-                    </div>
-                    <div class="field">
-                        <strong>Costo/Unidad:</strong>
-                        {% set precio_u = (item.costoUnidad | float) if item.costoUnidad else ((item.precio_unitario | float) if item.precio_unitario else ((item.precio | float) if item.precio else 0)) %}
-                        <span class="costo-value">${{ "{:,.2f}".format(precio_u) }}</span>
-                    </div>
-                    <div class="field">
-                        <strong>Total Item:</strong>
-                        {% set total_i = (item.total | float) if item.total else ((item.subtotal | float) if item.subtotal else 0) %}
-                        <span class="total-value">${{ "{:,.2f}".format(total_i) }}</span>
-                    </div>
-                </div>
 
-                <!-- Costos Adicionales -->
-                <div style="margin-top: 15px;">
-                    <h5 style="color: #6c757d; margin: 10px 0; font-weight: 600;">Costos y Ajustes:</h5>
-                    <div class="grid-4">
-                        <div class="field">
-                            <strong>Transporte:</strong>
-                            <span>${{ item.transporte or '0.00' }}</span>
+                <!-- Información del item en formato lista compacto -->
+                <div style="background: #f9fafb; padding: 16px; border-radius: 6px; margin-bottom: 12px;">
+                    <div style="display: grid; gap: 8px;">
+                        <!-- UOM -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
+                            <span style="color: #6b7280; font-size: 14px; font-weight: 500;">UOM:</span>
+                            <span style="color: #111827; font-size: 14px; font-weight: 600;">{{ item.uom or 'N/A' }}</span>
                         </div>
-                        <div class="field">
-                            <strong>Instalación:</strong>
-                            <span>${{ item.instalacion or '0.00' }}</span>
+
+                        <!-- Cantidad -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
+                            <span style="color: #6b7280; font-size: 14px; font-weight: 500;">Cantidad:</span>
+                            <span style="color: #111827; font-size: 14px; font-weight: 600;">{{ item.cantidad or '0' }}</span>
                         </div>
-                        <div class="field">
-                            <strong>% Seguridad:</strong>
-                            <span>{{ item.seguridad or '0' }}%</span>
+
+                        <!-- Costo/Unidad -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
+                            <span style="color: #6b7280; font-size: 14px; font-weight: 500;">Costo/Unidad:</span>
+                            {% set precio_u = (item.costoUnidad | float) if item.costoUnidad else ((item.precio_unitario | float) if item.precio_unitario else ((item.precio | float) if item.precio else 0)) %}
+                            <span style="color: #1e40af; font-size: 14px; font-weight: 700;">${{ "{:,.2f}".format(precio_u) }}</span>
                         </div>
-                        <div class="field">
-                            <strong>% Descuento:</strong>
-                            <span>{{ item.descuento or '0' }}%</span>
+
+                        <!-- Total Item (destacado) -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #dcfce7; border-radius: 4px; margin-top: 4px;">
+                            <span style="color: #166534; font-size: 15px; font-weight: 600;">Total Item:</span>
+                            {% set total_i = (item.total | float) if item.total else ((item.subtotal | float) if item.subtotal else 0) %}
+                            <span style="color: #166534; font-size: 16px; font-weight: 800;">${{ "{:,.2f}".format(total_i) }}</span>
+                        </div>
+
+                        <!-- Separador -->
+                        <div style="border-top: 2px solid #e5e7eb; margin: 8px 0;"></div>
+
+                        <!-- Transporte -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+                            <span style="color: #6b7280; font-size: 13px;">Transporte:</span>
+                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.transporte or '0.00' }}</span>
+                        </div>
+
+                        <!-- Instalación -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+                            <span style="color: #6b7280; font-size: 13px;">Instalación:</span>
+                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.instalacion or '0.00' }}</span>
+                        </div>
+
+                        <!-- % Seguridad -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+                            <span style="color: #6b7280; font-size: 13px;">% Seguridad:</span>
+                            <span style="color: #374151; font-size: 13px; font-weight: 600;">{{ item.seguridad or '0' }}%</span>
+                        </div>
+
+                        <!-- % Descuento -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+                            <span style="color: #6b7280; font-size: 13px;">% Descuento:</span>
+                            <span style="color: #374151; font-size: 13px; font-weight: 600;">{{ item.descuento or '0' }}%</span>
                         </div>
                     </div>
                 </div>
