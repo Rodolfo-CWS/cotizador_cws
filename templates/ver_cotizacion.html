@@ -226,37 +226,37 @@
 
         <!-- Datos Generales del Cliente -->
         {% if cotizacion.datosGenerales %}
-        <div class="section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
-            <h3 style="color: white; border-color: rgba(255,255,255,0.3); display: flex; align-items: center; gap: 10px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+        <div class="section" style="background: #ffffff; border: 2px solid #e5e7eb;">
+            <h3 style="color: #374151; border-color: #e5e7eb; display: flex; align-items: center; gap: 10px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#374151">
                     <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
                 </svg>
                 Datos Generales
             </h3>
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-                <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">CLIENTE</div>
-                    <div style="font-size: 18px; font-weight: 600;">{{ cotizacion.datosGenerales.cliente or 'N/A' }}</div>
+                <div style="background: #f9fafb; padding: 14px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Cliente</div>
+                    <div style="font-size: 18px; font-weight: 600; color: #111827;">{{ cotizacion.datosGenerales.cliente or 'N/A' }}</div>
                 </div>
-                <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">ATENCIÓN A</div>
-                    <div style="font-size: 18px; font-weight: 600;">{{ cotizacion.datosGenerales.atencionA or 'N/A' }}</div>
+                <div style="background: #f9fafb; padding: 14px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Atención a</div>
+                    <div style="font-size: 18px; font-weight: 600; color: #111827;">{{ cotizacion.datosGenerales.atencionA or 'N/A' }}</div>
                 </div>
-                <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">CONTACTO</div>
-                    <div style="font-size: 18px; font-weight: 600;">{{ cotizacion.datosGenerales.contacto or 'N/A' }}</div>
+                <div style="background: #f9fafb; padding: 14px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Contacto</div>
+                    <div style="font-size: 18px; font-weight: 600; color: #111827;">{{ cotizacion.datosGenerales.contacto or 'N/A' }}</div>
                 </div>
             </div>
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
-                <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">VENDEDOR</div>
-                    <div style="font-size: 16px; font-weight: 600;">{{ cotizacion.datosGenerales.vendedor or 'N/A' }}</div>
+                <div style="background: #f9fafb; padding: 14px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Vendedor</div>
+                    <div style="font-size: 16px; font-weight: 600; color: #111827;">{{ cotizacion.datosGenerales.vendedor or 'N/A' }}</div>
                 </div>
-                <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">PROYECTO</div>
-                    <div style="font-size: 16px; font-weight: 600;">{{ cotizacion.datosGenerales.proyecto or 'N/A' }}</div>
+                <div style="background: #f9fafb; padding: 14px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Proyecto</div>
+                    <div style="font-size: 16px; font-weight: 600; color: #111827;">{{ cotizacion.datosGenerales.proyecto or 'N/A' }}</div>
                 </div>
             </div>
         </div>
@@ -288,11 +288,11 @@
                     </div>
                     <div class="field">
                         <strong>Costo/Unidad:</strong>
-                        <span class="costo-value">${{ item.costoUnidad or '0.00' }}</span>
+                        <span class="costo-value">${{ item.costoUnidad or item.precio_unitario or '0.00' }}</span>
                     </div>
                     <div class="field">
                         <strong>Total Item:</strong>
-                        <span class="total-value">${{ item.total or '0.00' }}</span>
+                        <span class="total-value">${{ item.total or item.subtotal or '0.00' }}</span>
                     </div>
                 </div>
 
@@ -415,9 +415,9 @@
 
         <!-- Resúmenes Generales -->
         {% if cotizacion.get('items') %}
-        <div class="section" style="background: linear-gradient(to bottom, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #86efac;">
-            <h3 style="display: flex; align-items: center; gap: 10px; color: #166534;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <div class="section" style="background: #ffffff; border: 2px solid #d1d5db;">
+            <h3 style="display: flex; align-items: center; gap: 10px; color: #374151;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#374151">
                     <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19M7,10H9V17H7V10M11,7H13V17H11V7M15,13H17V17H15V13Z"/>
                 </svg>
                 Resúmenes Generales
@@ -425,41 +425,42 @@
 
             {% set subtotal = 0 %}
             {% for item in cotizacion.get('items', []) %}
-                {% set subtotal = subtotal + (item.total | float) %}
+                {% set item_total = (item.total | float) if item.total else (item.subtotal | float) if item.subtotal else 0 %}
+                {% set subtotal = subtotal + item_total %}
             {% endfor %}
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 10px;">
                 <!-- Subtotal -->
-                <div style="background: white; padding: 20px; border-radius: 12px; border: 2px solid #86efac; text-align: center;">
-                    <div style="font-size: 13px; color: #166534; font-weight: 600; margin-bottom: 8px;">SUBTOTAL</div>
-                    <div style="font-size: 28px; font-weight: 700; color: #166534;">
-                        ${{ "%.2f" | format(subtotal) }}
+                <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border: 2px solid #e5e7eb; text-align: center;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 8px; text-transform: uppercase;">Subtotal</div>
+                    <div style="font-size: 32px; font-weight: 700; color: #111827;">
+                        ${{ "{:,.2f}".format(subtotal) }}
                     </div>
-                    <div style="font-size: 11px; color: #4ade80; margin-top: 4px;">
+                    <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
                         {{ cotizacion.condiciones.moneda or 'MXN' }}
                     </div>
                 </div>
 
                 <!-- IVA (16%) -->
                 {% set iva = subtotal * 0.16 %}
-                <div style="background: white; padding: 20px; border-radius: 12px; border: 2px solid #a5f3fc; text-align: center;">
-                    <div style="font-size: 13px; color: #0e7490; font-weight: 600; margin-bottom: 8px;">IVA (16%)</div>
-                    <div style="font-size: 28px; font-weight: 700; color: #0e7490;">
-                        ${{ "%.2f" | format(iva) }}
+                <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border: 2px solid #e5e7eb; text-align: center;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 8px; text-transform: uppercase;">IVA (16%)</div>
+                    <div style="font-size: 32px; font-weight: 700; color: #111827;">
+                        ${{ "{:,.2f}".format(iva) }}
                     </div>
-                    <div style="font-size: 11px; color: #22d3ee; margin-top: 4px;">
+                    <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
                         {{ cotizacion.condiciones.moneda or 'MXN' }}
                     </div>
                 </div>
 
                 <!-- Total General -->
                 {% set total = subtotal + iva %}
-                <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 20px; border-radius: 12px; border: 3px solid #065f46; text-align: center; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
-                    <div style="font-size: 13px; color: white; font-weight: 600; margin-bottom: 8px;">TOTAL GENERAL</div>
-                    <div style="font-size: 32px; font-weight: 800; color: white;">
-                        ${{ "%.2f" | format(total) }}
+                <div style="background: #111827; padding: 20px; border-radius: 8px; border: 2px solid #374151; text-align: center;">
+                    <div style="font-size: 11px; color: #d1d5db; font-weight: 600; margin-bottom: 8px; text-transform: uppercase;">Total General</div>
+                    <div style="font-size: 36px; font-weight: 800; color: white;">
+                        ${{ "{:,.2f}".format(total) }}
                     </div>
-                    <div style="font-size: 11px; color: #d1fae5; margin-top: 4px;">
+                    <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
                         {{ cotizacion.condiciones.moneda or 'MXN' }}
                     </div>
                 </div>
@@ -467,25 +468,25 @@
 
             <!-- Información de Moneda y Tipo de Cambio -->
             {% if cotizacion.condiciones %}
-            <div style="margin-top: 20px; padding: 16px; background: white; border-radius: 8px; border: 1px solid #86efac;">
+            <div style="margin-top: 20px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
                     <div>
-                        <div style="font-size: 12px; color: #166534; font-weight: 600; margin-bottom: 4px;">MONEDA</div>
-                        <div style="font-size: 18px; font-weight: 700; color: #059669;">
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Moneda</div>
+                        <div style="font-size: 18px; font-weight: 700; color: #111827;">
                             {{ cotizacion.condiciones.moneda or 'MXN' }}
                         </div>
                     </div>
                     {% if cotizacion.condiciones.tipoCambio and cotizacion.condiciones.moneda == 'USD' %}
                     <div>
-                        <div style="font-size: 12px; color: #166534; font-weight: 600; margin-bottom: 4px;">TIPO DE CAMBIO</div>
-                        <div style="font-size: 18px; font-weight: 700; color: #059669;">
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Tipo de Cambio</div>
+                        <div style="font-size: 18px; font-weight: 700; color: #111827;">
                             ${{ cotizacion.condiciones.tipoCambio }} MXN
                         </div>
                     </div>
                     <div>
-                        <div style="font-size: 12px; color: #166534; font-weight: 600; margin-bottom: 4px;">TOTAL EN MXN</div>
-                        <div style="font-size: 18px; font-weight: 700; color: #059669;">
-                            ${{ "%.2f" | format(total * (cotizacion.condiciones.tipoCambio | float)) }}
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Total en MXN</div>
+                        <div style="font-size: 18px; font-weight: 700; color: #111827;">
+                            ${{ "{:,.2f}".format(total * (cotizacion.condiciones.tipoCambio | float)) }}
                         </div>
                     </div>
                     {% endif %}
@@ -497,44 +498,44 @@
 
         <!-- Términos y Condiciones -->
         {% if cotizacion.condiciones %}
-        <div class="section" style="background: linear-gradient(to right, #fef3c7 0%, #fde68a 100%); border: 2px solid #fbbf24;">
-            <h3 style="display: flex; align-items: center; gap: 10px; color: #92400e;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <div class="section" style="background: #ffffff; border: 2px solid #e5e7eb;">
+            <h3 style="display: flex; align-items: center; gap: 10px; color: #374151;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#374151">
                     <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,19L12,15H9V10H13V12L11,16H14V19H10Z"/>
                 </svg>
                 Términos y Condiciones Comerciales
             </h3>
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-top: 10px;">
-                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #fbbf24;">
-                    <div style="font-size: 12px; color: #92400e; font-weight: 600; margin-bottom: 6px;">TIEMPO DE ENTREGA</div>
-                    <div style="font-size: 18px; font-weight: 700; color: #b45309;">
+                <div style="background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Tiempo de Entrega</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #111827;">
                         {{ cotizacion.condiciones.tiempoEntrega or 'N/A' }}
                         {% if cotizacion.condiciones.tiempoEntrega %}
-                        <span style="font-size: 14px; font-weight: 500;">días hábiles</span>
+                        <span style="font-size: 14px; font-weight: 500; color: #6b7280;"> días hábiles</span>
                         {% endif %}
                     </div>
                 </div>
 
-                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #fbbf24;">
-                    <div style="font-size: 12px; color: #92400e; font-weight: 600; margin-bottom: 6px;">ENTREGA EN</div>
-                    <div style="font-size: 16px; font-weight: 600; color: #b45309;">
+                <div style="background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Entrega en</div>
+                    <div style="font-size: 16px; font-weight: 600; color: #111827;">
                         {{ cotizacion.condiciones.entregaEn or 'N/A' }}
                     </div>
                 </div>
 
-                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #fbbf24;">
-                    <div style="font-size: 12px; color: #92400e; font-weight: 600; margin-bottom: 6px;">TÉRMINOS DE PAGO</div>
-                    <div style="font-size: 16px; font-weight: 600; color: #b45309;">
+                <div style="background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Términos de Pago</div>
+                    <div style="font-size: 16px; font-weight: 600; color: #111827;">
                         {{ cotizacion.condiciones.terminosPago or cotizacion.condiciones.terminos or 'N/A' }}
                     </div>
                 </div>
             </div>
 
             {% if cotizacion.condiciones.comentarios %}
-            <div style="margin-top: 15px; background: white; padding: 15px; border-radius: 8px; border: 1px solid #fbbf24;">
-                <div style="font-size: 12px; color: #92400e; font-weight: 600; margin-bottom: 8px;">COMENTARIOS ADICIONALES</div>
-                <div style="font-size: 15px; color: #78350f; font-style: italic; line-height: 1.6;">
+            <div style="margin-top: 15px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 8px; text-transform: uppercase;">Comentarios Adicionales</div>
+                <div style="font-size: 15px; color: #374151; font-style: italic; line-height: 1.6;">
                     {{ cotizacion.condiciones.comentarios }}
                 </div>
             </div>
