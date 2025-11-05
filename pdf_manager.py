@@ -470,7 +470,7 @@ class PDFManager:
                         "fecha_creacion": pdf.get('fecha_modificacion', 'N/A'),
                         "ruta_completa": f"gdrive://{pdf['id']}",
                         "tipo": "google_drive",
-                        "tiene_desglose": True,
+                        "tiene_desglose": False,  # PDFs antiguos de Drive NO tienen desglose
                         "drive_id": pdf['id'],
                         "tamaño": pdf.get('tamaño', '0'),
                         "fuente": "google_drive"
@@ -636,7 +636,7 @@ class PDFManager:
                                 "cliente": "Google Drive",
                                 "fecha_creacion": pdf.get('fecha_modificacion', 'N/A'),
                                 "tipo": "google_drive",
-                                "tiene_desglose": True
+                                "tiene_desglose": False  # PDFs antiguos de Drive NO tienen desglose
                             }
                         }
             
