@@ -2461,12 +2461,33 @@ def ver_desglose(numero_cotizacion):
             # Tenemos datos completos - mostrar desglose normal
             cotizacion = resultado_cotizacion["item"]
             print(f"[DESGLOSE] Cotización encontrada en DB - mostrando desglose completo")
-            
+
             # Asegurar que la cotización tenga numeroCotizacion para el botón Nueva Revisión
             if not cotizacion.get('numeroCotizacion'):
                 cotizacion['numeroCotizacion'] = numero_cotizacion
                 print(f"[DESGLOSE] Añadido numeroCotizacion faltante: {numero_cotizacion}")
-            
+
+            # CALCULAR TOTALES para asegurar que se muestren correctamente
+            if cotizacion.get('items'):
+                subtotal_calculado = 0
+                for item in cotizacion['items']:
+                    # Calcular total del item si no existe
+                    if not item.get('total') and not item.get('subtotal'):
+                        precio = float(item.get('precio_unitario') or item.get('precio') or item.get('costoUnidad') or 0)
+                        cantidad = float(item.get('cantidad') or 0)
+                        item['total'] = precio * cantidad
+                        print(f"[DESGLOSE] Item '{item.get('descripcion', 'N/A')}': calculado total = {item['total']}")
+
+                    # Sumar al subtotal general
+                    item_total = float(item.get('total') or item.get('subtotal') or 0)
+                    subtotal_calculado += item_total
+
+                # Agregar totales calculados a la cotización
+                cotizacion['subtotal_calculado'] = subtotal_calculado
+                cotizacion['iva_calculado'] = subtotal_calculado * 0.16
+                cotizacion['total_calculado'] = subtotal_calculado * 1.16
+                print(f"[DESGLOSE] Totales calculados - Subtotal: {subtotal_calculado}, IVA: {cotizacion['iva_calculado']}, Total: {cotizacion['total_calculado']}")
+
             print(f"[DESGLOSE] Cotización con numeroCotizacion: {cotizacion.get('numeroCotizacion', 'N/A')}")
             from flask import render_template
             return render_template("ver_cotizacion.html", cotizacion=cotizacion)
