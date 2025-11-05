@@ -1362,15 +1362,28 @@ class SupabaseManager:
         """
         try:
             print(f"[NUMERO_COTIZACION] Generando para: Cliente='{cliente}', Vendedor='{vendedor}', Proyecto='{proyecto}', Revision={revision}")
-            
-            # Normalizar datos de entrada
-            cliente = cliente.upper().replace(" ", "")[:10] if cliente else "CLIENTE"
-            proyecto = proyecto.upper().replace(" ", "")[:10] if proyecto else "PROYECTO"
-            
+
+            # Normalizar datos de entrada con acentos y espacios
+            if cliente:
+                cliente = unicodedata.normalize('NFKD', cliente).encode('ASCII', 'ignore').decode('ASCII').upper()
+                cliente = re.sub(r'[^A-Z0-9]', '-', cliente)[:10]
+            else:
+                cliente = "CLIENTE"
+
+            if proyecto:
+                proyecto = unicodedata.normalize('NFKD', proyecto).encode('ASCII', 'ignore').decode('ASCII').upper()
+                # Permitir espacios en el nombre del proyecto, eliminar otros caracteres especiales
+                proyecto = re.sub(r'[^A-Z0-9 ]', '', proyecto)
+                # Limpiar espacios múltiples y recortar
+                proyecto = ' '.join(proyecto.split())[:50]
+            else:
+                proyecto = "PROYECTO"
+
             # Obtener las iniciales del vendedor (máximo 2 letras)
             iniciales_vendedor = ""
             if vendedor:
-                palabras = vendedor.strip().split()
+                vendedor_normalizado = unicodedata.normalize('NFKD', vendedor).encode('ASCII', 'ignore').decode('ASCII').upper()
+                palabras = vendedor_normalizado.strip().split()
                 for palabra in palabras[:2]:  # Máximo 2 palabras
                     if palabra and palabra[0].isalpha():
                         iniciales_vendedor += palabra[0].upper()
@@ -1378,10 +1391,10 @@ class SupabaseManager:
                     # Si solo hay una palabra, tomar las primeras 2 letras
                     primera_palabra = palabras[0]
                     iniciales_vendedor = primera_palabra[:2].upper()
-            
+
             if not iniciales_vendedor:
                 iniciales_vendedor = "XX"
-            
+
             print(f"[NUMERO_COTIZACION] Normalizados - Cliente: '{cliente}', Iniciales: '{iniciales_vendedor}', Proyecto: '{proyecto}'")
             
             # Generar patrón base para buscar números consecutivos
