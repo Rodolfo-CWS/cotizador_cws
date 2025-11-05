@@ -2467,11 +2467,26 @@ def ver_desglose(numero_cotizacion):
                 cotizacion['numeroCotizacion'] = numero_cotizacion
                 print(f"[DESGLOSE] Añadido numeroCotizacion faltante: {numero_cotizacion}")
 
+            # Asegurar que exista datosGenerales (evitar errores de template)
+            if not cotizacion.get('datosGenerales'):
+                cotizacion['datosGenerales'] = {}
+                print(f"[DESGLOSE] Inicializado datosGenerales vacío")
+
+            # Asegurar que exista condiciones (evitar errores de template)
+            if not cotizacion.get('condiciones'):
+                cotizacion['condiciones'] = {'moneda': 'MXN'}
+                print(f"[DESGLOSE] Inicializado condiciones con valores por defecto")
+
             # CALCULAR TOTALES para asegurar que se muestren correctamente
-            if cotizacion.get('items'):
+            if cotizacion.get('items') and isinstance(cotizacion['items'], list):
                 subtotal_calculado = 0.0
                 for item in cotizacion['items']:
                     try:
+                        # Asegurar que item es un diccionario
+                        if not isinstance(item, dict):
+                            print(f"[DESGLOSE] ADVERTENCIA: Item no es diccionario, saltando")
+                            continue
+
                         # Calcular total del item si no existe
                         if not item.get('total') and not item.get('subtotal'):
                             # Intentar obtener precio de cualquier campo
@@ -2489,8 +2504,8 @@ def ver_desglose(numero_cotizacion):
                         total_raw = item.get('total') or item.get('subtotal') or 0
                         item_total = float(total_raw) if total_raw else 0.0
                         subtotal_calculado += item_total
-                    except (ValueError, TypeError) as e:
-                        print(f"[DESGLOSE] ERROR calculando item '{item.get('descripcion', 'N/A')}': {e}")
+                    except (ValueError, TypeError, AttributeError) as e:
+                        print(f"[DESGLOSE] ERROR calculando item '{item.get('descripcion', 'N/A') if isinstance(item, dict) else 'UNKNOWN'}': {e}")
                         continue
 
                 # Agregar totales calculados a la cotización como floats
@@ -2498,6 +2513,14 @@ def ver_desglose(numero_cotizacion):
                 cotizacion['iva_calculado'] = float(subtotal_calculado * 0.16)
                 cotizacion['total_calculado'] = float(subtotal_calculado * 1.16)
                 print(f"[DESGLOSE] Totales calculados - Subtotal: {cotizacion['subtotal_calculado']}, IVA: {cotizacion['iva_calculado']}, Total: {cotizacion['total_calculado']}")
+            else:
+                # No hay items o no es lista válida - inicializar totales en 0
+                cotizacion['subtotal_calculado'] = 0.0
+                cotizacion['iva_calculado'] = 0.0
+                cotizacion['total_calculado'] = 0.0
+                if not cotizacion.get('items'):
+                    cotizacion['items'] = []
+                print(f"[DESGLOSE] No hay items válidos, totales en 0")
 
             print(f"[DESGLOSE] Cotización con numeroCotizacion: {cotizacion.get('numeroCotizacion', 'N/A')}")
             from flask import render_template
@@ -2675,10 +2698,115 @@ def ver_desglose(numero_cotizacion):
         """, numero=numero_cotizacion), 404
         
     except Exception as e:
-        print(f"[DESGLOSE] Error: {e}")
+        print(f"[DESGLOSE] ERROR CRÍTICO procesando '{numero_cotizacion}': {e}")
         import traceback
         traceback.print_exc()
-        return f"Error procesando desglose: {str(e)}", 500
+
+        # Retornar página de error amigable
+        from flask import render_template_string
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Error - CWS Cotizador</title>
+            <style>
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    background: #f8f9fa;
+                    margin: 0;
+                    padding: 20px;
+                }
+                .container {
+                    max-width: 600px;
+                    margin: 50px auto;
+                    background: white;
+                    border-radius: 12px;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    padding: 40px;
+                }
+                .error-icon {
+                    font-size: 64px;
+                    text-align: center;
+                    margin-bottom: 20px;
+                }
+                h1 {
+                    color: #dc3545;
+                    text-align: center;
+                    margin-bottom: 20px;
+                }
+                .error-message {
+                    background: #fff3cd;
+                    border: 1px solid #ffeaa7;
+                    padding: 20px;
+                    border-radius: 8px;
+                    margin: 20px 0;
+                }
+                .error-details {
+                    background: #f8f9fa;
+                    padding: 15px;
+                    border-radius: 6px;
+                    font-family: monospace;
+                    font-size: 12px;
+                    overflow-x: auto;
+                }
+                .buttons {
+                    text-align: center;
+                    margin-top: 30px;
+                }
+                .btn {
+                    display: inline-block;
+                    padding: 12px 24px;
+                    margin: 0 8px;
+                    border-radius: 8px;
+                    text-decoration: none;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                }
+                .btn-primary {
+                    background: #4f46e5;
+                    color: white;
+                }
+                .btn-primary:hover {
+                    background: #4338ca;
+                }
+                .btn-secondary {
+                    background: #6c757d;
+                    color: white;
+                }
+                .btn-secondary:hover {
+                    background: #5a6268;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="error-icon">⚠️</div>
+                <h1>Error al Cargar Desglose</h1>
+
+                <div class="error-message">
+                    <p><strong>Cotización:</strong> {{ numero }}</p>
+                    <p>No se pudo cargar el desglose de esta cotización debido a un error técnico.</p>
+                </div>
+
+                <div class="error-details">
+                    <strong>Detalles técnicos:</strong><br>
+                    {{ error_msg }}
+                </div>
+
+                <div class="buttons">
+                    <a href="/" class="btn btn-primary">🏠 Volver al Inicio</a>
+                    <a href="/pdf/{{ numero }}" class="btn btn-secondary" target="_blank">📄 Ver PDF</a>
+                </div>
+
+                <p style="text-align: center; margin-top: 30px; color: #6c757d; font-size: 13px;">
+                    El error ha sido registrado y será revisado.
+                </p>
+            </div>
+        </body>
+        </html>
+        """, numero=numero_cotizacion, error_msg=str(e)), 500
 
 # ============================================
 # RUTA DE INFORMACIÓN DEL SISTEMA
