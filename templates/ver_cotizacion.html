@@ -288,11 +288,21 @@
                     </div>
                     <div class="field">
                         <strong>Costo/Unidad:</strong>
-                        <span class="costo-value">${{ item.costoUnidad or item.precio_unitario or '0.00' }}</span>
+                        {% set precio_unit = (item.costoUnidad | float) if item.costoUnidad else ((item.precio_unitario | float) if item.precio_unitario else ((item.precio | float) if item.precio else 0)) %}
+                        <span class="costo-value">${{ "{:,.2f}".format(precio_unit) }}</span>
                     </div>
                     <div class="field">
                         <strong>Total Item:</strong>
-                        <span class="total-value">${{ item.total or item.subtotal or '0.00' }}</span>
+                        {% if item.total %}
+                            {% set total_item = item.total | float %}
+                        {% elif item.subtotal %}
+                            {% set total_item = item.subtotal | float %}
+                        {% else %}
+                            {% set precio = (item.precio_unitario | float) if item.precio_unitario else ((item.precio | float) if item.precio else ((item.costoUnidad | float) if item.costoUnidad else 0)) %}
+                            {% set cantidad = (item.cantidad | float) if item.cantidad else 0 %}
+                            {% set total_item = precio * cantidad %}
+                        {% endif %}
+                        <span class="total-value">${{ "{:,.2f}".format(total_item) }}</span>
                     </div>
                 </div>
 
@@ -425,7 +435,16 @@
 
             {% set subtotal = 0 %}
             {% for item in cotizacion.get('items', []) %}
-                {% set item_total = (item.total | float) if item.total else (item.subtotal | float) if item.subtotal else 0 %}
+                {% if item.total %}
+                    {% set item_total = item.total | float %}
+                {% elif item.subtotal %}
+                    {% set item_total = item.subtotal | float %}
+                {% else %}
+                    {# Calcular total: precio * cantidad #}
+                    {% set precio = (item.precio_unitario | float) if item.precio_unitario else ((item.precio | float) if item.precio else 0) %}
+                    {% set cantidad = (item.cantidad | float) if item.cantidad else 0 %}
+                    {% set item_total = precio * cantidad %}
+                {% endif %}
                 {% set subtotal = subtotal + item_total %}
             {% endfor %}
 
