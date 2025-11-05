@@ -189,101 +189,157 @@
             {% endif %}
         </div>
 
-        <!-- Datos Generales -->
-        <div class="section">
-            <h3>Información General</h3>
-            
-            <div class="field">
-                <strong>Número:</strong>
-                <span>{{ cotizacion.numeroCotizacion or 'N/A' }}</span>
+        <!-- Información de la Cotización -->
+        <div class="section" style="background: #ffffff; border: 2px solid #e5e7eb;">
+            <h3 style="color: #374151; border-color: #e5e7eb; display: flex; align-items: center; gap: 10px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#374151">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                </svg>
+                Información de la Cotización
+            </h3>
+
+            <!-- Lista vertical compacta -->
+            <div style="background: #f9fafb; padding: 16px; border-radius: 6px;">
+                <div style="display: grid; gap: 8px;">
+                    <!-- Número de Cotización -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
+                        <span style="color: #6b7280; font-size: 14px; font-weight: 500;">Número de Cotización:</span>
+                        <span style="color: #4f46e5; font-size: 14px; font-weight: 700;">{{ cotizacion.numeroCotizacion or 'N/A' }}</span>
+                    </div>
+
+                    <!-- Revisión -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
+                        <span style="color: #6b7280; font-size: 14px; font-weight: 500;">Revisión:</span>
+                        <span style="color: #4f46e5; font-size: 14px; font-weight: 700;">{{ cotizacion.revision or 'N/A' }}</span>
+                    </div>
+
+                    <!-- Fecha de Creación -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
+                        <span style="color: #6b7280; font-size: 14px; font-weight: 500;">Fecha de Creación:</span>
+                        <span style="color: #111827; font-size: 14px; font-weight: 600;">{{ cotizacion.fechaCreacion or 'N/A' }}</span>
+                    </div>
+                </div>
             </div>
-            <div class="field">
-                <strong>Revisión:</strong>
-                <span>{{ cotizacion.revision or 'N/A' }}</span>
-            </div>
-            
-            {% if cotizacion.datosGenerales %}
-            <div class="field">
-                <strong>Vendedor:</strong>
-                <span>{{ cotizacion.datosGenerales.vendedor or 'N/A' }}</span>
-            </div>
-            <div class="field">
-                <strong>Proyecto:</strong>
-                <span>{{ cotizacion.datosGenerales.proyecto or 'N/A' }}</span>
-            </div>
-            <div class="field">
-                <strong>Cliente:</strong>
-                <span>{{ cotizacion.datosGenerales.cliente or 'N/A' }}</span>
-            </div>
-            <div class="field">
-                <strong>Atención a:</strong>
-                <span>{{ cotizacion.datosGenerales.atencionA or 'N/A' }}</span>
-            </div>
-            <div class="field">
-                <strong>Contacto:</strong>
-                <span>{{ cotizacion.datosGenerales.contacto or 'N/A' }}</span>
-            </div>
-            
+
             <!-- Justificación de Actualización - Solo para revisiones >= R2 -->
             {% if cotizacion.revision and cotizacion.revision|int >= 2 %}
-            <div class="field" style="border-left: 4px solid #f59e0b; padding-left: 16px; background-color: #fef3c7; border-radius: 6px; margin-top: 12px;">
-                <strong style="color: #92400e;">📝 Justificación de Actualización (R{{ cotizacion.revision }}):</strong>
-                <span style="color: #92400e; font-style: italic; font-weight: 500;">
-                    {{ cotizacion.datosGenerales.actualizacionRevision or '⚠️ Sin justificación registrada' }}
-                </span>
+            <div style="margin-top: 12px; border-left: 4px solid #f59e0b; padding: 12px 16px; background-color: #fef3c7; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
+                    <span style="color: #92400e; font-size: 13px; font-weight: 600;">📝 Justificación de Actualización (R{{ cotizacion.revision }}):</span>
+                    <span style="color: #92400e; font-size: 13px; font-style: italic; font-weight: 500; text-align: right; flex: 1;">
+                        {{ cotizacion.datosGenerales.actualizacionRevision or '⚠️ Sin justificación registrada' }}
+                    </span>
+                </div>
             </div>
-            {% endif %}
             {% endif %}
         </div>
 
-        <!-- Items -->
+        <!-- Datos Generales del Cliente -->
+        {% if cotizacion.datosGenerales %}
+        <div class="section" style="background: #ffffff; border: 2px solid #e5e7eb;">
+            <h3 style="color: #374151; border-color: #e5e7eb; display: flex; align-items: center; gap: 10px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#374151">
+                    <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
+                </svg>
+                Datos Generales
+            </h3>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                <div style="background: #f9fafb; padding: 14px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Cliente</div>
+                    <div style="font-size: 18px; font-weight: 600; color: #111827;">{{ cotizacion.datosGenerales.cliente or 'N/A' }}</div>
+                </div>
+                <div style="background: #f9fafb; padding: 14px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Atención a</div>
+                    <div style="font-size: 18px; font-weight: 600; color: #111827;">{{ cotizacion.datosGenerales.atencionA or 'N/A' }}</div>
+                </div>
+                <div style="background: #f9fafb; padding: 14px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Contacto</div>
+                    <div style="font-size: 18px; font-weight: 600; color: #111827;">{{ cotizacion.datosGenerales.contacto or 'N/A' }}</div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                <div style="background: #f9fafb; padding: 14px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Vendedor</div>
+                    <div style="font-size: 16px; font-weight: 600; color: #111827;">{{ cotizacion.datosGenerales.vendedor or 'N/A' }}</div>
+                </div>
+                <div style="background: #f9fafb; padding: 14px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Proyecto</div>
+                    <div style="font-size: 16px; font-weight: 600; color: #111827;">{{ cotizacion.datosGenerales.proyecto or 'N/A' }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Desglose por Items -->
         {% if cotizacion.get('items') %}
         <div class="section">
-            <h3>Items de Cotización</h3>
+            <h3 style="display: flex; align-items: center; gap: 10px; color: #495057;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3,3V7H7V3H3M3,21H7V17H3V21M3,14H7V10H3V14M10,3V7H21V3H10M10,14H21V10H10V14M10,21H21V17H10V21Z"/>
+                </svg>
+                Desglose por Ítems
+            </h3>
             
             {% for item in cotizacion.get('items', []) %}
             <div class="item-container">
                 <h4 class="item-header">Item {{ loop.index }}: {{ item.descripcion or 'Sin descripción' }}</h4>
-                
-                <!-- Información básica del item -->
-                <div class="grid-4">
-                    <div class="field">
-                        <strong>UOM:</strong>
-                        <span>{{ item.uom or 'N/A' }}</span>
-                    </div>
-                    <div class="field">
-                        <strong>Cantidad:</strong>
-                        <span>{{ item.cantidad or '0' }}</span>
-                    </div>
-                    <div class="field">
-                        <strong>Costo/Unidad:</strong>
-                        <span class="costo-value">${{ item.costoUnidad or '0.00' }}</span>
-                    </div>
-                    <div class="field">
-                        <strong>Total Item:</strong>
-                        <span class="total-value">${{ item.total or '0.00' }}</span>
-                    </div>
-                </div>
 
-                <!-- Costos Adicionales -->
-                <div style="margin-top: 15px;">
-                    <h5 style="color: #6c757d; margin: 10px 0; font-weight: 600;">Costos y Ajustes:</h5>
-                    <div class="grid-4">
-                        <div class="field">
-                            <strong>Transporte:</strong>
-                            <span>${{ item.transporte or '0.00' }}</span>
+                <!-- Información del item en formato lista compacto -->
+                <div style="background: #f9fafb; padding: 16px; border-radius: 6px; margin-bottom: 12px;">
+                    <div style="display: grid; gap: 8px;">
+                        <!-- UOM -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
+                            <span style="color: #6b7280; font-size: 14px; font-weight: 500;">UOM:</span>
+                            <span style="color: #111827; font-size: 14px; font-weight: 600;">{{ item.uom or 'N/A' }}</span>
                         </div>
-                        <div class="field">
-                            <strong>Instalación:</strong>
-                            <span>${{ item.instalacion or '0.00' }}</span>
+
+                        <!-- Cantidad -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
+                            <span style="color: #6b7280; font-size: 14px; font-weight: 500;">Cantidad:</span>
+                            <span style="color: #111827; font-size: 14px; font-weight: 600;">{{ item.cantidad or '0' }}</span>
                         </div>
-                        <div class="field">
-                            <strong>% Seguridad:</strong>
-                            <span>{{ item.seguridad or '0' }}%</span>
+
+                        <!-- Costo/Unidad -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
+                            <span style="color: #6b7280; font-size: 14px; font-weight: 500;">Costo/Unidad:</span>
+                            {% set precio_u = (item.costoUnidad | float) if item.costoUnidad else ((item.precio_unitario | float) if item.precio_unitario else ((item.precio | float) if item.precio else 0)) %}
+                            <span style="color: #1e40af; font-size: 14px; font-weight: 700;">${{ "{:,.2f}".format(precio_u) }}</span>
                         </div>
-                        <div class="field">
-                            <strong>% Descuento:</strong>
-                            <span>{{ item.descuento or '0' }}%</span>
+
+                        <!-- Total Item (destacado) -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #dcfce7; border-radius: 4px; margin-top: 4px;">
+                            <span style="color: #166534; font-size: 15px; font-weight: 600;">Total Item:</span>
+                            {% set total_i = (item.total | float) if item.total else ((item.subtotal | float) if item.subtotal else 0) %}
+                            <span style="color: #166534; font-size: 16px; font-weight: 800;">${{ "{:,.2f}".format(total_i) }}</span>
+                        </div>
+
+                        <!-- Separador -->
+                        <div style="border-top: 2px solid #e5e7eb; margin: 8px 0;"></div>
+
+                        <!-- Transporte -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+                            <span style="color: #6b7280; font-size: 13px;">Transporte:</span>
+                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.transporte or '0.00' }}</span>
+                        </div>
+
+                        <!-- Instalación -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+                            <span style="color: #6b7280; font-size: 13px;">Instalación:</span>
+                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.instalacion or '0.00' }}</span>
+                        </div>
+
+                        <!-- % Seguridad -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+                            <span style="color: #6b7280; font-size: 13px;">% Seguridad:</span>
+                            <span style="color: #374151; font-size: 13px; font-weight: 600;">{{ item.seguridad or '0' }}%</span>
+                        </div>
+
+                        <!-- % Descuento -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+                            <span style="color: #6b7280; font-size: 13px;">% Descuento:</span>
+                            <span style="color: #374151; font-size: 13px; font-weight: 600;">{{ item.descuento or '0' }}%</span>
                         </div>
                     </div>
                 </div>
@@ -382,59 +438,156 @@
         </div>
         {% endif %}
 
-        <!-- Condiciones -->
-        {% if cotizacion.condiciones %}
-        <div class="section">
-            <h3>Términos y Condiciones</h3>
-            
-            <div class="field">
-                <strong>Moneda:</strong>
-                <span>{{ cotizacion.condiciones.moneda or 'N/A' }}</span>
+        <!-- Resúmenes Generales -->
+        {% if cotizacion.get('items') %}
+        <div class="section" style="background: #ffffff; border: 2px solid #d1d5db;">
+            <h3 style="display: flex; align-items: center; gap: 10px; color: #374151;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#374151">
+                    <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19M7,10H9V17H7V10M11,7H13V17H11V7M15,13H17V17H15V13Z"/>
+                </svg>
+                Resúmenes Generales
+            </h3>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 10px;">
+                <!-- Subtotal -->
+                <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border: 2px solid #e5e7eb; text-align: center;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 8px; text-transform: uppercase;">Subtotal</div>
+                    <div style="font-size: 32px; font-weight: 700; color: #111827;">
+                        ${{ "{:,.2f}".format((cotizacion.subtotal_calculado | float) if cotizacion.subtotal_calculado else 0) }}
+                    </div>
+                    <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
+                        {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}
+                    </div>
+                </div>
+
+                <!-- IVA (16%) -->
+                <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border: 2px solid #e5e7eb; text-align: center;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 8px; text-transform: uppercase;">IVA (16%)</div>
+                    <div style="font-size: 32px; font-weight: 700; color: #111827;">
+                        ${{ "{:,.2f}".format((cotizacion.iva_calculado | float) if cotizacion.iva_calculado else 0) }}
+                    </div>
+                    <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
+                        {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}
+                    </div>
+                </div>
+
+                <!-- Total General -->
+                <div style="background: #111827; padding: 20px; border-radius: 8px; border: 2px solid #374151; text-align: center;">
+                    <div style="font-size: 11px; color: #d1d5db; font-weight: 600; margin-bottom: 8px; text-transform: uppercase;">Total General</div>
+                    <div style="font-size: 36px; font-weight: 800; color: white;">
+                        ${{ "{:,.2f}".format((cotizacion.total_calculado | float) if cotizacion.total_calculado else 0) }}
+                    </div>
+                    <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
+                        {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}
+                    </div>
+                </div>
             </div>
-            {% if cotizacion.condiciones.tipoCambio %}
-            <div class="field">
-                <strong>Tipo de Cambio:</strong>
-                <span>{{ cotizacion.condiciones.tipoCambio }}</span>
+
+            <!-- Información de Moneda y Tipo de Cambio -->
+            {% if cotizacion.condiciones %}
+            <div style="margin-top: 20px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                    <div>
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Moneda</div>
+                        <div style="font-size: 18px; font-weight: 700; color: #111827;">
+                            {{ cotizacion.condiciones.moneda or 'MXN' }}
+                        </div>
+                    </div>
+                    {% if cotizacion.condiciones.tipoCambio and cotizacion.condiciones.moneda == 'USD' %}
+                    <div>
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Tipo de Cambio</div>
+                        <div style="font-size: 18px; font-weight: 700; color: #111827;">
+                            ${{ cotizacion.condiciones.tipoCambio }} MXN
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Total en MXN</div>
+                        <div style="font-size: 18px; font-weight: 700; color: #111827;">
+                            ${{ "{:,.2f}".format(((cotizacion.total_calculado | float) if cotizacion.total_calculado else 0) * (cotizacion.condiciones.tipoCambio | float)) }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
             {% endif %}
-            <div class="field">
-                <strong>Tiempo de Entrega:</strong>
-                <span>{{ cotizacion.condiciones.tiempoEntrega or 'N/A' }} días hábiles</span>
+        </div>
+        {% endif %}
+
+        <!-- Términos y Condiciones -->
+        {% if cotizacion.condiciones %}
+        <div class="section" style="background: #ffffff; border: 2px solid #e5e7eb;">
+            <h3 style="display: flex; align-items: center; gap: 10px; color: #374151;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#374151">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,19L12,15H9V10H13V12L11,16H14V19H10Z"/>
+                </svg>
+                Términos y Condiciones Comerciales
+            </h3>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-top: 10px;">
+                <div style="background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Tiempo de Entrega</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #111827;">
+                        {{ cotizacion.condiciones.tiempoEntrega or 'N/A' }}
+                        {% if cotizacion.condiciones.tiempoEntrega %}
+                        <span style="font-size: 14px; font-weight: 500; color: #6b7280;"> días hábiles</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div style="background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Entrega en</div>
+                    <div style="font-size: 16px; font-weight: 600; color: #111827;">
+                        {{ cotizacion.condiciones.entregaEn or 'N/A' }}
+                    </div>
+                </div>
+
+                <div style="background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">Términos de Pago</div>
+                    <div style="font-size: 16px; font-weight: 600; color: #111827;">
+                        {{ cotizacion.condiciones.terminosPago or cotizacion.condiciones.terminos or 'N/A' }}
+                    </div>
+                </div>
             </div>
-            <div class="field">
-                <strong>Entrega en:</strong>
-                <span>{{ cotizacion.condiciones.entregaEn or 'N/A' }}</span>
-            </div>
-            <div class="field">
-                <strong>Términos de Pago:</strong>
-                <span>{{ cotizacion.condiciones.terminosPago or cotizacion.condiciones.terminos or 'N/A' }}</span>
-            </div>
+
             {% if cotizacion.condiciones.comentarios %}
-            <div class="field">
-                <strong>Comentarios:</strong>
-                <span style="font-style: italic;">{{ cotizacion.condiciones.comentarios }}</span>
+            <div style="margin-top: 15px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 8px; text-transform: uppercase;">Comentarios Adicionales</div>
+                <div style="font-size: 15px; color: #374151; font-style: italic; line-height: 1.6;">
+                    {{ cotizacion.condiciones.comentarios }}
+                </div>
             </div>
             {% endif %}
         </div>
         {% endif %}
 
         <!-- Información del sistema -->
-        <div class="section">
-            <h3>Información del Sistema</h3>
-            <div class="field">
-                <strong>ID:</strong>
-                <span style="font-family: monospace; font-size: 12px;">{{ cotizacion._id or 'N/A' }}</span>
-            </div>
-            <div class="field">
-                <strong>Fecha de Creación:</strong>
-                <span>{{ cotizacion.fechaCreacion or 'N/A' }}</span>
-            </div>
-            {% if cotizacion.version %}
-            <div class="field">
-                <strong>Versión del Sistema:</strong>
-                <span>{{ cotizacion.version }}</span>
-            </div>
-            {% endif %}
+        <div class="section" style="background: #f9fafb; border: 1px solid #e5e7eb; opacity: 0.9;">
+            <details style="cursor: pointer;">
+                <summary style="font-weight: 600; color: #6b7280; font-size: 14px; padding: 8px 0; list-style: none; display: flex; align-items: center; gap: 8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="transition: transform 0.2s;">
+                        <path d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/>
+                    </svg>
+                    Información Técnica del Sistema
+                </summary>
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                    <div style="display: grid; gap: 8px;">
+                        <div style="display: flex; gap: 12px; font-size: 13px;">
+                            <span style="color: #6b7280; font-weight: 500; min-width: 140px;">ID del Sistema:</span>
+                            <span style="font-family: monospace; color: #374151; font-size: 12px;">{{ cotizacion._id or 'N/A' }}</span>
+                        </div>
+                        <div style="display: flex; gap: 12px; font-size: 13px;">
+                            <span style="color: #6b7280; font-weight: 500; min-width: 140px;">Fecha de Creación:</span>
+                            <span style="color: #374151;">{{ cotizacion.fechaCreacion or 'N/A' }}</span>
+                        </div>
+                        {% if cotizacion.version %}
+                        <div style="display: flex; gap: 12px; font-size: 13px;">
+                            <span style="color: #6b7280; font-weight: 500; min-width: 140px;">Versión del Sistema:</span>
+                            <span style="color: #374151;">{{ cotizacion.version }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </details>
         </div>
 
         
