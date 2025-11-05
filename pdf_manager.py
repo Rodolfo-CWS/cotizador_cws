@@ -577,21 +577,28 @@ class PDFManager:
             # 1. BUSCAR EN SUPABASE STORAGE (PRIORITARIO)
             if self.supabase_storage_disponible:
                 print("[OBTENER PDF] Buscando en Supabase Storage...")
+                print(f"[OBTENER PDF] Supabase Storage disponible: {self.supabase_storage_disponible}")
+                print(f"[OBTENER PDF] Total variaciones a buscar: {len(variaciones_nombre)}")
                 try:
                     # Buscar en Supabase Storage usando las variaciones
-                    for variacion in variaciones_nombre:
+                    for idx, variacion in enumerate(variaciones_nombre, 1):
+                        print(f"[SUPABASE_STORAGE] Buscando variación {idx}/{len(variaciones_nombre)}: '{variacion}'")
+
                         # Intentar encontrar el PDF con esta variación
                         supabase_pdfs = self.supabase_storage.buscar_pdfs(variacion, 20)
-                        
+                        print(f"[SUPABASE_STORAGE] Resultados encontrados: {len(supabase_pdfs)}")
+
                         for pdf_info in supabase_pdfs:
                             pdf_file_path = pdf_info.get('file_path', '')
                             pdf_numero = pdf_info.get('numero_cotizacion', '')
-                            
+
+                            print(f"[SUPABASE_STORAGE] Comparando con: {pdf_numero} (file: {pdf_file_path})")
+
                             # Verificar coincidencia
-                            if (variacion.lower() in pdf_file_path.lower() or 
+                            if (variacion.lower() in pdf_file_path.lower() or
                                 variacion.lower() in pdf_numero.lower()):
-                                
-                                print(f"[SUPABASE_STORAGE] OK PDF encontrado: {pdf_file_path}")
+
+                                print(f"[SUPABASE_STORAGE] ✓ MATCH! PDF encontrado: {pdf_file_path}")
                                 return {
                                     "encontrado": True,
                                     "registro": pdf_info,
@@ -602,11 +609,15 @@ class PDFManager:
                                     "file_path": pdf_file_path,
                                     "fuente": "supabase_storage"
                                 }
-                    
-                    print("[SUPABASE_STORAGE] PDF no encontrado, probando con Google Drive...")
-                    
+
+                    print("[SUPABASE_STORAGE] ✗ PDF no encontrado en Supabase Storage, probando con Google Drive...")
+
                 except Exception as e:
-                    print(f"[SUPABASE_STORAGE] Error: {e}")
+                    print(f"[SUPABASE_STORAGE] ✗ Error en búsqueda: {e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print("[OBTENER PDF] ✗ Supabase Storage NO disponible, saltando a Google Drive")
             
             # 2. Buscar en Google Drive (secundario)
             if self.drive_client.is_available():
@@ -684,9 +695,19 @@ class PDFManager:
                     }
             
             # No encontrado en ningún lado
+            # Construir mensaje detallado sobre dónde se buscó
+            lugares_buscados = []
+            if self.supabase_storage_disponible:
+                lugares_buscados.append("Supabase Storage")
+            if self.drive_client.is_available():
+                lugares_buscados.append("Google Drive")
+            lugares_buscados.append("archivos locales")
+
+            mensaje_lugares = ", ".join(lugares_buscados)
+
             return {
                 "encontrado": False,
-                "error": f"PDF '{numero_cotizacion}' no encontrado en Google Drive ni localmente"
+                "error": f"PDF '{numero_cotizacion}' no encontrado en {mensaje_lugares}"
             }
             
         except Exception as e:
