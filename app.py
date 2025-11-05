@@ -2316,7 +2316,10 @@ def servir_pdf(numero_cotizacion):
         from urllib.parse import unquote
         numero_original = numero_cotizacion
         numero_cotizacion = unquote(numero_cotizacion)
-        
+
+        # BUGFIX: Eliminar trailing slash que causa problemas con nombres de archivo
+        numero_cotizacion = numero_cotizacion.rstrip('/')
+
         print(f"PDF: Sirviendo PDF:")
         print(f"   URL original: '{numero_original}'")
         print(f"   Después de unquote: '{numero_cotizacion}'")
