@@ -232,28 +232,43 @@ class GoogleDriveClient:
             
             for nombre_carpeta, folder_id in carpetas:
                 print(f"   Buscando en carpeta {nombre_carpeta}...")
-                
+
                 # Construir query de búsqueda para esta carpeta
                 search_query = f"'{folder_id}' in parents and mimeType='application/pdf' and trashed=false"
-                
+
                 if query:
                     # Buscar en el nombre del archivo
                     search_query += f" and name contains '{query}'"
-                    
+
                 print(f"   Query para {nombre_carpeta}: {search_query}")
-                
-                # Ejecutar búsqueda
-                results = self.service.files().list(
-                    q=search_query,
-                    pageSize=100,
-                    fields="files(id, name, size, modifiedTime, parents)"
-                ).execute()
-                
-                files = results.get('files', [])
-                print(f"   [FILES] {nombre_carpeta}: {len(files)} archivos encontrados")
-                
+
+                # PAGINACIÓN: Obtener TODOS los archivos iterando sobre páginas
+                page_token = None
+                files_carpeta = []
+
+                while True:
+                    # Ejecutar búsqueda con paginación
+                    results = self.service.files().list(
+                        q=search_query,
+                        pageSize=1000,  # Máximo permitido por Google Drive API
+                        pageToken=page_token,
+                        fields="nextPageToken, files(id, name, size, modifiedTime, parents)"
+                    ).execute()
+
+                    files_pagina = results.get('files', [])
+                    files_carpeta.extend(files_pagina)
+
+                    print(f"   [PAGE] {nombre_carpeta}: +{len(files_pagina)} archivos (total parcial: {len(files_carpeta)})")
+
+                    # Verificar si hay más páginas
+                    page_token = results.get('nextPageToken')
+                    if not page_token:
+                        break  # No hay más páginas
+
+                print(f"   [FILES] {nombre_carpeta}: {len(files_carpeta)} archivos encontrados en total")
+
                 # Agregar información de la carpeta a cada archivo
-                for file in files:
+                for file in files_carpeta:
                     file['carpeta_origen'] = nombre_carpeta
                     all_files.append(file)
             
