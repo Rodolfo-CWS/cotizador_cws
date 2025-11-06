@@ -2082,11 +2082,46 @@ def todas_cotizaciones():
     if 'vendedor' not in session:
         return redirect(url_for('login'))
 
+    # MODO DEBUG: Devolver JSON crudo si se accede con ?debug=1
+    debug_mode = request.args.get('debug') == '1'
+
     try:
         print("[TODAS-COTIZACIONES] Obteniendo todas las cotizaciones...")
 
         # Obtener todas las cotizaciones de la base de datos
         resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)  # Query vacía = todas
+
+        if debug_mode:
+            # MODO DEBUG: Devolver JSON crudo de las primeras 3 cotizaciones
+            if resultado_db.get("error"):
+                return jsonify({
+                    "error": True,
+                    "mensaje": str(resultado_db.get("error")),
+                    "modo_conexion": "Offline (JSON)" if db_manager.modo_offline else "Online (Supabase)"
+                })
+
+            cotizaciones_raw = resultado_db.get("resultados", [])
+            debug_data = {
+                "modo_conexion": "Offline (JSON)" if db_manager.modo_offline else "Online (Supabase)",
+                "total_encontradas": len(cotizaciones_raw),
+                "primeras_3_crudas": []
+            }
+
+            for idx, cot in enumerate(cotizaciones_raw[:3]):
+                # Convertir a formato serializable
+                cot_serializable = {}
+                for key, value in cot.items():
+                    try:
+                        # Intentar serializar a JSON para verificar
+                        json.dumps(value)
+                        cot_serializable[key] = value
+                    except:
+                        # Si falla, convertir a string
+                        cot_serializable[key] = str(value)
+
+                debug_data["primeras_3_crudas"].append(cot_serializable)
+
+            return jsonify(debug_data)
 
         cotizaciones = []
         if not resultado_db.get("error"):
