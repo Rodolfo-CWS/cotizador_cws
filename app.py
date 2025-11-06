@@ -2091,6 +2091,9 @@ def todas_cotizaciones():
         # Obtener todas las cotizaciones de la base de datos
         resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)  # Query vacía = todas
 
+        # Obtener todos los PDFs (incluye Google Drive antiguas)
+        resultado_pdfs = pdf_manager.buscar_pdfs("", 1, 10000) if pdf_manager else {"resultados": []}
+
         if debug_mode:
             # MODO DEBUG: Devolver JSON crudo de las primeras 3 cotizaciones
             if resultado_db.get("error"):
@@ -2124,9 +2127,11 @@ def todas_cotizaciones():
             return jsonify(debug_data)
 
         cotizaciones = []
+        numeros_vistos = set()  # Para evitar duplicados entre BD y PDFs
+
         if not resultado_db.get("error"):
             cotizaciones_raw = resultado_db.get("resultados", [])
-            print(f"[TODAS-COTIZACIONES] Encontradas {len(cotizaciones_raw)} cotizaciones")
+            print(f"[TODAS-COTIZACIONES] Encontradas {len(cotizaciones_raw)} cotizaciones de BD")
 
             # DEBUG: Mostrar estructura de primera cotización
             if len(cotizaciones_raw) > 0:
@@ -2242,8 +2247,11 @@ def todas_cotizaciones():
                     except:
                         revision = 1
 
+                numero_cot = cot.get('numeroCotizacion', 'N/A')
+                numeros_vistos.add(numero_cot)  # Marcar como visto
+
                 cotizaciones.append({
-                    "numero": cot.get('numeroCotizacion', 'N/A'),
+                    "numero": numero_cot,
                     "cliente": datos_gen.get('cliente', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
                     "vendedor": datos_gen.get('vendedor', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
                     "proyecto": datos_gen.get('proyecto', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
@@ -2251,10 +2259,53 @@ def todas_cotizaciones():
                     "revision": revision,
                     "total": total_calculado,
                     "moneda": moneda,
-                    "_id": cot.get('_id', '')
+                    "_id": cot.get('_id', ''),
+                    "tiene_desglose": True,  # Cotizaciones de BD tienen desglose
+                    "es_antigua": False
                 })
         else:
             print(f"[TODAS-COTIZACIONES] Error: {resultado_db.get('error')}")
+
+        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (que no están en BD)
+        if not resultado_pdfs.get("error"):
+            pdfs_antiguos = resultado_pdfs.get("resultados", [])
+            print(f"[TODAS-COTIZACIONES] Encontrados {len(pdfs_antiguos)} PDFs totales")
+
+            for pdf in pdfs_antiguos:
+                numero_pdf = pdf.get('numero_cotizacion', 'N/A')
+
+                # Solo agregar si no está ya en la lista (evitar duplicados)
+                if numero_pdf not in numeros_vistos and numero_pdf != 'N/A':
+                    # Extraer metadatos del nombre (formato: CLIENTE-CWS-VENDEDOR-###-R#-PROYECTO)
+                    import re
+                    nombre_partes = numero_pdf.split('-')
+
+                    cliente = nombre_partes[0] if len(nombre_partes) > 0 else 'N/A'
+                    vendedor = nombre_partes[3] if len(nombre_partes) > 3 else 'N/A'
+                    proyecto = '-'.join(nombre_partes[6:]) if len(nombre_partes) > 6 else 'N/A'
+
+                    # Extraer revisión
+                    match_revision = re.search(r'-R(\d+)-', numero_pdf)
+                    revision = int(match_revision.group(1)) if match_revision else 1
+
+                    # Fecha de modificación del archivo
+                    fecha_pdf = pdf.get('fecha_creacion', pdf.get('fecha_modificacion', 'N/A'))
+
+                    cotizaciones.append({
+                        "numero": numero_pdf,
+                        "cliente": cliente,
+                        "vendedor": vendedor,
+                        "proyecto": proyecto,
+                        "fecha": fecha_pdf,
+                        "revision": revision,
+                        "total": 0,  # No hay datos de total en PDFs antiguos
+                        "moneda": "N/A",
+                        "_id": '',
+                        "tiene_desglose": False,  # PDFs antiguos NO tienen desglose
+                        "es_antigua": True  # Marcar como antigua
+                    })
+
+            print(f"[TODAS-COTIZACIONES] Total final: {len(cotizaciones)} cotizaciones (BD + antiguas)")
 
         return render_template(
             "todas_cotizaciones.html",

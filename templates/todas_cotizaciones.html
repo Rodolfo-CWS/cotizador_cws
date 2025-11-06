@@ -290,20 +290,33 @@
                 </thead>
                 <tbody>
                     {% for cot in cotizaciones %}
-                    <tr>
-                        <td class="numero-col" title="{{ cot.numero }}">{{ cot.numero }}</td>
+                    <tr {% if cot.es_antigua %}style="opacity: 0.7; background: #fff9e6;"{% endif %}>
+                        <td class="numero-col" title="{{ cot.numero }}">
+                            {{ cot.numero }}
+                            {% if cot.es_antigua %}
+                            <span style="font-size: 10px; color: #f59e0b; font-weight: bold; margin-left: 4px;" title="Cotización antigua de Google Drive">★</span>
+                            {% endif %}
+                        </td>
                         <td title="{{ cot.cliente }}">{{ cot.cliente }}</td>
                         <td title="{{ cot.vendedor }}">{{ cot.vendedor }}</td>
                         <td title="{{ cot.proyecto }}">{{ cot.proyecto }}</td>
                         <td>{{ cot.fecha }}</td>
                         <td class="revision-col">R{{ cot.revision }}</td>
                         <td class="total-col">
-                            {{ cot.moneda }} ${{ "{:,.2f}".format(cot.total|float) if cot.total else '0.00' }}
+                            {% if cot.moneda != 'N/A' %}
+                                {{ cot.moneda }} ${{ "{:,.2f}".format(cot.total|float) if cot.total else '0.00' }}
+                            {% else %}
+                                <span style="color: #999; font-size: 11px;">-</span>
+                            {% endif %}
                         </td>
                         <td>
                             <div class="acciones-col">
                                 <a href="/pdf/{{ cot.numero }}" target="_blank" class="btn-icon" title="Ver PDF">PDF</a>
+                                {% if cot.tiene_desglose %}
                                 <a href="/desglose/{{ cot.numero }}" class="btn-icon" title="Ver Desglose">Desglose</a>
+                                {% else %}
+                                <span style="font-size: 10px; color: #999;">Sin desglose</span>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
