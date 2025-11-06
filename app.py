@@ -2193,6 +2193,92 @@ def todas_cotizaciones():
         traceback.print_exc()
         return f"Error al cargar cotizaciones: {str(e)}", 500
 
+@app.route("/debug-tabla-cotizaciones")
+def debug_tabla_cotizaciones():
+    """Página de diagnóstico para ver estructura de datos - Accesible desde móvil"""
+    if 'vendedor' not in session:
+        return redirect(url_for('login'))
+
+    try:
+        # Obtener cotizaciones
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)
+
+        debug_info = {
+            "total_encontradas": 0,
+            "tiene_error": False,
+            "error_mensaje": None,
+            "modo_conexion": "Offline (JSON)" if db_manager.modo_offline else "Online (Supabase)",
+            "ejemplos": []
+        }
+
+        if resultado_db.get("error"):
+            debug_info["tiene_error"] = True
+            debug_info["error_mensaje"] = resultado_db.get("error")
+        else:
+            cotizaciones_raw = resultado_db.get("resultados", [])
+            debug_info["total_encontradas"] = len(cotizaciones_raw)
+
+            # Tomar las primeras 3 cotizaciones como ejemplo
+            for idx, cot in enumerate(cotizaciones_raw[:3]):
+                datos_gen = cot.get('datosGenerales', {})
+                items = cot.get('items', [])
+
+                # Analizar items
+                items_analisis = []
+                total_calculado = 0.0
+                for item_idx, item in enumerate(items[:3]):  # Solo primeros 3 items
+                    if isinstance(item, dict):
+                        subtotal = item.get('subtotal', 0)
+                        precio = item.get('precio_unitario') or item.get('precio', 0)
+                        cantidad = item.get('cantidad', 0)
+
+                        if subtotal:
+                            item_total = safe_float(subtotal)
+                        else:
+                            item_total = safe_float(precio) * safe_float(cantidad)
+
+                        total_calculado += item_total
+
+                        items_analisis.append({
+                            "index": item_idx,
+                            "keys": list(item.keys()),
+                            "subtotal": subtotal,
+                            "precio": precio,
+                            "cantidad": cantidad,
+                            "calculado": item_total
+                        })
+
+                ejemplo = {
+                    "index": idx,
+                    "numero_cotizacion": cot.get('numeroCotizacion', 'N/A'),
+                    "keys_raiz": list(cot.keys()),
+                    "datosGenerales": {
+                        "es_dict": isinstance(datos_gen, dict),
+                        "keys": list(datos_gen.keys()) if isinstance(datos_gen, dict) else "NO ES DICT",
+                        "fecha": datos_gen.get('fecha', 'N/A') if isinstance(datos_gen, dict) else "N/A",
+                        "cliente": datos_gen.get('cliente', 'N/A') if isinstance(datos_gen, dict) else "N/A",
+                        "vendedor": datos_gen.get('vendedor', 'N/A') if isinstance(datos_gen, dict) else "N/A"
+                    },
+                    "items": {
+                        "total_items": len(items),
+                        "es_lista": isinstance(items, list),
+                        "items_analizados": items_analisis,
+                        "total_calculado": total_calculado
+                    },
+                    "condiciones": {
+                        "existe": 'condiciones' in cot,
+                        "contenido": cot.get('condiciones', 'NO EXISTE')
+                    }
+                }
+
+                debug_info["ejemplos"].append(ejemplo)
+
+        # Renderizar template de diagnóstico
+        return render_template("debug_tabla.html", debug=debug_info)
+
+    except Exception as e:
+        return f"<h1>Error en diagnóstico</h1><pre>{str(e)}</pre><pre>{traceback.format_exc()}</pre>", 500
+
 @app.route("/ver/<path:item_id>")
 def ver_item(item_id):
     """Ver cotización específica (acepta caracteres especiales)"""

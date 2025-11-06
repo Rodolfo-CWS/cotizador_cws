@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico - Estructura de Datos</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        h1 {
+            color: #4ec9b0;
+            font-size: 20px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #4ec9b0;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            color: #dcdcaa;
+            font-size: 16px;
+            margin: 20px 0 10px 0;
+            background: #2d2d30;
+            padding: 8px;
+            border-left: 4px solid #dcdcaa;
+        }
+
+        h3 {
+            color: #569cd6;
+            font-size: 14px;
+            margin: 15px 0 8px 0;
+        }
+
+        .info-box {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 10px 0;
+        }
+
+        .key-value {
+            display: flex;
+            margin: 5px 0;
+            flex-wrap: wrap;
+        }
+
+        .key {
+            color: #9cdcfe;
+            min-width: 150px;
+            font-weight: bold;
+        }
+
+        .value {
+            color: #ce9178;
+            word-break: break-all;
+        }
+
+        .value.green {
+            color: #4ec9b0;
+        }
+
+        .value.red {
+            color: #f48771;
+        }
+
+        .value.yellow {
+            color: #dcdcaa;
+        }
+
+        .array {
+            color: #4ec9b0;
+            font-style: italic;
+        }
+
+        .dict {
+            color: #569cd6;
+            font-style: italic;
+        }
+
+        .error {
+            background: #5a1d1d;
+            border: 2px solid #f48771;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .success {
+            background: #1e3a1e;
+            border: 2px solid #4ec9b0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .cotizacion {
+            background: #2d2d30;
+            border-left: 4px solid #569cd6;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .item-analisis {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 3px;
+        }
+
+        .btn-back {
+            display: inline-block;
+            background: #0e639c;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        .btn-back:hover {
+            background: #1177bb;
+        }
+
+        code {
+            background: #1e1e1e;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #ce9178;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+                font-size: 12px;
+            }
+
+            .key {
+                min-width: 120px;
+            }
+
+            h1 {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Diagnóstico de Estructura de Datos</h1>
+
+        <a href="/todas-cotizaciones" class="btn-back">← Volver a Tabla</a>
+
+        <div class="info-box">
+            <h2>📊 Información General</h2>
+            <div class="key-value">
+                <span class="key">Modo de Conexión:</span>
+                <span class="value green">{{ debug.modo_conexion }}</span>
+            </div>
+            <div class="key-value">
+                <span class="key">Total Encontradas:</span>
+                <span class="value yellow">{{ debug.total_encontradas }}</span>
+            </div>
+            {% if debug.tiene_error %}
+            <div class="error">
+                <strong>❌ Error:</strong> {{ debug.error_mensaje }}
+            </div>
+            {% endif %}
+        </div>
+
+        {% if debug.ejemplos|length > 0 %}
+        <h2>📝 Primeras 3 Cotizaciones (Estructura Detallada)</h2>
+
+        {% for ejemplo in debug.ejemplos %}
+        <div class="cotizacion">
+            <h3>Cotización #{{ ejemplo.index + 1 }}: {{ ejemplo.numero_cotizacion }}</h3>
+
+            <div class="info-box">
+                <strong>🔑 Keys en Raíz:</strong>
+                <div class="array">{{ ejemplo.keys_raiz }}</div>
+            </div>
+
+            <div class="info-box">
+                <strong>📄 datosGenerales:</strong>
+                <div class="key-value">
+                    <span class="key">Es diccionario:</span>
+                    <span class="value {{ 'green' if ejemplo.datosGenerales.es_dict else 'red' }}">
+                        {{ ejemplo.datosGenerales.es_dict }}
+                    </span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Keys disponibles:</span>
+                    <span class="value yellow">{{ ejemplo.datosGenerales.keys }}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">📅 fecha:</span>
+                    <span class="value {{ 'green' if ejemplo.datosGenerales.fecha != 'N/A' else 'red' }}">
+                        "{{ ejemplo.datosGenerales.fecha }}"
+                    </span>
+                </div>
+                <div class="key-value">
+                    <span class="key">👤 cliente:</span>
+                    <span class="value">{{ ejemplo.datosGenerales.cliente }}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">🏢 vendedor:</span>
+                    <span class="value">{{ ejemplo.datosGenerales.vendedor }}</span>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>📦 items:</strong>
+                <div class="key-value">
+                    <span class="key">Total items:</span>
+                    <span class="value yellow">{{ ejemplo.items.total_items }}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Es lista:</span>
+                    <span class="value {{ 'green' if ejemplo.items.es_lista else 'red' }}">
+                        {{ ejemplo.items.es_lista }}
+                    </span>
+                </div>
+                <div class="key-value">
+                    <span class="key">💰 Total Calculado:</span>
+                    <span class="value green">${{ "{:,.2f}".format(ejemplo.items.total_calculado) }}</span>
+                </div>
+
+                {% if ejemplo.items.items_analizados|length > 0 %}
+                <h3 style="margin-top: 15px;">Items Analizados (primeros 3):</h3>
+                {% for item in ejemplo.items.items_analizados %}
+                <div class="item-analisis">
+                    <div><strong>Item {{ item.index }}:</strong></div>
+                    <div class="key-value">
+                        <span class="key">Keys:</span>
+                        <span class="value yellow">{{ item.keys }}</span>
+                    </div>
+                    <div class="key-value">
+                        <span class="key">subtotal:</span>
+                        <span class="value">{{ item.subtotal }}</span>
+                    </div>
+                    <div class="key-value">
+                        <span class="key">precio:</span>
+                        <span class="value">{{ item.precio }}</span>
+                    </div>
+                    <div class="key-value">
+                        <span class="key">cantidad:</span>
+                        <span class="value">{{ item.cantidad }}</span>
+                    </div>
+                    <div class="key-value">
+                        <span class="key">→ Calculado:</span>
+                        <span class="value green">${{ "{:,.2f}".format(item.calculado) }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="error">⚠️ No hay items para analizar</div>
+                {% endif %}
+            </div>
+
+            <div class="info-box">
+                <strong>⚙️ condiciones:</strong>
+                <div class="key-value">
+                    <span class="key">Existe campo:</span>
+                    <span class="value {{ 'green' if ejemplo.condiciones.existe else 'red' }}">
+                        {{ ejemplo.condiciones.existe }}
+                    </span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Contenido:</span>
+                    <span class="value">{{ ejemplo.condiciones.contenido }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% else %}
+        <div class="error">
+            ❌ No se encontraron cotizaciones para analizar
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 30px;">
+            <a href="/todas-cotizaciones" class="btn-back">← Volver a Tabla</a>
+        </div>
+    </div>
+</body>
+</html>
