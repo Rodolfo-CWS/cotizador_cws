@@ -2093,29 +2093,79 @@ def todas_cotizaciones():
             cotizaciones_raw = resultado_db.get("resultados", [])
             print(f"[TODAS-COTIZACIONES] Encontradas {len(cotizaciones_raw)} cotizaciones")
 
+            # DEBUG: Mostrar estructura de primera cotización
+            if len(cotizaciones_raw) > 0:
+                primera = cotizaciones_raw[0]
+                print(f"[DEBUG] === ESTRUCTURA DE PRIMERA COTIZACIÓN ===")
+                print(f"[DEBUG] Keys en raíz: {list(primera.keys())}")
+                print(f"[DEBUG] numeroCotizacion: {primera.get('numeroCotizacion', 'NO ENCONTRADO')}")
+                print(f"[DEBUG] datosGenerales presente: {'datosGenerales' in primera}")
+                if 'datosGenerales' in primera:
+                    dg = primera['datosGenerales']
+                    print(f"[DEBUG] datosGenerales type: {type(dg)}")
+                    if isinstance(dg, dict):
+                        print(f"[DEBUG] datosGenerales keys: {list(dg.keys())}")
+                        print(f"[DEBUG] datosGenerales.fecha: '{dg.get('fecha', 'NO ENCONTRADO')}'")
+                        print(f"[DEBUG] datosGenerales.cliente: '{dg.get('cliente', 'NO ENCONTRADO')}'")
+                    else:
+                        print(f"[DEBUG] datosGenerales NO ES DICT: {dg}")
+                print(f"[DEBUG] items presente: {'items' in primera}")
+                if 'items' in primera:
+                    items = primera['items']
+                    print(f"[DEBUG] Total items: {len(items) if isinstance(items, list) else 'NO ES LISTA'}")
+                    if isinstance(items, list) and len(items) > 0:
+                        print(f"[DEBUG] Primer item keys: {list(items[0].keys()) if isinstance(items[0], dict) else 'NO ES DICT'}")
+                        print(f"[DEBUG] Primer item completo: {items[0]}")
+                print(f"[DEBUG] condiciones presente: {'condiciones' in primera}")
+                if 'condiciones' in primera:
+                    print(f"[DEBUG] condiciones: {primera['condiciones']}")
+                print(f"[DEBUG] === FIN ESTRUCTURA ===")
+
             # Transformar datos para tabla compacta
-            for cot in cotizaciones_raw:
+            for idx, cot in enumerate(cotizaciones_raw):
                 datos_gen = cot.get('datosGenerales', {})
+
+                # DEBUG para primeras 3 cotizaciones
+                if idx < 3:
+                    print(f"[DEBUG-COT-{idx}] numeroCotizacion: {cot.get('numeroCotizacion', 'N/A')}")
+                    print(f"[DEBUG-COT-{idx}] datosGenerales.fecha extraída: '{datos_gen.get('fecha', 'N/A')}'")
+                    print(f"[DEBUG-COT-{idx}] items count: {len(cot.get('items', []))}")
 
                 # Calcular total sumando items
                 total_calculado = 0.0
                 items = cot.get('items', [])
-                for item in items:
+
+                if idx < 3:
+                    print(f"[DEBUG-COT-{idx}] Items a procesar: {len(items)}")
+
+                for item_idx, item in enumerate(items):
                     if isinstance(item, dict):
                         # Intentar obtener subtotal o calcular de precio * cantidad
                         subtotal = item.get('subtotal', 0)
                         if subtotal:
-                            total_calculado += safe_float(subtotal)
+                            subtotal_valor = safe_float(subtotal)
+                            total_calculado += subtotal_valor
+                            if idx < 3 and item_idx < 2:
+                                print(f"[DEBUG-COT-{idx}] Item {item_idx} - subtotal: {subtotal} -> {subtotal_valor}")
                         else:
                             precio = safe_float(item.get('precio_unitario') or item.get('precio', 0))
                             cantidad = safe_float(item.get('cantidad', 0))
-                            total_calculado += precio * cantidad
+                            item_total = precio * cantidad
+                            total_calculado += item_total
+                            if idx < 3 and item_idx < 2:
+                                print(f"[DEBUG-COT-{idx}] Item {item_idx} - precio: {precio}, cantidad: {cantidad}, total: {item_total}")
+
+                if idx < 3:
+                    print(f"[DEBUG-COT-{idx}] Total calculado final: {total_calculado}")
 
                 # Obtener moneda de condiciones o datosGenerales
                 condiciones = cot.get('condiciones', {})
                 if not condiciones or not isinstance(condiciones, dict):
                     condiciones = datos_gen.get('condiciones', {})
                 moneda = condiciones.get('moneda', 'MXN') if isinstance(condiciones, dict) else 'MXN'
+
+                if idx < 3:
+                    print(f"[DEBUG-COT-{idx}] Moneda extraída: {moneda}")
 
                 cotizaciones.append({
                     "numero": cot.get('numeroCotizacion', 'N/A'),
