@@ -2212,13 +2212,43 @@ def todas_cotizaciones():
                     condiciones = datos_gen.get('condiciones', {})
                 moneda = condiciones.get('moneda', 'MXN') if isinstance(condiciones, dict) else 'MXN'
 
+                # EXTRACCIÓN ROBUSTA DE REVISIÓN - intentar múltiples ubicaciones
+                revision = None
+
+                # Intento 1: Campo revision en raíz
+                if 'revision' in cot:
+                    revision = cot.get('revision')
+
+                # Intento 2: Campo revision en datosGenerales
+                if not revision and isinstance(datos_gen, dict) and 'revision' in datos_gen:
+                    revision = datos_gen.get('revision')
+
+                # Intento 3: Extraer del número de cotización (formato: ...-R#-...)
+                if not revision:
+                    numero_cot = cot.get('numeroCotizacion', '')
+                    if numero_cot and isinstance(numero_cot, str):
+                        import re
+                        match = re.search(r'-R(\d+)-', numero_cot)
+                        if match:
+                            revision = int(match.group(1))
+
+                # Default a 1 si no se encontró
+                if not revision:
+                    revision = 1
+                else:
+                    # Asegurar que es entero
+                    try:
+                        revision = int(revision)
+                    except:
+                        revision = 1
+
                 cotizaciones.append({
                     "numero": cot.get('numeroCotizacion', 'N/A'),
                     "cliente": datos_gen.get('cliente', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
                     "vendedor": datos_gen.get('vendedor', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
                     "proyecto": datos_gen.get('proyecto', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
                     "fecha": fecha,
-                    "revision": cot.get('revision', 1),
+                    "revision": revision,
                     "total": total_calculado,
                     "moneda": moneda,
                     "_id": cot.get('_id', '')
