@@ -2085,8 +2085,12 @@ def todas_cotizaciones():
     # MODO DEBUG: Devolver JSON crudo si se accede con ?debug=1
     debug_mode = request.args.get('debug') == '1'
 
+    # PAGINACIÓN: Obtener página actual (default 1) y tamaño de página
+    page = request.args.get('page', 1, type=int)
+    page_size = 50  # 50 registros por página
+
     try:
-        print("[TODAS-COTIZACIONES] Obteniendo todas las cotizaciones...")
+        print(f"[TODAS-COTIZACIONES] Obteniendo todas las cotizaciones (página {page})...")
 
         # Obtener todas las cotizaciones de la base de datos
         resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)  # Query vacía = todas
@@ -2307,10 +2311,34 @@ def todas_cotizaciones():
 
             print(f"[TODAS-COTIZACIONES] Total final: {len(cotizaciones)} cotizaciones (BD + antiguas)")
 
+        # APLICAR PAGINACIÓN
+        total_cotizaciones = len(cotizaciones)
+        total_pages = (total_cotizaciones + page_size - 1) // page_size  # Redondeo hacia arriba
+
+        # Validar página solicitada
+        if page < 1:
+            page = 1
+        elif page > total_pages and total_pages > 0:
+            page = total_pages
+
+        # Calcular índices para el slice
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
+
+        # Obtener cotizaciones de la página actual
+        cotizaciones_pagina = cotizaciones[start_index:end_index]
+
+        print(f"[TODAS-COTIZACIONES] Mostrando {len(cotizaciones_pagina)} de {total_cotizaciones} (página {page}/{total_pages})")
+
         return render_template(
             "todas_cotizaciones.html",
-            cotizaciones=cotizaciones,
-            vendedor=session.get('vendedor')
+            cotizaciones=cotizaciones_pagina,
+            vendedor=session.get('vendedor'),
+            # Información de paginación
+            page=page,
+            total_pages=total_pages,
+            total_cotizaciones=total_cotizaciones,
+            page_size=page_size
         )
 
     except Exception as e:

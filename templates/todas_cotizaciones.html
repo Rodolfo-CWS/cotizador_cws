@@ -227,6 +227,68 @@
             margin-bottom: 16px;
         }
 
+        /* Estilos de paginación */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .page-btn {
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            background: white;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            min-width: 36px;
+            text-align: center;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: #f8f9fa;
+            border-color: #4f46e5;
+            color: #4f46e5;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .page-btn.active {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+            font-weight: 600;
+        }
+
+        .page-btn.prev-next {
+            font-weight: 600;
+        }
+
         @media (max-width: 768px) {
             .header {
                 flex-direction: column;
@@ -241,6 +303,26 @@
             td, th {
                 font-size: 12px;
                 padding: 6px 8px;
+            }
+
+            .pagination-container {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .pagination-controls {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .page-btn {
+                padding: 6px 10px;
+                font-size: 13px;
+                min-width: 32px;
+            }
+
+            .pagination-info {
+                font-size: 13px;
             }
         }
     </style>
@@ -330,6 +412,56 @@
                 <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"/>
             </svg>
             <p>No se encontraron cotizaciones en el sistema</p>
+        </div>
+        {% endif %}
+
+        <!-- Controles de paginación -->
+        {% if total_pages > 1 %}
+        <div class="pagination-container">
+            <div class="pagination-info">
+                Mostrando {{ ((page - 1) * page_size) + 1 }} - {{ [page * page_size, total_cotizaciones]|min }} de {{ total_cotizaciones }} cotizaciones
+            </div>
+            <div class="pagination-controls">
+                <!-- Botón anterior -->
+                {% if page > 1 %}
+                <a href="?page={{ page - 1 }}" class="page-btn prev-next">← Anterior</a>
+                {% else %}
+                <button class="page-btn prev-next" disabled>← Anterior</button>
+                {% endif %}
+
+                <!-- Números de página -->
+                {% set start_page = [1, page - 2]|max %}
+                {% set end_page = [total_pages, page + 2]|min %}
+
+                {% if start_page > 1 %}
+                <a href="?page=1" class="page-btn">1</a>
+                {% if start_page > 2 %}
+                <span class="page-btn" style="border: none; cursor: default;">...</span>
+                {% endif %}
+                {% endif %}
+
+                {% for p in range(start_page, end_page + 1) %}
+                {% if p == page %}
+                <button class="page-btn active" disabled>{{ p }}</button>
+                {% else %}
+                <a href="?page={{ p }}" class="page-btn">{{ p }}</a>
+                {% endif %}
+                {% endfor %}
+
+                {% if end_page < total_pages %}
+                {% if end_page < total_pages - 1 %}
+                <span class="page-btn" style="border: none; cursor: default;">...</span>
+                {% endif %}
+                <a href="?page={{ total_pages }}" class="page-btn">{{ total_pages }}</a>
+                {% endif %}
+
+                <!-- Botón siguiente -->
+                {% if page < total_pages %}
+                <a href="?page={{ page + 1 }}" class="page-btn prev-next">Siguiente →</a>
+                {% else %}
+                <button class="page-btn prev-next" disabled>Siguiente →</button>
+                {% endif %}
+            </div>
         </div>
         {% endif %}
     </div>
