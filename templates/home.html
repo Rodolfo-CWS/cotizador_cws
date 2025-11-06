@@ -629,11 +629,9 @@
             window.location.href = `/desglose/${identificadorCodificado}`;
         }
 
-        // Función para nueva cotización
+        // Función para ver todas las cotizaciones
         function verTodos() {
-            // Limpiar campo de búsqueda y ejecutar búsqueda vacía
-            document.getElementById('searchInput').value = '';
-            buscar();
+            window.location.href = '/todas-cotizaciones';
         }
 
         function nuevaCotizacion() {

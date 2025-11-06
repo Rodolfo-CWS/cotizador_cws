@@ -2069,12 +2069,58 @@ def buscar():
         
         print(f"[UNIFICADA] Enviando respuesta con {len(resultados_paginados)} resultados")
         return jsonify(respuesta)
-        
+
     except Exception as e:
         print(f"[UNIFICADA] Error en búsqueda: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": "Error en búsqueda unificada"}), 500
+
+@app.route("/todas-cotizaciones")
+def todas_cotizaciones():
+    """Vista de tabla Excel-style con todas las cotizaciones"""
+    if 'vendedor' not in session:
+        return redirect(url_for('login'))
+
+    try:
+        print("[TODAS-COTIZACIONES] Obteniendo todas las cotizaciones...")
+
+        # Obtener todas las cotizaciones de la base de datos
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)  # Query vacía = todas
+
+        cotizaciones = []
+        if not resultado_db.get("error"):
+            cotizaciones_raw = resultado_db.get("resultados", [])
+            print(f"[TODAS-COTIZACIONES] Encontradas {len(cotizaciones_raw)} cotizaciones")
+
+            # Transformar datos para tabla compacta
+            for cot in cotizaciones_raw:
+                datos_gen = cot.get('datosGenerales', {})
+                cotizaciones.append({
+                    "numero": cot.get('numeroCotizacion', 'N/A'),
+                    "cliente": datos_gen.get('cliente', 'N/A'),
+                    "vendedor": datos_gen.get('vendedor', 'N/A'),
+                    "proyecto": datos_gen.get('proyecto', 'N/A'),
+                    "fecha": datos_gen.get('fecha', 'N/A'),
+                    "revision": cot.get('revision', 1),
+                    "total": datos_gen.get('total', 0),
+                    "moneda": datos_gen.get('moneda', 'MXN'),
+                    "_id": cot.get('_id', '')
+                })
+        else:
+            print(f"[TODAS-COTIZACIONES] Error: {resultado_db.get('error')}")
+
+        return render_template(
+            "todas_cotizaciones.html",
+            cotizaciones=cotizaciones,
+            vendedor=session.get('vendedor')
+        )
+
+    except Exception as e:
+        print(f"[TODAS-COTIZACIONES] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"Error al cargar cotizaciones: {str(e)}", 500
 
 @app.route("/ver/<path:item_id>")
 def ver_item(item_id):

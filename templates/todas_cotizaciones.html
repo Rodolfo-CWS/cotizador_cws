@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todas las Cotizaciones - CWS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f8f9fa;
+            padding: 20px;
+            color: #2c2c2c;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #212529;
+            font-weight: 600;
+        }
+
+        .header .user-info {
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #4338ca;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .stats {
+            background: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 14px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: #f8f9fa;
+            z-index: 10;
+        }
+
+        th {
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+
+        th:hover {
+            background: #e9ecef;
+        }
+
+        th.sortable::after {
+            content: ' ⇅';
+            opacity: 0.3;
+            font-size: 12px;
+        }
+
+        th.sort-asc::after {
+            content: ' ↑';
+            opacity: 1;
+            color: #4f46e5;
+        }
+
+        th.sort-desc::after {
+            content: ' ↓';
+            opacity: 1;
+            color: #4f46e5;
+        }
+
+        td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f1f3f5;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        tr:nth-child(even) {
+            background: #fafbfc;
+        }
+
+        tr:nth-child(even):hover {
+            background: #f1f3f5;
+        }
+
+        .numero-col {
+            color: #4f46e5;
+            font-weight: 600;
+            max-width: 250px;
+        }
+
+        .revision-col {
+            text-align: center;
+            font-size: 11px;
+            color: #6c757d;
+        }
+
+        .total-col {
+            text-align: right;
+            font-weight: 500;
+        }
+
+        .acciones-col {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+        }
+
+        .btn-icon {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            background: white;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-icon:hover {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            color: #6c757d;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            opacity: 0.3;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            td, th {
+                font-size: 12px;
+                padding: 6px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>Todas las Cotizaciones</h1>
+            <div class="user-info">Sesión: <strong>{{ vendedor }}</strong></div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <a href="/" class="btn btn-secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+            </svg>
+            Volver a Inicio
+        </a>
+        <a href="/formulario" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+            Nueva Cotización
+        </a>
+    </div>
+
+    <div class="stats">
+        <strong id="total-cotizaciones">{{ cotizaciones|length }}</strong> cotizaciones encontradas
+    </div>
+
+    <div class="table-container">
+        {% if cotizaciones %}
+        <div class="table-wrapper">
+            <table id="tabla-cotizaciones">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort="numero">Número</th>
+                        <th class="sortable" data-sort="cliente">Cliente</th>
+                        <th class="sortable" data-sort="vendedor">Vendedor</th>
+                        <th class="sortable" data-sort="proyecto">Proyecto</th>
+                        <th class="sortable" data-sort="fecha">Fecha</th>
+                        <th class="sortable" data-sort="revision">Rev</th>
+                        <th class="sortable" data-sort="total">Total</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cot in cotizaciones %}
+                    <tr>
+                        <td class="numero-col" title="{{ cot.numero }}">{{ cot.numero }}</td>
+                        <td title="{{ cot.cliente }}">{{ cot.cliente }}</td>
+                        <td title="{{ cot.vendedor }}">{{ cot.vendedor }}</td>
+                        <td title="{{ cot.proyecto }}">{{ cot.proyecto }}</td>
+                        <td>{{ cot.fecha }}</td>
+                        <td class="revision-col">R{{ cot.revision }}</td>
+                        <td class="total-col">
+                            {{ cot.moneda }} ${{ "{:,.2f}".format(cot.total|float) if cot.total else '0.00' }}
+                        </td>
+                        <td>
+                            <div class="acciones-col">
+                                <a href="/pdf/{{ cot.numero }}" target="_blank" class="btn-icon" title="Ver PDF">PDF</a>
+                                <a href="/desglose/{{ cot._id if cot._id else cot.numero }}" class="btn-icon" title="Ver Desglose">Desglose</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"/>
+            </svg>
+            <p>No se encontraron cotizaciones en el sistema</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Sistema de ordenamiento de tabla
+        let currentSort = {
+            column: 'fecha',
+            direction: 'desc'
+        };
+
+        // Función para ordenar tabla
+        function sortTable(column) {
+            const table = document.getElementById('tabla-cotizaciones');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            // Determinar dirección de ordenamiento
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+
+            // Obtener índice de columna
+            const columnIndex = {
+                'numero': 0,
+                'cliente': 1,
+                'vendedor': 2,
+                'proyecto': 3,
+                'fecha': 4,
+                'revision': 5,
+                'total': 6
+            }[column];
+
+            // Ordenar filas
+            rows.sort((a, b) => {
+                let aValue = a.cells[columnIndex].textContent.trim();
+                let bValue = b.cells[columnIndex].textContent.trim();
+
+                // Tratamiento especial para números y fechas
+                if (column === 'total') {
+                    // Extraer solo el número del formato "MXN $1,234.56"
+                    aValue = parseFloat(aValue.replace(/[^0-9.-]/g, '')) || 0;
+                    bValue = parseFloat(bValue.replace(/[^0-9.-]/g, '')) || 0;
+                } else if (column === 'revision') {
+                    aValue = parseInt(aValue.replace('R', '')) || 0;
+                    bValue = parseInt(bValue.replace('R', '')) || 0;
+                } else if (column === 'fecha') {
+                    // Intentar parsear fecha
+                    aValue = new Date(aValue).getTime() || 0;
+                    bValue = new Date(bValue).getTime() || 0;
+                }
+
+                // Comparación
+                let comparison = 0;
+                if (typeof aValue === 'number') {
+                    comparison = aValue - bValue;
+                } else {
+                    comparison = aValue.localeCompare(bValue);
+                }
+
+                return currentSort.direction === 'asc' ? comparison : -comparison;
+            });
+
+            // Reinsertar filas ordenadas
+            rows.forEach(row => tbody.appendChild(row));
+
+            // Actualizar indicadores visuales
+            updateSortIndicators();
+        }
+
+        // Actualizar indicadores de ordenamiento
+        function updateSortIndicators() {
+            document.querySelectorAll('th.sortable').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.dataset.sort === currentSort.column) {
+                    th.classList.add('sort-' + currentSort.direction);
+                }
+            });
+        }
+
+        // Agregar event listeners a encabezados
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('th.sortable').forEach(th => {
+                th.addEventListener('click', function() {
+                    sortTable(this.dataset.sort);
+                });
+            });
+
+            // Ordenar por fecha descendente por defecto
+            sortTable('fecha');
+            sortTable('fecha'); // Doble click para descendente
+        });
+    </script>
+</body>
+</html>
