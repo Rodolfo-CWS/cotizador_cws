@@ -2096,6 +2096,27 @@ def todas_cotizaciones():
             # Transformar datos para tabla compacta
             for cot in cotizaciones_raw:
                 datos_gen = cot.get('datosGenerales', {})
+
+                # Calcular total sumando items
+                total_calculado = 0.0
+                items = cot.get('items', [])
+                for item in items:
+                    if isinstance(item, dict):
+                        # Intentar obtener subtotal o calcular de precio * cantidad
+                        subtotal = item.get('subtotal', 0)
+                        if subtotal:
+                            total_calculado += safe_float(subtotal)
+                        else:
+                            precio = safe_float(item.get('precio_unitario') or item.get('precio', 0))
+                            cantidad = safe_float(item.get('cantidad', 0))
+                            total_calculado += precio * cantidad
+
+                # Obtener moneda de condiciones o datosGenerales
+                condiciones = cot.get('condiciones', {})
+                if not condiciones or not isinstance(condiciones, dict):
+                    condiciones = datos_gen.get('condiciones', {})
+                moneda = condiciones.get('moneda', 'MXN') if isinstance(condiciones, dict) else 'MXN'
+
                 cotizaciones.append({
                     "numero": cot.get('numeroCotizacion', 'N/A'),
                     "cliente": datos_gen.get('cliente', 'N/A'),
@@ -2103,8 +2124,8 @@ def todas_cotizaciones():
                     "proyecto": datos_gen.get('proyecto', 'N/A'),
                     "fecha": datos_gen.get('fecha', 'N/A'),
                     "revision": cot.get('revision', 1),
-                    "total": datos_gen.get('total', 0),
-                    "moneda": datos_gen.get('moneda', 'MXN'),
+                    "total": total_calculado,
+                    "moneda": moneda,
                     "_id": cot.get('_id', '')
                 })
         else:
