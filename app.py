@@ -2160,38 +2160,51 @@ def todas_cotizaciones():
             for idx, cot in enumerate(cotizaciones_raw):
                 datos_gen = cot.get('datosGenerales', {})
 
-                # DEBUG para primeras 3 cotizaciones
-                if idx < 3:
-                    print(f"[DEBUG-COT-{idx}] numeroCotizacion: {cot.get('numeroCotizacion', 'N/A')}")
-                    print(f"[DEBUG-COT-{idx}] datosGenerales.fecha extraída: '{datos_gen.get('fecha', 'N/A')}'")
-                    print(f"[DEBUG-COT-{idx}] items count: {len(cot.get('items', []))}")
+                # EXTRACCIÓN ROBUSTA DE FECHA - intentar múltiples ubicaciones
+                fecha = 'N/A'
+                if isinstance(datos_gen, dict):
+                    fecha = datos_gen.get('fecha') or datos_gen.get('Fecha')
+                if not fecha or fecha == 'N/A':
+                    # Intentar en raíz
+                    fecha = cot.get('fecha') or cot.get('fechaCreacion') or cot.get('timestamp')
+                    if fecha and isinstance(fecha, (int, float)):
+                        # Si es timestamp, convertir a fecha
+                        from datetime import datetime
+                        try:
+                            fecha = datetime.fromtimestamp(fecha/1000 if fecha > 10000000000 else fecha).strftime('%Y-%m-%d')
+                        except:
+                            fecha = 'N/A'
+                if not fecha:
+                    fecha = 'N/A'
 
-                # Calcular total sumando items
+                # CÁLCULO ROBUSTODEL TOTAL - probar todas las variantes posibles
                 total_calculado = 0.0
                 items = cot.get('items', [])
 
-                if idx < 3:
-                    print(f"[DEBUG-COT-{idx}] Items a procesar: {len(items)}")
-
-                for item_idx, item in enumerate(items):
-                    if isinstance(item, dict):
-                        # Intentar obtener subtotal o calcular de precio * cantidad
-                        subtotal = item.get('subtotal', 0)
-                        if subtotal:
-                            subtotal_valor = safe_float(subtotal)
-                            total_calculado += subtotal_valor
-                            if idx < 3 and item_idx < 2:
-                                print(f"[DEBUG-COT-{idx}] Item {item_idx} - subtotal: {subtotal} -> {subtotal_valor}")
-                        else:
-                            precio = safe_float(item.get('precio_unitario') or item.get('precio', 0))
-                            cantidad = safe_float(item.get('cantidad', 0))
-                            item_total = precio * cantidad
-                            total_calculado += item_total
-                            if idx < 3 and item_idx < 2:
-                                print(f"[DEBUG-COT-{idx}] Item {item_idx} - precio: {precio}, cantidad: {cantidad}, total: {item_total}")
-
-                if idx < 3:
-                    print(f"[DEBUG-COT-{idx}] Total calculado final: {total_calculado}")
+                if isinstance(items, list):
+                    for item in items:
+                        if isinstance(item, dict):
+                            # Opción 1: campo 'total' directo en el item
+                            if 'total' in item and item['total']:
+                                total_calculado += safe_float(item.get('total', 0))
+                            # Opción 2: campo 'subtotal'
+                            elif 'subtotal' in item and item['subtotal']:
+                                total_calculado += safe_float(item.get('subtotal', 0))
+                            # Opción 3: calcular de precio_unitario * cantidad
+                            elif 'precio_unitario' in item:
+                                precio = safe_float(item.get('precio_unitario', 0))
+                                cantidad = safe_float(item.get('cantidad', 1))
+                                total_calculado += precio * cantidad
+                            # Opción 4: calcular de precio * cantidad
+                            elif 'precio' in item:
+                                precio = safe_float(item.get('precio', 0))
+                                cantidad = safe_float(item.get('cantidad', 1))
+                                total_calculado += precio * cantidad
+                            # Opción 5: costoUnidad * cantidad
+                            elif 'costoUnidad' in item:
+                                costo = safe_float(item.get('costoUnidad', 0))
+                                cantidad = safe_float(item.get('cantidad', 1))
+                                total_calculado += costo * cantidad
 
                 # Obtener moneda de condiciones o datosGenerales
                 condiciones = cot.get('condiciones', {})
@@ -2199,15 +2212,12 @@ def todas_cotizaciones():
                     condiciones = datos_gen.get('condiciones', {})
                 moneda = condiciones.get('moneda', 'MXN') if isinstance(condiciones, dict) else 'MXN'
 
-                if idx < 3:
-                    print(f"[DEBUG-COT-{idx}] Moneda extraída: {moneda}")
-
                 cotizaciones.append({
                     "numero": cot.get('numeroCotizacion', 'N/A'),
-                    "cliente": datos_gen.get('cliente', 'N/A'),
-                    "vendedor": datos_gen.get('vendedor', 'N/A'),
-                    "proyecto": datos_gen.get('proyecto', 'N/A'),
-                    "fecha": datos_gen.get('fecha', 'N/A'),
+                    "cliente": datos_gen.get('cliente', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                    "vendedor": datos_gen.get('vendedor', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                    "proyecto": datos_gen.get('proyecto', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                    "fecha": fecha,
                     "revision": cot.get('revision', 1),
                     "total": total_calculado,
                     "moneda": moneda,
