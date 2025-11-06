@@ -2193,9 +2193,9 @@ def todas_cotizaciones():
         traceback.print_exc()
         return f"Error al cargar cotizaciones: {str(e)}", 500
 
-@app.route("/diagnostico-completo")
-def diagnostico_completo():
-    """Diagnóstico completo sin requerimiento de login - Para debugging"""
+@app.route("/diagnostico-tabla-datos")
+def diagnostico_tabla_datos():
+    """Diagnóstico de datos de tabla sin requerimiento de login - Para debugging"""
     import traceback
     import json
 
