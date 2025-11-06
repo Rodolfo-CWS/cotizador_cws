@@ -2199,6 +2199,8 @@ def debug_tabla_cotizaciones():
     if 'vendedor' not in session:
         return redirect(url_for('login'))
 
+    import traceback
+
     try:
         # Obtener cotizaciones
         resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)
@@ -2213,71 +2215,96 @@ def debug_tabla_cotizaciones():
 
         if resultado_db.get("error"):
             debug_info["tiene_error"] = True
-            debug_info["error_mensaje"] = resultado_db.get("error")
+            debug_info["error_mensaje"] = str(resultado_db.get("error"))
         else:
             cotizaciones_raw = resultado_db.get("resultados", [])
             debug_info["total_encontradas"] = len(cotizaciones_raw)
 
             # Tomar las primeras 3 cotizaciones como ejemplo
             for idx, cot in enumerate(cotizaciones_raw[:3]):
-                datos_gen = cot.get('datosGenerales', {})
-                items = cot.get('items', [])
+                try:
+                    datos_gen = cot.get('datosGenerales', {})
+                    items = cot.get('items', [])
 
-                # Analizar items
-                items_analisis = []
-                total_calculado = 0.0
-                for item_idx, item in enumerate(items[:3]):  # Solo primeros 3 items
-                    if isinstance(item, dict):
-                        subtotal = item.get('subtotal', 0)
-                        precio = item.get('precio_unitario') or item.get('precio', 0)
-                        cantidad = item.get('cantidad', 0)
+                    # Analizar items
+                    items_analisis = []
+                    total_calculado = 0.0
+                    for item_idx, item in enumerate(items[:3]):  # Solo primeros 3 items
+                        try:
+                            if isinstance(item, dict):
+                                subtotal = item.get('subtotal', 0)
+                                precio = item.get('precio_unitario') or item.get('precio', 0)
+                                cantidad = item.get('cantidad', 0)
 
-                        if subtotal:
-                            item_total = safe_float(subtotal)
-                        else:
-                            item_total = safe_float(precio) * safe_float(cantidad)
+                                if subtotal:
+                                    item_total = safe_float(subtotal)
+                                else:
+                                    item_total = safe_float(precio) * safe_float(cantidad)
 
-                        total_calculado += item_total
+                                total_calculado += item_total
 
-                        items_analisis.append({
-                            "index": item_idx,
-                            "keys": list(item.keys()),
-                            "subtotal": subtotal,
-                            "precio": precio,
-                            "cantidad": cantidad,
-                            "calculado": item_total
-                        })
+                                items_analisis.append({
+                                    "index": item_idx,
+                                    "keys": list(item.keys()),
+                                    "subtotal": str(subtotal),
+                                    "precio": str(precio),
+                                    "cantidad": str(cantidad),
+                                    "calculado": float(item_total)
+                                })
+                        except Exception as item_error:
+                            items_analisis.append({
+                                "index": item_idx,
+                                "error": str(item_error)
+                            })
 
-                ejemplo = {
-                    "index": idx,
-                    "numero_cotizacion": cot.get('numeroCotizacion', 'N/A'),
-                    "keys_raiz": list(cot.keys()),
-                    "datosGenerales": {
-                        "es_dict": isinstance(datos_gen, dict),
-                        "keys": list(datos_gen.keys()) if isinstance(datos_gen, dict) else "NO ES DICT",
-                        "fecha": datos_gen.get('fecha', 'N/A') if isinstance(datos_gen, dict) else "N/A",
-                        "cliente": datos_gen.get('cliente', 'N/A') if isinstance(datos_gen, dict) else "N/A",
-                        "vendedor": datos_gen.get('vendedor', 'N/A') if isinstance(datos_gen, dict) else "N/A"
-                    },
-                    "items": {
-                        "total_items": len(items),
-                        "es_lista": isinstance(items, list),
-                        "items_analizados": items_analisis,
-                        "total_calculado": total_calculado
-                    },
-                    "condiciones": {
-                        "existe": 'condiciones' in cot,
-                        "contenido": cot.get('condiciones', 'NO EXISTE')
+                    ejemplo = {
+                        "index": idx,
+                        "numero_cotizacion": str(cot.get('numeroCotizacion', 'N/A')),
+                        "keys_raiz": [str(k) for k in cot.keys()],
+                        "datosGenerales": {
+                            "es_dict": isinstance(datos_gen, dict),
+                            "keys": [str(k) for k in datos_gen.keys()] if isinstance(datos_gen, dict) else "NO ES DICT",
+                            "fecha": str(datos_gen.get('fecha', 'N/A')) if isinstance(datos_gen, dict) else "N/A",
+                            "cliente": str(datos_gen.get('cliente', 'N/A')) if isinstance(datos_gen, dict) else "N/A",
+                            "vendedor": str(datos_gen.get('vendedor', 'N/A')) if isinstance(datos_gen, dict) else "N/A"
+                        },
+                        "items": {
+                            "total_items": len(items),
+                            "es_lista": isinstance(items, list),
+                            "items_analizados": items_analisis,
+                            "total_calculado": float(total_calculado)
+                        },
+                        "condiciones": {
+                            "existe": 'condiciones' in cot,
+                            "contenido": str(cot.get('condiciones', 'NO EXISTE'))
+                        }
                     }
-                }
 
-                debug_info["ejemplos"].append(ejemplo)
+                    debug_info["ejemplos"].append(ejemplo)
+                except Exception as cot_error:
+                    debug_info["ejemplos"].append({
+                        "index": idx,
+                        "error": str(cot_error)
+                    })
 
         # Renderizar template de diagnóstico
         return render_template("debug_tabla.html", debug=debug_info)
 
     except Exception as e:
-        return f"<h1>Error en diagnóstico</h1><pre>{str(e)}</pre><pre>{traceback.format_exc()}</pre>", 500
+        error_trace = traceback.format_exc()
+        return f"""
+        <html>
+        <head><title>Error de Diagnóstico</title></head>
+        <body style="font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4;">
+            <h1 style="color: #f48771;">❌ Error en Diagnóstico</h1>
+            <h2>Error:</h2>
+            <pre style="background: #252526; padding: 15px; border-radius: 5px;">{str(e)}</pre>
+            <h2>Stack Trace:</h2>
+            <pre style="background: #252526; padding: 15px; border-radius: 5px;">{error_trace}</pre>
+            <a href="/todas-cotizaciones" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background: #0e639c; color: white; text-decoration: none; border-radius: 4px;">← Volver</a>
+        </body>
+        </html>
+        """, 500
 
 @app.route("/ver/<path:item_id>")
 def ver_item(item_id):
