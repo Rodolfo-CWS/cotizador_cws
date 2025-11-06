@@ -227,6 +227,22 @@
             margin-bottom: 16px;
         }
 
+        /* Nota de leyenda */
+        .leyenda {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .leyenda-icono {
+            color: #f59e0b;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
         /* Estilos de paginación */
         .pagination-container {
             display: flex;
@@ -352,6 +368,10 @@
 
     <div class="stats">
         <strong id="total-cotizaciones">{{ cotizaciones|length }}</strong> cotizaciones encontradas
+        <div class="leyenda">
+            <span class="leyenda-icono">★</span>
+            <span>Cotizaciones antiguas de Google Drive</span>
+        </div>
     </div>
 
     <div class="table-container">

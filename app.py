@@ -2223,33 +2223,33 @@ def todas_cotizaciones():
 
                 # EXTRACCIÓN ROBUSTA DE REVISIÓN - intentar múltiples ubicaciones
                 revision = None
+                import re
 
-                # Intento 1: Campo revision en raíz
-                if 'revision' in cot:
-                    revision = cot.get('revision')
+                # Intento 1 (PRIORITARIO): Extraer del número de cotización (formato: ...-R##-...)
+                # Este es el más confiable porque R10, R2, etc. están en el número
+                numero_cot = cot.get('numeroCotizacion', '')
+                if numero_cot and isinstance(numero_cot, str):
+                    match = re.search(r'-R(\d+)-', numero_cot)
+                    if match:
+                        revision = int(match.group(1))
 
-                # Intento 2: Campo revision en datosGenerales
+                # Intento 2: Campo revision en raíz (solo si no se encontró en número)
+                if not revision and 'revision' in cot:
+                    try:
+                        revision = int(cot.get('revision'))
+                    except:
+                        pass
+
+                # Intento 3: Campo revision en datosGenerales (solo si no se encontró)
                 if not revision and isinstance(datos_gen, dict) and 'revision' in datos_gen:
-                    revision = datos_gen.get('revision')
-
-                # Intento 3: Extraer del número de cotización (formato: ...-R#-...)
-                if not revision:
-                    numero_cot = cot.get('numeroCotizacion', '')
-                    if numero_cot and isinstance(numero_cot, str):
-                        import re
-                        match = re.search(r'-R(\d+)-', numero_cot)
-                        if match:
-                            revision = int(match.group(1))
+                    try:
+                        revision = int(datos_gen.get('revision'))
+                    except:
+                        pass
 
                 # Default a 1 si no se encontró
                 if not revision:
                     revision = 1
-                else:
-                    # Asegurar que es entero
-                    try:
-                        revision = int(revision)
-                    except:
-                        revision = 1
 
                 numero_cot = cot.get('numeroCotizacion', 'N/A')
                 numeros_vistos.add(numero_cot)  # Marcar como visto
