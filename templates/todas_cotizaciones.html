@@ -91,6 +91,85 @@
             font-weight: 500;
         }
 
+        /* Filtros */
+        .filters-container {
+            background: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .filters-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .filter-input {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn-clear-filters {
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            background: white;
+            color: #6c757d;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-clear-filters:hover {
+            background: #f8f9fa;
+            border-color: #adb5bd;
+        }
+
+        .filter-status {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
         .table-container {
             background: white;
             border-radius: 8px;
@@ -374,6 +453,43 @@
         </div>
     </div>
 
+    <!-- Filtros -->
+    <div class="filters-container">
+        <div class="filters-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14,12V19.88C14.04,20.18 13.94,20.5 13.71,20.71C13.32,21.1 12.69,21.1 12.3,20.71L10.29,18.7C10.06,18.47 9.96,18.16 10,17.87V12H9.97L4.21,4.62C3.87,4.19 3.95,3.56 4.38,3.22C4.57,3.08 4.78,3 5,3V3H19V3C19.22,3 19.43,3.08 19.62,3.22C20.05,3.56 20.13,4.19 19.79,4.62L14.03,12H14Z"/>
+            </svg>
+            Filtros
+        </div>
+        <div class="filters-grid">
+            <div class="filter-group">
+                <label class="filter-label">Cliente</label>
+                <input type="text" id="filter-cliente" class="filter-input" placeholder="Buscar por cliente...">
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Vendedor</label>
+                <input type="text" id="filter-vendedor" class="filter-input" placeholder="Buscar por vendedor...">
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Proyecto</label>
+                <input type="text" id="filter-proyecto" class="filter-input" placeholder="Buscar por proyecto...">
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Número de Cotización</label>
+                <input type="text" id="filter-numero" class="filter-input" placeholder="Buscar por número...">
+            </div>
+        </div>
+        <div class="filter-actions">
+            <button class="btn-clear-filters" onclick="clearFilters()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;">
+                    <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                </svg>
+                Limpiar filtros
+            </button>
+            <span class="filter-status" id="filter-status"></span>
+        </div>
+    </div>
+
     <div class="table-container">
         {% if cotizaciones %}
         <div class="table-wrapper">
@@ -565,12 +681,91 @@
             });
         }
 
+        // Sistema de filtrado en tiempo real
+        function applyFilters() {
+            const filterCliente = document.getElementById('filter-cliente').value.toLowerCase();
+            const filterVendedor = document.getElementById('filter-vendedor').value.toLowerCase();
+            const filterProyecto = document.getElementById('filter-proyecto').value.toLowerCase();
+            const filterNumero = document.getElementById('filter-numero').value.toLowerCase();
+
+            const table = document.getElementById('tabla-cotizaciones');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            let visibleCount = 0;
+            let hiddenCount = 0;
+
+            rows.forEach(row => {
+                const cells = row.cells;
+                const numero = cells[0].textContent.toLowerCase();
+                const cliente = cells[1].textContent.toLowerCase();
+                const vendedor = cells[2].textContent.toLowerCase();
+                const proyecto = cells[3].textContent.toLowerCase();
+
+                // Verificar si la fila coincide con todos los filtros activos
+                const matchNumero = !filterNumero || numero.includes(filterNumero);
+                const matchCliente = !filterCliente || cliente.includes(filterCliente);
+                const matchVendedor = !filterVendedor || vendedor.includes(filterVendedor);
+                const matchProyecto = !filterProyecto || proyecto.includes(filterProyecto);
+
+                if (matchNumero && matchCliente && matchVendedor && matchProyecto) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                    hiddenCount++;
+                }
+            });
+
+            // Actualizar contador
+            updateFilterStatus(visibleCount, hiddenCount);
+        }
+
+        function updateFilterStatus(visibleCount, hiddenCount) {
+            const statusElement = document.getElementById('filter-status');
+            const totalElement = document.getElementById('total-cotizaciones');
+
+            if (hiddenCount > 0) {
+                statusElement.textContent = `Mostrando ${visibleCount} de ${visibleCount + hiddenCount} cotizaciones`;
+                statusElement.style.color = '#4f46e5';
+                statusElement.style.fontWeight = '500';
+            } else {
+                statusElement.textContent = '';
+            }
+
+            // Actualizar contador principal
+            totalElement.textContent = visibleCount;
+        }
+
+        function clearFilters() {
+            document.getElementById('filter-cliente').value = '';
+            document.getElementById('filter-vendedor').value = '';
+            document.getElementById('filter-proyecto').value = '';
+            document.getElementById('filter-numero').value = '';
+            applyFilters();
+        }
+
         // Agregar event listeners a encabezados
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('th.sortable').forEach(th => {
                 th.addEventListener('click', function() {
                     sortTable(this.dataset.sort);
                 });
+            });
+
+            // Agregar event listeners a filtros
+            const filterInputs = [
+                'filter-cliente',
+                'filter-vendedor',
+                'filter-proyecto',
+                'filter-numero'
+            ];
+
+            filterInputs.forEach(filterId => {
+                const input = document.getElementById(filterId);
+                if (input) {
+                    input.addEventListener('input', applyFilters);
+                }
             });
 
             // Ordenar por fecha descendente por defecto
