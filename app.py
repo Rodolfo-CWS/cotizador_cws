@@ -2069,12 +2069,464 @@ def buscar():
         
         print(f"[UNIFICADA] Enviando respuesta con {len(resultados_paginados)} resultados")
         return jsonify(respuesta)
-        
+
     except Exception as e:
         print(f"[UNIFICADA] Error en búsqueda: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": "Error en búsqueda unificada"}), 500
+
+@app.route("/todas-cotizaciones")
+def todas_cotizaciones():
+    """Vista de tabla Excel-style con todas las cotizaciones"""
+    if 'vendedor' not in session:
+        return redirect(url_for('login'))
+
+    # MODO DEBUG: Devolver JSON crudo si se accede con ?debug=1
+    debug_mode = request.args.get('debug') == '1'
+
+    # PAGINACIÓN: Obtener página actual (default 1) y tamaño de página
+    page = request.args.get('page', 1, type=int)
+    page_size = 50  # 50 registros por página
+
+    try:
+        print(f"[TODAS-COTIZACIONES] Obteniendo todas las cotizaciones (página {page})...")
+
+        # Obtener todas las cotizaciones de la base de datos
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)  # Query vacía = todas
+
+        # Obtener todos los PDFs (incluye Google Drive antiguas)
+        resultado_pdfs = pdf_manager.buscar_pdfs("", 1, 10000) if pdf_manager else {"resultados": []}
+
+        if debug_mode:
+            # MODO DEBUG: Devolver JSON crudo de las primeras 3 cotizaciones
+            if resultado_db.get("error"):
+                return jsonify({
+                    "error": True,
+                    "mensaje": str(resultado_db.get("error")),
+                    "modo_conexion": "Offline (JSON)" if db_manager.modo_offline else "Online (Supabase)"
+                })
+
+            cotizaciones_raw = resultado_db.get("resultados", [])
+            debug_data = {
+                "modo_conexion": "Offline (JSON)" if db_manager.modo_offline else "Online (Supabase)",
+                "total_encontradas": len(cotizaciones_raw),
+                "primeras_3_crudas": []
+            }
+
+            for idx, cot in enumerate(cotizaciones_raw[:3]):
+                # Convertir a formato serializable
+                cot_serializable = {}
+                for key, value in cot.items():
+                    try:
+                        # Intentar serializar a JSON para verificar
+                        json.dumps(value)
+                        cot_serializable[key] = value
+                    except:
+                        # Si falla, convertir a string
+                        cot_serializable[key] = str(value)
+
+                debug_data["primeras_3_crudas"].append(cot_serializable)
+
+            return jsonify(debug_data)
+
+        cotizaciones = []
+        numeros_vistos = set()  # Para evitar duplicados entre BD y PDFs
+
+        if not resultado_db.get("error"):
+            cotizaciones_raw = resultado_db.get("resultados", [])
+            print(f"[TODAS-COTIZACIONES] Encontradas {len(cotizaciones_raw)} cotizaciones de BD")
+
+            # DEBUG: Mostrar estructura de primera cotización
+            if len(cotizaciones_raw) > 0:
+                primera = cotizaciones_raw[0]
+                print(f"[DEBUG] === ESTRUCTURA DE PRIMERA COTIZACIÓN ===")
+                print(f"[DEBUG] Keys en raíz: {list(primera.keys())}")
+                print(f"[DEBUG] numeroCotizacion: {primera.get('numeroCotizacion', 'NO ENCONTRADO')}")
+                print(f"[DEBUG] datosGenerales presente: {'datosGenerales' in primera}")
+                if 'datosGenerales' in primera:
+                    dg = primera['datosGenerales']
+                    print(f"[DEBUG] datosGenerales type: {type(dg)}")
+                    if isinstance(dg, dict):
+                        print(f"[DEBUG] datosGenerales keys: {list(dg.keys())}")
+                        print(f"[DEBUG] datosGenerales.fecha: '{dg.get('fecha', 'NO ENCONTRADO')}'")
+                        print(f"[DEBUG] datosGenerales.cliente: '{dg.get('cliente', 'NO ENCONTRADO')}'")
+                    else:
+                        print(f"[DEBUG] datosGenerales NO ES DICT: {dg}")
+                print(f"[DEBUG] items presente: {'items' in primera}")
+                if 'items' in primera:
+                    items = primera['items']
+                    print(f"[DEBUG] Total items: {len(items) if isinstance(items, list) else 'NO ES LISTA'}")
+                    if isinstance(items, list) and len(items) > 0:
+                        print(f"[DEBUG] Primer item keys: {list(items[0].keys()) if isinstance(items[0], dict) else 'NO ES DICT'}")
+                        print(f"[DEBUG] Primer item completo: {items[0]}")
+                print(f"[DEBUG] condiciones presente: {'condiciones' in primera}")
+                if 'condiciones' in primera:
+                    print(f"[DEBUG] condiciones: {primera['condiciones']}")
+                print(f"[DEBUG] === FIN ESTRUCTURA ===")
+
+            # Transformar datos para tabla compacta
+            for idx, cot in enumerate(cotizaciones_raw):
+                datos_gen = cot.get('datosGenerales', {})
+
+                # EXTRACCIÓN ROBUSTA DE FECHA - intentar múltiples ubicaciones
+                fecha = 'N/A'
+                if isinstance(datos_gen, dict):
+                    fecha = datos_gen.get('fecha') or datos_gen.get('Fecha')
+                if not fecha or fecha == 'N/A':
+                    # Intentar en raíz
+                    fecha = cot.get('fecha') or cot.get('fechaCreacion') or cot.get('timestamp')
+                    if fecha and isinstance(fecha, (int, float)):
+                        # Si es timestamp, convertir a fecha
+                        from datetime import datetime
+                        try:
+                            fecha = datetime.fromtimestamp(fecha/1000 if fecha > 10000000000 else fecha).strftime('%Y-%m-%d')
+                        except:
+                            fecha = 'N/A'
+                if not fecha:
+                    fecha = 'N/A'
+
+                # CÁLCULO ROBUSTODEL TOTAL - probar todas las variantes posibles
+                total_calculado = 0.0
+                items = cot.get('items', [])
+
+                if isinstance(items, list):
+                    for item in items:
+                        if isinstance(item, dict):
+                            # Opción 1: campo 'total' directo en el item
+                            if 'total' in item and item['total']:
+                                total_calculado += safe_float(item.get('total', 0))
+                            # Opción 2: campo 'subtotal'
+                            elif 'subtotal' in item and item['subtotal']:
+                                total_calculado += safe_float(item.get('subtotal', 0))
+                            # Opción 3: calcular de precio_unitario * cantidad
+                            elif 'precio_unitario' in item:
+                                precio = safe_float(item.get('precio_unitario', 0))
+                                cantidad = safe_float(item.get('cantidad', 1))
+                                total_calculado += precio * cantidad
+                            # Opción 4: calcular de precio * cantidad
+                            elif 'precio' in item:
+                                precio = safe_float(item.get('precio', 0))
+                                cantidad = safe_float(item.get('cantidad', 1))
+                                total_calculado += precio * cantidad
+                            # Opción 5: costoUnidad * cantidad
+                            elif 'costoUnidad' in item:
+                                costo = safe_float(item.get('costoUnidad', 0))
+                                cantidad = safe_float(item.get('cantidad', 1))
+                                total_calculado += costo * cantidad
+
+                # Obtener moneda de condiciones o datosGenerales
+                condiciones = cot.get('condiciones', {})
+                if not condiciones or not isinstance(condiciones, dict):
+                    condiciones = datos_gen.get('condiciones', {})
+                moneda = condiciones.get('moneda', 'MXN') if isinstance(condiciones, dict) else 'MXN'
+
+                # EXTRACCIÓN ROBUSTA DE REVISIÓN - intentar múltiples ubicaciones
+                revision = None
+                import re
+
+                # Intento 1 (PRIORITARIO): Extraer del número de cotización (formato: ...-R##-...)
+                # Este es el más confiable porque R10, R2, etc. están en el número
+                numero_cot = cot.get('numeroCotizacion', '')
+                if numero_cot and isinstance(numero_cot, str):
+                    match = re.search(r'-R(\d+)-', numero_cot)
+                    if match:
+                        revision = int(match.group(1))
+
+                # Intento 2: Campo revision en raíz (solo si no se encontró en número)
+                if not revision and 'revision' in cot:
+                    try:
+                        revision = int(cot.get('revision'))
+                    except:
+                        pass
+
+                # Intento 3: Campo revision en datosGenerales (solo si no se encontró)
+                if not revision and isinstance(datos_gen, dict) and 'revision' in datos_gen:
+                    try:
+                        revision = int(datos_gen.get('revision'))
+                    except:
+                        pass
+
+                # Default a 1 si no se encontró
+                if not revision:
+                    revision = 1
+
+                numero_cot = cot.get('numeroCotizacion', 'N/A')
+                numeros_vistos.add(numero_cot)  # Marcar como visto
+
+                cotizaciones.append({
+                    "numero": numero_cot,
+                    "cliente": datos_gen.get('cliente', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                    "vendedor": datos_gen.get('vendedor', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                    "proyecto": datos_gen.get('proyecto', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                    "fecha": fecha,
+                    "revision": revision,
+                    "total": total_calculado,
+                    "moneda": moneda,
+                    "_id": cot.get('_id', ''),
+                    "tiene_desglose": True,  # Cotizaciones de BD tienen desglose
+                    "es_antigua": False
+                })
+        else:
+            print(f"[TODAS-COTIZACIONES] Error: {resultado_db.get('error')}")
+
+        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (que no están en BD)
+        if not resultado_pdfs.get("error"):
+            pdfs_antiguos = resultado_pdfs.get("resultados", [])
+            print(f"[TODAS-COTIZACIONES] Encontrados {len(pdfs_antiguos)} PDFs totales")
+
+            for pdf in pdfs_antiguos:
+                numero_pdf = pdf.get('numero_cotizacion', 'N/A')
+
+                # Solo agregar si no está ya en la lista (evitar duplicados)
+                if numero_pdf not in numeros_vistos and numero_pdf != 'N/A':
+                    # Extraer metadatos del nombre (formato: CLIENTE-CWS-VENDEDOR-###-R#-PROYECTO)
+                    import re
+                    nombre_partes = numero_pdf.split('-')
+
+                    cliente = nombre_partes[0] if len(nombre_partes) > 0 else 'N/A'
+                    vendedor = nombre_partes[3] if len(nombre_partes) > 3 else 'N/A'
+                    proyecto = '-'.join(nombre_partes[6:]) if len(nombre_partes) > 6 else 'N/A'
+
+                    # Extraer revisión
+                    match_revision = re.search(r'-R(\d+)-', numero_pdf)
+                    revision = int(match_revision.group(1)) if match_revision else 1
+
+                    # Fecha de modificación del archivo
+                    fecha_pdf = pdf.get('fecha_creacion', pdf.get('fecha_modificacion', 'N/A'))
+
+                    cotizaciones.append({
+                        "numero": numero_pdf,
+                        "cliente": cliente,
+                        "vendedor": vendedor,
+                        "proyecto": proyecto,
+                        "fecha": fecha_pdf,
+                        "revision": revision,
+                        "total": 0,  # No hay datos de total en PDFs antiguos
+                        "moneda": "N/A",
+                        "_id": '',
+                        "tiene_desglose": False,  # PDFs antiguos NO tienen desglose
+                        "es_antigua": True  # Marcar como antigua
+                    })
+
+            print(f"[TODAS-COTIZACIONES] Total final: {len(cotizaciones)} cotizaciones (BD + antiguas)")
+
+        # APLICAR PAGINACIÓN
+        total_cotizaciones = len(cotizaciones)
+        total_pages = (total_cotizaciones + page_size - 1) // page_size  # Redondeo hacia arriba
+
+        # Validar página solicitada
+        if page < 1:
+            page = 1
+        elif page > total_pages and total_pages > 0:
+            page = total_pages
+
+        # Calcular índices para el slice
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
+
+        # Obtener cotizaciones de la página actual
+        cotizaciones_pagina = cotizaciones[start_index:end_index]
+
+        print(f"[TODAS-COTIZACIONES] Mostrando {len(cotizaciones_pagina)} de {total_cotizaciones} (página {page}/{total_pages})")
+
+        return render_template(
+            "todas_cotizaciones.html",
+            cotizaciones=cotizaciones_pagina,
+            vendedor=session.get('vendedor'),
+            # Información de paginación
+            page=page,
+            total_pages=total_pages,
+            total_cotizaciones=total_cotizaciones,
+            page_size=page_size
+        )
+
+    except Exception as e:
+        print(f"[TODAS-COTIZACIONES] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"Error al cargar cotizaciones: {str(e)}", 500
+
+@app.route("/diagnostico-tabla-datos")
+def diagnostico_tabla_datos():
+    """Diagnóstico de datos de tabla sin requerimiento de login - Para debugging"""
+    import traceback
+    import json
+
+    try:
+        # Obtener cotizaciones
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)
+
+        if resultado_db.get("error"):
+            return jsonify({
+                "error": True,
+                "mensaje": str(resultado_db.get("error")),
+                "modo_conexion": "Offline (JSON)" if db_manager.modo_offline else "Online (Supabase)"
+            })
+
+        cotizaciones_raw = resultado_db.get("resultados", [])
+
+        # Analizar primeras 3 cotizaciones
+        analisis = []
+        for idx, cot in enumerate(cotizaciones_raw[:3]):
+            datos_gen = cot.get('datosGenerales', {})
+            items = cot.get('items', [])
+
+            # Calcular total
+            total_calc = 0.0
+            items_info = []
+            for item in items[:3]:
+                if isinstance(item, dict):
+                    subtotal = safe_float(item.get('subtotal', 0))
+                    precio = safe_float(item.get('precio_unitario') or item.get('precio', 0))
+                    cantidad = safe_float(item.get('cantidad', 0))
+
+                    if subtotal:
+                        total_calc += subtotal
+                        items_info.append(f"subtotal:{subtotal}")
+                    else:
+                        item_total = precio * cantidad
+                        total_calc += item_total
+                        items_info.append(f"precio:{precio}*cant:{cantidad}={item_total}")
+
+            analisis.append({
+                "numero": cot.get('numeroCotizacion', 'N/A'),
+                "fecha": datos_gen.get('fecha', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                "cliente": datos_gen.get('cliente', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                "vendedor": datos_gen.get('vendedor', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                "total_items": len(items),
+                "total_calculado": total_calc,
+                "items_ejemplo": items_info,
+                "keys_raiz": list(cot.keys()),
+                "keys_datosGenerales": list(datos_gen.keys()) if isinstance(datos_gen, dict) else "NO_ES_DICT"
+            })
+
+        return jsonify({
+            "success": True,
+            "modo_conexion": "Offline (JSON)" if db_manager.modo_offline else "Online (Supabase)",
+            "total_cotizaciones": len(cotizaciones_raw),
+            "primeras_3": analisis
+        })
+
+    except Exception as e:
+        return jsonify({
+            "error": True,
+            "mensaje": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+@app.route("/debug-tabla-cotizaciones")
+def debug_tabla_cotizaciones():
+    """Página de diagnóstico para ver estructura de datos - Accesible desde móvil"""
+    if 'vendedor' not in session:
+        return redirect(url_for('login'))
+
+    import traceback
+
+    try:
+        # Obtener cotizaciones
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)
+
+        debug_info = {
+            "total_encontradas": 0,
+            "tiene_error": False,
+            "error_mensaje": None,
+            "modo_conexion": "Offline (JSON)" if db_manager.modo_offline else "Online (Supabase)",
+            "ejemplos": []
+        }
+
+        if resultado_db.get("error"):
+            debug_info["tiene_error"] = True
+            debug_info["error_mensaje"] = str(resultado_db.get("error"))
+        else:
+            cotizaciones_raw = resultado_db.get("resultados", [])
+            debug_info["total_encontradas"] = len(cotizaciones_raw)
+
+            # Tomar las primeras 3 cotizaciones como ejemplo
+            for idx, cot in enumerate(cotizaciones_raw[:3]):
+                try:
+                    datos_gen = cot.get('datosGenerales', {})
+                    items = cot.get('items', [])
+
+                    # Analizar items
+                    items_analisis = []
+                    total_calculado = 0.0
+                    for item_idx, item in enumerate(items[:3]):  # Solo primeros 3 items
+                        try:
+                            if isinstance(item, dict):
+                                subtotal = item.get('subtotal', 0)
+                                precio = item.get('precio_unitario') or item.get('precio', 0)
+                                cantidad = item.get('cantidad', 0)
+
+                                if subtotal:
+                                    item_total = safe_float(subtotal)
+                                else:
+                                    item_total = safe_float(precio) * safe_float(cantidad)
+
+                                total_calculado += item_total
+
+                                items_analisis.append({
+                                    "index": item_idx,
+                                    "keys": list(item.keys()),
+                                    "subtotal": str(subtotal),
+                                    "precio": str(precio),
+                                    "cantidad": str(cantidad),
+                                    "calculado": float(item_total)
+                                })
+                        except Exception as item_error:
+                            items_analisis.append({
+                                "index": item_idx,
+                                "error": str(item_error)
+                            })
+
+                    ejemplo = {
+                        "index": idx,
+                        "numero_cotizacion": str(cot.get('numeroCotizacion', 'N/A')),
+                        "keys_raiz": [str(k) for k in cot.keys()],
+                        "datosGenerales": {
+                            "es_dict": isinstance(datos_gen, dict),
+                            "keys": [str(k) for k in datos_gen.keys()] if isinstance(datos_gen, dict) else "NO ES DICT",
+                            "fecha": str(datos_gen.get('fecha', 'N/A')) if isinstance(datos_gen, dict) else "N/A",
+                            "cliente": str(datos_gen.get('cliente', 'N/A')) if isinstance(datos_gen, dict) else "N/A",
+                            "vendedor": str(datos_gen.get('vendedor', 'N/A')) if isinstance(datos_gen, dict) else "N/A"
+                        },
+                        "items": {
+                            "total_items": len(items),
+                            "es_lista": isinstance(items, list),
+                            "items_analizados": items_analisis,
+                            "total_calculado": float(total_calculado)
+                        },
+                        "condiciones": {
+                            "existe": 'condiciones' in cot,
+                            "contenido": str(cot.get('condiciones', 'NO EXISTE'))
+                        }
+                    }
+
+                    debug_info["ejemplos"].append(ejemplo)
+                except Exception as cot_error:
+                    debug_info["ejemplos"].append({
+                        "index": idx,
+                        "error": str(cot_error)
+                    })
+
+        # Renderizar template de diagnóstico
+        return render_template("debug_tabla.html", debug=debug_info)
+
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        return f"""
+        <html>
+        <head><title>Error de Diagnóstico</title></head>
+        <body style="font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4;">
+            <h1 style="color: #f48771;">❌ Error en Diagnóstico</h1>
+            <h2>Error:</h2>
+            <pre style="background: #252526; padding: 15px; border-radius: 5px;">{str(e)}</pre>
+            <h2>Stack Trace:</h2>
+            <pre style="background: #252526; padding: 15px; border-radius: 5px;">{error_trace}</pre>
+            <a href="/todas-cotizaciones" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background: #0e639c; color: white; text-decoration: none; border-radius: 4px;">← Volver</a>
+        </body>
+        </html>
+        """, 500
 
 @app.route("/ver/<path:item_id>")
 def ver_item(item_id):
