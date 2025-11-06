@@ -2193,6 +2193,74 @@ def todas_cotizaciones():
         traceback.print_exc()
         return f"Error al cargar cotizaciones: {str(e)}", 500
 
+@app.route("/diagnostico-completo")
+def diagnostico_completo():
+    """Diagnóstico completo sin requerimiento de login - Para debugging"""
+    import traceback
+    import json
+
+    try:
+        # Obtener cotizaciones
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)
+
+        if resultado_db.get("error"):
+            return jsonify({
+                "error": True,
+                "mensaje": str(resultado_db.get("error")),
+                "modo_conexion": "Offline (JSON)" if db_manager.modo_offline else "Online (Supabase)"
+            })
+
+        cotizaciones_raw = resultado_db.get("resultados", [])
+
+        # Analizar primeras 3 cotizaciones
+        analisis = []
+        for idx, cot in enumerate(cotizaciones_raw[:3]):
+            datos_gen = cot.get('datosGenerales', {})
+            items = cot.get('items', [])
+
+            # Calcular total
+            total_calc = 0.0
+            items_info = []
+            for item in items[:3]:
+                if isinstance(item, dict):
+                    subtotal = safe_float(item.get('subtotal', 0))
+                    precio = safe_float(item.get('precio_unitario') or item.get('precio', 0))
+                    cantidad = safe_float(item.get('cantidad', 0))
+
+                    if subtotal:
+                        total_calc += subtotal
+                        items_info.append(f"subtotal:{subtotal}")
+                    else:
+                        item_total = precio * cantidad
+                        total_calc += item_total
+                        items_info.append(f"precio:{precio}*cant:{cantidad}={item_total}")
+
+            analisis.append({
+                "numero": cot.get('numeroCotizacion', 'N/A'),
+                "fecha": datos_gen.get('fecha', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                "cliente": datos_gen.get('cliente', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                "vendedor": datos_gen.get('vendedor', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                "total_items": len(items),
+                "total_calculado": total_calc,
+                "items_ejemplo": items_info,
+                "keys_raiz": list(cot.keys()),
+                "keys_datosGenerales": list(datos_gen.keys()) if isinstance(datos_gen, dict) else "NO_ES_DICT"
+            })
+
+        return jsonify({
+            "success": True,
+            "modo_conexion": "Offline (JSON)" if db_manager.modo_offline else "Online (Supabase)",
+            "total_cotizaciones": len(cotizaciones_raw),
+            "primeras_3": analisis
+        })
+
+    except Exception as e:
+        return jsonify({
+            "error": True,
+            "mensaje": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
 @app.route("/debug-tabla-cotizaciones")
 def debug_tabla_cotizaciones():
     """Página de diagnóstico para ver estructura de datos - Accesible desde móvil"""
