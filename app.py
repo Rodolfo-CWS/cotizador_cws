@@ -2089,6 +2089,32 @@ def todas_cotizaciones():
     page = request.args.get('page', 1, type=int)
     page_size = 50  # 50 registros por página
 
+    # FILTROS: Obtener parámetros de filtro desde URL
+    filtro_numero = request.args.get('numero', '').strip()
+    filtro_cliente = request.args.get('cliente', '').strip()
+    filtro_vendedor = request.args.get('vendedor', '').strip()
+    filtro_proyecto = request.args.get('proyecto', '').strip()
+    filtro_fecha_desde = request.args.get('fecha_desde', '').strip()
+    filtro_fecha_hasta = request.args.get('fecha_hasta', '').strip()
+    filtro_revision = request.args.get('revision', '').strip()
+    filtro_moneda = request.args.get('moneda', '').strip()
+    filtro_tipo = request.args.get('tipo', '').strip()
+
+    # Log de filtros activos
+    filtros_activos = []
+    if filtro_numero: filtros_activos.append(f"numero={filtro_numero}")
+    if filtro_cliente: filtros_activos.append(f"cliente={filtro_cliente}")
+    if filtro_vendedor: filtros_activos.append(f"vendedor={filtro_vendedor}")
+    if filtro_proyecto: filtros_activos.append(f"proyecto={filtro_proyecto}")
+    if filtro_fecha_desde: filtros_activos.append(f"fecha_desde={filtro_fecha_desde}")
+    if filtro_fecha_hasta: filtros_activos.append(f"fecha_hasta={filtro_fecha_hasta}")
+    if filtro_revision: filtros_activos.append(f"revision={filtro_revision}")
+    if filtro_moneda: filtros_activos.append(f"moneda={filtro_moneda}")
+    if filtro_tipo: filtros_activos.append(f"tipo={filtro_tipo}")
+
+    if filtros_activos:
+        print(f"[TODAS-COTIZACIONES] Filtros activos: {', '.join(filtros_activos)}")
+
     try:
         print(f"[TODAS-COTIZACIONES] Obteniendo todas las cotizaciones (página {page})...")
 
@@ -2310,6 +2336,113 @@ def todas_cotizaciones():
                     })
 
             print(f"[TODAS-COTIZACIONES] Total final: {len(cotizaciones)} cotizaciones (BD + antiguas)")
+
+        # APLICAR FILTROS antes de paginación
+        if any([filtro_numero, filtro_cliente, filtro_vendedor, filtro_proyecto,
+                filtro_fecha_desde, filtro_fecha_hasta, filtro_revision, filtro_moneda, filtro_tipo]):
+
+            cotizaciones_filtradas = []
+
+            for cot in cotizaciones:
+                # Aplicar cada filtro
+                cumple_filtros = True
+
+                # Filtro por número (búsqueda parcial, case-insensitive)
+                if filtro_numero:
+                    if filtro_numero.lower() not in cot.get('numero', '').lower():
+                        cumple_filtros = False
+
+                # Filtro por cliente (búsqueda parcial, case-insensitive)
+                if filtro_cliente and cumple_filtros:
+                    if filtro_cliente.lower() not in cot.get('cliente', '').lower():
+                        cumple_filtros = False
+
+                # Filtro por vendedor (búsqueda parcial, case-insensitive)
+                if filtro_vendedor and cumple_filtros:
+                    if filtro_vendedor.lower() not in cot.get('vendedor', '').lower():
+                        cumple_filtros = False
+
+                # Filtro por proyecto (búsqueda parcial, case-insensitive)
+                if filtro_proyecto and cumple_filtros:
+                    if filtro_proyecto.lower() not in cot.get('proyecto', '').lower():
+                        cumple_filtros = False
+
+                # Filtro por fecha desde
+                if filtro_fecha_desde and cumple_filtros:
+                    fecha_cot = cot.get('fecha', 'N/A')
+                    if fecha_cot != 'N/A':
+                        try:
+                            from datetime import datetime
+                            # Intentar parsear la fecha de la cotización
+                            if len(fecha_cot) == 10:  # Formato YYYY-MM-DD
+                                fecha_cot_dt = datetime.strptime(fecha_cot, '%Y-%m-%d')
+                            else:
+                                fecha_cot_dt = datetime.strptime(fecha_cot[:10], '%Y-%m-%d')
+
+                            fecha_desde_dt = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d')
+
+                            if fecha_cot_dt < fecha_desde_dt:
+                                cumple_filtros = False
+                        except:
+                            # Si no se puede parsear, no cumple el filtro
+                            cumple_filtros = False
+
+                # Filtro por fecha hasta
+                if filtro_fecha_hasta and cumple_filtros:
+                    fecha_cot = cot.get('fecha', 'N/A')
+                    if fecha_cot != 'N/A':
+                        try:
+                            from datetime import datetime
+                            # Intentar parsear la fecha de la cotización
+                            if len(fecha_cot) == 10:  # Formato YYYY-MM-DD
+                                fecha_cot_dt = datetime.strptime(fecha_cot, '%Y-%m-%d')
+                            else:
+                                fecha_cot_dt = datetime.strptime(fecha_cot[:10], '%Y-%m-%d')
+
+                            fecha_hasta_dt = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d')
+
+                            if fecha_cot_dt > fecha_hasta_dt:
+                                cumple_filtros = False
+                        except:
+                            # Si no se puede parsear, no cumple el filtro
+                            cumple_filtros = False
+
+                # Filtro por revisión
+                if filtro_revision and cumple_filtros:
+                    revision_cot = cot.get('revision', 1)
+
+                    if filtro_revision == '5+':
+                        if revision_cot < 5:
+                            cumple_filtros = False
+                    else:
+                        try:
+                            if int(revision_cot) != int(filtro_revision):
+                                cumple_filtros = False
+                        except:
+                            cumple_filtros = False
+
+                # Filtro por moneda
+                if filtro_moneda and cumple_filtros:
+                    moneda_cot = cot.get('moneda', 'N/A')
+                    if moneda_cot != filtro_moneda:
+                        cumple_filtros = False
+
+                # Filtro por tipo (nueva/antigua)
+                if filtro_tipo and cumple_filtros:
+                    es_antigua = cot.get('es_antigua', False)
+
+                    if filtro_tipo == 'nueva' and es_antigua:
+                        cumple_filtros = False
+                    elif filtro_tipo == 'antigua' and not es_antigua:
+                        cumple_filtros = False
+
+                # Si cumple todos los filtros, agregar a resultados
+                if cumple_filtros:
+                    cotizaciones_filtradas.append(cot)
+
+            # Reemplazar cotizaciones con las filtradas
+            cotizaciones = cotizaciones_filtradas
+            print(f"[TODAS-COTIZACIONES] Después de filtros: {len(cotizaciones)} cotizaciones")
 
         # APLICAR PAGINACIÓN
         total_cotizaciones = len(cotizaciones)
