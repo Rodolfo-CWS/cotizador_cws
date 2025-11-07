@@ -364,6 +364,100 @@
             </svg>
             Nueva Cotización
         </a>
+        <button id="toggleFilters" class="btn btn-secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+            </svg>
+            <span id="filterToggleText">Mostrar Filtros</span>
+            <span id="filterBadge" style="display: none; background: #ef4444; color: white; border-radius: 10px; padding: 2px 8px; margin-left: 6px; font-size: 11px; font-weight: 600;">0</span>
+        </button>
+    </div>
+
+    <!-- Panel de Filtros (inicialmente oculto) -->
+    <div id="filterPanel" style="display: none; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 600; color: #212529; margin: 0;">Filtrar Cotizaciones</h3>
+            <button id="clearFilters" class="btn" style="background: #f8f9fa; color: #6c757d; font-size: 12px; padding: 6px 12px;">
+                Limpiar Filtros
+            </button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
+            <!-- Filtro por Número -->
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Número de Cotización</label>
+                <input type="text" id="filterNumero" placeholder="Ej: CLIENTE-CWS-VEN..." style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px;">
+            </div>
+
+            <!-- Filtro por Cliente -->
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Cliente</label>
+                <input type="text" id="filterCliente" placeholder="Nombre del cliente" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px;">
+            </div>
+
+            <!-- Filtro por Vendedor -->
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Vendedor</label>
+                <input type="text" id="filterVendedor" placeholder="Nombre del vendedor" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px;">
+            </div>
+
+            <!-- Filtro por Proyecto -->
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Proyecto</label>
+                <input type="text" id="filterProyecto" placeholder="Nombre del proyecto" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px;">
+            </div>
+
+            <!-- Filtro por Fecha Desde -->
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Fecha Desde</label>
+                <input type="date" id="filterFechaDesde" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px;">
+            </div>
+
+            <!-- Filtro por Fecha Hasta -->
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Fecha Hasta</label>
+                <input type="date" id="filterFechaHasta" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px;">
+            </div>
+
+            <!-- Filtro por Revisión -->
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Revisión</label>
+                <select id="filterRevision" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px; background: white;">
+                    <option value="">Todas</option>
+                    <option value="1">R1</option>
+                    <option value="2">R2</option>
+                    <option value="3">R3</option>
+                    <option value="4">R4</option>
+                    <option value="5+">R5+</option>
+                </select>
+            </div>
+
+            <!-- Filtro por Moneda -->
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Moneda</label>
+                <select id="filterMoneda" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px; background: white;">
+                    <option value="">Todas</option>
+                    <option value="MXN">MXN (Pesos)</option>
+                    <option value="USD">USD (Dólares)</option>
+                </select>
+            </div>
+
+            <!-- Filtro por Tipo -->
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Tipo</label>
+                <select id="filterTipo" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px; background: white;">
+                    <option value="">Todas</option>
+                    <option value="nueva">Nuevas (BD)</option>
+                    <option value="antigua">Antiguas (Google Drive)</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button id="applyFilters" class="btn btn-primary">
+                Aplicar Filtros
+            </button>
+        </div>
     </div>
 
     <div class="stats">
@@ -444,7 +538,7 @@
             <div class="pagination-controls">
                 <!-- Botón anterior -->
                 {% if page > 1 %}
-                <a href="?page={{ page - 1 }}" class="page-btn prev-next">← Anterior</a>
+                <a href="#" onclick="goToPage({{ page - 1 }}); return false;" class="page-btn prev-next">← Anterior</a>
                 {% else %}
                 <button class="page-btn prev-next" disabled>← Anterior</button>
                 {% endif %}
@@ -454,7 +548,7 @@
                 {% set end_page = [total_pages, page + 2]|min %}
 
                 {% if start_page > 1 %}
-                <a href="?page=1" class="page-btn">1</a>
+                <a href="#" onclick="goToPage(1); return false;" class="page-btn">1</a>
                 {% if start_page > 2 %}
                 <span class="page-btn" style="border: none; cursor: default;">...</span>
                 {% endif %}
@@ -464,7 +558,7 @@
                 {% if p == page %}
                 <button class="page-btn active" disabled>{{ p }}</button>
                 {% else %}
-                <a href="?page={{ p }}" class="page-btn">{{ p }}</a>
+                <a href="#" onclick="goToPage({{ p }}); return false;" class="page-btn">{{ p }}</a>
                 {% endif %}
                 {% endfor %}
 
@@ -472,12 +566,12 @@
                 {% if end_page < total_pages - 1 %}
                 <span class="page-btn" style="border: none; cursor: default;">...</span>
                 {% endif %}
-                <a href="?page={{ total_pages }}" class="page-btn">{{ total_pages }}</a>
+                <a href="#" onclick="goToPage({{ total_pages }}); return false;" class="page-btn">{{ total_pages }}</a>
                 {% endif %}
 
                 <!-- Botón siguiente -->
                 {% if page < total_pages %}
-                <a href="?page={{ page + 1 }}" class="page-btn prev-next">Siguiente →</a>
+                <a href="#" onclick="goToPage({{ page + 1 }}); return false;" class="page-btn prev-next">Siguiente →</a>
                 {% else %}
                 <button class="page-btn prev-next" disabled>Siguiente →</button>
                 {% endif %}
@@ -492,6 +586,9 @@
             column: 'fecha',
             direction: 'desc'
         };
+
+        // Estado de filtros
+        let activeFilters = {};
 
         // Función para ordenar tabla
         function sortTable(column) {
@@ -565,12 +662,179 @@
             });
         }
 
-        // Agregar event listeners a encabezados
+        // Toggle panel de filtros
+        function toggleFilterPanel() {
+            const panel = document.getElementById('filterPanel');
+            const toggleText = document.getElementById('filterToggleText');
+
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                toggleText.textContent = 'Ocultar Filtros';
+            } else {
+                panel.style.display = 'none';
+                toggleText.textContent = 'Mostrar Filtros';
+            }
+        }
+
+        // Construir URL con parámetros de filtro
+        function buildFilterUrl() {
+            const params = new URLSearchParams();
+
+            // Obtener valores de filtros
+            const numero = document.getElementById('filterNumero').value.trim();
+            const cliente = document.getElementById('filterCliente').value.trim();
+            const vendedor = document.getElementById('filterVendedor').value.trim();
+            const proyecto = document.getElementById('filterProyecto').value.trim();
+            const fechaDesde = document.getElementById('filterFechaDesde').value;
+            const fechaHasta = document.getElementById('filterFechaHasta').value;
+            const revision = document.getElementById('filterRevision').value;
+            const moneda = document.getElementById('filterMoneda').value;
+            const tipo = document.getElementById('filterTipo').value;
+
+            // Agregar solo parámetros no vacíos
+            if (numero) params.append('numero', numero);
+            if (cliente) params.append('cliente', cliente);
+            if (vendedor) params.append('vendedor', vendedor);
+            if (proyecto) params.append('proyecto', proyecto);
+            if (fechaDesde) params.append('fecha_desde', fechaDesde);
+            if (fechaHasta) params.append('fecha_hasta', fechaHasta);
+            if (revision) params.append('revision', revision);
+            if (moneda) params.append('moneda', moneda);
+            if (tipo) params.append('tipo', tipo);
+
+            return params.toString();
+        }
+
+        // Contar filtros activos
+        function countActiveFilters() {
+            let count = 0;
+
+            if (document.getElementById('filterNumero').value.trim()) count++;
+            if (document.getElementById('filterCliente').value.trim()) count++;
+            if (document.getElementById('filterVendedor').value.trim()) count++;
+            if (document.getElementById('filterProyecto').value.trim()) count++;
+            if (document.getElementById('filterFechaDesde').value) count++;
+            if (document.getElementById('filterFechaHasta').value) count++;
+            if (document.getElementById('filterRevision').value) count++;
+            if (document.getElementById('filterMoneda').value) count++;
+            if (document.getElementById('filterTipo').value) count++;
+
+            return count;
+        }
+
+        // Actualizar badge de filtros activos
+        function updateFilterBadge() {
+            const count = countActiveFilters();
+            const badge = document.getElementById('filterBadge');
+
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // Aplicar filtros
+        function applyFilters() {
+            const filterParams = buildFilterUrl();
+
+            if (filterParams) {
+                // Redirigir con parámetros de filtro
+                window.location.href = '/todas-cotizaciones?' + filterParams;
+            } else {
+                // Si no hay filtros, redirigir a página sin filtros
+                window.location.href = '/todas-cotizaciones';
+            }
+        }
+
+        // Limpiar todos los filtros
+        function clearFilters() {
+            document.getElementById('filterNumero').value = '';
+            document.getElementById('filterCliente').value = '';
+            document.getElementById('filterVendedor').value = '';
+            document.getElementById('filterProyecto').value = '';
+            document.getElementById('filterFechaDesde').value = '';
+            document.getElementById('filterFechaHasta').value = '';
+            document.getElementById('filterRevision').value = '';
+            document.getElementById('filterMoneda').value = '';
+            document.getElementById('filterTipo').value = '';
+
+            updateFilterBadge();
+
+            // Redirigir a página sin filtros
+            window.location.href = '/todas-cotizaciones';
+        }
+
+        // Cargar valores de filtros desde URL
+        function loadFiltersFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+
+            if (params.get('numero')) document.getElementById('filterNumero').value = params.get('numero');
+            if (params.get('cliente')) document.getElementById('filterCliente').value = params.get('cliente');
+            if (params.get('vendedor')) document.getElementById('filterVendedor').value = params.get('vendedor');
+            if (params.get('proyecto')) document.getElementById('filterProyecto').value = params.get('proyecto');
+            if (params.get('fecha_desde')) document.getElementById('filterFechaDesde').value = params.get('fecha_desde');
+            if (params.get('fecha_hasta')) document.getElementById('filterFechaHasta').value = params.get('fecha_hasta');
+            if (params.get('revision')) document.getElementById('filterRevision').value = params.get('revision');
+            if (params.get('moneda')) document.getElementById('filterMoneda').value = params.get('moneda');
+            if (params.get('tipo')) document.getElementById('filterTipo').value = params.get('tipo');
+
+            // Si hay filtros en la URL, mostrar panel y badge
+            const count = countActiveFilters();
+            if (count > 0) {
+                document.getElementById('filterPanel').style.display = 'block';
+                document.getElementById('filterToggleText').textContent = 'Ocultar Filtros';
+            }
+
+            updateFilterBadge();
+        }
+
+        // Función para ir a una página manteniendo los filtros
+        function goToPage(pageNumber) {
+            const filterParams = buildFilterUrl();
+
+            let url = '/todas-cotizaciones?page=' + pageNumber;
+
+            if (filterParams) {
+                url += '&' + filterParams;
+            }
+
+            window.location.href = url;
+        }
+
+        // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
+            // Cargar filtros desde URL
+            loadFiltersFromUrl();
+
+            // Event listeners para ordenamiento
             document.querySelectorAll('th.sortable').forEach(th => {
                 th.addEventListener('click', function() {
                     sortTable(this.dataset.sort);
                 });
+            });
+
+            // Event listeners para filtros
+            document.getElementById('toggleFilters').addEventListener('click', toggleFilterPanel);
+            document.getElementById('applyFilters').addEventListener('click', applyFilters);
+            document.getElementById('clearFilters').addEventListener('click', clearFilters);
+
+            // Aplicar filtros al presionar Enter en inputs de texto
+            ['filterNumero', 'filterCliente', 'filterVendedor', 'filterProyecto'].forEach(id => {
+                document.getElementById(id).addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        applyFilters();
+                    }
+                });
+            });
+
+            // Actualizar badge al cambiar cualquier filtro
+            ['filterNumero', 'filterCliente', 'filterVendedor', 'filterProyecto',
+             'filterFechaDesde', 'filterFechaHasta', 'filterRevision', 'filterMoneda', 'filterTipo'].forEach(id => {
+                const element = document.getElementById(id);
+                element.addEventListener('change', updateFilterBadge);
+                element.addEventListener('input', updateFilterBadge);
             });
 
             // Ordenar por fecha descendente por defecto
