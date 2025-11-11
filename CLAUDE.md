@@ -327,6 +327,47 @@ print(f'Supabase Storage: {\"OK\" if storage.storage_available else \"OFFLINE (f
 - **Platform**: Render.com
 - **Server**: Gunicorn (configured in `Procfile`)
 - **Python Version**: Specified in `runtime.txt`
+- **Keepalive**: ✅ **ACTIVE** - Intelligent business hours keepalive system (Sept 2025)
+
+### ⚡ Render Keepalive System (September 2025)
+
+**Automatic service keepalive to prevent Render free tier sleep (15-min idle timeout)**
+
+**Configuration:**
+- **Schedule**: Monday-Friday, 7:00 AM - 9:00 PM CST (Mexico City timezone)
+- **Frequency**: Every 10 minutes during business hours
+- **Monthly Usage**: ~300 hours/month (~40% of 750-hour free tier limit)
+- **Implementation**: APScheduler with CronTrigger + automated health checks
+
+**Key Features:**
+- ✅ **Smart Schedule**: Only active during CWS business hours (saves ~60% of compute hours)
+- ✅ **Zero Configuration**: Automatically activates in Render (disabled in local dev)
+- ✅ **Health Monitoring**: `/health` endpoint for automated pings and system status
+- ✅ **Admin Dashboard**: `/admin/keepalive/stats` for monitoring (requires authentication)
+- ✅ **Graceful Degradation**: Returns 200 even on errors to keep service awake
+- ✅ **Cost Efficient**: Maximizes free tier while maintaining business-hour availability
+
+**Technical Implementation:**
+- Module: `render_keepalive.py` - Background scheduler with business hours cron
+- Health Endpoint: `GET /health` - Public endpoint returning system status
+- Admin Stats: `GET /admin/keepalive/stats` - Authenticated statistics endpoint
+- Auto-activation: Detects Render environment and starts automatically
+- Logging: Detailed keepalive ping logs with success/failure tracking
+
+**Benefits:**
+- **Instant Response**: No 30-60 second cold start during business hours
+- **Better UX**: Users experience fast page loads throughout workday
+- **Resource Efficient**: Leaves 450+ hours/month for actual user traffic
+- **Predictable Performance**: Service ready when team needs it most
+
+**Monitoring:**
+```bash
+# Check keepalive status
+curl https://cotizador-cws.onrender.com/health
+
+# View detailed stats (requires login)
+curl https://cotizador-cws.onrender.com/admin/keepalive/stats
+```
 
 ### Deployment Process
 ```bash
@@ -433,6 +474,7 @@ cotizador_cws/
 ├── app.py                    # ENHANCED: Main Flask app with unified Supabase architecture
 ├── supabase_manager.py       # ENHANCED: Supabase PostgreSQL manager with offline fallback
 ├── pdf_manager.py            # ENHANCED: Unified PDF storage (Supabase Storage + Google Drive + Local)
+├── render_keepalive.py       # NEW: Intelligent keepalive for Render free tier (Sept 2025)
 ├── supabase_storage_manager.py # NEW: Supabase Storage integration
 ├── unified_storage_manager.py  # UPDATED: Unified storage operations with Supabase Storage
 ├── config.py                 # Environment-based configuration
@@ -466,6 +508,10 @@ cotizador_cws/
 - **Fallback Handling**: If CSV fails to load, system continues with empty materials list
 
 #### Hybrid System API Endpoints (NEW - August 2025)
+
+**Render Keepalive Management (NEW - September 2025):**
+- `GET /health` - Public health check endpoint (no auth required, for automated keepalive pings)
+- `GET /admin/keepalive/stats` - Get keepalive statistics and scheduler status (requires authentication)
 
 **Scheduler Management:**
 - `GET /admin/scheduler/estado` - Get scheduler status and next sync time
