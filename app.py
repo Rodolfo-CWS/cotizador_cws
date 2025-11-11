@@ -134,14 +134,33 @@ try:
     from sync_scheduler import SyncScheduler
     sync_scheduler = SyncScheduler(db_manager)
     print("SyncScheduler inicializado exitosamente")
-    
+
     # Iniciar scheduler automático si está habilitado
     if sync_scheduler.auto_sync_enabled and sync_scheduler.is_available():
         sync_scheduler.iniciar()
-    
+
 except Exception as e:
     print(f"Error inicializando SyncScheduler: {e}")
     sync_scheduler = None
+
+# Crear instancia de Render Keepalive (solo en producción)
+try:
+    from render_keepalive import init_keepalive, get_keepalive_instance
+
+    # Inicializar keepalive - se activa automáticamente solo en Render
+    keepalive = init_keepalive()
+    print("Render Keepalive inicializado exitosamente")
+
+    # Mostrar estadísticas si está activo
+    if keepalive.is_running:
+        stats = keepalive.get_stats()
+        print(f"Keepalive activo - {stats['schedule']}")
+    else:
+        print("Keepalive en standby - Solo se activa en producción (Render)")
+
+except Exception as e:
+    print(f"Error inicializando Render Keepalive: {e}")
+    keepalive = None
 
 # ===========================================
 # FUNCIONES AUXILIARES PARA CONVERSIÓN ROBUSTA
@@ -1296,6 +1315,69 @@ def logout():
     session.pop('vendedor', None)
     print(f"Usuario cerró sesión: {vendedor}")
     return redirect(url_for('login'))
+
+# ============================================
+# HEALTH CHECK ENDPOINT (para Render Keepalive)
+# ============================================
+
+@app.route("/health", methods=["GET"])
+def health_check():
+    """
+    Endpoint de health check para mantener Render activo.
+
+    No requiere autenticación para permitir pings automáticos.
+    Devuelve estado del sistema y métricas básicas.
+    """
+    try:
+        # Obtener estadísticas básicas
+        stats = db_manager.obtener_estadisticas()
+
+        # Construir respuesta con estado del sistema
+        response = {
+            'status': 'healthy',
+            'timestamp': datetime.datetime.now().isoformat(),
+            'database': {
+                'mode': 'offline' if db_manager.modo_offline else 'online',
+                'type': 'JSON local' if db_manager.modo_offline else 'Supabase PostgreSQL',
+                'total_quotations': stats.get('total', 0)
+            },
+            'services': {
+                'pdf_generation': REPORTLAB_AVAILABLE or WEASYPRINT_AVAILABLE,
+                'pdf_manager': pdf_manager is not None
+            }
+        }
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        # Incluso si hay error, devolver 200 para mantener Render despierto
+        return jsonify({
+            'status': 'degraded',
+            'timestamp': datetime.datetime.now().isoformat(),
+            'error': str(e)
+        }), 200
+
+@app.route("/admin/keepalive/stats", methods=["GET"])
+@login_required
+def keepalive_stats():
+    """
+    Endpoint administrativo para ver estadísticas del keepalive.
+
+    Requiere autenticación. Devuelve información detallada del scheduler.
+    """
+    try:
+        from render_keepalive import get_keepalive_instance
+
+        keepalive = get_keepalive_instance()
+        stats = keepalive.get_stats()
+
+        return jsonify(stats), 200
+
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'keepalive_available': False
+        }), 500
 
 # ============================================
 # RUTAS PRINCIPALES
