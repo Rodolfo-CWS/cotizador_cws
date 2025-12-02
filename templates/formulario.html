@@ -3155,28 +3155,47 @@ async function guardarCotizacion() {
             return;
         }
 
+        // OBTENER TIPO DE CAMBIO ANTES DEL LOOP para conversión USD
+        const monedaForm = document.querySelector('select[name="moneda"]')?.value || "";
+        const tipoCambioForm = parseFloat(document.querySelector('input[name="tipoCambio"]')?.value || "1");
+        const esUSDForm = monedaForm === 'USD' && tipoCambioForm > 0;
+
+        console.log('[GUARDAR] Preparando items - Moneda:', monedaForm, 'Tipo cambio:', tipoCambioForm, 'Es USD:', esUSDForm);
+
         itemsBlocks.forEach((item, index) => {
             const descripcion = item.querySelector('.descripcion-item')?.value?.trim() || "";
             const cantidad = item.querySelector('.cantidad-item')?.value || "0";
             const uom = item.querySelector('.uom-item')?.value || "Pieza";
-            const costoUnidad = item.querySelector('.costo-unidad')?.value || "0";
-            const totalItem = item.querySelector('.total-item')?.value || "0";
-            const transporte = item.querySelector('.transporte')?.value || "0";
-            const instalacion = item.querySelector('.instalacion')?.value || "0";
+
+            // VALORES EN MXN (como están calculados en el formulario)
+            const costoUnidadMXN = parseFloat(item.querySelector('.costo-unidad')?.value || "0");
+            const totalItemMXN = parseFloat(item.querySelector('.total-item')?.value || "0");
+            const transporteMXN = parseFloat(item.querySelector('.transporte')?.value || "0");
+            const instalacionMXN = parseFloat(item.querySelector('.instalacion')?.value || "0");
             const seguridad = item.querySelector('.seguridad')?.value || "0";
             const descuento = item.querySelector('.descuento')?.value || "0";
+
+            // CONVERTIR A USD SI CORRESPONDE
+            const costoUnidad = esUSDForm ? (costoUnidadMXN / tipoCambioForm).toFixed(2) : costoUnidadMXN.toFixed(2);
+            const totalItem = esUSDForm ? (totalItemMXN / tipoCambioForm).toFixed(2) : totalItemMXN.toFixed(2);
+            const transporte = esUSDForm ? (transporteMXN / tipoCambioForm).toFixed(2) : transporteMXN.toFixed(2);
+            const instalacion = esUSDForm ? (instalacionMXN / tipoCambioForm).toFixed(2) : instalacionMXN.toFixed(2);
 
             const materiales = [];
             item.querySelectorAll('.materiales-container .material-row').forEach(row => {
                 const material = row.querySelector('.material-select')?.value;
-                
+
                 if (material && material.trim() !== "") {
                     if (esCotizacionPorPeso(material)) {
                         // Campos especiales para cotizar por peso
                         const pesoEstructura = row.querySelector('.peso-estructura-input')?.value || "0";
-                        const precioKg = row.querySelector('.precio-kg-input')?.value || "0";
-                        const subtotalPeso = row.querySelector('.subtotal-peso-input')?.value || "0";
-                        
+                        const precioKgMXN = parseFloat(row.querySelector('.precio-kg-input')?.value || "0");
+                        const subtotalPesoMXN = parseFloat(row.querySelector('.subtotal-peso-input')?.value || "0");
+
+                        // CONVERTIR A USD SI CORRESPONDE
+                        const precioKg = esUSDForm ? (precioKgMXN / tipoCambioForm).toFixed(2) : precioKgMXN.toFixed(2);
+                        const subtotalPeso = esUSDForm ? (subtotalPesoMXN / tipoCambioForm).toFixed(2) : subtotalPesoMXN.toFixed(2);
+
                         materiales.push({
                             material: 'COTIZAR_POR_PESO',
                             pesoEstructura: pesoEstructura,
@@ -3188,9 +3207,13 @@ async function guardarCotizacion() {
                         // Campos normales para materiales estándar
                         const peso = row.querySelector('.peso-input')?.value || "0";
                         const cantidadMat = row.querySelector('.cantidad-input')?.value || "0";
-                        const precio = row.querySelector('.precio-input')?.value || "0";
-                        const subtotal = row.querySelector('.subtotal-input')?.value || "0";
-                        
+                        const precioMXN = parseFloat(row.querySelector('.precio-input')?.value || "0");
+                        const subtotalMXN = parseFloat(row.querySelector('.subtotal-input')?.value || "0");
+
+                        // CONVERTIR A USD SI CORRESPONDE
+                        const precio = esUSDForm ? (precioMXN / tipoCambioForm).toFixed(2) : precioMXN.toFixed(2);
+                        const subtotal = esUSDForm ? (subtotalMXN / tipoCambioForm).toFixed(2) : subtotalMXN.toFixed(2);
+
                         materiales.push({
                             material: material,
                             peso: peso,
@@ -3206,11 +3229,15 @@ async function guardarCotizacion() {
             const otrosMateriales = [];
             item.querySelectorAll('.otros-materiales-container .otro-material-row').forEach(row => {
                 const descripcionOtro = row.querySelector('.descripcion-otro')?.value?.trim();
-                const precioOtro = row.querySelector('.precio-otro')?.value || "0";
+                const precioOtroMXN = parseFloat(row.querySelector('.precio-otro')?.value || "0");
                 const cantidadOtro = row.querySelector('.cantidad-otro')?.value || "0";
-                const subtotalOtro = row.querySelector('.subtotal-otro')?.value || "0";
-                
+                const subtotalOtroMXN = parseFloat(row.querySelector('.subtotal-otro')?.value || "0");
+
                 if (descripcionOtro && descripcionOtro !== "") {
+                    // CONVERTIR A USD SI CORRESPONDE
+                    const precioOtro = esUSDForm ? (precioOtroMXN / tipoCambioForm).toFixed(2) : precioOtroMXN.toFixed(2);
+                    const subtotalOtro = esUSDForm ? (subtotalOtroMXN / tipoCambioForm).toFixed(2) : subtotalOtroMXN.toFixed(2);
+
                     otrosMateriales.push({
                         descripcion: descripcionOtro,
                         precio: precioOtro,
@@ -3221,7 +3248,7 @@ async function guardarCotizacion() {
             });
 
             if (descripcion !== "" || materiales.length > 0 || otrosMateriales.length > 0) {
-                items.push({
+                const itemData = {
                     descripcion: descripcion,
                     cantidad: cantidad,
                     uom: uom,
@@ -3233,7 +3260,17 @@ async function guardarCotizacion() {
                     descuento: descuento,
                     materiales: materiales,
                     otrosMateriales: otrosMateriales
-                });
+                };
+
+                if (esUSDForm && index === 0) {
+                    console.log('[GUARDAR] Ejemplo item convertido a USD:', {
+                        'Total MXN original': totalItemMXN,
+                        'Total USD convertido': totalItem,
+                        'Tipo cambio': tipoCambioForm
+                    });
+                }
+
+                items.push(itemData);
             }
         });
 
