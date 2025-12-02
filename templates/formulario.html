@@ -1745,9 +1745,15 @@ function cargarDatosPrecargados() {
             // Agregar cada item
             DATOS_PRECARGADOS.items.forEach((item, index) => {
                 setTimeout(() => {
+                    console.log(`[PRECARGA] Agregando item ${index}...`);
                     agregarItem();
-                    cargarDatosItem(item, index);
-                }, index * 100);
+
+                    // Esperar un momento adicional para que el DOM se actualice antes de cargar datos
+                    setTimeout(() => {
+                        console.log(`[PRECARGA] Cargando datos para item ${index}...`);
+                        cargarDatosItem(item, index);
+                    }, 50);  // 50ms adicionales después de agregar el item
+                }, index * 150);  // Aumentado de 100ms a 150ms entre items
             });
         }
         
@@ -1758,15 +1764,17 @@ function cargarDatosPrecargados() {
 
         // Colapsar items vacíos después de cargar todos los datos
         const numItems = DATOS_PRECARGADOS.items ? DATOS_PRECARGADOS.items.length : 0;
-        const tiempoParaColapsar = Math.max(1500, numItems * 100);
+        // Ajustado para el nuevo timing (150ms por item + 50ms de delay interno + buffer de seguridad)
+        const tiempoParaColapsar = Math.max(2000, (numItems * 200) + 500);
 
         setTimeout(() => {
+            console.log('[PRECARGA] Colapsando items vacíos...');
             colapsarItemsVacios();
         }, tiempoParaColapsar);
 
         // Capturar estado inicial después de cargar todos los datos
         // Usamos un timeout largo para asegurar que todos los items se hayan cargado
-        const tiempoEspera = Math.max(2000, numItems * 150); // Mínimo 2 segundos, más tiempo si hay muchos items
+        const tiempoEspera = Math.max(2500, (numItems * 200) + 1000); // Buffer adicional para seguridad
 
         setTimeout(() => {
             estadoInicialFormulario = capturarEstadoFormulario();
@@ -1855,27 +1863,46 @@ function colapsarItemsVacios() {
 
 function cargarDatosItem(itemData, index) {
     try {
+        console.log(`[CARGAR_ITEM] ===== Cargando Item ${index} =====`);
+        console.log(`[CARGAR_ITEM] itemData:`, itemData);
+
         const items = document.querySelectorAll('.item-block');
         const item = items[index];
 
-        if (!item) return;
+        if (!item) {
+            console.error(`[CARGAR_ITEM] ❌ No se encontró el elemento item-block en index ${index}`);
+            return;
+        }
+
+        console.log(`[CARGAR_ITEM] ✅ Elemento item-block encontrado`);
 
         // Cargar descripción
         const descripcion = item.querySelector('.descripcion-item');
         if (descripcion && itemData.descripcion) {
             descripcion.value = itemData.descripcion;
+            console.log(`[CARGAR_ITEM] ✅ Descripción cargada: ${itemData.descripcion.substring(0, 30)}...`);
         }
 
         // Cargar cantidad
         const cantidad = item.querySelector('.cantidad-item');
+        console.log(`[CARGAR_ITEM] Elemento cantidad encontrado: ${!!cantidad}`);
+        console.log(`[CARGAR_ITEM] itemData.cantidad: ${itemData.cantidad}`);
         if (cantidad && itemData.cantidad !== undefined) {
             cantidad.value = itemData.cantidad;
+            console.log(`[CARGAR_ITEM] ✅ Cantidad cargada: ${itemData.cantidad}`);
+        } else {
+            console.warn(`[CARGAR_ITEM] ⚠️ Cantidad NO cargada - elemento: ${!!cantidad}, valor: ${itemData.cantidad}`);
         }
 
         // Cargar UOM
         const uom = item.querySelector('.uom-item');
+        console.log(`[CARGAR_ITEM] Elemento UOM encontrado: ${!!uom}`);
+        console.log(`[CARGAR_ITEM] itemData.uom: ${itemData.uom}`);
         if (uom && itemData.uom) {
             uom.value = itemData.uom;
+            console.log(`[CARGAR_ITEM] ✅ UOM cargado: ${itemData.uom}`);
+        } else {
+            console.warn(`[CARGAR_ITEM] ⚠️ UOM NO cargado - elemento: ${!!uom}, valor: ${itemData.uom}`);
         }
 
         // Cargar peso del item
@@ -1897,9 +1924,12 @@ function cargarDatosItem(itemData, index) {
         }
 
         // Cargar total del item (se calcula pero puede venir precargado)
+        // FIXED: El campo en DB se llama "total", no "totalItem"
         const totalItem = item.querySelector('.total-item');
-        if (totalItem && itemData.totalItem !== undefined) {
-            totalItem.value = itemData.totalItem;
+        const valorTotal = itemData.total || itemData.totalItem;  // Intentar ambos nombres
+        if (totalItem && valorTotal !== undefined) {
+            totalItem.value = valorTotal;
+            console.log(`[CARGAR_ITEM] ✅ Total item cargado: ${valorTotal}`);
         }
 
         // Cargar notas del item
