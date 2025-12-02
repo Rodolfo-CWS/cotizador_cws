@@ -305,14 +305,20 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
                             <span style="color: #6b7280; font-size: 14px; font-weight: 500;">Costo/Unidad:</span>
                             {% set precio_u = (item.costoUnidad | float) if item.costoUnidad else ((item.precio_unitario | float) if item.precio_unitario else ((item.precio | float) if item.precio else 0)) %}
-                            <span style="color: #1e40af; font-size: 14px; font-weight: 700;">${{ "{:,.2f}".format(precio_u) }}</span>
+                            <span style="color: #1e40af; font-size: 14px; font-weight: 700;">
+                                ${{ "{:,.2f}".format(precio_u) }}
+                                <span style="font-size: 12px; color: #6b7280; font-weight: 500;">MXN</span>
+                            </span>
                         </div>
 
                         <!-- Total Item (destacado) -->
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #dcfce7; border-radius: 4px; margin-top: 4px;">
                             <span style="color: #166534; font-size: 15px; font-weight: 600;">Total Item:</span>
                             {% set total_i = (item.total | float) if item.total else ((item.subtotal | float) if item.subtotal else 0) %}
-                            <span style="color: #166534; font-size: 16px; font-weight: 800;">${{ "{:,.2f}".format(total_i) }}</span>
+                            <span style="color: #166534; font-size: 16px; font-weight: 800;">
+                                ${{ "{:,.2f}".format(total_i) }}
+                                <span style="font-size: 13px; color: #15803d; font-weight: 600;">MXN</span>
+                            </span>
                         </div>
 
                         <!-- Separador -->
@@ -321,13 +327,13 @@
                         <!-- Transporte -->
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
                             <span style="color: #6b7280; font-size: 13px;">Transporte:</span>
-                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.transporte or '0.00' }}</span>
+                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.transporte or '0.00' }} MXN</span>
                         </div>
 
                         <!-- Instalación -->
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
                             <span style="color: #6b7280; font-size: 13px;">Instalación:</span>
-                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.instalacion or '0.00' }}</span>
+                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.instalacion or '0.00' }} MXN</span>
                         </div>
 
                         <!-- % Seguridad -->
@@ -377,14 +383,14 @@
                                     {% else %}
                                         <div style="font-size: 11px; line-height: 1.4;">
                                             <strong>Peso:</strong> {{ material.get('peso', '0') }} kg<br>
-                                            <strong>$/Kg:</strong> ${{ material.get('precio', '0.00') }}
+                                            <strong>$/Kg:</strong> ${{ material.get('precio', '0.00') }} MXN
                                         </div>
                                     {% endif %}
                                 </td>
                                 <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">
                                     {% if material.get('material') == 'COTIZAR_POR_PESO' %}
                                         <div style="font-size: 11px; line-height: 1.4;">
-                                            <strong>${{ material.get('precioKg', '0.00') }}/KG</strong>
+                                            <strong>${{ material.get('precioKg', '0.00') }} MXN/KG</strong>
                                         </div>
                                     {% else %}
                                         <div style="font-size: 11px; line-height: 1.4;">
@@ -393,10 +399,10 @@
                                     {% endif %}
                                 </td>
                                 <td style="border: 1px solid #ddd; padding: 6px; text-align: center; font-weight: bold; color: #dc3545;">
-                                    ${{ material.get('subtotal', '0.00') }}
+                                    ${{ material.get('subtotal', '0.00') }} MXN
                                     {% if material.get('material') == 'COTIZAR_POR_PESO' %}
                                         <div style="font-size: 10px; color: #6b7280; margin-top: 2px;">
-                                            ({{ material.get('pesoEstructura', '0') }} KG × ${{ material.get('precioKg', '0.00') }})
+                                            ({{ material.get('pesoEstructura', '0') }} KG × ${{ material.get('precioKg', '0.00') }} MXN)
                                         </div>
                                     {% endif %}
                                 </td>
@@ -424,9 +430,9 @@
                             {% for otro in item.get('otrosMateriales', []) %}
                             <tr style="border-bottom: 1px solid #ddd;">
                                 <td style="border: 1px solid #ddd; padding: 6px; font-weight: bold;">{{ otro.get('descripcion', 'Sin descripción') }}</td>
-                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${{ otro.get('precio', '0.00') }}</td>
+                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${{ otro.get('precio', '0.00') }} MXN</td>
                                 <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">{{ otro.get('cantidad', '0') }}</td>
-                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center; font-weight: bold; color: #17a2b8;">${{ otro.get('subtotal', '0.00') }}</td>
+                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center; font-weight: bold; color: #17a2b8;">${{ otro.get('subtotal', '0.00') }} MXN</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -456,7 +462,7 @@
                         ${{ "{:,.2f}".format((cotizacion.subtotal_calculado | float) if cotizacion.subtotal_calculado else 0) }}
                     </div>
                     <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
-                        {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}
+                        MXN
                     </div>
                 </div>
 
@@ -467,7 +473,7 @@
                         ${{ "{:,.2f}".format((cotizacion.iva_calculado | float) if cotizacion.iva_calculado else 0) }}
                     </div>
                     <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
-                        {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}
+                        MXN
                     </div>
                 </div>
 
@@ -478,7 +484,7 @@
                         ${{ "{:,.2f}".format((cotizacion.total_calculado | float) if cotizacion.total_calculado else 0) }}
                     </div>
                     <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
-                        {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}
+                        MXN
                     </div>
                 </div>
             </div>
@@ -497,13 +503,13 @@
                     <div>
                         <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Tipo de Cambio</div>
                         <div style="font-size: 18px; font-weight: 700; color: #111827;">
-                            ${{ cotizacion.condiciones.tipoCambio }} MXN
+                            ${{ cotizacion.condiciones.tipoCambio }} MXN/USD
                         </div>
                     </div>
                     <div>
-                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Total en MXN</div>
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Total en USD</div>
                         <div style="font-size: 18px; font-weight: 700; color: #111827;">
-                            ${{ "{:,.2f}".format(((cotizacion.total_calculado | float) if cotizacion.total_calculado else 0) * (cotizacion.condiciones.tipoCambio | float)) }}
+                            ${{ "{:,.2f}".format(((cotizacion.total_calculado | float) if cotizacion.total_calculado else 0) / (cotizacion.condiciones.tipoCambio | float)) }} USD
                         </div>
                     </div>
                     {% endif %}
