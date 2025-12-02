@@ -307,7 +307,7 @@
                             {% set precio_u = (item.costoUnidad | float) if item.costoUnidad else ((item.precio_unitario | float) if item.precio_unitario else ((item.precio | float) if item.precio else 0)) %}
                             <span style="color: #1e40af; font-size: 14px; font-weight: 700;">
                                 ${{ "{:,.2f}".format(precio_u) }}
-                                <span style="font-size: 12px; color: #6b7280; font-weight: 500;">{{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}</span>
+                                <span style="font-size: 12px; color: #6b7280; font-weight: 500;">MXN</span>
                             </span>
                         </div>
 
@@ -317,7 +317,7 @@
                             {% set total_i = (item.total | float) if item.total else ((item.subtotal | float) if item.subtotal else 0) %}
                             <span style="color: #166534; font-size: 16px; font-weight: 800;">
                                 ${{ "{:,.2f}".format(total_i) }}
-                                <span style="font-size: 13px; color: #15803d; font-weight: 600;">{{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}</span>
+                                <span style="font-size: 13px; color: #15803d; font-weight: 600;">MXN</span>
                             </span>
                         </div>
 
@@ -327,13 +327,13 @@
                         <!-- Transporte -->
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
                             <span style="color: #6b7280; font-size: 13px;">Transporte:</span>
-                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.transporte or '0.00' }} {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}</span>
+                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.transporte or '0.00' }} MXN</span>
                         </div>
 
                         <!-- Instalación -->
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
                             <span style="color: #6b7280; font-size: 13px;">Instalación:</span>
-                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.instalacion or '0.00' }} {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}</span>
+                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.instalacion or '0.00' }} MXN</span>
                         </div>
 
                         <!-- % Seguridad -->
@@ -383,14 +383,14 @@
                                     {% else %}
                                         <div style="font-size: 11px; line-height: 1.4;">
                                             <strong>Peso:</strong> {{ material.get('peso', '0') }} kg<br>
-                                            <strong>$/Kg:</strong> ${{ material.get('precio', '0.00') }} {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}
+                                            <strong>$/Kg:</strong> ${{ material.get('precio', '0.00') }} MXN
                                         </div>
                                     {% endif %}
                                 </td>
                                 <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">
                                     {% if material.get('material') == 'COTIZAR_POR_PESO' %}
                                         <div style="font-size: 11px; line-height: 1.4;">
-                                            <strong>${{ material.get('precioKg', '0.00') }} {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}/KG</strong>
+                                            <strong>${{ material.get('precioKg', '0.00') }} MXN/KG</strong>
                                         </div>
                                     {% else %}
                                         <div style="font-size: 11px; line-height: 1.4;">
@@ -399,10 +399,10 @@
                                     {% endif %}
                                 </td>
                                 <td style="border: 1px solid #ddd; padding: 6px; text-align: center; font-weight: bold; color: #dc3545;">
-                                    ${{ material.get('subtotal', '0.00') }} {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}
+                                    ${{ material.get('subtotal', '0.00') }} MXN
                                     {% if material.get('material') == 'COTIZAR_POR_PESO' %}
                                         <div style="font-size: 10px; color: #6b7280; margin-top: 2px;">
-                                            ({{ material.get('pesoEstructura', '0') }} KG × ${{ material.get('precioKg', '0.00') }} {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }})
+                                            ({{ material.get('pesoEstructura', '0') }} KG × ${{ material.get('precioKg', '0.00') }} MXN)
                                         </div>
                                     {% endif %}
                                 </td>
@@ -430,9 +430,9 @@
                             {% for otro in item.get('otrosMateriales', []) %}
                             <tr style="border-bottom: 1px solid #ddd;">
                                 <td style="border: 1px solid #ddd; padding: 6px; font-weight: bold;">{{ otro.get('descripcion', 'Sin descripción') }}</td>
-                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${{ otro.get('precio', '0.00') }} {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}</td>
+                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${{ otro.get('precio', '0.00') }} MXN</td>
                                 <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">{{ otro.get('cantidad', '0') }}</td>
-                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center; font-weight: bold; color: #17a2b8;">${{ otro.get('subtotal', '0.00') }} {{ cotizacion.condiciones.moneda or 'MXN' if cotizacion.condiciones else 'MXN' }}</td>
+                                <td style="border: 1px solid #ddd; padding: 6px; text-align: center; font-weight: bold; color: #17a2b8;">${{ otro.get('subtotal', '0.00') }} MXN</td>
                             </tr>
                             {% endfor %}
                         </tbody>
