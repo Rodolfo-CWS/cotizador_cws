@@ -503,13 +503,13 @@
                     <div>
                         <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Tipo de Cambio</div>
                         <div style="font-size: 18px; font-weight: 700; color: #111827;">
-                            ${{ cotizacion.condiciones.tipoCambio }} MXN
+                            ${{ cotizacion.condiciones.tipoCambio }} MXN/USD
                         </div>
                     </div>
                     <div>
-                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Total en MXN</div>
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Total en USD</div>
                         <div style="font-size: 18px; font-weight: 700; color: #111827;">
-                            ${{ "{:,.2f}".format(((cotizacion.total_calculado | float) if cotizacion.total_calculado else 0) * (cotizacion.condiciones.tipoCambio | float)) }}
+                            ${{ "{:,.2f}".format(((cotizacion.total_calculado | float) if cotizacion.total_calculado else 0) / (cotizacion.condiciones.tipoCambio | float)) }} USD
                         </div>
                     </div>
                     {% endif %}
