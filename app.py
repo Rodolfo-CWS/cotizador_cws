@@ -612,13 +612,30 @@ def generar_pdf_reportlab(datos_cotizacion):
         ['Cliente:', datos_generales.get('cliente', ''), 'Vendedor:', datos_generales.get('vendedor', '')],
         ['Atención A:', datos_generales.get('atencionA', ''), 'Contacto:', datos_generales.get('contacto', '')],
     ]
-    
+
     # Agregar información de revisión si existe
     if datos_generales.get('revision', '1') != '1':
-        info_data.append(['Revisión:', f"Rev. {datos_generales.get('revision', '1')}", 
-                         'Actualización:', datos_generales.get('actualizacionRevision', '')])
-    
-    info_table = Table(info_data, colWidths=[1.2*inch, 2.8*inch, 1.2*inch, 2.8*inch])
+        info_data.append(['Revisión:', f"Rev. {datos_generales.get('revision', '1')}", '', ''])
+
+        # Agregar campo de actualización en fila separada con soporte para texto largo
+        actualizacion_text = datos_generales.get('actualizacionRevision', '')
+        if actualizacion_text:
+            # Crear estilo para el texto de actualización con wrap
+            actualizacion_style = ParagraphStyle(
+                'ActualizacionStyle',
+                parent=getSampleStyleSheet()['Normal'],
+                fontSize=8,
+                fontName='Helvetica',
+                textColor=colors.HexColor('#2D3748'),
+                alignment=0,  # 0 = LEFT (justificado a la izquierda)
+                leading=10,   # Espaciado entre líneas
+                leftIndent=0,
+                rightIndent=0
+            )
+            actualizacion_paragraph = Paragraph(actualizacion_text, actualizacion_style)
+            info_data.append(['Actualización:', actualizacion_paragraph, '', ''])
+
+    info_table = Table(info_data, colWidths=[1.2*inch, 6.8*inch, 0*inch, 0*inch])
     info_table.setStyle(TableStyle([
         # Estilo general - reducido
         ('FONTSIZE', (0, 0), (-1, -1), 8),
@@ -5028,6 +5045,10 @@ def render_cotizacion_html(cotizacion):
                 border-radius: 3px;
                 flex: 1;
                 word-wrap: break-word;
+                word-break: break-word;
+                white-space: normal;
+                text-align: left;
+                overflow-wrap: break-word;
             }}
             .actions {{
                 text-align: center;
