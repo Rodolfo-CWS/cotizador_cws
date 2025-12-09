@@ -248,7 +248,7 @@
                 if (response.ok) {
                     mostrarMensaje('¡Bienvenido! Redirigiendo...', 'success');
                     setTimeout(() => {
-                        window.location.href = '/';
+                        window.location.href = '/dashboard';
                     }, 500);
                 } else {
                     throw new Error('Error al iniciar sesión');
