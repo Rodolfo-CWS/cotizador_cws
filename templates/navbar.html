@@ -1,0 +1,572 @@
+<!-- NAVBAR COMPONENT - Sistema de navegación persistente -->
+<style>
+    .navbar {
+        background: #212529;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+
+    .navbar-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 60px;
+    }
+
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: white;
+        font-weight: 600;
+        font-size: 16px;
+    }
+
+    .navbar-brand img {
+        height: 32px;
+        width: auto;
+    }
+
+    .navbar-menu {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .navbar-item {
+        position: relative;
+    }
+
+    .navbar-link {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        color: #adb5bd;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .navbar-link:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+
+    .navbar-link.active {
+        background: rgba(79, 70, 229, 0.2);
+        color: white;
+    }
+
+    .navbar-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .navbar-notifications {
+        position: relative;
+    }
+
+    .btn-notifications {
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: rgba(255, 255, 255, 0.1);
+        color: #adb5bd;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+
+    .btn-notifications:hover {
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+    }
+
+    .notification-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: #ef4444;
+        color: white;
+        border-radius: 10px;
+        min-width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 0 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .navbar-user {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .user-name {
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        display: none;
+    }
+
+    .btn-user {
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: #4f46e5;
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-user:hover {
+        background: #6366f1;
+    }
+
+    /* Dropdown de notificaciones */
+    .notifications-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        width: 360px;
+        max-height: 400px;
+        overflow: hidden;
+        display: none;
+    }
+
+    .notifications-dropdown.show {
+        display: block;
+    }
+
+    .notifications-header {
+        padding: 16px;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .notifications-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #212529;
+    }
+
+    .btn-mark-all-read {
+        font-size: 12px;
+        color: #4f46e5;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-mark-all-read:hover {
+        background: #f8f9fa;
+    }
+
+    .notifications-list {
+        max-height: 320px;
+        overflow-y: auto;
+    }
+
+    .notification-item {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f8f9fa;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: block;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .notification-item:hover {
+        background: #f8f9fa;
+    }
+
+    .notification-item.unread {
+        background: #f0f9ff;
+    }
+
+    .notification-item.unread:hover {
+        background: #e0f2fe;
+    }
+
+    .notification-icon {
+        font-size: 20px;
+        margin-right: 8px;
+    }
+
+    .notification-content {
+        flex: 1;
+    }
+
+    .notification-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #212529;
+        margin-bottom: 4px;
+    }
+
+    .notification-message {
+        font-size: 12px;
+        color: #6c757d;
+        line-height: 1.4;
+        margin-bottom: 4px;
+    }
+
+    .notification-time {
+        font-size: 11px;
+        color: #adb5bd;
+    }
+
+    .notifications-empty {
+        padding: 40px 20px;
+        text-align: center;
+        color: #6c757d;
+    }
+
+    /* Mobile menu */
+    .mobile-menu-toggle {
+        display: none;
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    @media (max-width: 768px) {
+        .navbar-menu {
+            display: none;
+            position: absolute;
+            top: 60px;
+            left: 0;
+            right: 0;
+            background: #212529;
+            flex-direction: column;
+            padding: 12px;
+            gap: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .navbar-menu.show {
+            display: flex;
+        }
+
+        .navbar-link {
+            width: 100%;
+        }
+
+        .mobile-menu-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .user-name {
+            display: none !important;
+        }
+
+        .notifications-dropdown {
+            width: calc(100vw - 40px);
+            right: 20px;
+        }
+    }
+
+    @media (min-width: 769px) {
+        .user-name {
+            display: block;
+        }
+    }
+</style>
+
+<nav class="navbar">
+    <div class="navbar-container">
+        <!-- Logo y Brand -->
+        <a href="/dashboard" class="navbar-brand">
+            <img src="/static/logo.png" alt="CWS">
+            <span>CWS</span>
+        </a>
+
+        <!-- Toggle para móvil -->
+        <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+            </svg>
+        </button>
+
+        <!-- Menú de navegación -->
+        <ul class="navbar-menu" id="navbarMenu">
+            <li class="navbar-item">
+                <a href="/" class="navbar-link {{ 'active' if request.path == '/' }}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                    </svg>
+                    Cotizador
+                </a>
+            </li>
+            <li class="navbar-item">
+                <a href="/ordenes-compra" class="navbar-link {{ 'active' if request.path.startswith('/ordenes-compra') or request.path.startswith('/proyecto') }}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20,8L12,13L4,8V6L12,11L20,6M20,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6C22,4.89 21.1,4 20,4Z"/>
+                    </svg>
+                    Proyectos
+                </a>
+            </li>
+        </ul>
+
+        <!-- Sección derecha -->
+        <div class="navbar-right">
+            <!-- Notificaciones -->
+            <div class="navbar-notifications">
+                <button class="btn-notifications" onclick="toggleNotifications()" id="btnNotifications">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
+                    </svg>
+                    <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                </button>
+
+                <!-- Dropdown de notificaciones -->
+                <div class="notifications-dropdown" id="notificationsDropdown">
+                    <div class="notifications-header">
+                        <span class="notifications-title">Notificaciones</span>
+                        <button class="btn-mark-all-read" onclick="marcarTodasLeidas()">
+                            Marcar todas como leídas
+                        </button>
+                    </div>
+                    <div class="notifications-list" id="notificationsList">
+                        <div class="notifications-empty">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.3;">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                            </svg>
+                            <p>No hay notificaciones</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Usuario -->
+            <div class="navbar-user">
+                <span class="user-name">{{ usuario }}</span>
+                <button class="btn-user" onclick="window.location.href='/dashboard'">
+                    {{ usuario[0].upper() if usuario else 'U' }}
+                </button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<script>
+    // Variables globales
+    let notificationsDropdownOpen = false;
+
+    // Toggle menú móvil
+    function toggleMobileMenu() {
+        const menu = document.getElementById('navbarMenu');
+        menu.classList.toggle('show');
+    }
+
+    // Toggle dropdown de notificaciones
+    function toggleNotifications() {
+        const dropdown = document.getElementById('notificationsDropdown');
+        notificationsDropdownOpen = !notificationsDropdownOpen;
+
+        if (notificationsDropdownOpen) {
+            dropdown.classList.add('show');
+            cargarNotificaciones();
+        } else {
+            dropdown.classList.remove('show');
+        }
+    }
+
+    // Cerrar dropdown al hacer click fuera
+    document.addEventListener('click', function(event) {
+        const btn = document.getElementById('btnNotifications');
+        const dropdown = document.getElementById('notificationsDropdown');
+
+        if (!btn.contains(event.target) && !dropdown.contains(event.target)) {
+            dropdown.classList.remove('show');
+            notificationsDropdownOpen = false;
+        }
+    });
+
+    // Cargar notificaciones
+    async function cargarNotificaciones() {
+        try {
+            const response = await fetch('/api/notificaciones');
+            const data = await response.json();
+
+            if (data.success) {
+                mostrarNotificaciones(data.notificaciones);
+                actualizarContador(data.no_leidas);
+            }
+        } catch (error) {
+            console.error('Error cargando notificaciones:', error);
+        }
+    }
+
+    // Mostrar notificaciones en el dropdown
+    function mostrarNotificaciones(notificaciones) {
+        const lista = document.getElementById('notificationsList');
+
+        if (!notificaciones || notificaciones.length === 0) {
+            lista.innerHTML = `
+                <div class="notifications-empty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.3;">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                    </svg>
+                    <p>No hay notificaciones</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        notificaciones.forEach(notif => {
+            const icono = obtenerIconoNotificacion(notif.tipo);
+            const tiempo = formatearTiempo(notif.created_at);
+            const claseLeida = notif.leida ? '' : 'unread';
+
+            html += `
+                <a href="${notif.enlace || '#'}"
+                   class="notification-item ${claseLeida}"
+                   onclick="marcarLeida(${notif.id})">
+                    <div style="display: flex; gap: 12px;">
+                        <span class="notification-icon">${icono}</span>
+                        <div class="notification-content">
+                            <div class="notification-title">${notif.titulo}</div>
+                            <div class="notification-message">${notif.mensaje}</div>
+                            <div class="notification-time">${tiempo}</div>
+                        </div>
+                    </div>
+                </a>
+            `;
+        });
+
+        lista.innerHTML = html;
+    }
+
+    // Actualizar contador de notificaciones
+    function actualizarContador(cantidad) {
+        const badge = document.getElementById('notificationBadge');
+        if (cantidad > 0) {
+            badge.textContent = cantidad;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    // Marcar notificación como leída
+    async function marcarLeida(notificacionId) {
+        try {
+            await fetch(`/api/notificaciones/${notificacionId}/marcar-leida`, {
+                method: 'POST'
+            });
+            cargarContadorNotificaciones();
+        } catch (error) {
+            console.error('Error marcando notificación como leída:', error);
+        }
+    }
+
+    // Marcar todas como leídas
+    async function marcarTodasLeidas() {
+        try {
+            const response = await fetch('/api/notificaciones/marcar-todas-leidas', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                cargarNotificaciones();
+                cargarContadorNotificaciones();
+            }
+        } catch (error) {
+            console.error('Error marcando todas como leídas:', error);
+        }
+    }
+
+    // Cargar solo el contador (sin abrir dropdown)
+    async function cargarContadorNotificaciones() {
+        try {
+            const response = await fetch('/api/notificaciones/contador');
+            const data = await response.json();
+
+            if (data.success) {
+                actualizarContador(data.no_leidas);
+            }
+        } catch (error) {
+            console.error('Error cargando contador:', error);
+        }
+    }
+
+    // Obtener icono según tipo de notificación
+    function obtenerIconoNotificacion(tipo) {
+        const iconos = {
+            'gasto_pendiente': '⏳',
+            'gasto_aprobado': '✅',
+            'gasto_rechazado': '❌',
+            'oc_nueva': '📦',
+            'presupuesto_excedido': '⚠️',
+            'gasto_ordenado': '🟡',
+            'gasto_recibido': '🟢'
+        };
+        return iconos[tipo] || '📬';
+    }
+
+    // Formatear tiempo relativo
+    function formatearTiempo(fechaISO) {
+        const fecha = new Date(fechaISO);
+        const ahora = new Date();
+        const diff = Math.floor((ahora - fecha) / 1000); // segundos
+
+        if (diff < 60) return 'Hace un momento';
+        if (diff < 3600) return `Hace ${Math.floor(diff / 60)} min`;
+        if (diff < 86400) return `Hace ${Math.floor(diff / 3600)} h`;
+        if (diff < 604800) return `Hace ${Math.floor(diff / 86400)} días`;
+
+        return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+    }
+
+    // Cargar contador al iniciar
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarContadorNotificaciones();
+
+        // Actualizar contador cada 30 segundos
+        setInterval(cargarContadorNotificaciones, 30000);
+    });
+</script>

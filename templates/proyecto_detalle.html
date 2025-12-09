@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CWS - {{ proyecto.nombre }}</title>
+    <link rel="stylesheet" href="/static/proyecto_detalle_styles.css">
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container">
+        <!-- Breadcrumb -->
+        <div class="breadcrumb">
+            <a href="/ordenes-compra">Órdenes de Compra</a>
+            <span>/</span>
+            <span>{{ proyecto.numero_oc }}</span>
+        </div>
+
+        <!-- Header del Proyecto -->
+        <div class="proyecto-header">
+            <div>
+                <h1 class="proyecto-nombre">{{ proyecto.nombre }}</h1>
+                <div class="proyecto-meta">
+                    <span>OC: <strong>{{ proyecto.numero_oc }}</strong></span>
+                    <span>•</span>
+                    <span>Cliente: <strong>{{ proyecto.cliente }}</strong></span>
+                    <span>•</span>
+                    <span>{{ proyecto.fecha_inicio }}</span>
+                </div>
+            </div>
+            {% if proyecto.oc_archivo_pdf %}
+            <a href="{{ proyecto.oc_archivo_pdf }}" target="_blank" class="btn-secondary">
+                📄 Ver PDF OC
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- Dashboard Financiero -->
+        <div class="dashboard-financiero">
+            <div class="stat-card">
+                <div class="stat-label">Presupuesto</div>
+                <div class="stat-value">${{ "{:,.2f}".format(proyecto.monto_presupuestado) }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Gastado</div>
+                <div class="stat-value text-warning">${{ "{:,.2f}".format(proyecto.monto_gastado or 0) }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Disponible</div>
+                <div class="stat-value text-success">${{ "{:,.2f}".format(proyecto.monto_disponible or proyecto.monto_presupuestado) }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Progreso</div>
+                <div class="stat-value">{{ proyecto.progreso_porcentaje or 0 }}%</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ proyecto.progreso_porcentaje or 0 }}%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <h2>Gastos del Proyecto</h2>
+            <button class="btn-primary" onclick="abrirModalNuevoGasto()">
+                ➕ Agregar Gasto
+            </button>
+        </div>
+
+        <!-- Resumen -->
+        <div class="resumen">
+            <span>Total: <strong>{{ proyecto.total_gastos or 0 }}</strong> gastos</span>
+            <span>•</span>
+            <span>Aprobados: <strong>{{ proyecto.gastos_aprobados or 0 }}</strong></span>
+            <span>•</span>
+            <span>Ordenados: <strong>{{ proyecto.gastos_ordenados or 0 }}</strong></span>
+            <span>•</span>
+            <span>Recibidos: <strong>{{ proyecto.gastos_recibidos or 0 }}</strong></span>
+        </div>
+
+        <!-- Listado de Gastos -->
+        <div id="gastosContainer">
+            {% if gastos and gastos|length > 0 %}
+                {% for gasto in gastos %}
+                <div class="gasto-card">
+                    <div class="gasto-header">
+                        <div>
+                            <div class="gasto-concepto">{{ gasto.concepto }}</div>
+                            <div class="gasto-proveedor">{{ gasto.proveedor or 'Sin proveedor' }}</div>
+                        </div>
+                        <div class="gasto-monto">${{ "{:,.2f}".format(gasto.subtotal) }}</div>
+                    </div>
+
+                    <div class="gasto-detalle">
+                        <span>{{ gasto.cantidad }} {{ gasto.unidad }}</span>
+                        <span>×</span>
+                        <span>${{ "{:,.2f}".format(gasto.precio_unitario) }}</span>
+                    </div>
+
+                    <div class="gasto-estados">
+                        <!-- Estado de Aprobación -->
+                        <div class="estado-badge {% if gasto.aprobado %}badge-success{% else %}badge-warning{% endif %}">
+                            {% if gasto.aprobado %}
+                                ✅ Aprobado
+                                <span class="estado-info">por {{ gasto.aprobado_por }} el {{ gasto.fecha_aprobacion.strftime('%d/%m') if gasto.fecha_aprobacion else '' }}</span>
+                            {% else %}
+                                ⏳ Pendiente de aprobación
+                            {% endif %}
+                        </div>
+
+                        <!-- Estado de Compra -->
+                        <div class="estado-badge badge-{{ gasto.estatus_compra }}">
+                            {% if gasto.estatus_compra == 'pendiente' %}🔴 PENDIENTE
+                            {% elif gasto.estatus_compra == 'ordenado' %}🟡 ORDENADO
+                            {% elif gasto.estatus_compra == 'recibido' %}🟢 RECIBIDO
+                            {% else %}⚫ CANCELADO
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Acciones -->
+                    <div class="gasto-acciones">
+                        {% if not gasto.aprobado %}
+                            <button class="btn-success btn-sm" onclick="aprobarGasto({{ gasto.id }})">
+                                ✓ Aprobar
+                            </button>
+                            <button class="btn-danger btn-sm" onclick="rechazarGasto({{ gasto.id }})">
+                                ✕ Rechazar
+                            </button>
+                        {% elif gasto.estatus_compra == 'pendiente' %}
+                            <button class="btn-warning btn-sm" onclick="marcarOrdenado({{ gasto.id }})">
+                                🟡 Marcar Ordenado
+                            </button>
+                        {% elif gasto.estatus_compra == 'ordenado' %}
+                            <button class="btn-success btn-sm" onclick="marcarRecibido({{ gasto.id }})">
+                                🟢 Marcar Recibido
+                            </button>
+                        {% endif %}
+
+                        {% if gasto.estatus_compra == 'pendiente' %}
+                            <button class="btn-secondary btn-sm" onclick="editarGasto({{ gasto.id }})">
+                                ✏️ Editar
+                            </button>
+                        {% endif %}
+                    </div>
+
+                    {% if gasto.notas %}
+                    <div class="gasto-notas">📝 {{ gasto.notas }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">📦</div>
+                    <div class="empty-title">No hay gastos en este proyecto</div>
+                    <div class="empty-text">Agrega el primer gasto para comenzar</div>
+                    <button class="btn-primary" onclick="abrirModalNuevoGasto()">
+                        ➕ Agregar Primer Gasto
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Modal: Nuevo Gasto -->
+    <div id="modalNuevoGasto" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Agregar Nuevo Gasto</h2>
+                <button class="btn-close" onclick="cerrarModalNuevoGasto()">×</button>
+            </div>
+            <form id="formNuevoGasto">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Concepto *</label>
+                        <input type="text" name="concepto" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Proveedor</label>
+                        <input type="text" name="proveedor" class="form-input">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Cantidad *</label>
+                            <input type="number" name="cantidad" class="form-input" step="0.01" min="0.01" value="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Unidad *</label>
+                            <input type="text" name="unidad" class="form-input" value="pieza" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Precio Unitario *</label>
+                        <input type="number" name="precio_unitario" class="form-input" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Subtotal</label>
+                        <input type="text" id="subtotalDisplay" class="form-input" readonly value="$0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Notas</label>
+                        <textarea name="notas" class="form-textarea"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="cerrarModalNuevoGasto()">Cancelar</button>
+                    <button type="submit" class="btn-primary">💾 Guardar Gasto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Marcar como Ordenado -->
+    <div id="modalOrdenado" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Marcar como Ordenado</h2>
+                <button class="btn-close" onclick="cerrarModalOrdenado()">×</button>
+            </div>
+            <form id="formOrdenado">
+                <input type="hidden" id="gastoIdOrdenado">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Número de Orden *</label>
+                        <input type="text" name="numero_orden" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de Orden</label>
+                        <input type="date" name="fecha_orden" class="form-input">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="cerrarModalOrdenado()">Cancelar</button>
+                    <button type="submit" class="btn-warning">🟡 Confirmar Ordenado</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/proyecto_detalle.js"></script>
+</body>
+</html>

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CWS - {{ 'Editar' if oc else 'Nueva' }} Orden de Compra</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+            color: #2c2c2c;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 32px 20px;
+        }
+
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .form-container {
+            background: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+
+        .form-section {
+            margin-bottom: 32px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+
+        .form-label .required {
+            color: #dc2626;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .file-upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #f8f9fa;
+        }
+
+        .file-upload-area:hover {
+            border-color: #4f46e5;
+            background: #f0f9ff;
+        }
+
+        .file-upload-area.dragover {
+            border-color: #4f46e5;
+            background: #e0f2fe;
+        }
+
+        .file-upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .file-upload-text {
+            font-size: 14px;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+
+        .file-upload-hint {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .file-preview {
+            display: none;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .file-preview.show {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .file-icon {
+            font-size: 32px;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #212529;
+            margin-bottom: 4px;
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .btn-remove-file {
+            padding: 8px;
+            background: #fee2e2;
+            color: #dc2626;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-remove-file:hover {
+            background: #fecaca;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #4338ca;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #495057;
+            border: 1px solid #dee2e6;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .info-box {
+            background: #e0f2fe;
+            border-left: 4px solid #0284c7;
+            padding: 12px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #075985;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .form-container {
+                padding: 24px 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .form-actions {
+                flex-direction: column-reverse;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    {% include 'navbar.html' %}
+
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <h1 class="page-title">{{ '✏️ Editar' if oc else '📦 Nueva' }} Orden de Compra</h1>
+            <p class="page-subtitle">{{ 'Modifica los datos de la orden de compra' if oc else 'Carga el PDF de la OC y completa los datos' }}</p>
+        </div>
+
+        <!-- Mensajes -->
+        <div id="alertContainer"></div>
+
+        <!-- Formulario -->
+        <div class="form-container">
+            <form id="ocForm" enctype="multipart/form-data">
+                <!-- Upload de PDF -->
+                <div class="form-section">
+                    <h2 class="section-title">Archivo de OC</h2>
+
+                    {% if not oc %}
+                    <div class="info-box">
+                        💡 <strong>Tip móvil:</strong> Si instalaste la app, puedes compartir el PDF directamente desde WhatsApp usando el botón "Compartir"
+                    </div>
+                    {% endif %}
+
+                    <div class="form-group">
+                        <input type="file"
+                               id="archivo_oc"
+                               name="archivo_oc"
+                               accept=".pdf"
+                               style="display: none;"
+                               {% if not oc %}required{% endif %}>
+
+                        <div class="file-upload-area" id="uploadArea" onclick="document.getElementById('archivo_oc').click()">
+                            <div class="file-upload-icon">📄</div>
+                            <div class="file-upload-text">
+                                <strong>Click para seleccionar el PDF de la OC</strong>
+                            </div>
+                            <div class="file-upload-hint">o arrastra el archivo aquí</div>
+                        </div>
+
+                        <div class="file-preview" id="filePreview">
+                            <span class="file-icon">📄</span>
+                            <div class="file-info">
+                                <div class="file-name" id="fileName"></div>
+                                <div class="file-size" id="fileSize"></div>
+                            </div>
+                            <button type="button" class="btn-remove-file" onclick="removeFile()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                                </svg>
+                            </button>
+                        </div>
+
+                        {% if oc and oc.archivo_pdf %}
+                        <div style="margin-top: 12px;">
+                            <a href="{{ oc.archivo_pdf }}" target="_blank" style="color: #4f46e5; font-size: 13px;">
+                                📎 Ver PDF actual
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Datos de la OC -->
+                <div class="form-section">
+                    <h2 class="section-title">Información de la Orden</h2>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Número de OC <span class="required">*</span>
+                        </label>
+                        <input type="text"
+                               name="numero_oc"
+                               class="form-input"
+                               placeholder="Ej: BMW-2024-001"
+                               value="{{ oc.numero_oc if oc else '' }}"
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Cliente <span class="required">*</span>
+                        </label>
+                        <input type="text"
+                               name="cliente"
+                               class="form-input"
+                               placeholder="Nombre del cliente"
+                               value="{{ oc.cliente if oc else '' }}"
+                               required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">
+                                Monto Total <span class="required">*</span>
+                            </label>
+                            <input type="number"
+                                   name="monto_total"
+                                   class="form-input"
+                                   placeholder="150000.00"
+                                   step="0.01"
+                                   min="0"
+                                   value="{{ oc.monto_total if oc else '' }}"
+                                   required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                Moneda <span class="required">*</span>
+                            </label>
+                            <select name="moneda" class="form-select" required>
+                                <option value="MXN" {% if oc and oc.moneda == 'MXN' %}selected{% endif %}>MXN - Peso Mexicano</option>
+                                <option value="USD" {% if oc and oc.moneda == 'USD' %}selected{% endif %}>USD - Dólar</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Fecha de Recepción <span class="required">*</span>
+                        </label>
+                        <input type="date"
+                               name="fecha_recepcion"
+                               class="form-input"
+                               value="{{ oc.fecha_recepcion if oc else '' }}"
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Notas (opcional)
+                        </label>
+                        <textarea name="notas"
+                                  class="form-textarea"
+                                  placeholder="Información adicional sobre la OC...">{{ oc.notas if oc else '' }}</textarea>
+                    </div>
+                </div>
+
+                <!-- Acciones -->
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="window.location.href='/ordenes-compra'">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="btnSubmit">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                        {{ 'Guardar Cambios' if oc else 'Crear OC y Proyecto' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Variables
+        const form = document.getElementById('ocForm');
+        const fileInput = document.getElementById('archivo_oc');
+        const uploadArea = document.getElementById('uploadArea');
+        const filePreview = document.getElementById('filePreview');
+        const btnSubmit = document.getElementById('btnSubmit');
+
+        // Drag & Drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.classList.add('dragover');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.classList.remove('dragover');
+            });
+        });
+
+        uploadArea.addEventListener('drop', handleDrop);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            if (files.length > 0) {
+                fileInput.files = files;
+                showFilePreview(files[0]);
+            }
+        }
+
+        // Cambio de archivo
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                showFilePreview(this.files[0]);
+            }
+        });
+
+        // Mostrar preview del archivo
+        function showFilePreview(file) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            filePreview.classList.add('show');
+            uploadArea.style.display = 'none';
+        }
+
+        // Remover archivo
+        function removeFile() {
+            fileInput.value = '';
+            filePreview.classList.remove('show');
+            uploadArea.style.display = 'block';
+        }
+
+        // Formatear tamaño de archivo
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // Mostrar alerta
+        function showAlert(message, type = 'error') {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertClass = type === 'error' ? 'alert-error' : 'alert-success';
+
+            alertContainer.innerHTML = `
+                <div class="alert ${alertClass}">
+                    ${message}
+                </div>
+            `;
+
+            // Auto-cerrar después de 5 segundos
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 5000);
+        }
+
+        // Enviar formulario
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(form);
+            const isEdit = {{ 'true' if oc else 'false' }};
+            const url = isEdit ? '/api/ordenes-compra/{{ oc.id }}/editar' : '/api/ordenes-compra/crear';
+
+            // Deshabilitar botón
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<span>Guardando...</span>';
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert(data.message, 'success');
+
+                    // Redirigir después de 1 segundo
+                    setTimeout(() => {
+                        if (data.proyecto_id) {
+                            window.location.href = `/proyecto/${data.proyecto_id}`;
+                        } else {
+                            window.location.href = '/ordenes-compra';
+                        }
+                    }, 1000);
+                } else {
+                    showAlert(data.message || 'Error al guardar la OC', 'error');
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = '{{ 'Guardar Cambios' if oc else 'Crear OC y Proyecto' }}';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Error de conexión. Por favor intenta de nuevo.', 'error');
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = '{{ 'Guardar Cambios' if oc else 'Crear OC y Proyecto' }}';
+            }
+        });
+
+        // Establecer fecha actual como default
+        document.addEventListener('DOMContentLoaded', function() {
+            const fechaInput = document.querySelector('input[name="fecha_recepcion"]');
+            if (!fechaInput.value) {
+                const hoy = new Date().toISOString().split('T')[0];
+                fechaInput.value = hoy;
+            }
+
+            // Si viene de PWA Share Target, puede haber un archivo pre-cargado
+            {% if archivo_compartido %}
+            // El backend ya procesó el archivo compartido
+            showAlert('Archivo cargado desde WhatsApp', 'success');
+            {% endif %}
+        });
+    </script>
+</body>
+</html>
