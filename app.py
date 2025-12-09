@@ -41,6 +41,11 @@ from dotenv import load_dotenv
 from supabase_manager import SupabaseManager as DatabaseManager
 from pdf_manager import PDFManager
 
+# Módulo de Proyectos y Órdenes de Compra
+from oc_manager import OCManager
+from proyecto_manager import ProyectoManager
+from notificaciones_manager import NotificacionesManager
+
 # Configurar logging detallado para detectar fallos silenciosos
 def configurar_logging():
     """Configura logging detallado para la aplicación"""
@@ -128,6 +133,21 @@ try:
 except Exception as e:
     print(f"Error inicializando PDFManager: {e}")
     pdf_manager = None
+
+# Crear instancias del módulo de Proyectos
+try:
+    oc_manager = OCManager()
+    proyecto_manager = ProyectoManager()
+    notificaciones_manager = NotificacionesManager()
+    print("Módulo de Proyectos inicializado exitosamente")
+    print("   - OCManager: OK")
+    print("   - ProyectoManager: OK")
+    print("   - NotificacionesManager: OK")
+except Exception as e:
+    print(f"Error inicializando módulo de Proyectos: {e}")
+    oc_manager = None
+    proyecto_manager = None
+    notificaciones_manager = None
 
 # Crear instancia de scheduler de sincronización
 try:
@@ -5978,6 +5998,496 @@ def servir_pdf_local(numero_cotizacion):
     except Exception as e:
         print(f"[LOCAL_PDF] Error sirviendo PDF: {e}")
         return jsonify({"error": str(e)}), 500
+
+# ============================================
+# MÓDULO DE PROYECTOS Y ÓRDENES DE COMPRA
+# ============================================
+
+@app.route("/dashboard")
+def dashboard():
+    """Página principal con navegación entre módulos"""
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+
+    try:
+        # Obtener estadísticas para el dashboard
+        stats = {}
+
+        # Estadísticas de cotizaciones
+        try:
+            cot_stats = db_manager.obtener_estadisticas()
+            stats['cotizaciones_total'] = cot_stats.get('total', 0)
+        except:
+            stats['cotizaciones_total'] = 0
+
+        # Estadísticas de proyectos
+        if oc_manager:
+            try:
+                oc_stats = oc_manager.obtener_estadisticas()
+                stats['proyectos_activos'] = oc_stats.get('activas', 0) + oc_stats.get('en_proceso', 0)
+            except:
+                stats['proyectos_activos'] = 0
+
+        # Gastos pendientes de aprobación
+        if proyecto_manager:
+            try:
+                gastos_pendientes = proyecto_manager.obtener_gastos_pendientes_aprobacion()
+                stats['gastos_pendientes'] = len(gastos_pendientes)
+            except:
+                stats['gastos_pendientes'] = 0
+
+        # Notificaciones no leídas
+        if notificaciones_manager:
+            try:
+                stats['notificaciones_no_leidas'] = notificaciones_manager.contar_no_leidas(session['usuario'])
+            except:
+                stats['notificaciones_no_leidas'] = 0
+
+        return render_template('dashboard.html',
+                             usuario=session['usuario'],
+                             stats=stats)
+    except Exception as e:
+        print(f"Error en dashboard: {e}")
+        return render_template('dashboard.html',
+                             usuario=session['usuario'],
+                             stats={})
+
+# ========================================
+# RUTAS DE ÓRDENES DE COMPRA
+# ========================================
+
+@app.route("/ordenes-compra")
+def listar_ordenes_compra():
+    """Listar órdenes de compra"""
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+
+    if not oc_manager:
+        return "Módulo de OCs no disponible", 503
+
+    try:
+        # Obtener filtros de query params
+        filtros = {}
+        if request.args.get('estatus'):
+            filtros['estatus'] = request.args.get('estatus')
+        if request.args.get('cliente'):
+            filtros['cliente'] = request.args.get('cliente')
+
+        # Listar OCs
+        ordenes_compra = oc_manager.listar_ocs(filtros=filtros)
+
+        # Obtener estadísticas
+        stats = oc_manager.obtener_estadisticas()
+
+        return render_template('ordenes_compra.html',
+                             usuario=session['usuario'],
+                             ordenes_compra=ordenes_compra,
+                             stats=stats)
+    except Exception as e:
+        print(f"Error listando OCs: {e}")
+        return render_template('ordenes_compra.html',
+                             usuario=session['usuario'],
+                             ordenes_compra=[],
+                             stats={})
+
+@app.route("/ordenes-compra/nueva", methods=["GET", "POST"])
+def nueva_orden_compra():
+    """Formulario para crear nueva OC"""
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+
+    if not oc_manager:
+        return "Módulo de OCs no disponible", 503
+
+    # Si viene del PWA Share Target
+    archivo_compartido = None
+    if request.method == 'POST' and 'archivo_oc' in request.files:
+        archivo_compartido = request.files['archivo_oc']
+
+    return render_template('nueva_oc.html',
+                         usuario=session['usuario'],
+                         archivo_compartido=archivo_compartido)
+
+@app.route("/api/ordenes-compra/crear", methods=["POST"])
+def api_crear_oc():
+    """API para crear nueva OC"""
+    if 'usuario' not in session:
+        return jsonify({"success": False, "message": "No autenticado"}), 401
+
+    if not oc_manager:
+        return jsonify({"success": False, "message": "Módulo no disponible"}), 503
+
+    try:
+        # Obtener datos del formulario
+        datos = {
+            'numero_oc': request.form.get('numero_oc'),
+            'cliente': request.form.get('cliente'),
+            'monto_total': float(request.form.get('monto_total', 0)),
+            'moneda': request.form.get('moneda', 'MXN'),
+            'fecha_recepcion': request.form.get('fecha_recepcion'),
+            'notas': request.form.get('notas', '')
+        }
+
+        # Manejar upload de PDF (si existe)
+        if 'archivo_oc' in request.files:
+            archivo = request.files['archivo_oc']
+            if archivo and archivo.filename:
+                # TODO: Guardar en Supabase Storage
+                # Por ahora, guardar referencia
+                datos['archivo_pdf'] = f"uploads/{archivo.filename}"
+
+        # Crear OC y proyecto
+        resultado = oc_manager.crear_oc(datos)
+
+        # Crear notificación para el responsable
+        if resultado['success'] and notificaciones_manager:
+            try:
+                notificaciones_manager.notificar_oc_nueva(
+                    oc_info={
+                        'id': resultado['oc_id'],
+                        'numero_oc': datos['numero_oc'],
+                        'cliente': datos['cliente'],
+                        'monto_total': datos['monto_total'],
+                        'moneda': datos['moneda'],
+                        'proyecto_id': resultado.get('proyecto_id')
+                    },
+                    responsable=session['usuario']
+                )
+            except Exception as e:
+                print(f"Error creando notificación: {e}")
+
+        return jsonify(resultado)
+
+    except Exception as e:
+        print(f"Error creando OC: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/ordenes-compra/<int:oc_id>/editar", methods=["GET"])
+def editar_orden_compra(oc_id):
+    """Formulario para editar OC"""
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+
+    if not oc_manager:
+        return "Módulo de OCs no disponible", 503
+
+    try:
+        oc = oc_manager.obtener_oc(oc_id)
+        if not oc:
+            return "OC no encontrada", 404
+
+        return render_template('nueva_oc.html',
+                             usuario=session['usuario'],
+                             oc=oc)
+    except Exception as e:
+        print(f"Error cargando OC: {e}")
+        return "Error cargando OC", 500
+
+@app.route("/api/ordenes-compra/<int:oc_id>/editar", methods=["POST"])
+def api_actualizar_oc(oc_id):
+    """API para actualizar OC"""
+    if 'usuario' not in session:
+        return jsonify({"success": False, "message": "No autenticado"}), 401
+
+    if not oc_manager:
+        return jsonify({"success": False, "message": "Módulo no disponible"}), 503
+
+    try:
+        datos = {}
+
+        # Campos opcionales para actualizar
+        if request.form.get('cliente'):
+            datos['cliente'] = request.form.get('cliente')
+        if request.form.get('monto_total'):
+            datos['monto_total'] = float(request.form.get('monto_total'))
+        if request.form.get('moneda'):
+            datos['moneda'] = request.form.get('moneda')
+        if request.form.get('notas') is not None:
+            datos['notas'] = request.form.get('notas')
+        if request.form.get('estatus'):
+            datos['estatus'] = request.form.get('estatus')
+
+        # Manejar nuevo PDF si se subió
+        if 'archivo_oc' in request.files:
+            archivo = request.files['archivo_oc']
+            if archivo and archivo.filename:
+                # TODO: Guardar en Supabase Storage
+                datos['archivo_pdf'] = f"uploads/{archivo.filename}"
+
+        resultado = oc_manager.actualizar_oc(oc_id, datos)
+        return jsonify(resultado)
+
+    except Exception as e:
+        print(f"Error actualizando OC: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+# ========================================
+# RUTAS DE PROYECTOS
+# ========================================
+
+@app.route("/proyecto/<int:proyecto_id>")
+def ver_proyecto(proyecto_id):
+    """Vista detalle de proyecto con gastos"""
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+
+    if not proyecto_manager:
+        return "Módulo de Proyectos no disponible", 503
+
+    try:
+        # Obtener proyecto
+        proyecto = proyecto_manager.obtener_proyecto(proyecto_id)
+        if not proyecto:
+            return "Proyecto no encontrado", 404
+
+        # Obtener gastos del proyecto
+        gastos = proyecto_manager.listar_gastos_proyecto(proyecto_id)
+
+        return render_template('proyecto_detalle.html',
+                             usuario=session['usuario'],
+                             proyecto=proyecto,
+                             gastos=gastos)
+    except Exception as e:
+        print(f"Error cargando proyecto: {e}")
+        return "Error cargando proyecto", 500
+
+# ========================================
+# RUTAS DE GASTOS
+# ========================================
+
+@app.route("/api/proyectos/<int:proyecto_id>/gastos/crear", methods=["POST"])
+def api_crear_gasto(proyecto_id):
+    """API para crear nuevo gasto"""
+    if 'usuario' not in session:
+        return jsonify({"success": False, "message": "No autenticado"}), 401
+
+    if not proyecto_manager:
+        return jsonify({"success": False, "message": "Módulo no disponible"}), 503
+
+    try:
+        datos = request.json
+        datos['proyecto_id'] = proyecto_id
+
+        resultado = proyecto_manager.crear_gasto(datos)
+
+        # Crear notificación para aprobador (si el gasto fue creado)
+        if resultado['success'] and notificaciones_manager and resultado.get('requiere_aprobacion'):
+            try:
+                gasto = proyecto_manager.obtener_gasto(resultado['gasto_id'])
+                if gasto:
+                    notificaciones_manager.notificar_gasto_pendiente(
+                        gasto_id=resultado['gasto_id'],
+                        gasto_info=gasto,
+                        aprobador=session['usuario']  # TODO: Obtener aprobador real
+                    )
+            except Exception as e:
+                print(f"Error creando notificación de gasto pendiente: {e}")
+
+        return jsonify(resultado)
+
+    except Exception as e:
+        print(f"Error creando gasto: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/api/gastos/<int:gasto_id>/aprobar", methods=["POST"])
+def api_aprobar_gasto(gasto_id):
+    """API para aprobar gasto"""
+    if 'usuario' not in session:
+        return jsonify({"success": False, "message": "No autenticado"}), 401
+
+    if not proyecto_manager:
+        return jsonify({"success": False, "message": "Módulo no disponible"}), 503
+
+    try:
+        resultado = proyecto_manager.aprobar_gasto(gasto_id, session['usuario'])
+
+        # Crear notificación para el creador del gasto
+        if resultado['success'] and notificaciones_manager:
+            try:
+                gasto = proyecto_manager.obtener_gasto(gasto_id)
+                if gasto:
+                    notificaciones_manager.notificar_gasto_aprobado(
+                        gasto_id=gasto_id,
+                        gasto_info=gasto,
+                        aprobador=session['usuario'],
+                        solicitante=session['usuario']  # TODO: Obtener creador real
+                    )
+            except Exception as e:
+                print(f"Error creando notificación de aprobación: {e}")
+
+        return jsonify(resultado)
+
+    except Exception as e:
+        print(f"Error aprobando gasto: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/api/gastos/<int:gasto_id>/rechazar", methods=["POST"])
+def api_rechazar_gasto(gasto_id):
+    """API para rechazar gasto"""
+    if 'usuario' not in session:
+        return jsonify({"success": False, "message": "No autenticado"}), 401
+
+    if not proyecto_manager:
+        return jsonify({"success": False, "message": "Módulo no disponible"}), 503
+
+    try:
+        datos = request.json or {}
+        motivo = datos.get('motivo', 'Sin motivo especificado')
+
+        resultado = proyecto_manager.rechazar_gasto(gasto_id, motivo)
+
+        # Crear notificación de rechazo
+        if resultado['success'] and notificaciones_manager:
+            try:
+                gasto = proyecto_manager.obtener_gasto(gasto_id)
+                if gasto:
+                    notificaciones_manager.notificar_gasto_rechazado(
+                        gasto_id=gasto_id,
+                        gasto_info=gasto,
+                        motivo=motivo,
+                        solicitante=session['usuario']  # TODO: Obtener creador real
+                    )
+            except Exception as e:
+                print(f"Error creando notificación de rechazo: {e}")
+
+        return jsonify(resultado)
+
+    except Exception as e:
+        print(f"Error rechazando gasto: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/api/gastos/<int:gasto_id>/marcar-ordenado", methods=["POST"])
+def api_marcar_ordenado(gasto_id):
+    """API para marcar gasto como ordenado"""
+    if 'usuario' not in session:
+        return jsonify({"success": False, "message": "No autenticado"}), 401
+
+    if not proyecto_manager:
+        return jsonify({"success": False, "message": "Módulo no disponible"}), 503
+
+    try:
+        datos = request.json
+        numero_orden = datos.get('numero_orden')
+        fecha_orden = datos.get('fecha_orden')
+
+        if not numero_orden:
+            return jsonify({"success": False, "message": "Número de orden requerido"}), 400
+
+        resultado = proyecto_manager.marcar_como_ordenado(gasto_id, numero_orden, fecha_orden)
+        return jsonify(resultado)
+
+    except Exception as e:
+        print(f"Error marcando como ordenado: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/api/gastos/<int:gasto_id>/marcar-recibido", methods=["POST"])
+def api_marcar_recibido(gasto_id):
+    """API para marcar gasto como recibido"""
+    if 'usuario' not in session:
+        return jsonify({"success": False, "message": "No autenticado"}), 401
+
+    if not proyecto_manager:
+        return jsonify({"success": False, "message": "Módulo no disponible"}), 503
+
+    try:
+        resultado = proyecto_manager.marcar_como_recibido(gasto_id)
+        return jsonify(resultado)
+
+    except Exception as e:
+        print(f"Error marcando como recibido: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+# ========================================
+# RUTAS DE NOTIFICACIONES
+# ========================================
+
+@app.route("/notificaciones")
+def ver_notificaciones():
+    """Vista de notificaciones"""
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+
+    return render_template('notificaciones.html',
+                         usuario=session['usuario'])
+
+@app.route("/api/notificaciones", methods=["GET"])
+def api_listar_notificaciones():
+    """API para listar notificaciones"""
+    if 'usuario' not in session:
+        return jsonify({"success": False, "message": "No autenticado"}), 401
+
+    if not notificaciones_manager:
+        return jsonify({"success": False, "message": "Módulo no disponible"}), 503
+
+    try:
+        notificaciones = notificaciones_manager.obtener_notificaciones_usuario(
+            session['usuario'],
+            solo_no_leidas=request.args.get('solo_no_leidas') == 'true'
+        )
+
+        no_leidas = notificaciones_manager.contar_no_leidas(session['usuario'])
+
+        return jsonify({
+            "success": True,
+            "notificaciones": notificaciones,
+            "total": len(notificaciones),
+            "no_leidas": no_leidas
+        })
+
+    except Exception as e:
+        print(f"Error listando notificaciones: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/api/notificaciones/contador", methods=["GET"])
+def api_contador_notificaciones():
+    """API para obtener contador de notificaciones no leídas"""
+    if 'usuario' not in session:
+        return jsonify({"success": False, "message": "No autenticado"}), 401
+
+    if not notificaciones_manager:
+        return jsonify({"success": True, "no_leidas": 0})
+
+    try:
+        no_leidas = notificaciones_manager.contar_no_leidas(session['usuario'])
+        return jsonify({"success": True, "no_leidas": no_leidas})
+
+    except Exception as e:
+        print(f"Error obteniendo contador: {e}")
+        return jsonify({"success": True, "no_leidas": 0})
+
+@app.route("/api/notificaciones/<int:notificacion_id>/marcar-leida", methods=["POST"])
+def api_marcar_notificacion_leida(notificacion_id):
+    """API para marcar notificación como leída"""
+    if 'usuario' not in session:
+        return jsonify({"success": False, "message": "No autenticado"}), 401
+
+    if not notificaciones_manager:
+        return jsonify({"success": False, "message": "Módulo no disponible"}), 503
+
+    try:
+        resultado = notificaciones_manager.marcar_como_leida(notificacion_id)
+        return jsonify(resultado)
+
+    except Exception as e:
+        print(f"Error marcando notificación: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/api/notificaciones/marcar-todas-leidas", methods=["POST"])
+def api_marcar_todas_leidas():
+    """API para marcar todas las notificaciones como leídas"""
+    if 'usuario' not in session:
+        return jsonify({"success": False, "message": "No autenticado"}), 401
+
+    if not notificaciones_manager:
+        return jsonify({"success": False, "message": "Módulo no disponible"}), 503
+
+    try:
+        resultado = notificaciones_manager.marcar_todas_como_leidas(session['usuario'])
+        return jsonify(resultado)
+
+    except Exception as e:
+        print(f"Error marcando todas como leídas: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
 
 # ============================================
 
