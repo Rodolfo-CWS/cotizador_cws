@@ -1343,14 +1343,15 @@ def login():
         vendedor = request.form.get('vendedor')
         if vendedor:
             session['vendedor'] = vendedor
+            session['usuario'] = vendedor  # También guardar como 'usuario' para módulo de Proyectos
             print(f"Usuario autenticado: {vendedor}")
-            return redirect(url_for('home'))
+            return redirect(url_for('dashboard'))  # Redirigir al dashboard nuevo
         else:
             return render_template("login.html", error="Por favor selecciona tu nombre")
 
-    # Si ya está autenticado, redirigir al home
+    # Si ya está autenticado, redirigir al dashboard
     if 'vendedor' in session:
-        return redirect(url_for('home'))
+        return redirect(url_for('dashboard'))
 
     return render_template("login.html")
 
