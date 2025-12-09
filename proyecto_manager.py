@@ -41,10 +41,15 @@ class ProyectoManager:
         """Establecer conexión a PostgreSQL"""
         try:
             if self.database_url:
-                self.pg_connection = psycopg2.connect(self.database_url)
-                print("[PROYECTO_MANAGER] Conexión PostgreSQL establecida")
+                try:
+                    self.pg_connection = psycopg2.connect(self.database_url)
+                    print("[PROYECTO_MANAGER] Conexión PostgreSQL establecida")
+                except Exception as pg_error:
+                    print(f"[PROYECTO_MANAGER] PostgreSQL no disponible (continuando sin conexión directa): {pg_error}")
+                    self.pg_connection = None
         except Exception as e:
             print(f"[PROYECTO_MANAGER] Error iniciando conexión: {e}")
+            # Continuar sin fallar - app debe poder iniciar aunque managers fallen
 
     def _get_cursor(self):
         """Obtener cursor de base de datos"""

@@ -49,11 +49,16 @@ class OCManager:
                 print("[OC_MANAGER] Cliente Supabase inicializado")
 
             if self.database_url:
-                self.pg_connection = psycopg2.connect(self.database_url)
-                print("[OC_MANAGER] Conexión PostgreSQL establecida")
+                try:
+                    self.pg_connection = psycopg2.connect(self.database_url)
+                    print("[OC_MANAGER] Conexión PostgreSQL establecida")
+                except Exception as pg_error:
+                    print(f"[OC_MANAGER] PostgreSQL no disponible (continuando sin conexión directa): {pg_error}")
+                    self.pg_connection = None
 
         except Exception as e:
             print(f"[OC_MANAGER] Error iniciando conexión: {e}")
+            # Continuar sin fallar - app debe poder iniciar aunque managers fallen
 
     def _get_cursor(self):
         """Obtener cursor de base de datos"""
