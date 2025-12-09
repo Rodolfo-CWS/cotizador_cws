@@ -20,6 +20,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Web Interface**: Responsive interface with real-time quotation management  
 - **Revision System**: ✅ **WORKING** - Create R1, R2, R3... revisions with SDK REST fallback
 - **Hybrid Database**: ✅ **BULLETPROOF** - PostgreSQL → SDK REST → JSON with automatic fallback
+- **Projects Module**: ✅ **NEW** - Complete Purchase Order and Project management system (December 2025)
+
+### 🎉 NEW MODULE: PROJECTS AND PURCHASE ORDERS (December 2025)
+
+**Complete project management system integrated into CWS Cotizador:**
+- **Purchase Orders (OCs)**: Upload and manage client purchase orders with automatic project creation
+- **Project Tracking**: Monitor expenses, approvals, and budget in real-time
+- **Approval Workflow**: Multi-step approval process (create → approve → order → receive)
+- **Budget Validation**: Automatic validation to prevent overspending
+- **In-App Notifications**: Real-time notifications for pending approvals and status changes
+- **PWA Integration**: Share PDF files from WhatsApp directly to the app (Android Chrome)
+- **Responsive Design**: Mobile-first interface with consistent CWS styling
+- **Multi-Status Tracking**: Visual indicators for expense status (🔴 pending, 🟡 ordered, 🟢 received)
+
+**Key Features:**
+- ✅ **Automatic Project Creation**: Upload OC → System creates linked project automatically
+- ✅ **Expense Management**: Add expenses with quantity, unit price, provider tracking
+- ✅ **Approval System**: Approve/reject expenses with mandatory justification
+- ✅ **Purchase Tracking**: Track status from approval through delivery
+- ✅ **Budget Monitoring**: Real-time budget vs. actual spending with progress bars
+- ✅ **Notification Center**: Centralized notification management with unread counter
+- ✅ **Dashboard Navigation**: Unified menu to switch between Quotations and Projects modules
+
+**Database Schema:**
+- `ordenes_compra`: Purchase order records with client and project linking
+- `proyectos`: Project details with budget and status tracking
+- `gastos_proyecto`: Individual expense items with approval and purchase status
+- `notificaciones`: User notifications for workflow events
+
+**Components:**
+- `oc_manager.py`: Purchase order CRUD and business logic (200+ lines)
+- `proyecto_manager.py`: Expense management and approval workflow (300+ lines)
+- `notificaciones_manager.py`: Notification system (150+ lines)
+- 6 responsive HTML templates with consistent UX design
+- JavaScript for real-time updates and modal interactions
+- Complete test suite in `test_proyectos.py`
 
 ### 🎉 SUPABASE HYBRID TRIPLE-LAYER SYSTEM (September 8, 2025) - BULLETPROOF ARCHITECTURE
 - **Layer 1**: ✅ **POSTGRESQL DIRECT** - Fastest option, attempts first
@@ -291,6 +327,10 @@ python -c "import reportlab; print('ReportLab OK')"
 # Test automatic numbering system
 python test_numero_automatico.py
 
+# ✅ NEW: Projects Module Test (December 2025)
+# Complete test suite for Purchase Orders and Projects module
+python test_proyectos.py
+
 # ✅ NEW: Supabase Unified System Tests (August 25, 2025)
 # Test complete Supabase database + storage integration
 python -c "
@@ -471,7 +511,7 @@ curl https://cotizador-cws.onrender.com/admin/keepalive/stats
 ### File Structure
 ```
 cotizador_cws/
-├── app.py                    # ENHANCED: Main Flask app with unified Supabase architecture
+├── app.py                    # ENHANCED: Main Flask app with Projects module integration
 ├── supabase_manager.py       # ENHANCED: Supabase PostgreSQL manager with offline fallback
 ├── pdf_manager.py            # ENHANCED: Unified PDF storage (Supabase Storage + Google Drive + Local)
 ├── render_keepalive.py       # NEW: Intelligent keepalive for Render free tier (Sept 2025)
@@ -480,6 +520,10 @@ cotizador_cws/
 ├── config.py                 # Environment-based configuration
 ├── google_drive_client.py    # Google Drive API integration (maintained as fallback)
 ├── configurar_supabase_storage.py # NEW: Supabase Storage configuration utility
+├── oc_manager.py             # 🆕 NEW: Purchase Order management (Dec 2025)
+├── proyecto_manager.py       # 🆕 NEW: Project and expense management (Dec 2025)
+├── notificaciones_manager.py # 🆕 NEW: Notification system (Dec 2025)
+├── init_proyectos.sql        # 🆕 NEW: Database schema for Projects module (Dec 2025)
 ├── Lista de materiales.csv   # Materials catalog loaded at startup
 ├── cotizaciones_offline.json # JSON fallback database (enhanced with sync metadata)
 ├── requirements.txt          # UPDATED: Supabase dependencies, removed Cloudinary
@@ -490,15 +534,24 @@ cotizador_cws/
 │   └── fallos_silenciosos_detectados.log  # Critical failures only (rotated 5MB)
 ├── static/                   # Static assets
 │   ├── logo.png             # CWS Company logo
-│   └── manifest.json        # PWA manifest
+│   ├── manifest.json        # 🆕 UPDATED: PWA manifest with Share Target API (Dec 2025)
+│   ├── proyecto_detalle_styles.css # 🆕 NEW: Styles for project detail page (Dec 2025)
+│   └── proyecto_detalle.js  # 🆕 NEW: Client logic for expense management (Dec 2025)
 ├── templates/                # Jinja2 HTML templates
 │   ├── home.html            # ENHANCED: Unified search system (no more inconsistencies)
 │   ├── formulario.html      # Dynamic quotation form
 │   ├── formato_pdf_cws.html # WeasyPrint PDF template
-│   └── ver_cotizacion.html  # Quotation viewer
-├── test_*.py                 # EXPANDED: Comprehensive test suite + NEW hybrid system tests
+│   ├── ver_cotizacion.html  # Quotation viewer
+│   ├── dashboard.html       # 🆕 NEW: Main navigation between modules (Dec 2025)
+│   ├── navbar.html          # 🆕 NEW: Navigation bar with notifications (Dec 2025)
+│   ├── ordenes_compra.html  # 🆕 NEW: Purchase orders list and filters (Dec 2025)
+│   ├── nueva_oc.html        # 🆕 NEW: Create/edit purchase order form (Dec 2025)
+│   ├── proyecto_detalle.html # 🆕 NEW: Project detail with expense management (Dec 2025)
+│   └── notificaciones.html  # 🆕 NEW: Notification center (Dec 2025)
+├── test_*.py                 # EXPANDED: Comprehensive test suite
 │   ├── test_cloudinary.py   # NEW: Cloudinary integration tests
-│   └── test_sync_completo.py # NEW: Complete hybrid system tests
+│   ├── test_sync_completo.py # NEW: Complete hybrid system tests
+│   └── test_proyectos.py    # 🆕 NEW: Projects module complete test suite (Dec 2025)
 └── *.bat                     # Windows automation scripts
 ```
 
@@ -531,6 +584,43 @@ cotizador_cws/
 - Last-write-wins conflict resolution based on timestamps
 - Automatic fallback detection and recovery
 
+**🆕 Projects Module API Endpoints (NEW - December 2025):**
+
+**Dashboard & Navigation:**
+- `GET /dashboard` - Main navigation page between Quotations and Projects modules
+
+**Purchase Orders Management:**
+- `GET /ordenes-compra` - List all purchase orders with filters and search
+- `GET /ordenes-compra/nueva` - Create new purchase order form
+- `POST /ordenes-compra/nueva` - Handle PWA Share Target API for PDF sharing
+- `POST /api/ordenes-compra/crear` - Create new purchase order (returns oc_id and proyecto_id)
+- `GET /ordenes-compra/<id>/editar` - Edit purchase order form
+- `POST /api/ordenes-compra/<id>/editar` - Update existing purchase order
+
+**Project & Expense Management:**
+- `GET /proyecto/<id>` - View project detail with expenses and financial dashboard
+- `POST /api/proyectos/<id>/gastos/crear` - Create new expense in project (with budget validation)
+- `POST /api/gastos/<id>/aprobar` - Approve expense (requires authentication)
+- `POST /api/gastos/<id>/rechazar` - Reject expense with optional reason
+- `POST /api/gastos/<id>/marcar-ordenado` - Mark expense as ordered (requires order number)
+- `POST /api/gastos/<id>/marcar-recibido` - Mark expense as received and delivered
+
+**Notifications:**
+- `GET /notificaciones` - Notification center page
+- `GET /api/notificaciones` - List user notifications (with pagination and filters)
+- `GET /api/notificaciones/contador` - Get unread notification count for navbar badge
+- `POST /api/notificaciones/<id>/marcar-leida` - Mark specific notification as read
+- `POST /api/notificaciones/marcar-todas-leidas` - Mark all user notifications as read
+
+**Workflow:**
+```
+1. Upload OC → Automatic project creation
+2. Add expenses → Budget validation
+3. Approve expenses → Notification to requester
+4. Mark as ordered → Track order number and date
+5. Mark as received → Complete purchase cycle
+```
+
 ## Database Architecture
 
 ### ✅ MongoDB Atlas (OPERATIONAL - Hybrid Mode)
@@ -548,6 +638,48 @@ cotizador_cws/
 - **Features**: Complete quotation data, search functionality, revision tracking
 - **Performance**: Zero latency operations with automatic cloud backup
 - **Redundancy**: Automatic sync to MongoDB for cloud backup and team access
+
+### 🆕 Projects Module Database Schema (NEW - December 2025)
+
+**PostgreSQL Tables via Supabase:**
+
+**Table: `ordenes_compra` (Purchase Orders)**
+- Stores client purchase orders with automatic project linking
+- Fields: id, numero_oc (unique), cliente, monto_total, moneda, fecha_recepcion, fecha_inicio, archivo_pdf, notas, estatus, created_at, updated_at
+- Relationships: One-to-One with `proyectos` table
+- Indexes: numero_oc (unique), cliente, estatus, created_at
+
+**Table: `proyectos` (Projects)**
+- Automatically created when OC is uploaded
+- Fields: id, nombre, descripcion, oc_id (FK), cliente, monto_presupuestado, monto_gastado, monto_disponible, progreso_porcentaje, fecha_inicio, fecha_fin_estimada, estatus, created_at, updated_at
+- Relationships: Many-to-One with `ordenes_compra`, One-to-Many with `gastos_proyecto`
+- Computed fields: monto_disponible = monto_presupuestado - monto_gastado, progreso_porcentaje calculated automatically
+- Indexes: oc_id, cliente, estatus
+
+**Table: `gastos_proyecto` (Project Expenses)**
+- Individual expense items with approval and purchase tracking
+- Fields: id, proyecto_id (FK), concepto, proveedor, cantidad, unidad, precio_unitario, subtotal, aprobado, aprobado_por, fecha_aprobacion, motivo_rechazo, estatus_compra ('pendiente'|'ordenado'|'recibido'|'cancelado'), numero_orden, fecha_orden, fecha_recibido, notas, created_at, updated_at
+- Relationships: Many-to-One with `proyectos`
+- Workflow states: Not approved → Approved → Ordered → Received
+- Indexes: proyecto_id, aprobado, estatus_compra, created_at
+
+**Table: `notificaciones` (In-App Notifications)**
+- User notifications for workflow events
+- Fields: id, usuario_destinatario, tipo, titulo, mensaje, enlace, leida, metadata (JSONB), created_at, leida_at
+- Notification types: gasto_pendiente, gasto_aprobado, gasto_rechazado, oc_nueva, presupuesto_excedido, gasto_ordenado, gasto_recibido
+- Indexes: usuario_destinatario, leida, tipo, created_at
+- TTL: Notifications older than 90 days automatically archived
+
+**Database Views:**
+- `vista_resumen_proyectos`: Aggregated project statistics with expense counts and totals
+- `vista_gastos_pendientes`: All expenses pending approval across all projects
+
+**Triggers:**
+- `actualizar_updated_at`: Auto-update updated_at timestamp on all tables
+- `actualizar_montos_proyecto`: Recalculate project totals when expenses change
+- `actualizar_progreso_proyecto`: Recalculate progress percentage automatically
+
+**Schema File:** `init_proyectos.sql` - Complete DDL with tables, views, indexes, and triggers
 
 ## PDF Generation System
 
