@@ -45,6 +45,7 @@ from pdf_manager import PDFManager
 from oc_manager import OCManager
 from proyecto_manager import ProyectoManager
 from notificaciones_manager import NotificacionesManager
+from supabase_storage_manager import SupabaseStorageManager
 
 # Configurar logging detallado para detectar fallos silenciosos
 def configurar_logging():
@@ -148,6 +149,14 @@ except Exception as e:
     oc_manager = None
     proyecto_manager = None
     notificaciones_manager = None
+
+# Crear instancia de Supabase Storage para PDFs de OCs
+try:
+    storage_manager = SupabaseStorageManager()
+    print("SupabaseStorageManager inicializado exitosamente")
+except Exception as e:
+    print(f"Error inicializando SupabaseStorageManager: {e}")
+    storage_manager = None
 
 # Crear instancia de scheduler de sincronización
 try:
@@ -6132,9 +6141,47 @@ def api_crear_oc():
         if 'archivo_oc' in request.files:
             archivo = request.files['archivo_oc']
             if archivo and archivo.filename:
-                # TODO: Guardar en Supabase Storage
-                # Por ahora, guardar referencia
-                datos['archivo_pdf'] = f"uploads/{archivo.filename}"
+                # Guardar en Supabase Storage
+                try:
+                    import tempfile
+
+                    # Crear archivo temporal para guardar el upload
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+                        archivo.save(temp_file.name)
+                        temp_path = temp_file.name
+
+                    # Subir a Supabase Storage si está disponible
+                    if storage_manager and storage_manager.is_available():
+                        # Usar numero_oc como identificador
+                        numero_oc_limpio = datos['numero_oc'].replace('/', '-').replace(' ', '_')
+                        resultado_upload = storage_manager.subir_pdf(
+                            archivo_local=temp_path,
+                            numero_cotizacion=f"OC-{numero_oc_limpio}",
+                            es_nueva=True
+                        )
+
+                        if 'url' in resultado_upload:
+                            datos['archivo_pdf'] = resultado_upload['url']
+                            print(f"OC PDF subido a Supabase Storage: {resultado_upload['url']}")
+                        else:
+                            # Fallback: guardar solo el nombre
+                            datos['archivo_pdf'] = f"uploads/{archivo.filename}"
+                            print(f"Warning: No se pudo subir a Supabase, usando fallback")
+                    else:
+                        # Storage no disponible, guardar solo referencia
+                        datos['archivo_pdf'] = f"uploads/{archivo.filename}"
+                        print("Warning: SupabaseStorageManager no disponible")
+
+                    # Limpiar archivo temporal
+                    try:
+                        os.unlink(temp_path)
+                    except:
+                        pass
+
+                except Exception as e:
+                    print(f"Error procesando archivo OC: {e}")
+                    # Continuar sin PDF
+                    datos['archivo_pdf'] = None
 
         # Crear OC y proyecto
         resultado = oc_manager.crear_oc(datos)
@@ -6211,8 +6258,48 @@ def api_actualizar_oc(oc_id):
         if 'archivo_oc' in request.files:
             archivo = request.files['archivo_oc']
             if archivo and archivo.filename:
-                # TODO: Guardar en Supabase Storage
-                datos['archivo_pdf'] = f"uploads/{archivo.filename}"
+                # Guardar en Supabase Storage
+                try:
+                    import tempfile
+
+                    # Obtener OC actual para usar numero_oc
+                    oc_actual = oc_manager.obtener_oc(oc_id)
+                    if not oc_actual:
+                        raise Exception("OC no encontrada")
+
+                    # Crear archivo temporal
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+                        archivo.save(temp_file.name)
+                        temp_path = temp_file.name
+
+                    # Subir a Supabase Storage si está disponible
+                    if storage_manager and storage_manager.is_available():
+                        numero_oc_limpio = oc_actual['numero_oc'].replace('/', '-').replace(' ', '_')
+                        resultado_upload = storage_manager.subir_pdf(
+                            archivo_local=temp_path,
+                            numero_cotizacion=f"OC-{numero_oc_limpio}",
+                            es_nueva=True
+                        )
+
+                        if 'url' in resultado_upload:
+                            datos['archivo_pdf'] = resultado_upload['url']
+                            print(f"OC PDF actualizado en Supabase Storage: {resultado_upload['url']}")
+                        else:
+                            datos['archivo_pdf'] = f"uploads/{archivo.filename}"
+                            print(f"Warning: No se pudo subir a Supabase, usando fallback")
+                    else:
+                        datos['archivo_pdf'] = f"uploads/{archivo.filename}"
+                        print("Warning: SupabaseStorageManager no disponible")
+
+                    # Limpiar archivo temporal
+                    try:
+                        os.unlink(temp_path)
+                    except:
+                        pass
+
+                except Exception as e:
+                    print(f"Error procesando archivo OC en edición: {e}")
+                    # No actualizar PDF si hay error
 
         resultado = oc_manager.actualizar_oc(oc_id, datos)
         return jsonify(resultado)
