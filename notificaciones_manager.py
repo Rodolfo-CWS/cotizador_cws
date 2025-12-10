@@ -60,10 +60,16 @@ class NotificacionesManager:
             # Continuar sin fallar - app debe poder iniciar aunque managers fallen
 
     def _get_cursor(self):
-        """Obtener cursor de base de datos"""
-        if not self.pg_connection or self.pg_connection.closed:
-            self.pg_connection = psycopg2.connect(self.database_url)
-        return self.pg_connection.cursor(cursor_factory=RealDictCursor)
+        """Obtener cursor de base de datos con manejo de errores"""
+        try:
+            if not self.pg_connection or self.pg_connection.closed:
+                if not self.database_url:
+                    raise Exception("DATABASE_URL no configurado")
+                self.pg_connection = psycopg2.connect(self.database_url)
+            return self.pg_connection.cursor(cursor_factory=RealDictCursor)
+        except Exception as e:
+            print(f"[NOTIFICACIONES_MANAGER] Error obteniendo cursor: {e}")
+            raise Exception(f"Base de datos no disponible: {str(e)}")
 
     # ========================================
     # CREAR NOTIFICACIONES
