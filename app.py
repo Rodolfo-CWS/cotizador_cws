@@ -1334,6 +1334,15 @@ def format_currency(value):
         return "$0"
 
 # ============================================
+# CONTEXT PROCESSORS
+# ============================================
+
+@app.context_processor
+def inject_request():
+    """Hace que request esté disponible en todos los templates"""
+    return {'request': request}
+
+# ============================================
 # AUTENTICACIÓN Y SESSION MANAGEMENT
 # ============================================
 
