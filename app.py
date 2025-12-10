@@ -1321,6 +1321,18 @@ def timestamp_to_date(timestamp):
     except:
         return 'N/A'
 
+@app.template_filter('format_currency')
+def format_currency(value):
+    """Formatea número como moneda con comas y símbolo $"""
+    try:
+        # Convertir a float si es necesario
+        if isinstance(value, str):
+            value = float(value)
+        # Formatear con comas como separador de miles
+        return "${:,.0f}".format(value)
+    except (ValueError, TypeError):
+        return "$0"
+
 # ============================================
 # AUTENTICACIÓN Y SESSION MANAGEMENT
 # ============================================
