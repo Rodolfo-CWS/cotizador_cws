@@ -10,302 +10,57 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: #f8f9fa;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             padding: 20px;
             color: #2c2c2c;
         }
-        
-        .container {
-            background: #ffffff;
-            padding: 48px;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
-            width: 100%;
-            max-width: 600px;
-            text-align: center;
-            border: 1px solid #e9ecef;
-        }
-        
-        .logo {
-            margin-bottom: 16px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .logo img {
-            max-height: 80px;
-            max-width: 200px;
-            object-fit: contain;
-        }
-        
-        h1 {
-            color: #212529;
-            margin-bottom: 48px;
-            font-weight: 400;
-            font-size: 24px;
-            letter-spacing: -0.5px;
-        }
-        
-        .search-container {
-            position: relative;
-            margin-bottom: 32px;
-        }
-        
-        .search-input {
-            width: 100%;
-            padding: 16px 20px;
-            border: 1px solid #dee2e6;
+
+        .header {
+            background: white;
+            padding: 20px;
             border-radius: 8px;
-            font-size: 16px;
-            outline: none;
-            transition: all 0.2s ease;
-            background: #ffffff;
-            box-shadow: none;
-        }
-        
-        .search-input:focus {
-            border-color: #4f46e5;
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-        }
-        
-        .search-input::placeholder {
-            color: #6c757d;
-        }
-        
-        .button-group {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .icon-button {
-            width: 48px;
-            height: 48px;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 20px;
-            transition: all 0.2s ease;
-            position: relative;
-            background: #ffffff;
-            color: #6c757d;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .btn-search {
-            background: #4f46e5;
-            color: white;
-            border-color: #4f46e5;
-        }
-        
-        .btn-all {
-            background: #6366f1;
-            color: white;
-            border-color: #6366f1;
-        }
-        
-        .btn-new {
-            background: #10b981;
-            color: white;
-            border-color: #10b981;
-        }
-        
-        .icon-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-        
-        .icon-button:active {
-            transform: translateY(0);
-        }
-        
-        .icon-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .tooltip {
-            position: absolute;
-            bottom: -32px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #212529;
-            color: white;
-            padding: 6px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            pointer-events: none;
-            white-space: nowrap;
-        }
-        
-        .icon-button:hover .tooltip {
-            opacity: 1;
-        }
-        
-        .results-container {
-            margin-top: 32px;
-            text-align: left;
-        }
-        
-        .result-item {
-            background: #ffffff;
-            border: 1px solid #e9ecef;
-            padding: 16px;
-            margin: 8px 0;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .result-item:hover {
-            background: #f8f9fa;
-            border-color: #4f46e5;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .result-field {
-            margin: 4px 0;
-            display: flex;
-            align-items: center;
-        }
-        
-        .result-field strong {
-            color: #6c757d;
-            margin-right: 8px;
-            min-width: 80px;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        
-        .result-field .value {
-            color: #212529;
-            font-size: 14px;
-        }
-        
-        .result-meta {
-            font-size: 11px;
-            color: #adb5bd;
-            margin-top: 12px;
-            text-align: center;
-            padding-top: 8px;
-            border-top: 1px solid #e9ecef;
-        }
-        
-        .message {
-            text-align: center;
-            padding: 16px;
-            border-radius: 8px;
-            margin: 16px 0;
-            font-size: 14px;
-        }
-        
-        .message.loading {
-            background: #f8f9fa;
-            color: #6c757d;
-            border: 1px solid #e9ecef;
-        }
-        
-        .message.error {
-            background: #fef2f2;
-            color: #dc2626;
-            border: 1px solid #fecaca;
-        }
-        
-        .message.success {
-            background: #f0fdf4;
-            color: #16a34a;
-            border: 1px solid #bbf7d0;
-        }
-        
-        .stats {
-            text-align: center;
-            margin-bottom: 16px;
-            padding: 12px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            color: #495057;
-            font-weight: 500;
-            font-size: 14px;
-        }
-        
-        @media (max-width: 600px) {
-            .container {
-                padding: 30px 20px;
-            }
-            
-            .button-group {
-                gap: 15px;
-            }
-            
-            .icon-button {
-                width: 50px;
-                height: 50px;
-                font-size: 20px;
-            }
-            
-            h1 {
-                font-size: 24px;
-            }
-            
-            .logo img {
-                max-height: 60px;
-                max-width: 150px;
-            }
-        }
-        
-        /* Animación de carga */
-        .btn-search.loading {
-            animation: pulse 1.5s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        
-        /* Highlight para búsquedas */
-        mark {
-            background-color: #ffeb3b;
-            padding: 2px 4px;
-            border-radius: 3px;
-            font-weight: bold;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
         }
 
-        /* User info section */
-        .user-info {
+        .header-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 24px;
-            padding: 12px 16px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border: 1px solid #e9ecef;
+            margin-bottom: 16px;
         }
 
-        .user-name {
-            color: #495057;
-            font-size: 14px;
-            font-weight: 500;
+        .logo-title {
+            display: flex;
+            align-items: center;
+            gap: 16px;
         }
 
-        .user-name strong {
+        .logo img {
+            max-height: 60px;
+            max-width: 150px;
+            object-fit: contain;
+        }
+
+        h1 {
             color: #212529;
             font-weight: 600;
+            font-size: 24px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .user-info strong {
+            color: #212529;
         }
 
         .btn-logout {
@@ -326,316 +81,654 @@
             box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
         }
 
-        .btn-logout:active {
-            transform: translateY(0);
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #059669;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-drafts {
+            background: #f59e0b;
+            color: white;
+            position: relative;
+        }
+
+        .btn-drafts:hover {
+            background: #d97706;
+        }
+
+        #badge-drafts {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 11px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Panel de Filtros */
+        #filterPanel {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .filter-field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 6px;
+        }
+
+        .filter-field input,
+        .filter-field select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+        }
+
+        .stats {
+            background: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 14px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: calc(100vh - 400px);
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: #f8f9fa;
+            z-index: 10;
+        }
+
+        th {
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f1f3f5;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        tr:nth-child(even) {
+            background: #fafbfc;
+        }
+
+        tr:nth-child(even):hover {
+            background: #f1f3f5;
+        }
+
+        .numero-col {
+            color: #4f46e5;
+            font-weight: 600;
+            max-width: 250px;
+        }
+
+        .revision-col {
+            text-align: center;
+            font-size: 11px;
+            color: #6c757d;
+        }
+
+        .total-col {
+            text-align: right;
+            font-weight: 500;
+        }
+
+        .acciones-col {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+        }
+
+        .btn-icon {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            background: white;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-icon:hover {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            color: #6c757d;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            opacity: 0.3;
+            margin-bottom: 16px;
+        }
+
+        /* Paginación */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .page-btn {
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            background: white;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            min-width: 36px;
+            text-align: center;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: #f8f9fa;
+            border-color: #4f46e5;
+            color: #4f46e5;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .page-btn.active {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+            font-weight: 600;
+        }
+
+        /* Barra de búsqueda rápida */
+        .search-container {
+            background: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 16px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: #6c757d;
+        }
+
+        .btn-search {
+            padding: 10px 20px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-search:hover {
+            background: #4338ca;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .header-top {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .search-box {
+                flex-direction: column;
+            }
+
+            .search-input {
+                width: 100%;
+            }
+
+            .btn-search {
+                width: 100%;
+                justify-content: center;
+            }
+
+            td, th {
+                font-size: 12px;
+                padding: 6px 8px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="logo">
-            <img src="/static/logo.png" alt="CWS Company">
-        </div>
-        <h1>CWS Sistema de Cotizaciones</h1>
-
-        <div class="user-info">
-            <div class="user-name">
-                Sesión iniciada: <strong>{{ vendedor }}</strong>
+    <div class="header">
+        <div class="header-top">
+            <div class="logo-title">
+                <div class="logo">
+                    <img src="/static/logo.png" alt="CWS Company">
+                </div>
+                <h1>CWS Sistema de Cotizaciones</h1>
             </div>
-            <button class="btn-logout" onclick="cerrarSesion()">
-                Cerrar Sesión
-            </button>
+            <div class="user-info">
+                <span>Sesión: <strong>{{ vendedor }}</strong></span>
+                <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+            </div>
         </div>
 
-        <div class="search-container">
-            <input type="text" 
-                   id="searchInput" 
-                   class="search-input"
-                   placeholder="Buscar por número, cliente, vendedor, proyecto...">
-        </div>
-        
-        <div class="button-group">
-            <button class="icon-button btn-search" 
-                    onclick="buscar()" 
-                    id="btnBuscar"
-                    title="Buscar cotizaciones">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-                </svg>
-                <div class="tooltip">Buscar</div>
-            </button>
-            
-            <button class="icon-button btn-all" 
-                    onclick="verTodos()"
-                    title="Ver todas las cotizaciones">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
-                </svg>
-                <div class="tooltip">Ver Todas</div>
-            </button>
-            
-            <button class="icon-button btn-new"
-                    onclick="nuevaCotizacion()"
-                    title="Nueva cotización">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <div class="actions">
+            <a href="/formulario" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                 </svg>
-                <div class="tooltip">Nueva Cotización</div>
-            </button>
-
-            <button class="icon-button btn-drafts"
-                    onclick="abrirModalDrafts()"
-                    id="btnDrafts"
-                    title="Borradores pendientes"
-                    style="background: #f59e0b; color: white; border-color: #f59e0b; position: relative;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                Nueva Cotización
+            </a>
+            <button class="btn btn-drafts" onclick="abrirModalDrafts()" id="btnDrafts">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,19L12,15H9V10H13L11,14H14V19H10Z"/>
                 </svg>
-                <span id="badge-drafts"
-                      style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; display: none; align-items: center; justify-content: center; font-weight: bold;">
-                </span>
-                <div class="tooltip">Borradores</div>
+                Borradores
+                <span id="badge-drafts"></span>
+            </button>
+            <button id="toggleFilters" class="btn btn-secondary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+                </svg>
+                <span id="filterToggleText">Mostrar Filtros</span>
+                <span id="filterBadge" style="display: none; background: #ef4444; color: white; border-radius: 10px; padding: 2px 8px; margin-left: 6px; font-size: 11px; font-weight: 600;">0</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Barra de Búsqueda Rápida -->
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text"
+                   id="quickSearch"
+                   class="search-input"
+                   placeholder="Búsqueda rápida: número, cliente, vendedor, proyecto..."
+                   value="{{ request.args.get('q', '') }}">
+            <button class="btn-search" onclick="buscarRapido()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+                Buscar
+            </button>
+        </div>
+    </div>
+
+    <!-- Panel de Filtros -->
+    <div id="filterPanel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 600; color: #212529; margin: 0;">Filtrar Cotizaciones</h3>
+            <button id="clearFilters" class="btn" style="background: #f8f9fa; color: #6c757d; font-size: 12px; padding: 6px 12px;">
+                Limpiar Filtros
             </button>
         </div>
 
-        <div id="resultados" class="results-container"></div>
+        <div class="filter-grid">
+            <div class="filter-field">
+                <label>Número de Cotización</label>
+                <input type="text" id="filterNumero" placeholder="Ej: CLIENTE-CWS-VEN..." value="{{ filtro_numero or '' }}">
+            </div>
+
+            <div class="filter-field">
+                <label>Cliente</label>
+                <input type="text" id="filterCliente" placeholder="Nombre del cliente" value="{{ filtro_cliente or '' }}">
+            </div>
+
+            <div class="filter-field">
+                <label>Vendedor</label>
+                <input type="text" id="filterVendedor" placeholder="Nombre del vendedor" value="{{ filtro_vendedor or '' }}">
+            </div>
+
+            <div class="filter-field">
+                <label>Proyecto</label>
+                <input type="text" id="filterProyecto" placeholder="Nombre del proyecto" value="{{ filtro_proyecto or '' }}">
+            </div>
+
+            <div class="filter-field">
+                <label>Fecha Desde</label>
+                <input type="date" id="filterFechaDesde" value="{{ filtro_fecha_desde or '' }}">
+            </div>
+
+            <div class="filter-field">
+                <label>Fecha Hasta</label>
+                <input type="date" id="filterFechaHasta" value="{{ filtro_fecha_hasta or '' }}">
+            </div>
+
+            <div class="filter-field">
+                <label>Revisión</label>
+                <select id="filterRevision">
+                    <option value="">Todas</option>
+                    <option value="1" {% if filtro_revision == '1' %}selected{% endif %}>R1</option>
+                    <option value="2" {% if filtro_revision == '2' %}selected{% endif %}>R2</option>
+                    <option value="3" {% if filtro_revision == '3' %}selected{% endif %}>R3</option>
+                    <option value="4" {% if filtro_revision == '4' %}selected{% endif %}>R4</option>
+                    <option value="5+" {% if filtro_revision == '5+' %}selected{% endif %}>R5+</option>
+                </select>
+            </div>
+
+            <div class="filter-field">
+                <label>Moneda</label>
+                <select id="filterMoneda">
+                    <option value="">Todas</option>
+                    <option value="MXN" {% if filtro_moneda == 'MXN' %}selected{% endif %}>MXN (Pesos)</option>
+                    <option value="USD" {% if filtro_moneda == 'USD' %}selected{% endif %}>USD (Dólares)</option>
+                </select>
+            </div>
+
+            <div class="filter-field">
+                <label>Tipo</label>
+                <select id="filterTipo">
+                    <option value="">Todas</option>
+                    <option value="nueva" {% if filtro_tipo == 'nueva' %}selected{% endif %}>Nuevas (BD)</option>
+                    <option value="antigua" {% if filtro_tipo == 'antigua' %}selected{% endif %}>Antiguas (Google Drive)</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button id="applyFilters" class="btn btn-primary">Aplicar Filtros</button>
+        </div>
     </div>
+
+    <div class="stats">
+        <strong>{{ total_cotizaciones or 0 }}</strong> cotizaciones encontradas
+    </div>
+
+    <div class="table-container">
+        {% if cotizaciones %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Cliente</th>
+                        <th>Vendedor</th>
+                        <th>Proyecto</th>
+                        <th>Fecha</th>
+                        <th>Rev</th>
+                        <th>Monto antes de IVA</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cot in cotizaciones %}
+                    <tr {% if cot.es_antigua %}style="opacity: 0.7; background: #fff9e6;"{% endif %}>
+                        <td class="numero-col" title="{{ cot.numero }}">{{ cot.numero }}</td>
+                        <td title="{{ cot.cliente }}">{{ cot.cliente }}</td>
+                        <td title="{{ cot.vendedor }}">{{ cot.vendedor }}</td>
+                        <td title="{{ cot.proyecto }}">{{ cot.proyecto }}</td>
+                        <td>{{ cot.fecha }}</td>
+                        <td class="revision-col">R{{ cot.revision }}</td>
+                        <td class="total-col">
+                            {% if cot.moneda != 'N/A' %}
+                                {{ cot.moneda }} ${{ "{:,.2f}".format(cot.total|float) if cot.total else '0.00' }}
+                            {% else %}
+                                <span style="color: #999; font-size: 11px;">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="acciones-col">
+                                <a href="/pdf/{{ cot.numero }}" target="_blank" class="btn-icon">PDF</a>
+                                {% if cot.tiene_desglose %}
+                                <a href="/desglose/{{ cot.numero }}" class="btn-icon">Desglose</a>
+                                {% else %}
+                                <span style="font-size: 10px; color: #999;">Sin desglose</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"/>
+            </svg>
+            <p>No se encontraron cotizaciones en el sistema</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Paginación -->
+    {% if total_pages > 1 %}
+    <div class="pagination-container">
+        <div class="pagination-info">
+            Mostrando {{ ((page - 1) * page_size) + 1 }} - {{ [page * page_size, total_cotizaciones]|min }} de {{ total_cotizaciones }} cotizaciones
+        </div>
+        <div class="pagination-controls">
+            {% if page > 1 %}
+            <a href="#" onclick="goToPage({{ page - 1 }}); return false;" class="page-btn">← Anterior</a>
+            {% else %}
+            <button class="page-btn" disabled>← Anterior</button>
+            {% endif %}
+
+            <span class="page-btn active">{{ page }}</span>
+
+            {% if page < total_pages %}
+            <a href="#" onclick="goToPage({{ page + 1 }}); return false;" class="page-btn">Siguiente →</a>
+            {% else %}
+            <button class="page-btn" disabled>Siguiente →</button>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Modal de Borradores -->
     <div id="modalDrafts" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
         <div style="background: white; border-radius: 12px; max-width: 600px; width: 90%; max-height: 80vh; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-            <!-- Header -->
             <div style="padding: 20px; border-bottom: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center;">
                 <h2 style="font-size: 20px; font-weight: 600; color: #212529; margin: 0;">Borradores Pendientes</h2>
-                <button onclick="cerrarModalDrafts()"
-                        style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6c757d; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
-                    ×
-                </button>
+                <button onclick="cerrarModalDrafts()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6c757d;">×</button>
             </div>
-
-            <!-- Content -->
-            <div id="listaDrafts" style="padding: 20px; overflow-y: auto; max-height: calc(80vh - 140px);">
-                <div style="text-align: center; padding: 40px; color: #6c757d;">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.3; margin-bottom: 16px;">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                    </svg>
-                    <p>Cargando borradores...</p>
-                </div>
-            </div>
-
-            <!-- Footer -->
+            <div id="listaDrafts" style="padding: 20px; overflow-y: auto; max-height: calc(80vh - 140px);"></div>
             <div style="padding: 16px 20px; border-top: 1px solid #e9ecef; text-align: right;">
-                <button onclick="cerrarModalDrafts()"
-                        style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;">
-                    Cerrar
-                </button>
+                <button onclick="cerrarModalDrafts()" class="btn-secondary" style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Cerrar</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Variables globales
-        let ultimaBusqueda = '';
-        
-        // Función de búsqueda
-        function buscar() {
-            const query = document.getElementById('searchInput').value.trim();
-            // Permitir búsqueda vacía para mostrar todos los resultados
-            if (!query) {
-                console.log('🔍 Búsqueda vacía - mostrando todos los resultados');
-            }
-
-            ultimaBusqueda = query;
-            const btnBuscar = document.getElementById('btnBuscar');
-            btnBuscar.disabled = true;
-            btnBuscar.classList.add('loading');
-            btnBuscar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>';
-            
-            // CORRECCIÓN: Búsqueda unificada - usar cotizaciones directamente para evitar inconsistencias
-            const mensaje = query ? `Buscando "${query}"...` : 'Cargando todas las cotizaciones...';
-            mostrarMensaje(mensaje, 'loading');
-            console.log('🔍 Búsqueda unificada iniciada para:', query || '(todos los resultados)');
-
-            fetch('/buscar', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ query: query })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Error ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('✅ Resultados unificados:', data);
-                procesarRespuesta({
-                    resultados: data.resultados || [],
-                    total: data.total || 0,
-                    modo: 'unificado'
-                });
-            })
-            .catch(error => {
-                console.error('❌ Error en búsqueda unificada:', error);
-                mostrarMensaje(`Error en búsqueda: ${error.message}`, 'error');
-            })
-            .finally(() => {
-                btnBuscar.disabled = false;
-                btnBuscar.classList.remove('loading');
-                btnBuscar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>';
-            });
-        }
-
-        // Función para procesar respuesta
-        function procesarRespuesta(data) {
-            if (data.error) {
-                mostrarMensaje(`Error: ${data.error}`, 'error');
-                return;
-            }
-
-            let cotizaciones = [];
-            
-            if (data.resultados && Array.isArray(data.resultados)) {
-                cotizaciones = data.resultados;
-            } else if (Array.isArray(data)) {
-                cotizaciones = data;
+        // Toggle filtros
+        document.getElementById('toggleFilters').addEventListener('click', function() {
+            const panel = document.getElementById('filterPanel');
+            const text = document.getElementById('filterToggleText');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                text.textContent = 'Ocultar Filtros';
             } else {
-                mostrarMensaje('Formato de respuesta no válido', 'error');
-                return;
+                panel.style.display = 'none';
+                text.textContent = 'Mostrar Filtros';
             }
+        });
 
-            mostrarResultados(cotizaciones, data.total || cotizaciones.length);
-        }
+        // Aplicar filtros
+        document.getElementById('applyFilters').addEventListener('click', function() {
+            const params = new URLSearchParams();
 
-        // Función para mostrar resultados de PDFs
-        function mostrarResultados(pdfs, total) {
-            const div = document.getElementById('resultados');
-            
-            if (!pdfs || pdfs.length === 0) {
-                const mensaje = ultimaBusqueda ? 
-                    `No se encontraron resultados para "${ultimaBusqueda}"` : 
-                    'No se encontraron resultados en el sistema';
-                mostrarMensaje(mensaje, 'error');
-                return;
-            }
+            const numero = document.getElementById('filterNumero').value;
+            const cliente = document.getElementById('filterCliente').value;
+            const vendedor = document.getElementById('filterVendedor').value;
+            const proyecto = document.getElementById('filterProyecto').value;
+            const fechaDesde = document.getElementById('filterFechaDesde').value;
+            const fechaHasta = document.getElementById('filterFechaHasta').value;
+            const revision = document.getElementById('filterRevision').value;
+            const moneda = document.getElementById('filterMoneda').value;
+            const tipo = document.getElementById('filterTipo').value;
 
-            let html = `
-                <div class="stats">
-                    <strong>${pdfs.length}</strong> PDF(s) encontrado(s)
-                    ${ultimaBusqueda ? `para "<em>${ultimaBusqueda}</em>"` : ''}
-                </div>
-            `;
-            
-            pdfs.forEach((pdf, index) => {
-                // Detectar si es cotización (del fallback) o PDF real
-                const esCotizacion = pdf._id && !pdf.numero_cotizacion;
-                const identificador = esCotizacion ? pdf._id : (pdf.numero_cotizacion || `PDF-${index + 1}`);
-                const numeroDisplay = esCotizacion ? (pdf.numeroCotizacion || pdf.datosGenerales?.numeroCotizacion || identificador) : (pdf.numero_cotizacion || `PDF-${index + 1}`);
-                const clienteDisplay = esCotizacion ? (pdf.datosGenerales?.cliente || 'Cliente no especificado') : (pdf.cliente || 'Cliente no especificado');
-                const vendedorDisplay = esCotizacion ? (pdf.datosGenerales?.vendedor || 'Vendedor no especificado') : (pdf.vendedor || 'Vendedor no especificado');
-                const proyectoDisplay = esCotizacion ? (pdf.datosGenerales?.proyecto || 'Proyecto no especificado') : (pdf.proyecto || 'Proyecto no especificado');
-                const fechaDisplay = esCotizacion ? (pdf.datosGenerales?.fecha || pdf.fechaCreacion || 'Fecha no especificada') : (pdf.fecha || 'Fecha no especificada');
-                const tipoDisplay = pdf.tipo === 'nueva' ? 'Nueva' : 'Histórica';
-                const tieneDesglose = esCotizacion ? true : pdf.tiene_desglose;
-                
-                // Función para resaltar coincidencias
-                const resaltarTexto = (texto) => {
-                    if (!ultimaBusqueda) return texto;
-                    const regex = new RegExp(`(${ultimaBusqueda})`, 'gi');
-                    return texto.replace(regex, '<mark>$1</mark>');
-                };
-                
-                html += `
-                    <div class="result-item" style="cursor: default;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                            <div style="flex: 1;">
-                                <div class="result-field">
-                                    <strong>Número:</strong> 
-                                    <span class="value" style="color: #4f46e5; font-weight: bold;">${resaltarTexto(numeroDisplay)}</span>
-                                </div>
-                                <div class="result-field">
-                                    <strong>Cliente:</strong> 
-                                    <span class="value">${resaltarTexto(clienteDisplay)}</span>
-                                </div>
-                                <div class="result-field">
-                                    <strong>Vendedor:</strong> 
-                                    <span class="value">${resaltarTexto(vendedorDisplay)}</span>
-                                </div>
-                                <div class="result-field">
-                                    <strong>Proyecto:</strong> 
-                                    <span class="value">${resaltarTexto(proyectoDisplay)}</span>
-                                </div>
-                                <div class="result-field">
-                                    <strong>Fecha:</strong> 
-                                    <span class="value">${fechaDisplay}</span>
-                                </div>
-                                <div class="result-field">
-                                    <strong>Tipo:</strong> 
-                                    <span class="value" style="color: ${pdf.tipo === 'nueva' ? '#10b981' : '#f59e0b'};">${tipoDisplay}</span>
-                                </div>
-                            </div>
-                            <div style="display: flex; flex-direction: column; gap: 8px; margin-left: 15px;">
-                                <button onclick="verPDF('${numeroDisplay}')" 
-                                        class="icon-button btn-search" 
-                                        style="width: auto; padding: 8px 12px; font-size: 12px;">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                                    </svg>
-                                    Ver PDF
-                                </button>
-                                ${tieneDesglose ? `
-                                <button onclick="verDesglose('${esCotizacion ? identificador : numeroDisplay}')" 
-                                        class="icon-button" 
-                                        style="width: auto; padding: 8px 12px; font-size: 12px; background: #10b981; color: white; border-color: #10b981;">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M3,3H21V5H3V3M3,7H21V9H3V7M3,11H21V13H3V11M3,15H21V17H3V15M3,19H21V21H3V19Z"/>
-                                    </svg>
-                                    Desglose
-                                </button>
-                                ` : `
-                                <div style="font-size: 11px; color: #6c757d; text-align: center; padding: 8px;">
-                                    Sin desglose<br>disponible
-                                </div>
-                                `}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            div.innerHTML = html;
-        }
+            if (numero) params.append('numero', numero);
+            if (cliente) params.append('cliente', cliente);
+            if (vendedor) params.append('vendedor', vendedor);
+            if (proyecto) params.append('proyecto', proyecto);
+            if (fechaDesde) params.append('fecha_desde', fechaDesde);
+            if (fechaHasta) params.append('fecha_hasta', fechaHasta);
+            if (revision) params.append('revision', revision);
+            if (moneda) params.append('moneda', moneda);
+            if (tipo) params.append('tipo', tipo);
 
-        // Función para mostrar mensajes
-        function mostrarMensaje(texto, tipo = 'loading') {
-            const div = document.getElementById('resultados');
-            div.innerHTML = `<div class="message ${tipo}">${texto}</div>`;
-        }
+            window.location.href = '/?' + params.toString();
+        });
 
-        // Función para ver PDF
-        function verPDF(numeroCotizacion) {
-            console.log(`Abriendo PDF: ${numeroCotizacion}`);
-            const identificadorCodificado = encodeURIComponent(numeroCotizacion);
-            window.open(`/pdf/${identificadorCodificado}`, '_blank');
-        }
+        // Limpiar filtros
+        document.getElementById('clearFilters').addEventListener('click', function() {
+            window.location.href = '/';
+        });
 
-        // Función para ver desglose
-        function verDesglose(numeroCotizacion) {
-            console.log(`Abriendo desglose: ${numeroCotizacion}`);
-            const identificadorCodificado = encodeURIComponent(numeroCotizacion);
-            window.location.href = `/desglose/${identificadorCodificado}`;
-        }
-
-        // Función para ver todas las cotizaciones
-        function verTodos() {
-            window.location.href = '/todas-cotizaciones';
-        }
-
-        function nuevaCotizacion() {
-            window.location.href = '/formulario';
+        // Navegación de páginas
+        function goToPage(pageNumber) {
+            const params = new URLSearchParams(window.location.search);
+            params.set('page', pageNumber);
+            window.location.href = '/?' + params.toString();
         }
 
         function cerrarSesion() {
@@ -644,47 +737,16 @@
             }
         }
 
-        // Event listeners
-        document.getElementById('searchInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                buscar();
-            }
-        });
-
-        // Limpiar resultados al vaciar input
-        document.getElementById('searchInput').addEventListener('input', function() {
-            if (this.value.trim() === '') {
-                document.getElementById('resultados').innerHTML = '';
-                ultimaBusqueda = '';
-            }
-        });
-
-        // Auto-focus en el input al cargar
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Sistema CWS iniciado');
-            document.getElementById('searchInput').focus();
-
-            // Cargar conteo de drafts
-            cargarConteoDrafts();
-        });
-
-        // ========================================
-        // GESTIÓN DE DRAFTS (BORRADORES)
-        // ========================================
-
+        // Gestión de drafts
         async function cargarConteoDrafts() {
             try {
                 const respuesta = await fetch('/api/draft/list');
-
                 if (respuesta.ok) {
                     const resultado = await respuesta.json();
-
                     if (resultado.success && resultado.total > 0) {
                         const badge = document.getElementById('badge-drafts');
                         badge.textContent = resultado.total;
                         badge.style.display = 'flex';
-
-                        console.log(`[DRAFT] ${resultado.total} borradores pendientes`);
                     }
                 }
             } catch (error) {
@@ -695,148 +757,95 @@
         async function abrirModalDrafts() {
             const modal = document.getElementById('modalDrafts');
             const listaDrafts = document.getElementById('listaDrafts');
-
-            // Mostrar modal
             modal.style.display = 'flex';
-
-            // Cargar drafts
             listaDrafts.innerHTML = '<div style="text-align: center; padding: 40px; color: #6c757d;"><p>Cargando borradores...</p></div>';
 
             try {
                 const respuesta = await fetch('/api/draft/list');
-
-                if (!respuesta.ok) {
-                    throw new Error(`Error HTTP ${respuesta.status}`);
-                }
+                if (!respuesta.ok) throw new Error(`Error HTTP ${respuesta.status}`);
 
                 const resultado = await respuesta.json();
-
                 if (resultado.success) {
                     const drafts = resultado.drafts || [];
-
                     if (drafts.length === 0) {
-                        listaDrafts.innerHTML = `
-                            <div style="text-align: center; padding: 40px; color: #6c757d;">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.3; margin-bottom: 16px;">
-                                    <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"/>
-                                </svg>
-                                <p>No hay borradores pendientes</p>
-                            </div>
-                        `;
+                        listaDrafts.innerHTML = '<div style="text-align: center; padding: 40px; color: #6c757d;"><p>No hay borradores pendientes</p></div>';
                     } else {
                         let html = '';
-
                         drafts.forEach(draft => {
                             const fecha = new Date(draft.ultima_modificacion || draft.fecha_creacion);
                             const fechaFormateada = fecha.toLocaleString('es-MX', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
+                                year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                             });
-
                             html += `
-                                <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 16px; margin-bottom: 12px; transition: all 0.2s;">
-                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                                        <div style="flex: 1;">
-                                            <h3 style="font-size: 16px; font-weight: 600; color: #212529; margin: 0 0 4px 0;">
-                                                ${draft.nombre || 'Sin nombre'}
-                                            </h3>
-                                            <p style="font-size: 12px; color: #6c757d; margin: 0;">
-                                                Vendedor: ${draft.vendedor} • ${fechaFormateada}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div style="display: flex; gap: 8px; margin-top: 12px;">
-                                        <button onclick="cargarDraft('${draft.id}')"
-                                                style="flex: 1; background: #4f46e5; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                                            Continuar editando
-                                        </button>
-                                        <button onclick="eliminarDraft('${draft.id}')"
-                                                style="background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;">
-                                            Eliminar
-                                        </button>
+                                <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                                    <h3 style="font-size: 16px; font-weight: 600; color: #212529; margin: 0 0 4px 0;">${draft.nombre || 'Sin nombre'}</h3>
+                                    <p style="font-size: 12px; color: #6c757d; margin: 0 0 12px 0;">Vendedor: ${draft.vendedor} • ${fechaFormateada}</p>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button onclick="cargarDraft('${draft.id}')" style="flex: 1; background: #4f46e5; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">Continuar editando</button>
+                                        <button onclick="eliminarDraft('${draft.id}')" style="background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">Eliminar</button>
                                     </div>
                                 </div>
                             `;
                         });
-
                         listaDrafts.innerHTML = html;
                     }
-                } else {
-                    throw new Error(resultado.error || 'Error desconocido');
                 }
-
             } catch (error) {
-                console.error('[DRAFT] Error cargando drafts:', error);
-                listaDrafts.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #dc2626;">
-                        <p>Error al cargar borradores: ${error.message}</p>
-                    </div>
-                `;
+                listaDrafts.innerHTML = `<div style="text-align: center; padding: 40px; color: #dc2626;"><p>Error al cargar borradores: ${error.message}</p></div>`;
             }
         }
 
         function cerrarModalDrafts() {
-            const modal = document.getElementById('modalDrafts');
-            modal.style.display = 'none';
+            document.getElementById('modalDrafts').style.display = 'none';
         }
 
         async function cargarDraft(draftId) {
-            try {
-                console.log(`[DRAFT] Redirigiendo al formulario con draft: ${draftId}`);
-
-                // Redirigir al formulario con parámetro de draft
-                window.location.href = `/formulario?draft=${encodeURIComponent(draftId)}`;
-
-            } catch (error) {
-                console.error('[DRAFT] Error cargando draft:', error);
-                alert(`Error al cargar borrador: ${error.message}`);
-            }
+            window.location.href = `/formulario?draft=${encodeURIComponent(draftId)}`;
         }
 
         async function eliminarDraft(draftId) {
-            if (!confirm('¿Estás seguro de que deseas eliminar este borrador?')) {
-                return;
-            }
+            if (!confirm('¿Estás seguro de que deseas eliminar este borrador?')) return;
 
             try {
-                const respuesta = await fetch(`/api/draft/delete/${draftId}`, {
-                    method: 'DELETE'
-                });
-
-                if (!respuesta.ok) {
-                    throw new Error(`Error HTTP ${respuesta.status}`);
-                }
+                const respuesta = await fetch(`/api/draft/delete/${draftId}`, { method: 'DELETE' });
+                if (!respuesta.ok) throw new Error(`Error HTTP ${respuesta.status}`);
 
                 const resultado = await respuesta.json();
-
                 if (resultado.success) {
-                    console.log('[DRAFT] Borrador eliminado:', draftId);
-
-                    // Recargar lista de drafts
                     await abrirModalDrafts();
-
-                    // Actualizar conteo
                     await cargarConteoDrafts();
-
-                } else {
-                    throw new Error(resultado.error || 'Error eliminando borrador');
                 }
-
             } catch (error) {
-                console.error('[DRAFT] Error eliminando draft:', error);
                 alert(`Error al eliminar borrador: ${error.message}`);
             }
         }
 
+        // Búsqueda rápida
+        function buscarRapido() {
+            const query = document.getElementById('quickSearch').value.trim();
+            if (query) {
+                window.location.href = '/?q=' + encodeURIComponent(query);
+            } else {
+                window.location.href = '/';
+            }
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Sistema CWS iniciado');
+            cargarConteoDrafts();
+
+            // Enter en búsqueda rápida
+            document.getElementById('quickSearch').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    buscarRapido();
+                }
+            });
+        });
+
         // Cerrar modal al hacer clic fuera
         document.getElementById('modalDrafts').addEventListener('click', function(e) {
-            if (e.target === this) {
-                cerrarModalDrafts();
-            }
+            if (e.target === this) cerrarModalDrafts();
         });
     </script>
 </body>
