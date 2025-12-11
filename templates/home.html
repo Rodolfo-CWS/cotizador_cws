@@ -355,25 +355,6 @@
         </div>
         
         <div class="button-group">
-            <button class="icon-button btn-search" 
-                    onclick="buscar()" 
-                    id="btnBuscar"
-                    title="Buscar cotizaciones">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-                </svg>
-                <div class="tooltip">Buscar</div>
-            </button>
-            
-            <button class="icon-button btn-all" 
-                    onclick="verTodos()"
-                    title="Ver todas las cotizaciones">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
-                </svg>
-                <div class="tooltip">Ver Todas</div>
-            </button>
-            
             <button class="icon-button btn-new"
                     onclick="nuevaCotizacion()"
                     title="Nueva cotización">
@@ -446,11 +427,7 @@
             }
 
             ultimaBusqueda = query;
-            const btnBuscar = document.getElementById('btnBuscar');
-            btnBuscar.disabled = true;
-            btnBuscar.classList.add('loading');
-            btnBuscar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>';
-            
+
             // CORRECCIÓN: Búsqueda unificada - usar cotizaciones directamente para evitar inconsistencias
             const mensaje = query ? `Buscando "${query}"...` : 'Cargando todas las cotizaciones...';
             mostrarMensaje(mensaje, 'loading');
@@ -458,7 +435,7 @@
 
             fetch('/buscar', {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
@@ -481,11 +458,6 @@
             .catch(error => {
                 console.error('❌ Error en búsqueda unificada:', error);
                 mostrarMensaje(`Error en búsqueda: ${error.message}`, 'error');
-            })
-            .finally(() => {
-                btnBuscar.disabled = false;
-                btnBuscar.classList.remove('loading');
-                btnBuscar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>';
             });
         }
 
@@ -629,11 +601,6 @@
             window.location.href = `/desglose/${identificadorCodificado}`;
         }
 
-        // Función para ver todas las cotizaciones
-        function verTodos() {
-            window.location.href = '/todas-cotizaciones';
-        }
-
         function nuevaCotizacion() {
             window.location.href = '/formulario';
         }
@@ -645,18 +612,25 @@
         }
 
         // Event listeners
+        let timeoutBusqueda = null;
+
         document.getElementById('searchInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
+                // Cancelar búsqueda automática pendiente
+                clearTimeout(timeoutBusqueda);
                 buscar();
             }
         });
 
-        // Limpiar resultados al vaciar input
+        // Búsqueda automática al escribir (con debounce)
         document.getElementById('searchInput').addEventListener('input', function() {
-            if (this.value.trim() === '') {
-                document.getElementById('resultados').innerHTML = '';
-                ultimaBusqueda = '';
-            }
+            // Cancelar búsqueda anterior si existe
+            clearTimeout(timeoutBusqueda);
+
+            // Ejecutar búsqueda después de 500ms de inactividad
+            timeoutBusqueda = setTimeout(() => {
+                buscar();
+            }, 500);
         });
 
         // Auto-focus en el input al cargar
@@ -666,6 +640,10 @@
 
             // Cargar conteo de drafts
             cargarConteoDrafts();
+
+            // Cargar automáticamente todas las cotizaciones
+            console.log('🔄 Cargando todas las cotizaciones automáticamente...');
+            buscar();
         });
 
         // ========================================
