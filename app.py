@@ -1543,6 +1543,49 @@ def home():
                     "tiene_desglose": True,
                     "es_antigua": False
                 })
+        else:
+            print(f"[HOME] Error: {resultado_db.get('error')}")
+
+        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (que no están en BD)
+        if not resultado_pdfs.get("error"):
+            pdfs_antiguos = resultado_pdfs.get("resultados", [])
+            print(f"[HOME] Encontrados {len(pdfs_antiguos)} PDFs totales")
+
+            for pdf in pdfs_antiguos:
+                numero_pdf = pdf.get('numero_cotizacion', 'N/A')
+
+                # Solo agregar si no está ya en la lista (evitar duplicados)
+                if numero_pdf not in numeros_vistos and numero_pdf != 'N/A':
+                    # Extraer metadatos del nombre (formato: CLIENTE-CWS-VENDEDOR-###-R#-PROYECTO)
+                    import re
+                    nombre_partes = numero_pdf.split('-')
+
+                    cliente = nombre_partes[0] if len(nombre_partes) > 0 else 'N/A'
+                    vendedor = nombre_partes[2] if len(nombre_partes) > 2 else 'N/A'
+                    proyecto = '-'.join(nombre_partes[5:]) if len(nombre_partes) > 5 else 'N/A'
+
+                    # Extraer revisión
+                    match_revision = re.search(r'-R(\d+)-', numero_pdf)
+                    revision = int(match_revision.group(1)) if match_revision else 1
+
+                    # Fecha de modificación del archivo
+                    fecha_pdf = pdf.get('fecha_creacion', pdf.get('fecha_modificacion', 'N/A'))
+
+                    cotizaciones.append({
+                        "numero": numero_pdf,
+                        "cliente": cliente,
+                        "vendedor": vendedor,
+                        "proyecto": proyecto,
+                        "fecha": fecha_pdf,
+                        "revision": revision,
+                        "total": 0,  # No hay datos de total en PDFs antiguos
+                        "moneda": "N/A",
+                        "_id": '',
+                        "tiene_desglose": False,  # PDFs antiguos NO tienen desglose
+                        "es_antigua": True  # Marcar como antigua
+                    })
+
+            print(f"[HOME] Total final: {len(cotizaciones)} cotizaciones (BD + antiguas)")
 
         # APLICAR BÚSQUEDA RÁPIDA (busca en todos los campos)
         if query_general:
