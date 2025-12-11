@@ -1403,7 +1403,7 @@ def keepalive_stats():
 @app.route("/", methods=["GET", "POST"])
 @login_required
 def home():
-    """Página principal - Recibe cotizaciones completas"""
+    """Página principal - Vista de tabla Excel con todas las cotizaciones paginadas"""
     if request.method == "POST":
         try:
             datos = request.get_json()
@@ -1435,7 +1435,180 @@ def home():
             print(f"Error en ruta principal: {e}")
             return jsonify({"error": "Error del servidor"}), 500
 
-    return render_template("home.html", vendedor=session.get('vendedor', ''))
+    # GET: Mostrar tabla completa con paginación y filtros
+    try:
+        # PAGINACIÓN: Obtener página actual (default 1) y tamaño de página
+        page = request.args.get('page', 1, type=int)
+        page_size = 50  # 50 registros por página
+
+        # FILTROS: Obtener parámetros de filtro desde URL
+        filtro_numero = request.args.get('numero', '').strip()
+        filtro_cliente = request.args.get('cliente', '').strip()
+        filtro_vendedor = request.args.get('vendedor', '').strip()
+        filtro_proyecto = request.args.get('proyecto', '').strip()
+        filtro_fecha_desde = request.args.get('fecha_desde', '').strip()
+        filtro_fecha_hasta = request.args.get('fecha_hasta', '').strip()
+        filtro_revision = request.args.get('revision', '').strip()
+        filtro_moneda = request.args.get('moneda', '').strip()
+        filtro_tipo = request.args.get('tipo', '').strip()
+
+        print(f"[HOME] Obteniendo todas las cotizaciones (página {page})...")
+
+        # Obtener todas las cotizaciones de la base de datos
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)  # Query vacía = todas
+
+        # Obtener todos los PDFs (incluye Google Drive antiguas)
+        resultado_pdfs = pdf_manager.buscar_pdfs("", 1, 10000) if pdf_manager else {"resultados": []}
+
+        cotizaciones = []
+        numeros_vistos = set()  # Para evitar duplicados entre BD y PDFs
+
+        if not resultado_db.get("error"):
+            cotizaciones_raw = resultado_db.get("resultados", [])
+            print(f"[HOME] Encontradas {len(cotizaciones_raw)} cotizaciones de BD")
+
+            # Transformar datos para tabla compacta
+            for idx, cot in enumerate(cotizaciones_raw):
+                datos_gen = cot.get('datosGenerales', {})
+
+                # EXTRACCIÓN ROBUSTA DE FECHA
+                fecha = 'N/A'
+                if isinstance(datos_gen, dict):
+                    fecha = datos_gen.get('fecha') or datos_gen.get('Fecha')
+                if not fecha or fecha == 'N/A':
+                    fecha = cot.get('fecha') or cot.get('fechaCreacion') or cot.get('timestamp')
+                    if fecha and isinstance(fecha, (int, float)):
+                        from datetime import datetime
+                        try:
+                            fecha = datetime.fromtimestamp(fecha/1000 if fecha > 10000000000 else fecha).strftime('%Y-%m-%d')
+                        except:
+                            fecha = 'N/A'
+                if not fecha:
+                    fecha = 'N/A'
+
+                # CÁLCULO DEL TOTAL
+                total_calculado = 0.0
+                items = cot.get('items', [])
+                if isinstance(items, list):
+                    for item in items:
+                        if isinstance(item, dict):
+                            if 'total' in item and item['total']:
+                                total_calculado += safe_float(item.get('total', 0))
+                            elif 'subtotal' in item and item['subtotal']:
+                                total_calculado += safe_float(item.get('subtotal', 0))
+                            elif 'precio_unitario' in item:
+                                precio = safe_float(item.get('precio_unitario', 0))
+                                cantidad = safe_float(item.get('cantidad', 1))
+                                total_calculado += precio * cantidad
+
+                # Obtener moneda
+                condiciones = cot.get('condiciones', {})
+                if not condiciones or not isinstance(condiciones, dict):
+                    condiciones = datos_gen.get('condiciones', {})
+                moneda = condiciones.get('moneda', 'MXN') if isinstance(condiciones, dict) else 'MXN'
+
+                # EXTRACCIÓN DE REVISIÓN
+                revision = None
+                import re
+                numero_cot = cot.get('numeroCotizacion', '')
+                if numero_cot and isinstance(numero_cot, str):
+                    match = re.search(r'-R(\d+)-', numero_cot)
+                    if match:
+                        revision = int(match.group(1))
+                if not revision and 'revision' in cot:
+                    try:
+                        revision = int(cot.get('revision'))
+                    except:
+                        pass
+                if not revision:
+                    revision = 1
+
+                numeros_vistos.add(numero_cot)
+
+                cotizaciones.append({
+                    "numero": numero_cot,
+                    "cliente": datos_gen.get('cliente', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                    "vendedor": datos_gen.get('vendedor', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                    "proyecto": datos_gen.get('proyecto', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                    "fecha": fecha,
+                    "revision": revision,
+                    "total": total_calculado,
+                    "moneda": moneda,
+                    "_id": cot.get('_id', ''),
+                    "tiene_desglose": True,
+                    "es_antigua": False
+                })
+
+        # APLICAR FILTROS antes de paginación
+        if any([filtro_numero, filtro_cliente, filtro_vendedor, filtro_proyecto,
+                filtro_fecha_desde, filtro_fecha_hasta, filtro_revision, filtro_moneda, filtro_tipo]):
+
+            cotizaciones_filtradas = []
+            for cot in cotizaciones:
+                cumple_filtros = True
+
+                if filtro_numero and filtro_numero.lower() not in cot.get('numero', '').lower():
+                    cumple_filtros = False
+                if filtro_cliente and cumple_filtros and filtro_cliente.lower() not in cot.get('cliente', '').lower():
+                    cumple_filtros = False
+                if filtro_vendedor and cumple_filtros and filtro_vendedor.lower() not in cot.get('vendedor', '').lower():
+                    cumple_filtros = False
+                if filtro_proyecto and cumple_filtros and filtro_proyecto.lower() not in cot.get('proyecto', '').lower():
+                    cumple_filtros = False
+
+                if cumple_filtros:
+                    cotizaciones_filtradas.append(cot)
+
+            cotizaciones = cotizaciones_filtradas
+            print(f"[HOME] Después de filtros: {len(cotizaciones)} cotizaciones")
+
+        # APLICAR PAGINACIÓN
+        total_cotizaciones = len(cotizaciones)
+        total_pages = (total_cotizaciones + page_size - 1) // page_size
+
+        if page < 1:
+            page = 1
+        elif page > total_pages and total_pages > 0:
+            page = total_pages
+
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
+        cotizaciones_pagina = cotizaciones[start_index:end_index]
+
+        print(f"[HOME] Mostrando {len(cotizaciones_pagina)} de {total_cotizaciones} (página {page}/{total_pages})")
+
+        return render_template(
+            "home.html",
+            cotizaciones=cotizaciones_pagina,
+            vendedor=session.get('vendedor'),
+            page=page,
+            total_pages=total_pages,
+            total_cotizaciones=total_cotizaciones,
+            page_size=page_size,
+            # Filtros actuales para repoblar el formulario
+            filtro_numero=filtro_numero,
+            filtro_cliente=filtro_cliente,
+            filtro_vendedor=filtro_vendedor,
+            filtro_proyecto=filtro_proyecto,
+            filtro_fecha_desde=filtro_fecha_desde,
+            filtro_fecha_hasta=filtro_fecha_hasta,
+            filtro_revision=filtro_revision,
+            filtro_moneda=filtro_moneda,
+            filtro_tipo=filtro_tipo
+        )
+
+    except Exception as e:
+        print(f"[HOME] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return render_template("home.html",
+                             vendedor=session.get('vendedor', ''),
+                             cotizaciones=[],
+                             page=1,
+                             total_pages=0,
+                             total_cotizaciones=0,
+                             page_size=50,
+                             error=str(e))
 
 @app.route("/formulario", methods=["GET", "POST"])
 @login_required
