@@ -1403,7 +1403,7 @@ def keepalive_stats():
 @app.route("/", methods=["GET", "POST"])
 @login_required
 def home():
-    """Página principal - Redirige a vista de todas las cotizaciones"""
+    """Página principal - Recibe cotizaciones completas"""
     if request.method == "POST":
         try:
             datos = request.get_json()
@@ -1435,8 +1435,7 @@ def home():
             print(f"Error en ruta principal: {e}")
             return jsonify({"error": "Error del servidor"}), 500
 
-    # GET: Redirigir automáticamente a la vista de todas las cotizaciones
-    return redirect(url_for('todas_cotizaciones'))
+    return render_template("home.html", vendedor=session.get('vendedor', ''))
 
 @app.route("/formulario", methods=["GET", "POST"])
 @login_required
