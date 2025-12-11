@@ -1441,6 +1441,9 @@ def home():
         page = request.args.get('page', 1, type=int)
         page_size = 50  # 50 registros por página
 
+        # BÚSQUEDA RÁPIDA: Obtener query general
+        query_general = request.args.get('q', '').strip()
+
         # FILTROS: Obtener parámetros de filtro desde URL
         filtro_numero = request.args.get('numero', '').strip()
         filtro_cliente = request.args.get('cliente', '').strip()
@@ -1453,6 +1456,8 @@ def home():
         filtro_tipo = request.args.get('tipo', '').strip()
 
         print(f"[HOME] Obteniendo todas las cotizaciones (página {page})...")
+        if query_general:
+            print(f"[HOME] Búsqueda rápida: '{query_general}'")
 
         # Obtener todas las cotizaciones de la base de datos
         resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)  # Query vacía = todas
@@ -1539,7 +1544,22 @@ def home():
                     "es_antigua": False
                 })
 
-        # APLICAR FILTROS antes de paginación
+        # APLICAR BÚSQUEDA RÁPIDA (busca en todos los campos)
+        if query_general:
+            cotizaciones_busqueda = []
+            query_lower = query_general.lower()
+            for cot in cotizaciones:
+                # Buscar en número, cliente, vendedor y proyecto
+                if (query_lower in cot.get('numero', '').lower() or
+                    query_lower in cot.get('cliente', '').lower() or
+                    query_lower in cot.get('vendedor', '').lower() or
+                    query_lower in cot.get('proyecto', '').lower()):
+                    cotizaciones_busqueda.append(cot)
+
+            cotizaciones = cotizaciones_busqueda
+            print(f"[HOME] Después de búsqueda rápida: {len(cotizaciones)} cotizaciones")
+
+        # APLICAR FILTROS AVANZADOS antes de paginación
         if any([filtro_numero, filtro_cliente, filtro_vendedor, filtro_proyecto,
                 filtro_fecha_desde, filtro_fecha_hasta, filtro_revision, filtro_moneda, filtro_tipo]):
 
@@ -1560,7 +1580,7 @@ def home():
                     cotizaciones_filtradas.append(cot)
 
             cotizaciones = cotizaciones_filtradas
-            print(f"[HOME] Después de filtros: {len(cotizaciones)} cotizaciones")
+            print(f"[HOME] Después de filtros avanzados: {len(cotizaciones)} cotizaciones")
 
         # APLICAR PAGINACIÓN
         total_cotizaciones = len(cotizaciones)

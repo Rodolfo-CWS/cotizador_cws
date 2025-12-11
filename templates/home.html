@@ -362,6 +362,61 @@
             font-weight: 600;
         }
 
+        /* Barra de búsqueda rápida */
+        .search-container {
+            background: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 16px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: #6c757d;
+        }
+
+        .btn-search {
+            padding: 10px 20px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-search:hover {
+            background: #4338ca;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
         @media (max-width: 768px) {
             .header-top {
                 flex-direction: column;
@@ -370,6 +425,19 @@
 
             .actions {
                 flex-direction: column;
+            }
+
+            .search-box {
+                flex-direction: column;
+            }
+
+            .search-input {
+                width: 100%;
+            }
+
+            .btn-search {
+                width: 100%;
+                justify-content: center;
             }
 
             td, th {
@@ -414,6 +482,23 @@
                 </svg>
                 <span id="filterToggleText">Mostrar Filtros</span>
                 <span id="filterBadge" style="display: none; background: #ef4444; color: white; border-radius: 10px; padding: 2px 8px; margin-left: 6px; font-size: 11px; font-weight: 600;">0</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Barra de Búsqueda Rápida -->
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text"
+                   id="quickSearch"
+                   class="search-input"
+                   placeholder="Búsqueda rápida: número, cliente, vendedor, proyecto..."
+                   value="{{ request.args.get('q', '') }}">
+            <button class="btn-search" onclick="buscarRapido()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+                Buscar
             </button>
         </div>
     </div>
@@ -735,10 +820,27 @@
             }
         }
 
+        // Búsqueda rápida
+        function buscarRapido() {
+            const query = document.getElementById('quickSearch').value.trim();
+            if (query) {
+                window.location.href = '/?q=' + encodeURIComponent(query);
+            } else {
+                window.location.href = '/';
+            }
+        }
+
         // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Sistema CWS iniciado');
             cargarConteoDrafts();
+
+            // Enter en búsqueda rápida
+            document.getElementById('quickSearch').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    buscarRapido();
+                }
+            });
         });
 
         // Cerrar modal al hacer clic fuera
