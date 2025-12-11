@@ -1403,15 +1403,15 @@ def keepalive_stats():
 @app.route("/", methods=["GET", "POST"])
 @login_required
 def home():
-    """Página principal - Recibe cotizaciones completas"""
+    """Página principal - Redirige a vista de todas las cotizaciones"""
     if request.method == "POST":
         try:
             datos = request.get_json()
             print("Nueva cotizacion recibida")
-            
+
             # Guardar TODOS los datos usando el DatabaseManager
             resultado = db_manager.guardar_cotizacion(datos)
-            
+
             if resultado["success"]:
                 return jsonify({
                     "mensaje": "Cotización guardada correctamente",
@@ -1423,19 +1423,20 @@ def home():
                 # ❌ LOG CRÍTICO: Error en guardado
                 error_msg = resultado.get("error", "Error desconocido")
                 logging.error(f"ERROR_GUARDADO: {error_msg}")
-                
+
                 # Log específico para diferentes tipos de error
                 if resultado.get("tipo_error") == "fallo_silencioso":
                     critical_logger = logging.getLogger('FALLOS_CRITICOS')
                     critical_logger.error(f"FALLO_SILENCIOSO_CRÍTICO: {error_msg}")
-                
+
                 return jsonify({"error": error_msg}), 500
-                
+
         except Exception as e:
             print(f"Error en ruta principal: {e}")
             return jsonify({"error": "Error del servidor"}), 500
 
-    return render_template("home.html", vendedor=session.get('vendedor', ''))
+    # GET: Redirigir automáticamente a la vista de todas las cotizaciones
+    return redirect(url_for('todas_cotizaciones'))
 
 @app.route("/formulario", methods=["GET", "POST"])
 @login_required
