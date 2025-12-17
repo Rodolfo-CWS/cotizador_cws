@@ -6103,20 +6103,30 @@ def listar_ordenes_compra():
 @app.route("/ordenes-compra/nueva", methods=["GET", "POST"])
 def nueva_orden_compra():
     """Formulario para crear nueva OC"""
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
+    try:
+        if 'usuario' not in session:
+            return redirect(url_for('login'))
 
-    if not oc_manager:
-        return "Módulo de OCs no disponible", 503
+        if not oc_manager:
+            return "Módulo de OCs no disponible", 503
 
-    # Si viene del PWA Share Target
-    archivo_compartido = None
-    if request.method == 'POST' and 'archivo_oc' in request.files:
-        archivo_compartido = request.files['archivo_oc']
+        # Si viene del PWA Share Target
+        archivo_compartido = None
+        if request.method == 'POST' and 'archivo_oc' in request.files:
+            archivo_compartido = request.files['archivo_oc']
 
-    return render_template('nueva_oc.html',
-                         usuario=session['usuario'],
-                         archivo_compartido=archivo_compartido)
+        print(f"[NUEVA_OC] Renderizando template para usuario: {session.get('usuario')}")
+        print(f"[NUEVA_OC] Archivo compartido: {archivo_compartido is not None}")
+
+        return render_template('nueva_oc.html',
+                             usuario=session['usuario'],
+                             archivo_compartido=archivo_compartido,
+                             oc=None)  # Importante: template usa esta variable para modo edición vs creación
+    except Exception as e:
+        import traceback
+        error_msg = f"[NUEVA_OC] ERROR CRÍTICO: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        return f"Error al cargar formulario: {str(e)}", 500
 
 @app.route("/api/ordenes-compra/crear", methods=["POST"])
 def api_crear_oc():
