@@ -271,8 +271,14 @@ class SupabaseManager:
                     raise e
                     
             except Exception as e:
-                # Otros errores - no reintentar
+                # Otros errores - no reintentar, pero no crashear el startup
                 print(f"[REINTENTOS] {descripcion} error inesperado: {str(e)}")
+                print(f"[REINTENTOS] Tipo de error: {type(e).__name__}")
+                # Si es AttributeError por cursor None, activar modo offline
+                if isinstance(e, AttributeError) and 'cursor' in str(e):
+                    print(f"[REINTENTOS] Error de conexión detectado - activando modo offline")
+                    self.modo_offline = True
+                    return None
                 raise e
         
         print(f"[REINTENTOS] {descripcion} FALLO FINAL después de {max_reintentos + 1} intentos")
