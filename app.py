@@ -6326,28 +6326,36 @@ def api_actualizar_oc(oc_id):
 @app.route("/proyecto/<int:proyecto_id>")
 def ver_proyecto(proyecto_id):
     """Vista detalle de proyecto con gastos"""
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-
-    if not proyecto_manager:
-        return "Módulo de Proyectos no disponible", 503
-
     try:
+        if 'usuario' not in session:
+            return redirect(url_for('login'))
+
+        if not proyecto_manager:
+            return "Módulo de Proyectos no disponible", 503
+
+        print(f"[VER_PROYECTO] Cargando proyecto ID: {proyecto_id}")
+
         # Obtener proyecto
         proyecto = proyecto_manager.obtener_proyecto(proyecto_id)
         if not proyecto:
+            print(f"[VER_PROYECTO] Proyecto {proyecto_id} no encontrado en base de datos")
             return "Proyecto no encontrado", 404
+
+        print(f"[VER_PROYECTO] Proyecto encontrado: {proyecto.get('nombre', 'N/A')}")
 
         # Obtener gastos del proyecto
         gastos = proyecto_manager.listar_gastos_proyecto(proyecto_id)
+        print(f"[VER_PROYECTO] Gastos cargados: {len(gastos) if gastos else 0}")
 
         return render_template('proyecto_detalle.html',
                              usuario=session['usuario'],
                              proyecto=proyecto,
                              gastos=gastos)
     except Exception as e:
-        print(f"Error cargando proyecto: {e}")
-        return "Error cargando proyecto", 500
+        import traceback
+        error_msg = f"[VER_PROYECTO] ERROR: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        return f"Error cargando proyecto: {str(e)}", 500
 
 # ========================================
 # RUTAS DE GASTOS

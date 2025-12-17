@@ -262,7 +262,13 @@ class NotificacionesManager:
         mensaje += f"Cliente: {oc_info.get('cliente', 'N/A')}\n"
         mensaje += f"Monto: ${oc_info.get('monto_total', 0):,.2f} {oc_info.get('moneda', 'MXN')}"
 
-        enlace = f"/ordenes-compra/{oc_info.get('id')}"
+        # Enlace al proyecto creado automáticamente (si existe)
+        proyecto_id = oc_info.get('proyecto_id')
+        if proyecto_id:
+            enlace = f"/proyecto/{proyecto_id}"
+        else:
+            # Fallback a la OC si no hay proyecto
+            enlace = f"/ordenes-compra/{oc_info.get('id')}"
 
         metadata = {
             'oc_id': oc_info.get('id'),
