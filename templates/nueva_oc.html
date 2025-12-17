@@ -542,7 +542,7 @@
 
             const formData = new FormData(form);
             const isEdit = {{ 'true' if oc else 'false' }};
-            const url = isEdit ? '/api/ordenes-compra/{{ oc.id }}/editar' : '/api/ordenes-compra/crear';
+            const url = isEdit ? '/api/ordenes-compra/{{ oc.id if oc else "0" }}/editar' : '/api/ordenes-compra/crear';
 
             // Deshabilitar botón
             btnSubmit.disabled = true;
