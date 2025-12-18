@@ -6076,6 +6076,8 @@ def listar_ordenes_compra():
         return "Módulo de OCs no disponible", 503
 
     try:
+        print(f"[LISTAR_OCS] Usuario: {session['usuario']} - Cargando lista de órdenes de compra")
+
         # Obtener filtros de query params
         filtros = {}
         if request.args.get('estatus'):
@@ -6083,22 +6085,41 @@ def listar_ordenes_compra():
         if request.args.get('cliente'):
             filtros['cliente'] = request.args.get('cliente')
 
+        print(f"[LISTAR_OCS] Filtros aplicados: {filtros}")
+
         # Listar OCs
         ordenes_compra = oc_manager.listar_ocs(filtros=filtros)
+        print(f"[LISTAR_OCS] ✅ Se encontraron {len(ordenes_compra)} órdenes de compra")
+
+        if ordenes_compra:
+            print(f"[LISTAR_OCS] Primera OC: {ordenes_compra[0].get('numero_oc')} - Cliente: {ordenes_compra[0].get('cliente')}")
+            print(f"[LISTAR_OCS] Proyecto vinculado ID: {ordenes_compra[0].get('proyecto_id')}")
 
         # Obtener estadísticas
         stats = oc_manager.obtener_estadisticas()
+        print(f"[LISTAR_OCS] Estadísticas: {stats}")
 
         return render_template('ordenes_compra.html',
                              usuario=session['usuario'],
                              ordenes_compra=ordenes_compra,
                              stats=stats)
     except Exception as e:
-        print(f"Error listando OCs: {e}")
+        import traceback
+        error_completo = traceback.format_exc()
+        print(f"[LISTAR_OCS] ❌ ERROR: {str(e)}")
+        print(f"[LISTAR_OCS] Traceback completo:\n{error_completo}")
+        print(f"[LISTAR_OCS] Retornando lista vacía debido al error")
+
+        # Mostrar error amigable en la UI
+        error_db = None
+        if "Base de datos no disponible" in str(e):
+            error_db = "La base de datos no está disponible. Por favor contacta al administrador."
+
         return render_template('ordenes_compra.html',
                              usuario=session['usuario'],
                              ordenes_compra=[],
-                             stats={})
+                             stats={},
+                             error_db=error_db)
 
 @app.route("/ordenes-compra/nueva", methods=["GET", "POST"])
 def nueva_orden_compra():

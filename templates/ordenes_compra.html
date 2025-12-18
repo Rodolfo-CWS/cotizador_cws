@@ -443,6 +443,28 @@
             </div>
         </div>
 
+        <!-- Error de base de datos -->
+        {% if error_db %}
+        <div style="background: #fee2e2; border: 1px solid #fecaca; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#dc2626">
+                    <path d="M12,2L1,21H23M12,6L19.53,19H4.47M11,10V14H13V10M11,16V18H13V16"/>
+                </svg>
+                <div style="font-weight: 600; color: #991b1b; font-size: 16px;">Error de Conexión</div>
+            </div>
+            <div style="color: #7f1d1d; font-size: 14px; line-height: 1.5;">
+                {{ error_db }}
+            </div>
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #fecaca; font-size: 13px; color: #991b1b;">
+                <strong>¿Qué puedes hacer?</strong><br>
+                • Verificar que el servicio de base de datos esté en ejecución<br>
+                • Revisar las credenciales de conexión (DATABASE_URL en variables de entorno)<br>
+                • Consultar los logs de Render para más detalles<br>
+                • Contactar al administrador del sistema
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Listado de OCs -->
         <div id="resultados">
             {% if ordenes_compra and ordenes_compra|length > 0 %}

@@ -52,16 +52,45 @@ class ProyectoManager:
             # Continuar sin fallar - app debe poder iniciar aunque managers fallen
 
     def _get_cursor(self):
-        """Obtener cursor de base de datos con manejo de errores"""
-        try:
-            if not self.pg_connection or self.pg_connection.closed:
-                if not self.database_url:
-                    raise Exception("DATABASE_URL no configurado")
-                self.pg_connection = psycopg2.connect(self.database_url)
-            return self.pg_connection.cursor(cursor_factory=RealDictCursor)
-        except Exception as e:
-            print(f"[PROYECTO_MANAGER] Error obteniendo cursor: {e}")
-            raise Exception(f"Base de datos no disponible: {str(e)}")
+        """Obtener cursor de base de datos con manejo de errores y retry"""
+        max_intentos = 3
+        for intento in range(max_intentos):
+            try:
+                # Verificar si necesitamos reconectar
+                if not self.pg_connection or self.pg_connection.closed:
+                    if not self.database_url:
+                        raise Exception("DATABASE_URL no configurado")
+                    print(f"[PROYECTO_MANAGER] Intentando conectar a PostgreSQL (intento {intento + 1}/{max_intentos})...")
+                    self.pg_connection = psycopg2.connect(self.database_url)
+                    print(f"[PROYECTO_MANAGER] Conexión PostgreSQL establecida exitosamente")
+
+                # Intentar crear cursor
+                cursor = self.pg_connection.cursor(cursor_factory=RealDictCursor)
+
+                # Verificar que la conexión realmente funcione
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+
+                return cursor
+
+            except Exception as e:
+                print(f"[PROYECTO_MANAGER] Error en intento {intento + 1}: {e}")
+                # Cerrar conexión fallida
+                if self.pg_connection:
+                    try:
+                        self.pg_connection.close()
+                    except:
+                        pass
+                    self.pg_connection = None
+
+                # Si es el último intento, lanzar excepción
+                if intento == max_intentos - 1:
+                    print(f"[PROYECTO_MANAGER] ❌ Base de datos no disponible después de {max_intentos} intentos")
+                    raise Exception(f"Base de datos no disponible: {str(e)}")
+
+                # Esperar antes del siguiente intento
+                import time
+                time.sleep(0.5)
 
     # ========================================
     # GESTIÓN DE PROYECTOS
