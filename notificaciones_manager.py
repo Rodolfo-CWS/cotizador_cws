@@ -257,6 +257,9 @@ class NotificacionesManager:
         Returns:
             Resultado de crear_notificacion
         """
+        print(f"[NOTIF_OC] Creando notificación para OC: {oc_info.get('numero_oc')}")
+        print(f"[NOTIF_OC] Proyecto ID recibido: {oc_info.get('proyecto_id')}")
+
         titulo = "📦 Nueva Orden de Compra"
         mensaje = f"OC: {oc_info.get('numero_oc', 'N/A')}\n"
         mensaje += f"Cliente: {oc_info.get('cliente', 'N/A')}\n"
@@ -266,9 +269,11 @@ class NotificacionesManager:
         proyecto_id = oc_info.get('proyecto_id')
         if proyecto_id:
             enlace = f"/proyecto/{proyecto_id}"
+            print(f"[NOTIF_OC] Enlace a proyecto: {enlace}")
         else:
             # Fallback a la OC si no hay proyecto
             enlace = f"/ordenes-compra/{oc_info.get('id')}"
+            print(f"[NOTIF_OC] Sin proyecto_id, enlace a OC: {enlace}")
 
         metadata = {
             'oc_id': oc_info.get('id'),

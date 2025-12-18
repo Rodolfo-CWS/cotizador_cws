@@ -349,6 +349,7 @@ class OCManager:
             Lista de OCs con información del proyecto
         """
         try:
+            print(f"[OC_MANAGER] Listando OCs con filtros: {filtros}")
             cursor = self._get_cursor()
 
             # Base query
@@ -404,7 +405,12 @@ class OCManager:
             resultados = cursor.fetchall()
             cursor.close()
 
-            return [dict(row) for row in resultados]
+            ocs = [dict(row) for row in resultados]
+            print(f"[OC_MANAGER] Encontradas {len(ocs)} OCs")
+            if ocs:
+                print(f"[OC_MANAGER] Primera OC: {ocs[0].get('numero_oc')} -> Proyecto ID: {ocs[0].get('proyecto_id')}")
+
+            return ocs
 
         except Exception as e:
             print(f"[OC_MANAGER] Error listando OCs: {e}")
