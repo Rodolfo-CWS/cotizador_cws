@@ -1321,6 +1321,18 @@ def timestamp_to_date(timestamp):
     except:
         return 'N/A'
 
+@app.template_filter('format_currency')
+def format_currency(value):
+    """Formatea números como moneda con separador de miles"""
+    try:
+        if value is None:
+            return "$0.00"
+        # Convertir a float y formatear
+        num_value = float(value)
+        return "${:,.2f}".format(num_value)
+    except (ValueError, TypeError):
+        return "$0.00"
+
 # ============================================
 # AUTENTICACIÓN Y SESSION MANAGEMENT
 # ============================================
