@@ -523,6 +523,7 @@ let draftActualId = null;
 let autoGuardadoTimer = null;
 let formModificado = false;
 let ultimoGuardadoTimestamp = null;
+let cotizacionCompletada = false; // Flag para evitar drafts después de guardar cotización
 
 // ============================================
 // VISOR DE LOGS EN PANTALLA (para móviles)
@@ -678,6 +679,12 @@ function inicializarSistemaAutoGuardado() {
 }
 
 async function autoGuardarDraft() {
+    // NO guardar si la cotización ya fue completada y guardada
+    if (cotizacionCompletada) {
+        console.log('[DRAFT] Cotización completada, auto-guardado deshabilitado');
+        return;
+    }
+
     // Solo guardar si hay cambios y hay datos en el formulario
     if (!formModificado) {
         console.log('[DRAFT] Sin cambios, omitiendo auto-guardado');
@@ -746,6 +753,12 @@ async function autoGuardarDraft() {
 }
 
 function autoGuardarDraftSincrono() {
+    // NO guardar si la cotización ya fue completada y guardada
+    if (cotizacionCompletada) {
+        console.log('[DRAFT] Cotización completada, auto-guardado síncrono deshabilitado');
+        return;
+    }
+
     // Versión síncrona para beforeunload (no espera respuesta)
     const vendedor = document.querySelector('[name="vendedor"]')?.value?.trim();
 
@@ -910,6 +923,10 @@ async function cargarDraftSeleccionado(draftId) {
 
         if (resultado.success && resultado.draft) {
             const draft = resultado.draft;
+
+            // ✅ RESETEAR FLAG - Este draft puede ser editado y guardado como cotización
+            cotizacionCompletada = false;
+            console.log('[DRAFT] Flag cotizacionCompletada reseteado - draft puede ser editado');
 
             // Establecer draft actual
             draftActualId = draft.id;
@@ -3370,7 +3387,18 @@ async function guardarCotizacion() {
                 sessionStorage.setItem('ultimoNumeroCotizacion', numeroGenerado);
             }
 
-            // ELIMINAR DRAFT si existe (la cotización ya se completó)
+            // ✅ MARCAR COTIZACIÓN COMO COMPLETADA - Prevenir creación de nuevos drafts
+            cotizacionCompletada = true;
+            console.log('[DRAFT] Cotización marcada como completada - auto-guardado deshabilitado');
+
+            // ✅ DETENER TIMER DE AUTO-GUARDADO
+            if (autoGuardadoTimer) {
+                clearInterval(autoGuardadoTimer);
+                autoGuardadoTimer = null;
+                console.log('[DRAFT] Timer de auto-guardado detenido');
+            }
+
+            // ✅ ELIMINAR DRAFT si existe (la cotización ya se completó)
             if (draftActualId) {
                 console.log('[DRAFT] Eliminando draft después de completar cotización:', draftActualId);
                 try {
@@ -3378,15 +3406,17 @@ async function guardarCotizacion() {
                         method: 'DELETE'
                     });
                     if (respuestaDraft.ok) {
-                        console.log('[DRAFT] Draft eliminado exitosamente:', draftActualId);
+                        console.log('[DRAFT] ✅ Draft eliminado exitosamente:', draftActualId);
                         draftActualId = null; // Limpiar ID
                     } else {
-                        console.warn('[DRAFT] No se pudo eliminar draft:', draftActualId);
+                        console.warn('[DRAFT] ⚠️ No se pudo eliminar draft:', draftActualId);
                     }
                 } catch (errorDraft) {
-                    console.error('[DRAFT] Error eliminando draft:', errorDraft);
+                    console.error('[DRAFT] ❌ Error eliminando draft:', errorDraft);
                     // No bloquear el flujo por error en draft
                 }
+            } else {
+                console.log('[DRAFT] No hay draft asociado para eliminar');
             }
 
             const mensaje = `¡Cotización guardada exitosamente!\n\nNúmero: ${numeroGenerado || datosGenerales.numeroCotizacion}\nRevisión: ${datosGenerales.revision}\nID: ${resultado.id || 'Generado automáticamente'}\nCliente: ${datosGenerales.cliente}\nVendedor: ${datosGenerales.vendedor}\nItems procesados: ${items.length}\nTotal: ${document.getElementById('gran-total')?.textContent || 'N/A'}`;
