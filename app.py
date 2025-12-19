@@ -894,27 +894,50 @@ def generar_pdf_reportlab(datos_cotizacion):
     
     # Preparar datos de términos (mejorado para garantizar contenido)
     terminos_data = []
-    
+
+    # Estilo para comentarios con text wrapping (similar a actualización de revisión)
+    comentarios_style = ParagraphStyle(
+        'ComentariosStyle',
+        parent=getSampleStyleSheet()['Normal'],
+        fontSize=8,
+        fontName='Helvetica',
+        textColor=colors.HexColor('#4A5568'),
+        alignment=0,  # 0 = LEFT (justificado a la izquierda)
+        leading=10,   # Espaciado entre líneas
+        leftIndent=0,
+        rightIndent=0
+    )
+
     # Campos de términos usando datos reales del formulario
-    campos_terminos = [
-        ('Moneda:', condiciones.get('moneda', 'MXN') if condiciones else 'MXN'),
-        ('Tiempo de Entrega:', condiciones.get('tiempoEntrega', '') if condiciones else ''),
-        ('Entregar En:', condiciones.get('entregaEn', '') if condiciones else ''),
-        ('Términos de Pago:', condiciones.get('terminos', '') if condiciones else ''),
-        ('Comentarios:', condiciones.get('comentarios', '') if condiciones else '')
-    ]
-    
+    # Procesar campos uno por uno para manejar comentarios con Paragraph
+    moneda_value = condiciones.get('moneda', 'MXN') if condiciones else 'MXN'
+    tiempo_entrega = condiciones.get('tiempoEntrega', '') if condiciones else ''
+    entrega_en = condiciones.get('entregaEn', '') if condiciones else ''
+    terminos_pago = condiciones.get('terminos', '') if condiciones else ''
+    comentarios_text = condiciones.get('comentarios', '') if condiciones else ''
+
+    # Agregar moneda
+    terminos_data.append(['Moneda:', moneda_value if moneda_value else 'MXN'])
+
     # Agregar tipo de cambio si es USD
     if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
-        campos_terminos.insert(1, ('Tipo de Cambio:', f'{tipo_cambio:.2f} MXN/USD'))
-    
-    # Usar datos reales del formulario, mostrar "A definir" solo si están vacíos
-    for label, value in campos_terminos:
-        if value and value.strip():  # Si tiene contenido real, usarlo
-            terminos_data.append([label, value.strip()])
-        else:  # Solo si está vacío, mostrar valor por defecto
-            default_value = 'A definir' if 'Tiempo' in label or 'Entregar' in label or 'Términos' in label else ('Sin comentarios adicionales' if 'Comentarios' in label else 'MXN')
-            terminos_data.append([label, default_value])
+        terminos_data.append(['Tipo de Cambio:', f'{tipo_cambio:.2f} MXN/USD'])
+
+    # Agregar tiempo de entrega
+    terminos_data.append(['Tiempo de Entrega:', tiempo_entrega.strip() if tiempo_entrega and tiempo_entrega.strip() else 'A definir'])
+
+    # Agregar lugar de entrega
+    terminos_data.append(['Entregar En:', entrega_en.strip() if entrega_en and entrega_en.strip() else 'A definir'])
+
+    # Agregar términos de pago
+    terminos_data.append(['Términos de Pago:', terminos_pago.strip() if terminos_pago and terminos_pago.strip() else 'A definir'])
+
+    # Agregar comentarios con Paragraph para text wrapping (CRÍTICO)
+    if comentarios_text and comentarios_text.strip():
+        comentarios_paragraph = Paragraph(comentarios_text.strip(), comentarios_style)
+        terminos_data.append(['Comentarios:', comentarios_paragraph])
+    else:
+        terminos_data.append(['Comentarios:', 'Sin comentarios adicionales'])
     
     # SIEMPRE crear la tabla (eliminar condicional)
     terminos_table = Table(terminos_data, colWidths=[2*inch, 5*inch])
