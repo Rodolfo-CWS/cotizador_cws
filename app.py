@@ -607,43 +607,68 @@ def generar_pdf_reportlab(datos_cotizacion):
         story.append(Paragraph(f"PROYECTO: {datos_generales.get('proyecto', '')}", proyecto_style))
         story.append(Spacer(1, 8))
     
-    # Datos del cliente en formato mejorado
+    # Estilo para valores de campos con wrapping
+    campo_valor_style = ParagraphStyle(
+        'CampoValorStyle',
+        parent=getSampleStyleSheet()['Normal'],
+        fontSize=8,
+        fontName='Helvetica',
+        textColor=colors.HexColor('#2D3748'),
+        alignment=0,  # Izquierda
+        leading=10,   # Espaciado entre líneas
+        leftIndent=0,
+        rightIndent=0
+    )
+
+    # Datos del cliente en formato mejorado con 2 columnas por fila
     info_data = [
-        ['Cliente:', datos_generales.get('cliente', ''), 'Vendedor:', datos_generales.get('vendedor', '')],
-        ['Atención A:', datos_generales.get('atencionA', ''), 'Contacto:', datos_generales.get('contacto', '')],
+        [
+            'Cliente:',
+            Paragraph(datos_generales.get('cliente', 'N/A'), campo_valor_style),
+            'Vendedor:',
+            Paragraph(datos_generales.get('vendedor', 'N/A'), campo_valor_style)
+        ],
+        [
+            'Atención A:',
+            Paragraph(datos_generales.get('atencionA', 'N/A'), campo_valor_style),
+            'Contacto:',
+            Paragraph(datos_generales.get('contacto', 'N/A'), campo_valor_style)
+        ],
     ]
 
     # Agregar información de revisión si existe
     if datos_generales.get('revision', '1') != '1':
-        info_data.append(['Revisión:', f"Rev. {datos_generales.get('revision', '1')}", '', ''])
+        # Crear Paragraph vacío para celdas vacías
+        empty_para = Paragraph('', campo_valor_style)
+
+        info_data.append([
+            'Revisión:',
+            Paragraph(f"Rev. {datos_generales.get('revision', '1')}", campo_valor_style),
+            empty_para,
+            empty_para
+        ])
 
         # Agregar campo de actualización en fila separada con soporte para texto largo
         actualizacion_text = datos_generales.get('actualizacionRevision', '')
         if actualizacion_text:
-            # Crear estilo para el texto de actualización con wrap
-            actualizacion_style = ParagraphStyle(
-                'ActualizacionStyle',
-                parent=getSampleStyleSheet()['Normal'],
-                fontSize=8,
-                fontName='Helvetica',
-                textColor=colors.HexColor('#2D3748'),
-                alignment=0,  # 0 = LEFT (justificado a la izquierda)
-                leading=10,   # Espaciado entre líneas
-                leftIndent=0,
-                rightIndent=0
-            )
-            actualizacion_paragraph = Paragraph(actualizacion_text, actualizacion_style)
-            info_data.append(['Actualización:', actualizacion_paragraph, '', ''])
+            info_data.append([
+                'Actualización:',
+                Paragraph(actualizacion_text, campo_valor_style),
+                empty_para,
+                empty_para
+            ])
 
-    info_table = Table(info_data, colWidths=[1.2*inch, 6.8*inch, 0*inch, 0*inch])
+    # Anchos de columna ajustados para distribuir 7.5 inches disponibles
+    # Label1 (1 inch) + Valor1 (2.75 inch) + Label2 (1 inch) + Valor2 (2.75 inch) = 7.5 inches
+    info_table = Table(info_data, colWidths=[1*inch, 2.75*inch, 1*inch, 2.75*inch])
     info_table.setStyle(TableStyle([
         # Estilo general - reducido
         ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
         ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-        
+
         # Labels (columnas 0 y 2) - Estilo destacado
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
@@ -651,17 +676,15 @@ def generar_pdf_reportlab(datos_cotizacion):
         ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor('#2C5282')),
         ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#EDF2F7')),
         ('BACKGROUND', (2, 0), (2, -1), colors.HexColor('#EDF2F7')),
-        
-        # Valores (columnas 1 y 3)
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTNAME', (3, 0), (3, -1), 'Helvetica'),
+
+        # Valores (columnas 1 y 3) - sin estilo de fuente porque usamos Paragraph
         ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#2D3748')),
         ('TEXTCOLOR', (3, 0), (3, -1), colors.HexColor('#2D3748')),
-        
+
         # Alineación
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),  # TOP para soportar wrapping
+
         # Bordes elegantes
         ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#2C5282')),
         ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E0')),
