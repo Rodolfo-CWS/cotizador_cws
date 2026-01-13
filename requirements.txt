@@ -24,6 +24,10 @@ reportlab==4.0.7
 # WeasyPrint como alternativa (opcional - puede tener problemas en algunos servidores)
 weasyprint==61.2
 
+# Análisis y extracción de datos de PDFs (para órdenes de compra)
+PyPDF2>=3.0.0
+pdfplumber>=0.10.0
+
 # Dependencias de WeasyPrint (se instalan automáticamente)
 # cffi==1.16.0
 # Pillow==10.2.0

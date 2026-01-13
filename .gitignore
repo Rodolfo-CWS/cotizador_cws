@@ -71,4 +71,8 @@ $RECYCLE.BIN/
 
 # ❌ ARCHIVOS TEMPORALES LOCALES:
 ip_actual.txt
-direccion_movil.txtnode_modules/
+direccion_movil.txt
+node_modules/
+
+# ❌ PDFs TEMPORALES DE ANÁLISIS DE OCs
+static/temp/*.pdf

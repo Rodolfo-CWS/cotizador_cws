@@ -40,6 +40,9 @@ from dotenv import load_dotenv
 # SOLO SUPABASE - MongoDB eliminado completamente
 from supabase_manager import SupabaseManager as DatabaseManager
 from pdf_manager import PDFManager
+# Parser de órdenes de compra
+from oc_parser import analizar_oc_completo
+from cleanup_temp_pdfs import limpiar_pdfs_antiguos
 
 # Configurar logging detallado para detectar fallos silenciosos
 def configurar_logging():
@@ -3778,6 +3781,112 @@ def ver_desglose(numero_cotizacion):
         """, numero=numero_cotizacion, error_msg=str(e)), 500
 
 # ============================================
+# RUTAS PARA ANÁLISIS DE ÓRDENES DE COMPRA
+# ============================================
+
+@app.route("/analizar_oc", methods=["GET"])
+@login_required
+def pagina_analizar_oc():
+    """Sirve la página de análisis de órdenes de compra"""
+    return render_template('analizar_oc.html')
+
+@app.route("/analizar_oc", methods=["POST"])
+@login_required
+def analizar_oc():
+    """
+    Recibe PDF de orden de compra y extrae datos
+
+    Request:
+        - file: archivo PDF (multipart/form-data)
+
+    Response:
+        JSON con datos extraídos y URL de preview del PDF
+    """
+    try:
+        # Verificar que se envió un archivo
+        if 'file' not in request.files:
+            return jsonify({
+                'success': False,
+                'error': 'No se envió ningún archivo'
+            }), 400
+
+        file = request.files['file']
+
+        # Verificar que el archivo tiene nombre
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'error': 'Archivo sin nombre'
+            }), 400
+
+        # Verificar que es un PDF
+        if not file.filename.lower().endswith('.pdf'):
+            return jsonify({
+                'success': False,
+                'error': 'El archivo debe ser un PDF'
+            }), 400
+
+        print(f"[ANALIZAR_OC] Recibido archivo: {file.filename}")
+
+        # Guardar temporalmente en /tmp
+        import tempfile
+        import shutil
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        temp_filename = f"oc_upload_{timestamp}.pdf"
+        temp_path = os.path.join(tempfile.gettempdir(), temp_filename)
+
+        file.save(temp_path)
+        print(f"[ANALIZAR_OC] Archivo guardado en: {temp_path}")
+
+        # Analizar PDF con oc_parser
+        resultado_analisis = analizar_oc_completo(temp_path)
+
+        # Copiar PDF a carpeta temporal accesible vía web
+        static_temp_dir = os.path.join(os.path.dirname(__file__), 'static', 'temp')
+        os.makedirs(static_temp_dir, exist_ok=True)
+
+        preview_filename = f"preview_oc_{timestamp}.pdf"
+        preview_path = os.path.join(static_temp_dir, preview_filename)
+        shutil.copy(temp_path, preview_path)
+
+        # Generar URL de preview
+        pdf_preview_url = f"/static/temp/{preview_filename}"
+
+        # Limpiar archivo temporal de /tmp
+        try:
+            os.remove(temp_path)
+        except:
+            pass
+
+        # Agregar URL de preview al resultado
+        resultado_analisis['pdf_preview_url'] = pdf_preview_url
+
+        print(f"[ANALIZAR_OC] Análisis completado:")
+        print(f"  - Éxito: {resultado_analisis['success']}")
+        print(f"  - Confianza: {resultado_analisis.get('confianza', 'N/A')}")
+        print(f"  - Preview URL: {pdf_preview_url}")
+
+        return jsonify(resultado_analisis)
+
+    except Exception as e:
+        print(f"[ANALIZAR_OC] ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+
+        return jsonify({
+            'success': False,
+            'error': f'Error al analizar PDF: {str(e)}',
+            'datos_extraidos': {
+                'cliente': '',
+                'proyecto': '',
+                'items': [],
+                'subtotal': 0.0
+            },
+            'confianza': 'low',
+            'advertencias': [str(e)]
+        }), 500
+
+# ============================================
 # RUTA DE INFORMACIÓN DEL SISTEMA
 # ============================================
 
@@ -6262,13 +6371,38 @@ def servir_pdf_local(numero_cotizacion):
         return jsonify({"error": str(e)}), 500
 
 # ============================================
+# LIMPIEZA AUTOMÁTICA DE PDFs TEMPORALES
+# ============================================
+
+# Limpiar PDFs temporales al iniciar
+try:
+    limpiar_pdfs_antiguos()
+except Exception as e:
+    print(f"[CLEANUP] Error en limpieza inicial: {e}")
+
+# Programar limpieza cada hora usando APScheduler
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(limpiar_pdfs_antiguos, 'interval', hours=1)
+    scheduler.start()
+    print("[CLEANUP] Scheduler de limpieza automática activado (cada hora)")
+
+    # Detener scheduler al cerrar la aplicación
+    atexit.register(lambda: scheduler.shutdown())
+except Exception as e:
+    print(f"[CLEANUP] No se pudo iniciar scheduler automático: {e}")
+    print("[CLEANUP] La limpieza automática no estará disponible")
+
+# ============================================
 
 if __name__ == "__main__":
     app_name = os.getenv('APP_NAME', 'CWS Cotizaciones')
     app_version = os.getenv('APP_VERSION', '1.0.0')
     environment = os.getenv('FLASK_ENV', 'development')
     database = os.getenv('MONGO_DATABASE', 'cotizaciones')
-    
+
     print(f"Iniciando {app_name} v{app_version}")
     print(f"Entorno: {environment}")
     print(f"Base de datos: {database}")

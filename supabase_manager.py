@@ -630,6 +630,7 @@ class SupabaseManager:
             version = datos.get('version', '1.0.0')
             usuario = datos.get('usuario')
             observaciones = datos.get('observaciones')
+            referencia_oc = datos_generales.get('referenciaOC')
             
             print(f"[SDK_REST] Datos extraídos - Número: {numero_cotizacion}, Items: {len(items)}, Revisión: {revision}")
             print(f"[SDK_REST] Condiciones extraídas: {condiciones if condiciones else 'VACÍAS'}")
@@ -658,7 +659,8 @@ class SupabaseManager:
                 'fecha_creacion': fecha_creacion,
                 'timestamp': timestamp,
                 'usuario': usuario,
-                'observaciones': observaciones
+                'observaciones': observaciones,
+                'referencia_oc': referencia_oc
             }
             
             print(f"[SDK_REST] Datos SDK preparados, verificando si cotización existe...")
@@ -741,6 +743,7 @@ class SupabaseManager:
         version = datos.get('version', '1.0.0')
         usuario = datos.get('usuario')
         observaciones = datos.get('observaciones')
+        referencia_oc = datos_generales.get('referenciaOC')
         
         # Generar timestamp si no existe
         timestamp = datos.get('timestamp', int(time.time() * 1000))
@@ -767,10 +770,10 @@ class SupabaseManager:
                 # Query de inserción/actualización
                 query = """
                     INSERT INTO cotizaciones (
-                        numero_cotizacion, datos_generales, items, revision, 
-                        version, fecha_creacion, timestamp, usuario, observaciones
+                        numero_cotizacion, datos_generales, items, revision,
+                        version, fecha_creacion, timestamp, usuario, observaciones, referencia_oc
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     ) ON CONFLICT (numero_cotizacion) DO UPDATE SET
                         datos_generales = EXCLUDED.datos_generales,
                         items = EXCLUDED.items,
@@ -778,10 +781,11 @@ class SupabaseManager:
                         version = EXCLUDED.version,
                         usuario = EXCLUDED.usuario,
                         observaciones = EXCLUDED.observaciones,
+                        referencia_oc = EXCLUDED.referencia_oc,
                         updated_at = NOW()
                     RETURNING id, numero_cotizacion;
                 """
-                
+
                 cursor.execute(query, (
                     numero_cotizacion,
                     Json(datos_generales),  # JSONB (ahora incluye condiciones)
@@ -791,7 +795,8 @@ class SupabaseManager:
                     fecha_dt,
                     timestamp,
                     usuario,
-                    observaciones
+                    observaciones,
+                    referencia_oc
                 ))
                 
                 resultado = cursor.fetchone()

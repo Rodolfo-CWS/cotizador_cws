@@ -316,10 +316,20 @@
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Contacto:</label>
-                        <input type="text" name="contacto" required 
+                        <input type="text" name="contacto" required
                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
-                    
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Referencia OC (Opcional):
+                            <span class="text-xs text-gray-500 ml-1">Ej: OC-2025-001</span>
+                        </label>
+                        <input type="text" name="referenciaOC" id="referencia-oc"
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="Número de referencia de la orden de compra">
+                    </div>
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">No. Cotización:</label>
                         <input type="text" name="numeroCotizacion" id="numeroCotizacion" disabled 
@@ -1210,6 +1220,19 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             cargarDraftSeleccionado(draftId);
         }, 1000); // Esperar a que todo se inicialice
+    }
+
+    // Pre-llenar formulario con datos de OC si vienen en URL
+    const clienteOC = urlParams.get('cliente');
+    const proyectoOC = urlParams.get('proyecto');
+    const itemsOC = urlParams.get('items');
+    const referenciaOC = urlParams.get('referenciaOC');
+
+    if (clienteOC || proyectoOC || itemsOC || referenciaOC) {
+        console.log('[OC_PREFILL] Datos de OC detectados en URL, pre-llenando formulario...');
+        setTimeout(() => {
+            preLlenarDesdeOC(clienteOC, proyectoOC, itemsOC, referenciaOC);
+        }, 1500); // Esperar a que el formulario esté completamente inicializado
     }
 
     // CAPTURAR ESTADO INICIAL para validación de cambios en revisiones
@@ -2608,6 +2631,114 @@ function crearTemplateItem(numero) {
         </div>
     </details>`;
 }
+
+// ============================================
+// PRE-LLENADO DESDE ORDEN DE COMPRA
+// ============================================
+function preLlenarDesdeOC(cliente, proyecto, itemsJSON, referenciaOC) {
+    try {
+        console.log('[OC_PREFILL] Iniciando pre-llenado desde OC...');
+
+        // Pre-llenar cliente si viene
+        if (cliente) {
+            const clienteInput = document.querySelector('[name="cliente"]');
+            if (clienteInput) {
+                clienteInput.value = cliente;
+                console.log('[OC_PREFILL] Cliente pre-llenado:', cliente);
+            }
+        }
+
+        // Pre-llenar proyecto si viene
+        if (proyecto) {
+            const proyectoInput = document.querySelector('[name="proyecto"]');
+            if (proyectoInput) {
+                proyectoInput.value = proyecto;
+                console.log('[OC_PREFILL] Proyecto pre-llenado:', proyecto);
+            }
+        }
+
+        // Pre-llenar referencia OC si viene
+        if (referenciaOC) {
+            const referenciaInput = document.getElementById('referencia-oc');
+            if (referenciaInput) {
+                referenciaInput.value = referenciaOC;
+                console.log('[OC_PREFILL] Referencia OC pre-llenada:', referenciaOC);
+            }
+        }
+
+        // Pre-llenar items si vienen
+        if (itemsJSON) {
+            try {
+                const items = JSON.parse(itemsJSON);
+                console.log('[OC_PREFILL] Items a pre-llenar:', items.length);
+
+                // Limpiar items existentes (el que se crea automáticamente)
+                const itemsContainer = document.getElementById('items-container');
+                if (itemsContainer) {
+                    itemsContainer.innerHTML = '';
+                }
+
+                // Agregar cada item con datos pre-llenados
+                items.forEach((item, index) => {
+                    setTimeout(() => {
+                        agregarItemConDatosOC(item.descripcion, item.cantidad, index + 1);
+                    }, (index + 1) * 200); // Delay escalonado para evitar problemas
+                });
+
+                console.log('[OC_PREFILL] Items pre-llenados exitosamente');
+            } catch (error) {
+                console.error('[OC_PREFILL] Error parseando items JSON:', error);
+            }
+        }
+
+        // Mostrar notificación de éxito
+        setTimeout(() => {
+            mostrarNotificacionToast('Datos de OC cargados exitosamente', 'success');
+        }, 1000);
+
+    } catch (error) {
+        console.error('[OC_PREFILL] Error en pre-llenado:', error);
+        mostrarNotificacionToast('Error al cargar datos de OC', 'error');
+    }
+}
+
+function agregarItemConDatosOC(descripcion, cantidad, numero) {
+    const container = document.getElementById('items-container');
+    if (!container) return;
+
+    // Crear nuevo item usando el template existente
+    const template = crearTemplateItem(numero);
+    container.insertAdjacentHTML('beforeend', template);
+
+    // Esperar un momento para que el DOM se actualice
+    setTimeout(() => {
+        // Obtener el item recién agregado
+        const items = container.querySelectorAll('.item-block');
+        const nuevoItem = items[items.length - 1];
+
+        if (nuevoItem) {
+            // Pre-llenar descripción del item
+            const descripcionInput = nuevoItem.querySelector('.descripcion-item');
+            if (descripcionInput && descripcion) {
+                descripcionInput.value = descripcion;
+            }
+
+            // Pre-llenar cantidad del item
+            const cantidadInput = nuevoItem.querySelector('.cantidad-item');
+            if (cantidadInput && cantidad) {
+                cantidadInput.value = cantidad;
+            }
+
+            console.log(`[OC_PREFILL] Item ${numero} pre-llenado:`, { descripcion, cantidad });
+
+            // Recalcular totales
+            setTimeout(() => {
+                actualizarTodosLosCalculos();
+            }, 100);
+        }
+    }, 100);
+}
+
 function agregarFila(button, tipo) {
     const itemBlock = button.closest('.item-block');
     const container = tipo === 'material' 

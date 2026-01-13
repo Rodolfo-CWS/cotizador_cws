@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizar Orden de Compra - CWS Cotizaciones</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        /* Upload Section */
+        #upload-section {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 60px 40px;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 20px 0;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f0ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: #e8f5e9;
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102,126,234,0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Processing Section */
+        #processing-section {
+            text-align: center;
+            padding: 60px;
+        }
+
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .text-muted {
+            color: #6c757d;
+            margin-top: 10px;
+        }
+
+        /* Preview Section */
+        #preview-section {
+            display: none;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .col {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .col h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 15px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .item-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📤 Analizar Orden de Compra</h1>
+            <p>Sube un PDF de orden de compra y extrae automáticamente los datos</p>
+        </div>
+
+        <div class="content">
+            <!-- Sección 1: Upload de PDF -->
+            <div id="upload-section">
+                <h2>Subir PDF de Orden de Compra</h2>
+                <div class="upload-area" id="upload-zone">
+                    <div class="upload-icon">📄</div>
+                    <p style="font-size: 1.2em; margin-bottom: 10px;">
+                        <strong>Arrastra el PDF aquí o haz click para seleccionar</strong>
+                    </p>
+                    <p class="text-muted">Formatos aceptados: PDF (máximo 10MB)</p>
+                    <input type="file" id="pdf-file" accept=".pdf" hidden>
+                </div>
+                <button id="btn-analizar" class="btn btn-primary" disabled>
+                    Analizar PDF
+                </button>
+                <br>
+                <a href="/" class="back-link">← Volver al inicio</a>
+            </div>
+
+            <!-- Sección 2: Procesamiento (loading) -->
+            <div id="processing-section" style="display:none;">
+                <div class="spinner"></div>
+                <h2>Analizando orden de compra...</h2>
+                <p class="text-muted">Esto puede tomar hasta 30 segundos, por favor espera</p>
+            </div>
+
+            <!-- Sección 3: Vista Previa + Datos Extraídos -->
+            <div id="preview-section">
+                <div class="row">
+                    <!-- Columna izquierda: PDF Preview -->
+                    <div class="col">
+                        <h3>📄 Vista Previa del PDF</h3>
+                        <iframe id="pdf-preview"></iframe>
+                    </div>
+
+                    <!-- Columna derecha: Datos Extraídos -->
+                    <div class="col">
+                        <h3>📊 Datos Extraídos</h3>
+
+                        <div class="alert alert-info" id="confianza-badge">
+                            Nivel de confianza: <strong id="confianza-text">Media</strong>
+                        </div>
+
+                        <div id="advertencias-container"></div>
+
+                        <form id="form-datos-extraidos">
+                            <label>Cliente:</label>
+                            <input type="text" id="input-cliente" class="form-control"
+                                   placeholder="Nombre del cliente">
+
+                            <label>Proyecto:</label>
+                            <input type="text" id="input-proyecto" class="form-control"
+                                   placeholder="Nombre del proyecto">
+
+                            <label>Items:</label>
+                            <div id="items-container" style="max-height: 300px; overflow-y: auto;">
+                                <!-- Items dinámicos generados por JS -->
+                            </div>
+                            <button type="button" class="btn btn-secondary" onclick="agregarItem()" style="margin-top: 10px;">
+                                + Agregar Item
+                            </button>
+
+                            <label style="margin-top: 15px;">Subtotal (antes de IVA):</label>
+                            <input type="number" id="input-subtotal" class="form-control" step="0.01"
+                                   placeholder="0.00">
+
+                            <label>Referencia OC (opcional):</label>
+                            <input type="text" id="input-referencia-oc" class="form-control"
+                                   placeholder="Ej: OC-2025-001">
+
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-secondary" id="btn-cancelar">
+                                    Cancelar
+                                </button>
+                                <button type="button" class="btn btn-primary" id="btn-crear-cotizacion">
+                                    Crear Cotización
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elementos del DOM
+        const uploadZone = document.getElementById('upload-zone');
+        const pdfFileInput = document.getElementById('pdf-file');
+        const btnAnalizar = document.getElementById('btn-analizar');
+        const uploadSection = document.getElementById('upload-section');
+        const processingSection = document.getElementById('processing-section');
+        const previewSection = document.getElementById('preview-section');
+
+        // Drag and drop
+        uploadZone.addEventListener('click', () => pdfFileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                pdfFileInput.files = files;
+                handleFileSelected();
+            } else {
+                alert('Por favor, arrastra un archivo PDF válido');
+            }
+        });
+
+        // Selección de archivo
+        pdfFileInput.addEventListener('change', handleFileSelected);
+
+        function handleFileSelected() {
+            const file = pdfFileInput.files[0];
+            if (file) {
+                uploadZone.querySelector('.upload-icon').textContent = '✅';
+                uploadZone.querySelector('strong').textContent = `Archivo seleccionado: ${file.name}`;
+                btnAnalizar.disabled = false;
+            }
+        }
+
+        // Analizar PDF
+        btnAnalizar.addEventListener('click', async () => {
+            const file = pdfFileInput.files[0];
+            if (!file) {
+                alert('Selecciona un PDF primero');
+                return;
+            }
+
+            // Validar tamaño (10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('El archivo es demasiado grande. Máximo 10MB');
+                return;
+            }
+
+            // Mostrar loading
+            uploadSection.style.display = 'none';
+            processingSection.style.display = 'block';
+
+            // Upload y análisis
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/analizar_oc', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    mostrarPreviewYDatos(result);
+                } else {
+                    alert('Error al analizar PDF: ' + (result.error || 'Error desconocido'));
+                    uploadSection.style.display = 'block';
+                    processingSection.style.display = 'none';
+                }
+            } catch (error) {
+                alert('Error de conexión: ' + error.message);
+                uploadSection.style.display = 'block';
+                processingSection.style.display = 'none';
+            } finally {
+                processingSection.style.display = 'none';
+            }
+        });
+
+        // Mostrar preview y datos extraídos
+        function mostrarPreviewYDatos(result) {
+            // Cargar PDF en iframe
+            document.getElementById('pdf-preview').src = result.pdf_preview_url;
+
+            // Mostrar nivel de confianza
+            const confianzaText = document.getElementById('confianza-text');
+            confianzaText.textContent = result.confianza.toUpperCase();
+
+            const badge = document.getElementById('confianza-badge');
+            if (result.confianza === 'high') {
+                badge.style.background = '#d4edda';
+                badge.style.color = '#155724';
+            } else if (result.confianza === 'medium') {
+                badge.style.background = '#fff3cd';
+                badge.style.color = '#856404';
+            } else {
+                badge.style.background = '#f8d7da';
+                badge.style.color = '#721c24';
+            }
+
+            // Mostrar advertencias si las hay
+            const advertenciasContainer = document.getElementById('advertencias-container');
+            if (result.advertencias && result.advertencias.length > 0) {
+                advertenciasContainer.innerHTML = `
+                    <div class="alert alert-warning">
+                        <strong>Advertencias:</strong>
+                        <ul style="margin: 10px 0 0 20px;">
+                            ${result.advertencias.map(adv => `<li>${adv}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            // Llenar campos con datos extraídos
+            document.getElementById('input-cliente').value = result.datos_extraidos.cliente || '';
+            document.getElementById('input-proyecto').value = result.datos_extraidos.proyecto || '';
+            document.getElementById('input-subtotal').value = result.datos_extraidos.subtotal || '';
+
+            // Generar items dinámicamente
+            const itemsContainer = document.getElementById('items-container');
+            itemsContainer.innerHTML = '';
+
+            if (result.datos_extraidos.items && result.datos_extraidos.items.length > 0) {
+                result.datos_extraidos.items.forEach(item => {
+                    agregarItemConDatos(item.descripcion, item.cantidad);
+                });
+            } else {
+                // Si no hay items, agregar uno vacío
+                agregarItem();
+            }
+
+            // Mostrar sección de preview
+            previewSection.style.display = 'block';
+        }
+
+        // Agregar item con datos
+        function agregarItemConDatos(descripcion, cantidad) {
+            const itemsContainer = document.getElementById('items-container');
+            const itemHTML = `
+                <div class="item-row">
+                    <input type="text" class="form-control item-descripcion"
+                           placeholder="Descripción"
+                           value="${descripcion || ''}">
+                    <input type="number" class="form-control item-cantidad"
+                           placeholder="Cantidad"
+                           value="${cantidad || 1}"
+                           step="0.01">
+                </div>
+            `;
+            itemsContainer.insertAdjacentHTML('beforeend', itemHTML);
+        }
+
+        // Agregar item vacío
+        function agregarItem() {
+            agregarItemConDatos('', 1);
+        }
+
+        // Botón cancelar
+        document.getElementById('btn-cancelar').addEventListener('click', () => {
+            if (confirm('¿Seguro que quieres cancelar? Se perderán los datos extraídos.')) {
+                location.reload();
+            }
+        });
+
+        // Crear cotización con datos corregidos
+        document.getElementById('btn-crear-cotizacion').addEventListener('click', () => {
+            // Recopilar datos del formulario
+            const cliente = document.getElementById('input-cliente').value.trim();
+            const proyecto = document.getElementById('input-proyecto').value.trim();
+
+            // Validar campos mínimos
+            if (!cliente) {
+                alert('Por favor, ingresa el nombre del cliente');
+                document.getElementById('input-cliente').focus();
+                return;
+            }
+
+            if (!proyecto) {
+                alert('Por favor, ingresa el nombre del proyecto');
+                document.getElementById('input-proyecto').focus();
+                return;
+            }
+
+            // Recopilar items
+            const items = [];
+            document.querySelectorAll('#items-container .item-row').forEach(row => {
+                const descripcion = row.querySelector('.item-descripcion').value.trim();
+                const cantidad = row.querySelector('.item-cantidad').value;
+
+                if (descripcion && cantidad > 0) {
+                    items.push({ descripcion, cantidad });
+                }
+            });
+
+            if (items.length === 0) {
+                alert('Agrega al menos un item a la cotización');
+                return;
+            }
+
+            const subtotal = document.getElementById('input-subtotal').value;
+            const referenciaOC = document.getElementById('input-referencia-oc').value.trim();
+
+            // Redirigir a formulario de cotización con datos pre-llenados
+            const params = new URLSearchParams({
+                cliente: cliente,
+                proyecto: proyecto,
+                items: JSON.stringify(items),
+                referenciaOC: referenciaOC
+            });
+
+            window.location.href = `/formulario?${params.toString()}`;
+        });
+    </script>
+</body>
+</html>
