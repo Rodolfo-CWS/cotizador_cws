@@ -3389,6 +3389,7 @@ async function guardarCotizacion() {
 
             // ✅ MARCAR COTIZACIÓN COMO COMPLETADA - Prevenir creación de nuevos drafts
             cotizacionCompletada = true;
+            formModificado = false; // Resetear para prevenir beforeunload
             console.log('[DRAFT] Cotización marcada como completada - auto-guardado deshabilitado');
 
             // ✅ DETENER TIMER DE AUTO-GUARDADO

@@ -1832,7 +1832,20 @@ def formulario():
                 
                 # ✅ LOG CRÍTICO: Cotización guardada exitosamente
                 logging.info(f"COTIZACION_GUARDADA: {numero_cotizacion} - Cliente: {datos.get('datosGenerales', {}).get('cliente', 'N/A')}")
-                
+
+                # ✅ ELIMINAR DRAFTS ASOCIADOS - Prevenir duplicados después de guardar
+                try:
+                    if numero_cotizacion:
+                        print(f"[DRAFT] Intentando eliminar drafts asociados a: {numero_cotizacion}")
+                        resultado_limpieza = db_manager.eliminar_drafts_por_numero_cotizacion(numero_cotizacion)
+                        if resultado_limpieza.get('success'):
+                            print(f"[DRAFT] ✅ {resultado_limpieza.get('mensaje')}")
+                        else:
+                            print(f"[DRAFT] ⚠️ No se pudieron eliminar drafts: {resultado_limpieza.get('error')}")
+                except Exception as draft_error:
+                    print(f"[DRAFT] ❌ Error limpiando drafts (no crítico): {draft_error}")
+                    # No bloquear el guardado por errores en drafts
+
                 # Verificar si es un fallo silencioso detectado
                 if resultado.get("tipo_error") == "fallo_silencioso":
                     critical_logger = logging.getLogger('FALLOS_CRITICOS')
