@@ -333,6 +333,14 @@
         <!-- Menú de navegación -->
         <ul class="navbar-menu" id="navbarMenu">
             <li class="navbar-item">
+                <a href="/dashboard" class="navbar-link {{ 'active' if request.path == '/dashboard' }}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/>
+                    </svg>
+                    Home
+                </a>
+            </li>
+            <li class="navbar-item">
                 <a href="/" class="navbar-link {{ 'active' if request.path == '/' }}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
