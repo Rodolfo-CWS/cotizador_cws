@@ -31,7 +31,7 @@
             </div>
             {% if proyecto.oc_archivo_pdf %}
             <a href="{{ proyecto.oc_archivo_pdf }}" target="_blank" class="btn-secondary">
-                📄 Ver PDF OC
+                Ver PDF OC
             </a>
             {% endif %}
         </div>
@@ -63,7 +63,7 @@
         <div class="toolbar">
             <h2>Gastos del Proyecto</h2>
             <button class="btn-primary" onclick="abrirModalNuevoGasto()">
-                ➕ Agregar Gasto
+                Agregar Gasto
             </button>
         </div>
 
@@ -101,19 +101,19 @@
                         <!-- Estado de Aprobación -->
                         <div class="estado-badge {% if gasto.aprobado %}badge-success{% else %}badge-warning{% endif %}">
                             {% if gasto.aprobado %}
-                                ✅ Aprobado
+                                Aprobado
                                 <span class="estado-info">por {{ gasto.aprobado_por }} el {{ gasto.fecha_aprobacion.strftime('%d/%m') if gasto.fecha_aprobacion else '' }}</span>
                             {% else %}
-                                ⏳ Pendiente de aprobación
+                                Pendiente de aprobación
                             {% endif %}
                         </div>
 
                         <!-- Estado de Compra -->
                         <div class="estado-badge badge-{{ gasto.estatus_compra }}">
-                            {% if gasto.estatus_compra == 'pendiente' %}🔴 PENDIENTE
-                            {% elif gasto.estatus_compra == 'ordenado' %}🟡 ORDENADO
-                            {% elif gasto.estatus_compra == 'recibido' %}🟢 RECIBIDO
-                            {% else %}⚫ CANCELADO
+                            {% if gasto.estatus_compra == 'pendiente' %}PENDIENTE
+                            {% elif gasto.estatus_compra == 'ordenado' %}ORDENADO
+                            {% elif gasto.estatus_compra == 'recibido' %}RECIBIDO
+                            {% else %}CANCELADO
                             {% endif %}
                         </div>
                     </div>
@@ -129,33 +129,33 @@
                             </button>
                         {% elif gasto.estatus_compra == 'pendiente' %}
                             <button class="btn-warning btn-sm" onclick="marcarOrdenado({{ gasto.id }})">
-                                🟡 Marcar Ordenado
+                                Marcar Ordenado
                             </button>
                         {% elif gasto.estatus_compra == 'ordenado' %}
                             <button class="btn-success btn-sm" onclick="marcarRecibido({{ gasto.id }})">
-                                🟢 Marcar Recibido
+                                Marcar Recibido
                             </button>
                         {% endif %}
 
                         {% if gasto.estatus_compra == 'pendiente' %}
                             <button class="btn-secondary btn-sm" onclick="editarGasto({{ gasto.id }})">
-                                ✏️ Editar
+                                Editar
                             </button>
                         {% endif %}
                     </div>
 
                     {% if gasto.notas %}
-                    <div class="gasto-notas">📝 {{ gasto.notas }}</div>
+                    <div class="gasto-notas">{{ gasto.notas }}</div>
                     {% endif %}
                 </div>
                 {% endfor %}
             {% else %}
                 <div class="empty-state">
-                    <div class="empty-icon">📦</div>
+                    <div class="empty-icon"></div>
                     <div class="empty-title">No hay gastos en este proyecto</div>
                     <div class="empty-text">Agrega el primer gasto para comenzar</div>
                     <button class="btn-primary" onclick="abrirModalNuevoGasto()">
-                        ➕ Agregar Primer Gasto
+                        Agregar Primer Gasto
                     </button>
                 </div>
             {% endif %}
@@ -204,7 +204,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" onclick="cerrarModalNuevoGasto()">Cancelar</button>
-                    <button type="submit" class="btn-primary">💾 Guardar Gasto</button>
+                    <button type="submit" class="btn-primary">Guardar Gasto</button>
                 </div>
             </form>
         </div>
@@ -231,7 +231,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" onclick="cerrarModalOrdenado()">Cancelar</button>
-                    <button type="submit" class="btn-warning">🟡 Confirmar Ordenado</button>
+                    <button type="submit" class="btn-warning">Confirmar Ordenado</button>
                 </div>
             </form>
         </div>

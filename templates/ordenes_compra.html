@@ -386,7 +386,7 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <h1 class="page-title">📦 Órdenes de Compra y Proyectos</h1>
+            <h1 class="page-title">Órdenes de Compra y Proyectos</h1>
             <p class="page-subtitle">Gestiona las órdenes de compra y sus proyectos asociados</p>
         </div>
 
@@ -432,13 +432,13 @@
                     Todas
                 </button>
                 <button class="filter-btn" data-filter="activa" onclick="filtrarPorEstatus('activa', this)">
-                    🟢 Activas
+                    Activas
                 </button>
                 <button class="filter-btn" data-filter="en_proceso" onclick="filtrarPorEstatus('en_proceso', this)">
-                    🟡 En Proceso
+                    En Proceso
                 </button>
                 <button class="filter-btn" data-filter="completada" onclick="filtrarPorEstatus('completada', this)">
-                    ⚫ Completadas
+                    Completadas
                 </button>
             </div>
         </div>
@@ -477,10 +477,10 @@
                                 <div class="oc-client">{{ oc.cliente }}</div>
                             </div>
                             <span class="oc-status status-{{ oc.estatus }}">
-                                {% if oc.estatus == 'activa' %}🟢 Activa
-                                {% elif oc.estatus == 'en_proceso' %}🟡 En Proceso
-                                {% elif oc.estatus == 'completada' %}⚫ Completada
-                                {% else %}🔴 Cancelada
+                                {% if oc.estatus == 'activa' %}Activa
+                                {% elif oc.estatus == 'en_proceso' %}En Proceso
+                                {% elif oc.estatus == 'completada' %}Completada
+                                {% else %}Cancelada
                                 {% endif %}
                             </span>
                         </div>
@@ -552,7 +552,7 @@
                 </div>
             {% else %}
                 <div class="empty-state">
-                    <div class="empty-icon">📦</div>
+                    <div class="empty-icon"></div>
                     <div class="empty-title">No hay órdenes de compra</div>
                     <div class="empty-text">Crea tu primera orden de compra para comenzar</div>
                     <button class="btn-primary" onclick="window.location.href='/ordenes-compra/nueva'">
