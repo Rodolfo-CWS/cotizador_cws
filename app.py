@@ -636,43 +636,68 @@ def generar_pdf_reportlab(datos_cotizacion):
         story.append(Paragraph(f"PROYECTO: {datos_generales.get('proyecto', '')}", proyecto_style))
         story.append(Spacer(1, 8))
     
-    # Datos del cliente en formato mejorado
+    # Estilo para valores de campos con wrapping
+    campo_valor_style = ParagraphStyle(
+        'CampoValorStyle',
+        parent=getSampleStyleSheet()['Normal'],
+        fontSize=8,
+        fontName='Helvetica',
+        textColor=colors.HexColor('#2D3748'),
+        alignment=0,  # Izquierda
+        leading=10,   # Espaciado entre líneas
+        leftIndent=0,
+        rightIndent=0
+    )
+
+    # Datos del cliente en formato mejorado con 2 columnas por fila
     info_data = [
-        ['Cliente:', datos_generales.get('cliente', ''), 'Vendedor:', datos_generales.get('vendedor', '')],
-        ['Atención A:', datos_generales.get('atencionA', ''), 'Contacto:', datos_generales.get('contacto', '')],
+        [
+            'Cliente:',
+            Paragraph(datos_generales.get('cliente', 'N/A'), campo_valor_style),
+            'Vendedor:',
+            Paragraph(datos_generales.get('vendedor', 'N/A'), campo_valor_style)
+        ],
+        [
+            'Atención A:',
+            Paragraph(datos_generales.get('atencionA', 'N/A'), campo_valor_style),
+            'Contacto:',
+            Paragraph(datos_generales.get('contacto', 'N/A'), campo_valor_style)
+        ],
     ]
 
     # Agregar información de revisión si existe
     if datos_generales.get('revision', '1') != '1':
-        info_data.append(['Revisión:', f"Rev. {datos_generales.get('revision', '1')}", '', ''])
+        # Crear Paragraph vacío para celdas vacías
+        empty_para = Paragraph('', campo_valor_style)
+
+        info_data.append([
+            'Revisión:',
+            Paragraph(f"Rev. {datos_generales.get('revision', '1')}", campo_valor_style),
+            empty_para,
+            empty_para
+        ])
 
         # Agregar campo de actualización en fila separada con soporte para texto largo
         actualizacion_text = datos_generales.get('actualizacionRevision', '')
         if actualizacion_text:
-            # Crear estilo para el texto de actualización con wrap
-            actualizacion_style = ParagraphStyle(
-                'ActualizacionStyle',
-                parent=getSampleStyleSheet()['Normal'],
-                fontSize=8,
-                fontName='Helvetica',
-                textColor=colors.HexColor('#2D3748'),
-                alignment=0,  # 0 = LEFT (justificado a la izquierda)
-                leading=10,   # Espaciado entre líneas
-                leftIndent=0,
-                rightIndent=0
-            )
-            actualizacion_paragraph = Paragraph(actualizacion_text, actualizacion_style)
-            info_data.append(['Actualización:', actualizacion_paragraph, '', ''])
+            info_data.append([
+                'Actualización:',
+                Paragraph(actualizacion_text, campo_valor_style),
+                empty_para,
+                empty_para
+            ])
 
-    info_table = Table(info_data, colWidths=[1.2*inch, 6.8*inch, 0*inch, 0*inch])
+    # Anchos de columna ajustados para distribuir 7.5 inches disponibles
+    # Label1 (1 inch) + Valor1 (2.75 inch) + Label2 (1 inch) + Valor2 (2.75 inch) = 7.5 inches
+    info_table = Table(info_data, colWidths=[1*inch, 2.75*inch, 1*inch, 2.75*inch])
     info_table.setStyle(TableStyle([
         # Estilo general - reducido
         ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
         ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-        
+
         # Labels (columnas 0 y 2) - Estilo destacado
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
@@ -680,17 +705,15 @@ def generar_pdf_reportlab(datos_cotizacion):
         ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor('#2C5282')),
         ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#EDF2F7')),
         ('BACKGROUND', (2, 0), (2, -1), colors.HexColor('#EDF2F7')),
-        
-        # Valores (columnas 1 y 3)
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTNAME', (3, 0), (3, -1), 'Helvetica'),
+
+        # Valores (columnas 1 y 3) - sin estilo de fuente porque usamos Paragraph
         ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#2D3748')),
         ('TEXTCOLOR', (3, 0), (3, -1), colors.HexColor('#2D3748')),
-        
+
         # Alineación
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),  # TOP para soportar wrapping
+
         # Bordes elegantes
         ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#2C5282')),
         ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E0')),
@@ -923,27 +946,50 @@ def generar_pdf_reportlab(datos_cotizacion):
     
     # Preparar datos de términos (mejorado para garantizar contenido)
     terminos_data = []
-    
+
+    # Estilo para comentarios con text wrapping (similar a actualización de revisión)
+    comentarios_style = ParagraphStyle(
+        'ComentariosStyle',
+        parent=getSampleStyleSheet()['Normal'],
+        fontSize=8,
+        fontName='Helvetica',
+        textColor=colors.HexColor('#4A5568'),
+        alignment=0,  # 0 = LEFT (justificado a la izquierda)
+        leading=10,   # Espaciado entre líneas
+        leftIndent=0,
+        rightIndent=0
+    )
+
     # Campos de términos usando datos reales del formulario
-    campos_terminos = [
-        ('Moneda:', condiciones.get('moneda', 'MXN') if condiciones else 'MXN'),
-        ('Tiempo de Entrega:', condiciones.get('tiempoEntrega', '') if condiciones else ''),
-        ('Entregar En:', condiciones.get('entregaEn', '') if condiciones else ''),
-        ('Términos de Pago:', condiciones.get('terminos', '') if condiciones else ''),
-        ('Comentarios:', condiciones.get('comentarios', '') if condiciones else '')
-    ]
-    
+    # Procesar campos uno por uno para manejar comentarios con Paragraph
+    moneda_value = condiciones.get('moneda', 'MXN') if condiciones else 'MXN'
+    tiempo_entrega = condiciones.get('tiempoEntrega', '') if condiciones else ''
+    entrega_en = condiciones.get('entregaEn', '') if condiciones else ''
+    terminos_pago = condiciones.get('terminos', '') if condiciones else ''
+    comentarios_text = condiciones.get('comentarios', '') if condiciones else ''
+
+    # Agregar moneda
+    terminos_data.append(['Moneda:', moneda_value if moneda_value else 'MXN'])
+
     # Agregar tipo de cambio si es USD
     if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
-        campos_terminos.insert(1, ('Tipo de Cambio:', f'{tipo_cambio:.2f} MXN/USD'))
-    
-    # Usar datos reales del formulario, mostrar "A definir" solo si están vacíos
-    for label, value in campos_terminos:
-        if value and value.strip():  # Si tiene contenido real, usarlo
-            terminos_data.append([label, value.strip()])
-        else:  # Solo si está vacío, mostrar valor por defecto
-            default_value = 'A definir' if 'Tiempo' in label or 'Entregar' in label or 'Términos' in label else ('Sin comentarios adicionales' if 'Comentarios' in label else 'MXN')
-            terminos_data.append([label, default_value])
+        terminos_data.append(['Tipo de Cambio:', f'{tipo_cambio:.2f} MXN/USD'])
+
+    # Agregar tiempo de entrega
+    terminos_data.append(['Tiempo de Entrega:', tiempo_entrega.strip() if tiempo_entrega and tiempo_entrega.strip() else 'A definir'])
+
+    # Agregar lugar de entrega
+    terminos_data.append(['Entregar En:', entrega_en.strip() if entrega_en and entrega_en.strip() else 'A definir'])
+
+    # Agregar términos de pago
+    terminos_data.append(['Términos de Pago:', terminos_pago.strip() if terminos_pago and terminos_pago.strip() else 'A definir'])
+
+    # Agregar comentarios con Paragraph para text wrapping (CRÍTICO)
+    if comentarios_text and comentarios_text.strip():
+        comentarios_paragraph = Paragraph(comentarios_text.strip(), comentarios_style)
+        terminos_data.append(['Comentarios:', comentarios_paragraph])
+    else:
+        terminos_data.append(['Comentarios:', 'Sin comentarios adicionales'])
     
     # SIEMPRE crear la tabla (eliminar condicional)
     terminos_table = Table(terminos_data, colWidths=[2*inch, 5*inch])
@@ -1445,15 +1491,15 @@ def keepalive_stats():
 @app.route("/", methods=["GET", "POST"])
 @login_required
 def home():
-    """Página principal - Recibe cotizaciones completas"""
+    """Página principal - Vista de tabla Excel con todas las cotizaciones paginadas"""
     if request.method == "POST":
         try:
             datos = request.get_json()
             print("Nueva cotizacion recibida")
-            
+
             # Guardar TODOS los datos usando el DatabaseManager
             resultado = db_manager.guardar_cotizacion(datos)
-            
+
             if resultado["success"]:
                 return jsonify({
                     "mensaje": "Cotización guardada correctamente",
@@ -1465,19 +1511,255 @@ def home():
                 # ❌ LOG CRÍTICO: Error en guardado
                 error_msg = resultado.get("error", "Error desconocido")
                 logging.error(f"ERROR_GUARDADO: {error_msg}")
-                
+
                 # Log específico para diferentes tipos de error
                 if resultado.get("tipo_error") == "fallo_silencioso":
                     critical_logger = logging.getLogger('FALLOS_CRITICOS')
                     critical_logger.error(f"FALLO_SILENCIOSO_CRÍTICO: {error_msg}")
-                
+
                 return jsonify({"error": error_msg}), 500
-                
+
         except Exception as e:
             print(f"Error en ruta principal: {e}")
             return jsonify({"error": "Error del servidor"}), 500
 
-    return render_template("home.html", vendedor=session.get('vendedor', ''))
+    # GET: Mostrar tabla completa con paginación y filtros
+    try:
+        # PAGINACIÓN: Obtener página actual (default 1) y tamaño de página
+        page = request.args.get('page', 1, type=int)
+        page_size = 50  # 50 registros por página
+
+        # BÚSQUEDA RÁPIDA: Obtener query general
+        query_general = request.args.get('q', '').strip()
+
+        # FILTROS: Obtener parámetros de filtro desde URL
+        filtro_numero = request.args.get('numero', '').strip()
+        filtro_cliente = request.args.get('cliente', '').strip()
+        filtro_vendedor = request.args.get('vendedor', '').strip()
+        filtro_proyecto = request.args.get('proyecto', '').strip()
+        filtro_fecha_desde = request.args.get('fecha_desde', '').strip()
+        filtro_fecha_hasta = request.args.get('fecha_hasta', '').strip()
+        filtro_revision = request.args.get('revision', '').strip()
+        filtro_moneda = request.args.get('moneda', '').strip()
+        filtro_tipo = request.args.get('tipo', '').strip()
+
+        print(f"[HOME] Obteniendo todas las cotizaciones (página {page})...")
+        if query_general:
+            print(f"[HOME] Búsqueda rápida: '{query_general}'")
+
+        # Obtener todas las cotizaciones de la base de datos
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)  # Query vacía = todas
+
+        # Obtener todos los PDFs (incluye Google Drive antiguas)
+        resultado_pdfs = pdf_manager.buscar_pdfs("", 1, 10000) if pdf_manager else {"resultados": []}
+
+        cotizaciones = []
+        numeros_vistos = set()  # Para evitar duplicados entre BD y PDFs
+
+        if not resultado_db.get("error"):
+            cotizaciones_raw = resultado_db.get("resultados", [])
+            print(f"[HOME] Encontradas {len(cotizaciones_raw)} cotizaciones de BD")
+
+            # Transformar datos para tabla compacta
+            for idx, cot in enumerate(cotizaciones_raw):
+                datos_gen = cot.get('datosGenerales', {})
+
+                # EXTRACCIÓN ROBUSTA DE FECHA
+                fecha = 'N/A'
+                if isinstance(datos_gen, dict):
+                    fecha = datos_gen.get('fecha') or datos_gen.get('Fecha')
+                if not fecha or fecha == 'N/A':
+                    fecha = cot.get('fecha') or cot.get('fechaCreacion') or cot.get('timestamp')
+                    if fecha and isinstance(fecha, (int, float)):
+                        from datetime import datetime
+                        try:
+                            fecha = datetime.fromtimestamp(fecha/1000 if fecha > 10000000000 else fecha).strftime('%Y-%m-%d')
+                        except:
+                            fecha = 'N/A'
+                if not fecha:
+                    fecha = 'N/A'
+
+                # CÁLCULO DEL TOTAL
+                total_calculado = 0.0
+                items = cot.get('items', [])
+                if isinstance(items, list):
+                    for item in items:
+                        if isinstance(item, dict):
+                            if 'total' in item and item['total']:
+                                total_calculado += safe_float(item.get('total', 0))
+                            elif 'subtotal' in item and item['subtotal']:
+                                total_calculado += safe_float(item.get('subtotal', 0))
+                            elif 'precio_unitario' in item:
+                                precio = safe_float(item.get('precio_unitario', 0))
+                                cantidad = safe_float(item.get('cantidad', 1))
+                                total_calculado += precio * cantidad
+
+                # Obtener moneda
+                condiciones = cot.get('condiciones', {})
+                if not condiciones or not isinstance(condiciones, dict):
+                    condiciones = datos_gen.get('condiciones', {})
+                moneda = condiciones.get('moneda', 'MXN') if isinstance(condiciones, dict) else 'MXN'
+
+                # EXTRACCIÓN DE REVISIÓN
+                revision = None
+                import re
+                numero_cot = cot.get('numeroCotizacion', '')
+                if numero_cot and isinstance(numero_cot, str):
+                    match = re.search(r'-R(\d+)-', numero_cot)
+                    if match:
+                        revision = int(match.group(1))
+                if not revision and 'revision' in cot:
+                    try:
+                        revision = int(cot.get('revision'))
+                    except:
+                        pass
+                if not revision:
+                    revision = 1
+
+                numeros_vistos.add(numero_cot)
+
+                cotizaciones.append({
+                    "numero": numero_cot,
+                    "cliente": datos_gen.get('cliente', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                    "vendedor": datos_gen.get('vendedor', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                    "proyecto": datos_gen.get('proyecto', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
+                    "fecha": fecha,
+                    "revision": revision,
+                    "total": total_calculado,
+                    "moneda": moneda,
+                    "_id": cot.get('_id', ''),
+                    "tiene_desglose": True,
+                    "es_antigua": False
+                })
+        else:
+            print(f"[HOME] Error: {resultado_db.get('error')}")
+
+        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (que no están en BD)
+        if not resultado_pdfs.get("error"):
+            pdfs_antiguos = resultado_pdfs.get("resultados", [])
+            print(f"[HOME] Encontrados {len(pdfs_antiguos)} PDFs totales")
+
+            for pdf in pdfs_antiguos:
+                numero_pdf = pdf.get('numero_cotizacion', 'N/A')
+
+                # Solo agregar si no está ya en la lista (evitar duplicados)
+                if numero_pdf not in numeros_vistos and numero_pdf != 'N/A':
+                    # Extraer metadatos del nombre (formato: CLIENTE-CWS-VENDEDOR-###-R#-PROYECTO)
+                    import re
+                    nombre_partes = numero_pdf.split('-')
+
+                    cliente = nombre_partes[0] if len(nombre_partes) > 0 else 'N/A'
+                    vendedor = nombre_partes[2] if len(nombre_partes) > 2 else 'N/A'
+                    proyecto = '-'.join(nombre_partes[5:]) if len(nombre_partes) > 5 else 'N/A'
+
+                    # Extraer revisión
+                    match_revision = re.search(r'-R(\d+)-', numero_pdf)
+                    revision = int(match_revision.group(1)) if match_revision else 1
+
+                    # Fecha de modificación del archivo
+                    fecha_pdf = pdf.get('fecha_creacion', pdf.get('fecha_modificacion', 'N/A'))
+
+                    cotizaciones.append({
+                        "numero": numero_pdf,
+                        "cliente": cliente,
+                        "vendedor": vendedor,
+                        "proyecto": proyecto,
+                        "fecha": fecha_pdf,
+                        "revision": revision,
+                        "total": 0,  # No hay datos de total en PDFs antiguos
+                        "moneda": "N/A",
+                        "_id": '',
+                        "tiene_desglose": False,  # PDFs antiguos NO tienen desglose
+                        "es_antigua": True  # Marcar como antigua
+                    })
+
+            print(f"[HOME] Total final: {len(cotizaciones)} cotizaciones (BD + antiguas)")
+
+        # APLICAR BÚSQUEDA RÁPIDA (busca en todos los campos)
+        if query_general:
+            cotizaciones_busqueda = []
+            query_lower = query_general.lower()
+            for cot in cotizaciones:
+                # Buscar en número, cliente, vendedor y proyecto
+                if (query_lower in cot.get('numero', '').lower() or
+                    query_lower in cot.get('cliente', '').lower() or
+                    query_lower in cot.get('vendedor', '').lower() or
+                    query_lower in cot.get('proyecto', '').lower()):
+                    cotizaciones_busqueda.append(cot)
+
+            cotizaciones = cotizaciones_busqueda
+            print(f"[HOME] Después de búsqueda rápida: {len(cotizaciones)} cotizaciones")
+
+        # APLICAR FILTROS AVANZADOS antes de paginación
+        if any([filtro_numero, filtro_cliente, filtro_vendedor, filtro_proyecto,
+                filtro_fecha_desde, filtro_fecha_hasta, filtro_revision, filtro_moneda, filtro_tipo]):
+
+            cotizaciones_filtradas = []
+            for cot in cotizaciones:
+                cumple_filtros = True
+
+                if filtro_numero and filtro_numero.lower() not in cot.get('numero', '').lower():
+                    cumple_filtros = False
+                if filtro_cliente and cumple_filtros and filtro_cliente.lower() not in cot.get('cliente', '').lower():
+                    cumple_filtros = False
+                if filtro_vendedor and cumple_filtros and filtro_vendedor.lower() not in cot.get('vendedor', '').lower():
+                    cumple_filtros = False
+                if filtro_proyecto and cumple_filtros and filtro_proyecto.lower() not in cot.get('proyecto', '').lower():
+                    cumple_filtros = False
+
+                if cumple_filtros:
+                    cotizaciones_filtradas.append(cot)
+
+            cotizaciones = cotizaciones_filtradas
+            print(f"[HOME] Después de filtros avanzados: {len(cotizaciones)} cotizaciones")
+
+        # APLICAR PAGINACIÓN
+        total_cotizaciones = len(cotizaciones)
+        total_pages = (total_cotizaciones + page_size - 1) // page_size
+
+        if page < 1:
+            page = 1
+        elif page > total_pages and total_pages > 0:
+            page = total_pages
+
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
+        cotizaciones_pagina = cotizaciones[start_index:end_index]
+
+        print(f"[HOME] Mostrando {len(cotizaciones_pagina)} de {total_cotizaciones} (página {page}/{total_pages})")
+
+        return render_template(
+            "home.html",
+            cotizaciones=cotizaciones_pagina,
+            vendedor=session.get('vendedor'),
+            page=page,
+            total_pages=total_pages,
+            total_cotizaciones=total_cotizaciones,
+            page_size=page_size,
+            # Filtros actuales para repoblar el formulario
+            filtro_numero=filtro_numero,
+            filtro_cliente=filtro_cliente,
+            filtro_vendedor=filtro_vendedor,
+            filtro_proyecto=filtro_proyecto,
+            filtro_fecha_desde=filtro_fecha_desde,
+            filtro_fecha_hasta=filtro_fecha_hasta,
+            filtro_revision=filtro_revision,
+            filtro_moneda=filtro_moneda,
+            filtro_tipo=filtro_tipo
+        )
+
+    except Exception as e:
+        print(f"[HOME] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return render_template("home.html",
+                             vendedor=session.get('vendedor', ''),
+                             cotizaciones=[],
+                             page=1,
+                             total_pages=0,
+                             total_cotizaciones=0,
+                             page_size=50,
+                             error=str(e))
 
 @app.route("/formulario", methods=["GET", "POST"])
 @login_required
@@ -1592,7 +1874,20 @@ def formulario():
                 
                 # ✅ LOG CRÍTICO: Cotización guardada exitosamente
                 logging.info(f"COTIZACION_GUARDADA: {numero_cotizacion} - Cliente: {datos.get('datosGenerales', {}).get('cliente', 'N/A')}")
-                
+
+                # ✅ ELIMINAR DRAFTS ASOCIADOS - Prevenir duplicados después de guardar
+                try:
+                    if numero_cotizacion:
+                        print(f"[DRAFT] Intentando eliminar drafts asociados a: {numero_cotizacion}")
+                        resultado_limpieza = db_manager.eliminar_drafts_por_numero_cotizacion(numero_cotizacion)
+                        if resultado_limpieza.get('success'):
+                            print(f"[DRAFT] ✅ {resultado_limpieza.get('mensaje')}")
+                        else:
+                            print(f"[DRAFT] ⚠️ No se pudieron eliminar drafts: {resultado_limpieza.get('error')}")
+                except Exception as draft_error:
+                    print(f"[DRAFT] ❌ Error limpiando drafts (no crítico): {draft_error}")
+                    # No bloquear el guardado por errores en drafts
+
                 # Verificar si es un fallo silencioso detectado
                 if resultado.get("tipo_error") == "fallo_silencioso":
                     critical_logger = logging.getLogger('FALLOS_CRITICOS')

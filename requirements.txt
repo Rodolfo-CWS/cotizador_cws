@@ -3,26 +3,26 @@
 # ====================================
 
 # Framework web principal
-Flask==3.0.0
-Werkzeug==3.0.1
+Flask==3.1.3
+Werkzeug==3.1.6
 
 # Manejo de variables de entorno
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 
 # MongoDB completamente eliminado
 
 # Supabase PostgreSQL (UNICA BASE DE DATOS)
-supabase>=2.5.0
+supabase>=2.10.0
 psycopg2-binary>=2.9.9
 
 # Manejo de fechas y tiempo
-python-dateutil==2.8.2
+python-dateutil==2.9.0.post0
 
 # Generación de PDFs (ReportLab es más estable)
-reportlab==4.0.7
+reportlab==4.4.10
 
 # WeasyPrint como alternativa (opcional - puede tener problemas en algunos servidores)
-weasyprint==61.2
+weasyprint==68.1
 
 # Dependencias de WeasyPrint (se instalan automáticamente)
 # cffi==1.16.0
@@ -34,19 +34,19 @@ weasyprint==61.2
 # tinycss2==1.2.1
 
 # Utilidades adicionales
-requests==2.31.0
+requests==2.32.5
 
 # Servidor web para producción (REQUERIDO PARA LA NUBE)
-gunicorn==21.2.0
+gunicorn==25.1.0
 
 # Google Drive API (para acceso a PDFs en la nube) - MANTENIDO COMO FALLBACK
-google-api-python-client==2.144.0
-google-auth==2.27.0
+google-api-python-client==2.191.0
+google-auth==2.48.0
 
 # Cloudinary eliminado - migrado a Supabase Storage
 
 # Scheduler para sincronización automática
-APScheduler==3.10.4
+APScheduler==3.11.2
 
 # Manejo de archivos CSV (incluido en Python estándar)
 # csv - Built-in module
