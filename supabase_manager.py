@@ -2196,6 +2196,81 @@ class SupabaseManager:
             print(f"[DRAFT] Error obteniendo draft: {error_msg}")
             return None
 
+    def eliminar_drafts_por_numero_cotizacion(self, numero_cotizacion: str) -> Dict:
+        """
+        Elimina todos los drafts asociados a un número de cotización
+
+        Args:
+            numero_cotizacion: Número de cotización para buscar drafts relacionados
+
+        Returns:
+            Dict con success, cantidad de drafts eliminados
+        """
+        try:
+            error_msg = f"[DRAFT] Eliminando drafts para cotización: {numero_cotizacion}"
+            print(error_msg)
+
+            drafts_eliminados = 0
+
+            # Intentar eliminar de Supabase si está disponible
+            if not self.modo_offline and self.supabase_client:
+                try:
+                    # Buscar drafts que contengan este número de cotización
+                    response = self.supabase_client.table('drafts').select('*').execute()
+
+                    if response.data:
+                        for draft in response.data:
+                            datos = draft.get('datos', {})
+                            datos_generales = datos.get('datosGenerales', {})
+                            numero_draft = datos_generales.get('numeroCotizacion', '')
+
+                            # Si el draft tiene el mismo número de cotización, eliminarlo
+                            if numero_draft == numero_cotizacion:
+                                self.supabase_client.table('drafts').delete().eq('id', draft['id']).execute()
+                                print(f"[DRAFT] Draft eliminado de Supabase: {draft['id']}")
+                                drafts_eliminados += 1
+
+                except Exception as supabase_error:
+                    print(f"[DRAFT] Error eliminando de Supabase: {safe_str(supabase_error)}")
+
+            # Eliminar de JSON local también
+            archivo_drafts = os.path.join(os.getcwd(), "drafts_offline.json")
+
+            if os.path.exists(archivo_drafts):
+                with open(archivo_drafts, 'r', encoding='utf-8') as f:
+                    drafts_data = json.load(f)
+
+                all_drafts = drafts_data.get("drafts", [])
+                drafts_originales = len(all_drafts)
+
+                # Filtrar drafts que NO tengan este número de cotización
+                drafts_filtrados = []
+                for d in all_drafts:
+                    datos = d.get('datos', {})
+                    datos_generales = datos.get('datosGenerales', {})
+                    numero_draft = datos_generales.get('numeroCotizacion', '')
+
+                    if numero_draft != numero_cotizacion:
+                        drafts_filtrados.append(d)
+                    else:
+                        print(f"[DRAFT] Draft eliminado de JSON: {d.get('id')}")
+                        drafts_eliminados += 1
+
+                if len(drafts_filtrados) < drafts_originales:
+                    drafts_data["drafts"] = drafts_filtrados
+
+                    with open(archivo_drafts, 'w', encoding='utf-8') as f:
+                        json.dump(drafts_data, f, ensure_ascii=False, indent=2)
+
+            mensaje = f"Eliminados {drafts_eliminados} drafts para cotización {numero_cotizacion}"
+            print(f"[DRAFT] {mensaje}")
+            return {"success": True, "mensaje": mensaje, "cantidad_eliminada": drafts_eliminados}
+
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[DRAFT] Error eliminando drafts por número: {error_msg}")
+            return {"success": False, "error": error_msg}
+
     def eliminar_draft(self, draft_id: str) -> Dict:
         """
         Elimina un draft
