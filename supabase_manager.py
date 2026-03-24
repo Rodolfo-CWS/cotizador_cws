@@ -1422,29 +1422,39 @@ class SupabaseManager:
         """
         try:
             print(f"[NUMERO_REVISION] Original: '{numero_cotizacion_original}', Nueva revisión: {nueva_revision}")
-            
-            # Patrón para encontrar la revisión: -R seguida de uno o más dígitos-
-            patron = r'-R\d+-'
-            match = re.search(patron, numero_cotizacion_original)
-            
+
+            # Caso 1: Formato normal con proyecto al final: CLIENTE-CWS-VE-001-R1-PROYECTO
+            patron_con_proyecto = r'-R\d+-'
+            match = re.search(patron_con_proyecto, numero_cotizacion_original)
+
             if match:
-                # Extraer la parte antes de -R y después de -R#-
+                # Extraer la parte antes de -R y el proyecto después de -R#-
                 inicio_revision = match.start()
                 final_revision = match.end()
-                
+
                 base = numero_cotizacion_original[:inicio_revision]
                 proyecto_parte = numero_cotizacion_original[final_revision:]
-                
+
                 # Generar nuevo número con la nueva revisión
                 nuevo_numero = f"{base}-R{nueva_revision}-{proyecto_parte}"
                 print(f"[NUMERO_REVISION] Generado: {nuevo_numero}")
                 return nuevo_numero
-            else:
-                # Si no tiene el formato esperado, intentar agregar la revisión
-                print(f"[NUMERO_REVISION] Formato no reconocido, agregando revisión al final")
-                nuevo_numero = f"{numero_cotizacion_original}-R{nueva_revision}"
-                print(f"[NUMERO_REVISION] Generado (fallback): {nuevo_numero}")
+
+            # Caso 2: Formato sin proyecto al final: CWS-1234567-R1
+            patron_sin_proyecto = r'-R\d+$'
+            match_final = re.search(patron_sin_proyecto, numero_cotizacion_original)
+
+            if match_final:
+                base = numero_cotizacion_original[:match_final.start()]
+                nuevo_numero = f"{base}-R{nueva_revision}"
+                print(f"[NUMERO_REVISION] Generado (sin proyecto): {nuevo_numero}")
                 return nuevo_numero
+
+            # Fallback: el número no tiene ningún patrón de revisión reconocido
+            print(f"[NUMERO_REVISION] Formato no reconocido, agregando revisión al final")
+            nuevo_numero = f"{numero_cotizacion_original}-R{nueva_revision}"
+            print(f"[NUMERO_REVISION] Generado (fallback): {nuevo_numero}")
+            return nuevo_numero
                 
         except Exception as e:
             error_msg = safe_str(e)
@@ -1458,16 +1468,62 @@ class SupabaseManager:
         """
         try:
             print(f"[CONSECUTIVO] Buscando siguiente para patrón: '{patron_base}'")
-            
-            if self.modo_offline:
-                return self._obtener_consecutivo_offline(patron_base)
-            else:
+
+            # Prioridad 1: SDK REST de Supabase (no depende de conexión PostgreSQL directa)
+            if self.supabase_client:
+                return self._obtener_consecutivo_sdk(patron_base)
+
+            # Prioridad 2: PostgreSQL directo (contador atómico)
+            if not self.modo_offline:
                 return self._obtener_consecutivo_supabase(patron_base)
-                
+
+            # Prioridad 3: JSON local (modo offline)
+            return self._obtener_consecutivo_offline(patron_base)
+
         except Exception as e:
             error_msg = safe_str(e)
             print(f"[CONSECUTIVO] Error obteniendo: {error_msg}")
             return 1
+
+    def _obtener_consecutivo_sdk(self, patron_base):
+        """
+        Obtener consecutivo consultando Supabase via SDK REST.
+        Más confiable que PostgreSQL directo porque no depende de SSL/conexión directa.
+        Consulta las cotizaciones existentes para encontrar el máximo número y retorna max+1.
+        """
+        try:
+            print(f"[CONTADOR_SDK] Obteniendo siguiente para patrón: '{patron_base}'")
+
+            # Buscar todas las cotizaciones que coincidan con el patrón
+            patron_sql = f"{patron_base}-%"
+            result = self.supabase_client.table('cotizaciones').select('numero_cotizacion').like('numero_cotizacion', patron_sql).execute()
+
+            # El índice del consecutivo depende de cuántas partes tiene el patrón base
+            # Ej: "BMW-CWS-VE" → 3 partes → consecutivo en índice 3
+            # Ej: "BMW-MOTORS-CWS-VE" → 4 partes → consecutivo en índice 4
+            patron_parts_count = len(patron_base.split('-'))
+            numeros_existentes = []
+
+            for row in result.data or []:
+                numero_cot = row.get('numero_cotizacion', '')
+                if numero_cot.startswith(patron_base):
+                    try:
+                        partes = numero_cot.split('-')
+                        if len(partes) > patron_parts_count:
+                            num_parte = partes[patron_parts_count]
+                            if num_parte.isdigit():
+                                numeros_existentes.append(int(num_parte))
+                    except (ValueError, IndexError):
+                        continue
+
+            siguiente = max(numeros_existentes) + 1 if numeros_existentes else 1
+            print(f"[CONTADOR_SDK] Siguiente={siguiente} para patrón '{patron_base}', existentes: {sorted(numeros_existentes)}")
+            return siguiente
+
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[CONTADOR_SDK] Error: {error_msg}, usando fallback offline")
+            return self._obtener_consecutivo_offline(patron_base)
     
     def _obtener_consecutivo_supabase(self, patron_base):
         """Obtener consecutivo usando tabla de contadores atómica - 100% irrepetible"""
@@ -1535,6 +1591,10 @@ class SupabaseManager:
             resultados = cursor.fetchall()
             
             # Extraer números consecutivos existentes
+            # El índice del consecutivo depende de cuántas partes tiene el patrón base
+            # Ej: "BMW-CWS-VE" → 3 partes → consecutivo en índice 3
+            # Ej: "BMW-MOTORS-CWS-VE" → 4 partes → consecutivo en índice 4
+            patron_parts_count = len(patron_base.split('-'))
             numeros_existentes = []
             for resultado in resultados:
                 numero_cot = resultado['numero_cotizacion']
@@ -1542,8 +1602,8 @@ class SupabaseManager:
                     try:
                         # Extraer el número consecutivo del formato: CLIENTE-CWS-INICIALES-###-R#-PROYECTO
                         partes = numero_cot.split('-')
-                        if len(partes) >= 4:  # Debe tener al menos: CLIENTE-CWS-INICIALES-###
-                            num_parte = partes[3]  # La parte ### está en el índice 3
+                        if len(partes) > patron_parts_count:
+                            num_parte = partes[patron_parts_count]
                             if num_parte.isdigit():
                                 num_consecutivo = int(num_parte)
                                 numeros_existentes.append(num_consecutivo)
@@ -1593,16 +1653,20 @@ class SupabaseManager:
                 print(f"[CONTADOR_OFFLINE] Nuevo patrón, analizando cotizaciones existentes...")
                 
                 cotizaciones = data.get("cotizaciones", [])
+                # El índice del consecutivo depende de cuántas partes tiene el patrón base
+                # Ej: "BMW-CWS-VE" → 3 partes → consecutivo en índice 3
+                # Ej: "BMW-MOTORS-CWS-VE" → 4 partes → consecutivo en índice 4
+                patron_parts_count = len(patron_base.split('-'))
                 numeros_existentes = []
-                
+
                 for cotizacion in cotizaciones:
                     numero_cot = cotizacion.get("numeroCotizacion", "")
                     if numero_cot.startswith(patron_base):
                         try:
                             # Extraer el número consecutivo del formato: CLIENTE-CWS-INICIALES-###-R#-PROYECTO
                             partes = numero_cot.split('-')
-                            if len(partes) >= 4:  # Debe tener al menos: CLIENTE-CWS-INICIALES-###
-                                num_parte = partes[3]  # La parte ### está en el índice 3
+                            if len(partes) > patron_parts_count:
+                                num_parte = partes[patron_parts_count]
                                 if num_parte.isdigit():
                                     num_consecutivo = int(num_parte)
                                     numeros_existentes.append(num_consecutivo)
