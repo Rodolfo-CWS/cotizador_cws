@@ -2988,7 +2988,8 @@ function calcularCostosItem(itemElement) {
     const subtotalConSeguridad = subtotalBase + aumentoSeguridad;
     const reduccionDescuento = subtotalConSeguridad * (descuento / 100);
     const costoUnidad = subtotalConSeguridad - reduccionDescuento;
-    const cantidad = parseFloat(itemElement.querySelector('.cantidad-item')?.value || 1);
+    const cantidadRaw = parseFloat(itemElement.querySelector('.cantidad-item')?.value);
+    const cantidad = isNaN(cantidadRaw) ? 1 : cantidadRaw;
     const totalItem = costoUnidad * cantidad;
     const costoUnidadInput = itemElement.querySelector('.costo-unidad');
     const totalItemInput = itemElement.querySelector('.total-item');
