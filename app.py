@@ -1285,16 +1285,34 @@ def preparar_datos_nueva_revision(cotizacion_original):
                         total_materiales = sum(safe_float(m.get('subtotal', 0)) for m in materiales_list if isinstance(m, dict))
                     else:
                         total_materiales = 0.0
-                    
-                    # Usar safe_float para conversión robusta de otros campos
-                    otros = safe_float(item.get('otros', 0))
-                    transporte = safe_float(item.get('transporte', 0))
+
+                    # Sumar correctamente los otros materiales (campo 'otrosMateriales', no 'otros')
+                    otros_materiales_list = item.get('otrosMateriales', [])
+                    if isinstance(otros_materiales_list, list):
+                        total_otros = sum(safe_float(m.get('subtotal', 0)) for m in otros_materiales_list if isinstance(m, dict))
+                    else:
+                        total_otros = 0.0
+
+                    transporte  = safe_float(item.get('transporte', 0))
                     instalacion = safe_float(item.get('instalacion', 0))
-                    
-                    total_item = total_materiales + otros + transporte + instalacion
-                    item['total'] = round(total_item, 2)
-                    
-                    print(f"  [RECALC] Item total: {item.get('descripcion', 'Sin desc')} = {total_materiales} + {otros} + {transporte} + {instalacion} = {total_item}")
+                    seguridad   = safe_float(item.get('seguridad', 0))
+                    descuento   = safe_float(item.get('descuento', 0))
+                    cant_raw    = safe_float(item.get('cantidad', 1))
+                    cantidad    = cant_raw if cant_raw > 0 else 1
+
+                    subtotal_base     = total_materiales + total_otros + transporte + instalacion
+                    aumento_seguridad = subtotal_base * (seguridad / 100)
+                    subtotal_con_seg  = subtotal_base + aumento_seguridad
+                    reduccion_desc    = subtotal_con_seg * (descuento / 100)
+                    costo_unidad      = subtotal_con_seg - reduccion_desc
+                    total_item        = costo_unidad * cantidad
+
+                    item['costoUnidad'] = round(costo_unidad, 2)
+                    item['total']       = round(total_item, 2)
+
+                    print(f"  [RECALC] Item total: {item.get('descripcion', 'Sin desc')} = "
+                          f"(mats={total_materiales} + otros={total_otros} + transp={transporte} + inst={instalacion}) "
+                          f"* (1+seg{seguridad}%) * (1-desc{descuento}%) * cant{cantidad} = {total_item}")
                 except Exception as e:
                     print(f"  [ERROR] Error calculando total del item: {e}")
                     item['total'] = 0.0
