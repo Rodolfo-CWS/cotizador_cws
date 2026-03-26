@@ -411,6 +411,19 @@
                         </tbody>
                     </table>
                 </div>
+                {% set factores = {'metros': 1, 'centimetros': 0.01, 'pulgadas': 0.0254, 'metros_cuadrados': 1, 'centimetros_cuadrados': 0.0001, 'pulgadas_cuadradas': 0.00064516} %}
+                {% set peso_ns = namespace(total=0) %}
+                {% for material in item.get('materiales', []) %}
+                    {% if material.get('material') == 'COTIZAR_POR_PESO' %}
+                        {% set peso_ns.total = peso_ns.total + (material.get('pesoEstructura', 0) | float) %}
+                    {% else %}
+                        {% set factor = factores.get(material.get('unidad', 'metros'), 1) %}
+                        {% set peso_ns.total = peso_ns.total + ((material.get('peso', 0) | float) * (material.get('cantidad', 0) | float) * factor) %}
+                    {% endif %}
+                {% endfor %}
+                {% if peso_ns.total > 0 %}
+                <p style="font-size: 11px; color: #9ca3af; text-align: right; margin: 4px 0 0 0; font-style: italic;">Peso aproximado: {{ "%.2f" | format(peso_ns.total) }} kg</p>
+                {% endif %}
                 {% endif %}
 
                 <!-- Otros Materiales del Item -->
