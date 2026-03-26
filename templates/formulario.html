@@ -851,6 +851,7 @@ function recopilarItems() {
             if (material && material.trim() !== "") {
                 const materialData = {
                     material: material,
+                    peso: row.querySelector('.peso-input')?.value || '',
                     cantidad: row.querySelector('.cantidad-input')?.value || '',
                     unidad: row.querySelector('.unidad-select')?.value || 'metros',  // FIXED: Capturar unidad
                     precio: row.querySelector('.precio-input')?.value || '',
@@ -2541,6 +2542,10 @@ function crearTemplateItem(numero) {
                 </button>
             </div>
 
+            <div class="peso-aproximado-display text-xs text-gray-400 italic text-right mt-1" style="display:none;">
+                Peso aproximado: <span class="peso-aproximado-valor">0.00</span> kg
+            </div>
+
             <div class="border-t pt-4">
                 <h3 class="text-lg font-semibold text-blue-600 mb-3">Otros Materiales</h3>
                 <div class="otros-materiales-container space-y-2">
@@ -2711,6 +2716,7 @@ function eliminarFila(button, tipo) {
     const itemElement = button.closest('.item-block');
     if (fila) fila.remove();
     if (itemElement) {
+        if (tipo === 'material') calcularPesoAproximadoItem(itemElement);
         setTimeout(() => {
             calcularCostosItem(itemElement);
             actualizarTodosLosCalculos();
@@ -2839,6 +2845,7 @@ function calcularSubtotalMaterial(input) {
     // Recalcular totales del item
     const itemElement = row.closest('.item-block');
     if (itemElement) {
+        calcularPesoAproximadoItem(itemElement);
         setTimeout(() => {
             calcularCostosItem(itemElement);
             actualizarTodosLosCalculos();
@@ -2909,6 +2916,9 @@ function toggleCotizarPorPeso(materialRow, mostrarCamposPeso) {
             input.value = '';
         });
     }
+
+    const itemBlock = materialRow.closest('.item-block');
+    if (itemBlock) calcularPesoAproximadoItem(itemBlock);
 }
 
 // Función auxiliar para detectar si es cotización por peso
@@ -2954,10 +2964,48 @@ function calcularSubtotalPeso(input) {
     // Recalcular totales del item
     const itemElement = row.closest('.item-block');
     if (itemElement) {
+        calcularPesoAproximadoItem(itemElement);
         setTimeout(() => {
             calcularCostosItem(itemElement);
             actualizarTodosLosCalculos();
         }, 10);
+    }
+}
+
+function calcularPesoAproximadoItem(itemBlock) {
+    if (!itemBlock) return;
+    let pesoTotal = 0;
+
+    itemBlock.querySelectorAll('.materiales-container .material-row').forEach(row => {
+        const camposPeso = row.querySelector('.material-campos-peso');
+        const modoPeso = camposPeso && camposPeso.style.display !== 'none';
+
+        if (modoPeso) {
+            const pesoEstructura = parseFloat(row.querySelector('.peso-estructura-input')?.value || 0);
+            if (!isNaN(pesoEstructura)) pesoTotal += pesoEstructura;
+        } else {
+            const pesoInput = row.querySelector('.peso-input');
+            const cantidadInput = row.querySelector('.cantidad-input');
+            const unidadSelect = row.querySelector('.unidad-select');
+            const materialSelect = row.querySelector('.material-select');
+            const peso = parseFloat(pesoInput?.value || 0);
+            const cantidadOriginal = parseFloat(cantidadInput?.value || 0);
+            if (!isNaN(peso) && peso > 0 && !isNaN(cantidadOriginal) && cantidadOriginal > 0) {
+                const cantidadConvertida = (unidadSelect && materialSelect)
+                    ? aplicarConversionUnidad(cantidadOriginal, unidadSelect.value, materialSelect)
+                    : cantidadOriginal;
+                pesoTotal += peso * cantidadConvertida;
+            }
+        }
+    });
+
+    const display = itemBlock.querySelector('.peso-aproximado-display');
+    if (!display) return;
+    if (pesoTotal > 0) {
+        display.querySelector('.peso-aproximado-valor').textContent = pesoTotal.toFixed(2);
+        display.style.display = '';
+    } else {
+        display.style.display = 'none';
     }
 }
 
