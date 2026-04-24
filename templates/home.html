@@ -618,7 +618,7 @@
                         <td>
                             <div class="acciones-col">
                                 <a href="/pdf/{{ cot.numero }}" target="_blank" class="btn-icon">PDF</a>
-                                <a href="/pdf/{{ cot.numero }}" download="{{ cot.numero }}.pdf" class="btn-icon">Descargar</a>
+                                <button class="btn-icon" onclick="descargarOCompartirPDF('{{ cot.numero }}')">Descargar</button>
                                 {% if cot.tiene_desglose %}
                                 <a href="/desglose/{{ cot.numero }}" class="btn-icon">Desglose</a>
                                 {% else %}
@@ -848,6 +848,21 @@
         document.getElementById('modalDrafts').addEventListener('click', function(e) {
             if (e.target === this) cerrarModalDrafts();
         });
+
+        function descargarOCompartirPDF(numero) {
+            const url = `/pdf/${numero}`;
+            if (navigator.share) {
+                navigator.share({ url: window.location.origin + url })
+                    .catch(() => {});
+            } else {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${numero}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
     </script>
 </body>
 </html>
