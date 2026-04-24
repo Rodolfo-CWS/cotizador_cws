@@ -3591,17 +3591,9 @@ async function intentarGenerarCotizacion() {
             throw new Error(errorMsg);
         }
         
-        const pdfBlob = await response.blob();
-        const pdfUrl = window.URL.createObjectURL(pdfBlob);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = pdfUrl;
-        downloadLink.download = `Cotizacion_${numeroCotizacion.replace('/', '_')}.pdf`;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        window.URL.revokeObjectURL(pdfUrl);
-        
-        alert(`PDF generado exitosamente para la cotización ${numeroCotizacion}\n\nEl archivo se ha descargado automáticamente.`);
+        window.open(`/pdf/${numeroCotizacion}`, '_blank');
+
+        alert(`PDF generado exitosamente para la cotización ${numeroCotizacion}\n\nEl PDF se ha abierto en una nueva pestaña.`);
         
         btnGenerar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/></svg> PDF Generado';
         btnGenerar.classList.remove('bg-green-600', 'hover:bg-green-700');
