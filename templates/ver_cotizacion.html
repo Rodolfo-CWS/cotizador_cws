@@ -289,26 +289,23 @@
                 <!-- Información del item en formato lista compacto -->
                 <div style="background: #f9fafb; padding: 16px; border-radius: 6px; margin-bottom: 12px;">
                     <div style="display: grid; gap: 8px;">
-                        <!-- UOM -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
-                            <span style="color: #6b7280; font-size: 14px; font-weight: 500;">UOM:</span>
-                            <span style="color: #111827; font-size: 14px; font-weight: 600;">{{ item.uom or 'N/A' }}</span>
-                        </div>
-
-                        <!-- Cantidad -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
-                            <span style="color: #6b7280; font-size: 14px; font-weight: 500;">Cantidad:</span>
-                            <span style="color: #111827; font-size: 14px; font-weight: 600;">{{ item.cantidad or '0' }}</span>
-                        </div>
-
-                        <!-- Costo/Unidad -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
-                            <span style="color: #6b7280; font-size: 14px; font-weight: 500;">Costo/Unidad:</span>
-                            {% set precio_u = (item.costoUnidad | float) if item.costoUnidad else ((item.precio_unitario | float) if item.precio_unitario else ((item.precio | float) if item.precio else 0)) %}
-                            <span style="color: #1e40af; font-size: 14px; font-weight: 700;">
-                                ${{ "{:,.2f}".format(precio_u) }}
-                                <span style="font-size: 12px; color: #6b7280; font-weight: 500;">MXN</span>
-                            </span>
+                        <!-- UOM / Cantidad / Costo por Unidad en la misma fila -->
+                        {% set precio_u = (item.costoUnidad | float) if item.costoUnidad else ((item.precio_unitario | float) if item.precio_unitario else ((item.precio | float) if item.precio else 0)) %}
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid #e5e7eb;">
+                            <div style="display: flex; flex-direction: column; gap: 2px;">
+                                <span style="color: #6b7280; font-size: 12px; font-weight: 500;">UOM</span>
+                                <span style="color: #111827; font-size: 14px; font-weight: 600;">{{ item.uom or 'N/A' }}</span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 2px; text-align: center;">
+                                <span style="color: #6b7280; font-size: 12px; font-weight: 500;">Cantidad</span>
+                                <span style="color: #111827; font-size: 14px; font-weight: 600;">{{ item.cantidad or '0' }}</span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 2px; text-align: right;">
+                                <span style="color: #6b7280; font-size: 12px; font-weight: 500;">Costo/Unidad</span>
+                                <span style="color: #1e40af; font-size: 14px; font-weight: 700;">
+                                    ${{ "{:,.2f}".format(precio_u) }} <span style="font-size: 11px; color: #6b7280; font-weight: 500;">MXN</span>
+                                </span>
+                            </div>
                         </div>
 
                         <!-- Total Item (destacado) -->
@@ -324,28 +321,24 @@
                         <!-- Separador -->
                         <div style="border-top: 2px solid #e5e7eb; margin: 8px 0;"></div>
 
-                        <!-- Transporte -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-                            <span style="color: #6b7280; font-size: 13px;">Transporte:</span>
-                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.transporte or '0.00' }} MXN</span>
-                        </div>
-
-                        <!-- Instalación -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-                            <span style="color: #6b7280; font-size: 13px;">Instalación:</span>
-                            <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.instalacion or '0.00' }} MXN</span>
-                        </div>
-
-                        <!-- % Seguridad -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-                            <span style="color: #6b7280; font-size: 13px;">% Seguridad:</span>
-                            <span style="color: #374151; font-size: 13px; font-weight: 600;">{{ item.seguridad or '0' }}%</span>
-                        </div>
-
-                        <!-- % Descuento -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-                            <span style="color: #6b7280; font-size: 13px;">% Descuento:</span>
-                            <span style="color: #374151; font-size: 13px; font-weight: 600;">{{ item.descuento or '0' }}%</span>
+                        <!-- Transporte / Instalación / % Seguridad / % Descuento en la misma fila -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; padding: 4px 0;">
+                            <div style="display: flex; flex-direction: column; gap: 2px;">
+                                <span style="color: #6b7280; font-size: 12px;">Transporte</span>
+                                <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.transporte or '0.00' }} MXN</span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 2px; text-align: center;">
+                                <span style="color: #6b7280; font-size: 12px;">Instalación</span>
+                                <span style="color: #374151; font-size: 13px; font-weight: 600;">${{ item.instalacion or '0.00' }} MXN</span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 2px; text-align: center;">
+                                <span style="color: #6b7280; font-size: 12px;">% Seguridad</span>
+                                <span style="color: #374151; font-size: 13px; font-weight: 600;">{{ item.seguridad or '0' }}%</span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 2px; text-align: right;">
+                                <span style="color: #6b7280; font-size: 12px;">% Descuento</span>
+                                <span style="color: #374151; font-size: 13px; font-weight: 600;">{{ item.descuento or '0' }}%</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -353,8 +346,8 @@
                 <!-- Materiales del Item -->
                 {% if item.get('materiales') %}
                 <div style="margin-top: 15px;">
-                    <h5 style="color: #dc3545; margin: 10px 0; font-weight: 600;">🔩 Materiales:</h5>
-                    
+                    <h5 style="color: #dc3545; margin: 10px 0; font-weight: 600;">Materiales:</h5>
+
                     <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px;">
                         <thead>
                             <tr style="background: #e5e7eb; color: #374151;">
@@ -365,11 +358,13 @@
                             </tr>
                         </thead>
                         <tbody>
+                            {% set mat_subtotal_ns = namespace(total=0) %}
                             {% for material in item.get('materiales', []) %}
+                            {% set mat_subtotal_ns.total = mat_subtotal_ns.total + (material.get('subtotal', 0) | float) %}
                             <tr style="border-bottom: 1px solid #ddd;">
                                 <td style="border: 1px solid #ddd; padding: 6px; font-weight: bold;">
                                     {% if material.get('material') == 'COTIZAR_POR_PESO' %}
-                                        <span style="color: #10b981; font-weight: bold;">⚖️ Cotizar por peso</span>
+                                        <span style="color: #10b981; font-weight: bold;">Cotizar por peso</span>
                                     {% else %}
                                         {{ material.get('material') or 'Sin descripción' }}
                                     {% endif %}
@@ -409,6 +404,12 @@
                             </tr>
                             {% endfor %}
                         </tbody>
+                        <tfoot>
+                            <tr style="background: #fef2f2;">
+                                <td colspan="3" style="border: 1px solid #d1d5db; padding: 7px 8px; text-align: right; font-weight: 700; color: #dc3545; font-size: 12px;">Subtotal Materiales:</td>
+                                <td style="border: 1px solid #d1d5db; padding: 7px 8px; text-align: center; font-weight: 800; color: #dc3545; font-size: 13px;">${{ "{:,.2f}".format(mat_subtotal_ns.total) }} MXN</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
                 {% set factores = {'metros': 1, 'centimetros': 0.01, 'pulgadas': 0.0254, 'metros_cuadrados': 1, 'centimetros_cuadrados': 0.0001, 'pulgadas_cuadradas': 0.00064516} %}
@@ -429,7 +430,7 @@
                 <!-- Otros Materiales del Item -->
                 {% if item.get('otrosMateriales') %}
                 <div style="margin-top: 15px;">
-                    <h5 style="color: #17a2b8; margin: 10px 0; font-weight: 600;">🔧 Otros Materiales:</h5>
+                    <h5 style="color: #17a2b8; margin: 10px 0; font-weight: 600;">Otros Materiales:</h5>
                     <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px;">
                         <thead>
                             <tr style="background: #e5e7eb; color: #374151;">
@@ -440,7 +441,9 @@
                             </tr>
                         </thead>
                         <tbody>
+                            {% set otros_subtotal_ns = namespace(total=0) %}
                             {% for otro in item.get('otrosMateriales', []) %}
+                            {% set otros_subtotal_ns.total = otros_subtotal_ns.total + (otro.get('subtotal', 0) | float) %}
                             <tr style="border-bottom: 1px solid #ddd;">
                                 <td style="border: 1px solid #ddd; padding: 6px; font-weight: bold;">{{ otro.get('descripcion', 'Sin descripción') }}</td>
                                 <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${{ otro.get('precio', '0.00') }} MXN</td>
@@ -449,6 +452,12 @@
                             </tr>
                             {% endfor %}
                         </tbody>
+                        <tfoot>
+                            <tr style="background: #f0fafd;">
+                                <td colspan="3" style="border: 1px solid #d1d5db; padding: 7px 8px; text-align: right; font-weight: 700; color: #17a2b8; font-size: 12px;">Subtotal Otros Materiales:</td>
+                                <td style="border: 1px solid #d1d5db; padding: 7px 8px; text-align: center; font-weight: 800; color: #17a2b8; font-size: 13px;">${{ "{:,.2f}".format(otros_subtotal_ns.total) }} MXN</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
                 {% endif %}
