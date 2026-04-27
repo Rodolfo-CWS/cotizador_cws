@@ -4,7 +4,7 @@
 
 # Framework web principal
 Flask==3.1.3
-Werkzeug==3.1.6
+Werkzeug==3.1.8
 
 # Manejo de variables de entorno
 python-dotenv==1.2.2
@@ -12,8 +12,8 @@ python-dotenv==1.2.2
 # MongoDB completamente eliminado
 
 # Supabase PostgreSQL (UNICA BASE DE DATOS)
-supabase>=2.10.0
-psycopg2-binary>=2.9.9
+supabase==2.29.0
+psycopg2-binary>=2.9.12
 
 # Manejo de fechas y tiempo
 python-dateutil==2.9.0.post0
@@ -34,14 +34,14 @@ weasyprint==68.1
 # tinycss2==1.2.1
 
 # Utilidades adicionales
-requests==2.32.5
+requests==2.33.1
 
 # Servidor web para producción (REQUERIDO PARA LA NUBE)
-gunicorn==25.1.0
+gunicorn==25.3.0
 
 # Google Drive API (para acceso a PDFs en la nube) - MANTENIDO COMO FALLBACK
-google-api-python-client==2.191.0
-google-auth==2.48.0
+google-api-python-client==2.194.0
+google-auth==2.49.2
 
 # Cloudinary eliminado - migrado a Supabase Storage
 
