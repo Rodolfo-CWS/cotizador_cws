@@ -2013,6 +2013,21 @@ def formulario():
                 "detalle": str(e)
             }), 500
     
+    # Verificar si es edición menor (corrección sin nueva revisión)
+    edicion_menor_id = request.args.get('edicion_menor')
+    modo_edicion_menor = False
+    datos_edicion_menor = None
+
+    if edicion_menor_id:
+        print(f"[EDICION_MENOR] Cargando formulario para edición menor: '{edicion_menor_id}'")
+        resultado_em = db_manager.obtener_cotizacion(edicion_menor_id)
+        if resultado_em.get('encontrado'):
+            datos_edicion_menor = resultado_em['item']
+            modo_edicion_menor = True
+            print(f"[EDICION_MENOR] Cotización cargada para edición menor: {edicion_menor_id}")
+        else:
+            print(f"[EDICION_MENOR] Cotización no encontrada: '{edicion_menor_id}'")
+
     # Verificar si es una nueva revisión
     revision_id = request.args.get('revision')
     datos_precargados = None
@@ -2055,7 +2070,9 @@ def formulario():
                          materiales=LISTA_MATERIALES,
                          datos_precargados=datos_precargados,
                          info_bloqueo_revision=info_bloqueo_revision,
-                         vendedor_sesion=session.get('vendedor', ''))
+                         vendedor_sesion=session.get('vendedor', ''),
+                         modo_edicion_menor=modo_edicion_menor,
+                         datos_edicion_menor=datos_edicion_menor)
 
 @app.route("/debug-materiales")
 def debug_materiales():
@@ -2254,6 +2271,41 @@ def eliminar_draft(draft_id):
         error_msg = str(e)
         print(f"[API] Excepción eliminando draft: {error_msg}")
         return jsonify({"success": False, "error": error_msg}), 500
+
+# ========================================
+# EDICIÓN MENOR (sin nueva revisión)
+# ========================================
+
+@app.route("/api/cotizacion/<path:numero_cotizacion>/edicion-menor", methods=["PATCH"])
+def edicion_menor(numero_cotizacion):
+    """
+    Corrige campos de texto (typos, ortografía) sin generar nueva revisión.
+    Solo acepta: datosGenerales.atencionA/contacto,
+                 condiciones.tiempoEntrega/entregaEn/comentarios,
+                 items[].descripcion/notas
+    """
+    try:
+        parche = request.get_json()
+        if not parche:
+            return jsonify({"success": False, "error": "No se recibieron datos"}), 400
+
+        usuario = session.get('vendedor', 'desconocido')
+        resultado = db_manager.edicion_menor_cotizacion(numero_cotizacion, parche, usuario)
+
+        if resultado.get('success'):
+            print(f"[EDICION_MENOR] Corrección guardada: {numero_cotizacion}")
+            return jsonify({
+                "success": True,
+                "numero_cotizacion": numero_cotizacion,
+                "mensaje": "Corrección guardada correctamente"
+            }), 200
+        else:
+            return jsonify(resultado), 400
+
+    except Exception as e:
+        print(f"[EDICION_MENOR] Error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 @app.route("/diagnostico-completo")
 def diagnostico_completo():
