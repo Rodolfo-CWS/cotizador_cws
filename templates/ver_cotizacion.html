@@ -641,6 +641,12 @@
                 </svg>
                 Nueva Revisión
             </a>
+            <a href="/formulario?edicion_menor={{ numero_cotizacion | urlencode }}" class="btn" style="background-color: #f59e0b; color: white; border-color: #f59e0b;" title="Corregir typos o texto sin generar nueva revisión">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                </svg>
+                Editar
+            </a>
             {% endif %}
             <button onclick="window.print()" class="btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -650,5 +656,27 @@
             </button>
         </div>
     </div>
+<script>
+(function() {
+    try {
+        const obsRaw = {{ cotizacion.get('observaciones', '') | tojson }};
+        if (!obsRaw) return;
+        const obs = JSON.parse(obsRaw);
+        const ediciones = obs && obs.ediciones_menores;
+        if (!ediciones || ediciones.length === 0) return;
+
+        const ultima = ediciones[ediciones.length - 1];
+        const fecha = ultima.timestamp ? new Date(ultima.timestamp).toLocaleString('es-MX') : '';
+        const usuario = ultima.usuario || '';
+
+        const badge = document.createElement('div');
+        badge.style.cssText = 'background:#fef3c7; border:1px solid #f59e0b; border-radius:6px; padding:6px 12px; margin-top:8px; font-size:13px; color:#92400e; display:inline-flex; align-items:center; gap:6px;';
+        badge.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Editado el ${fecha}${usuario ? ' por ' + usuario : ''} (${ediciones.length} corrección${ediciones.length > 1 ? 'es' : ''})`;
+
+        const header = document.querySelector('.header');
+        if (header) header.appendChild(badge);
+    } catch(e) {}
+})();
+</script>
 </body>
 </html>

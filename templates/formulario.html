@@ -454,10 +454,26 @@
             </div>
         </section>
 
+        <!-- BANNER MODO EDICIÓN MENOR -->
+        <div id="banner-edicion-menor" style="display:none; background:#fef3c7; border:2px solid #f59e0b; border-radius:8px; padding:14px 20px; margin-bottom:16px;">
+            <div style="display:flex; align-items:flex-start; gap:12px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#f59e0b" style="flex-shrink:0; margin-top:2px;">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+                <div>
+                    <strong style="color:#92400e;">Modo Edición Menor</strong>
+                    <p style="margin:4px 0 0; color:#78350f; font-size:14px;">
+                        Solo puedes corregir texto: nombre de contacto, correo/teléfono, descripción de ítems, tiempo de entrega, lugar de entrega y comentarios.
+                        Los campos en gris no son editables. Para cambios en precios o condiciones comerciales usa <strong>Nueva Revisión</strong>.
+                    </p>
+                </div>
+            </div>
+        </div>
+
         <!-- BOTONES DE ACCIÓN -->
         <section class="bg-white rounded-lg shadow-lg p-6">
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <button type="button" id="btn-guardar" onclick="guardarCotizacion()" 
+                <button type="button" id="btn-guardar" onclick="guardarCotizacion()"
                         class="icon-btn primary flex items-center gap-2 px-6 py-3 w-auto h-auto rounded-lg font-medium transition-all duration-200">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
@@ -501,6 +517,10 @@ const DATOS_PRECARGADOS = {{ datos_precargados | tojson if datos_precargados els
 
 // Información de bloqueo de revisión (si intenta crear revisión desde versión antigua)
 const INFO_BLOQUEO_REVISION = {{ info_bloqueo_revision | tojson if info_bloqueo_revision else 'null' }};
+
+// Modo edición menor (corrección de typos sin nueva revisión)
+const MODO_EDICION_MENOR = {{ modo_edicion_menor | tojson if modo_edicion_menor is defined else 'false' }};
+const DATOS_EDICION_MENOR = {{ datos_edicion_menor | tojson if datos_edicion_menor is defined and datos_edicion_menor else 'null' }};
 
 // Función para generar opciones de materiales
 function generarOpcionesMateriales() {
@@ -1190,12 +1210,19 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Campo numeroCotizacion configurado como disabled sin required');
     }
 
-    // Cargar datos precargados si existen
+    // Cargar datos precargados si existen (revisión) o edición menor
     if (DATOS_PRECARGADOS) {
         cargarDatosPrecargados();
+    } else if (MODO_EDICION_MENOR && DATOS_EDICION_MENOR) {
+        cargarDatosEdicionMenor();
     }
     setTimeout(() => { agregarItem(); }, 500);
     configurarEventListeners();
+
+    // Activar modo edición menor si corresponde
+    if (MODO_EDICION_MENOR) {
+        setTimeout(() => activarModoEdicionMenor(), 800);
+    }
 
     // Inicializar modal de revisión si es necesario
     inicializarModalRevision();
@@ -1678,6 +1705,52 @@ function configurarEventListeners() {
             }
         }
     });
+}
+
+function cargarDatosEdicionMenor() {
+    if (!DATOS_EDICION_MENOR) return;
+    try {
+        const dg = DATOS_EDICION_MENOR.datosGenerales || {};
+        const cond = DATOS_EDICION_MENOR.condiciones || {};
+
+        // Campos editables de datosGenerales
+        ['vendedor', 'proyecto', 'cliente', 'atencionA', 'contacto', 'revision', 'fecha'].forEach(campo => {
+            const el = document.querySelector(`[name="${campo}"]`);
+            if (el && dg[campo] !== undefined) el.value = dg[campo];
+        });
+
+        // Número de cotización (siempre readonly)
+        const campoNum = document.querySelector('[name="numeroCotizacion"]');
+        if (campoNum) campoNum.value = DATOS_EDICION_MENOR.numeroCotizacion || '';
+        const campoHidden = document.querySelector('[name="numeroCotizacionHidden"]');
+        if (campoHidden) campoHidden.value = DATOS_EDICION_MENOR.numeroCotizacion || '';
+
+        // Condiciones
+        ['moneda', 'tipoCambio', 'tiempoEntrega', 'entregaEn', 'terminos', 'comentarios'].forEach(campo => {
+            const el = document.querySelector(`[name="${campo}"]`);
+            if (el && cond[campo] !== undefined) el.value = cond[campo];
+        });
+
+        // Items: se cargan en el timeout de activarModoEdicionMenor vía agregarItem
+        // Aquí precargamos las descripciones después de que se agreguen los items
+        if (DATOS_EDICION_MENOR.items && DATOS_EDICION_MENOR.items.length > 0) {
+            setTimeout(() => {
+                const bloques = document.querySelectorAll('.item-block');
+                DATOS_EDICION_MENOR.items.forEach((item, i) => {
+                    if (i < bloques.length) {
+                        const desc = bloques[i].querySelector('.descripcion-item');
+                        if (desc && item.descripcion) desc.value = item.descripcion;
+                        const notas = bloques[i].querySelector('[name="notas[]"]');
+                        if (notas && item.notas) notas.value = item.notas;
+                    }
+                });
+            }, 1200);
+        }
+
+        console.log('[EDICION_MENOR] Datos cargados:', DATOS_EDICION_MENOR.numeroCotizacion);
+    } catch (e) {
+        console.error('[EDICION_MENOR] Error cargando datos:', e);
+    }
 }
 
 function cargarDatosPrecargados() {
@@ -3529,6 +3602,146 @@ async function guardarCotizacion() {
             btnGuardar.classList.remove('btn-loading');
             btnGuardar.innerHTML = textoOriginal;
         }
+    }
+}
+
+// ============================================================
+// MODO EDICIÓN MENOR
+// ============================================================
+
+function activarModoEdicionMenor() {
+    if (!MODO_EDICION_MENOR || !DATOS_EDICION_MENOR) return;
+
+    // Mostrar banner
+    const banner = document.getElementById('banner-edicion-menor');
+    if (banner) banner.style.display = 'block';
+
+    // Cambiar botón guardar
+    const btnGuardar = document.getElementById('btn-guardar');
+    if (btnGuardar) {
+        btnGuardar.onclick = guardarEdicionMenor;
+        btnGuardar.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Guardar Corrección`;
+        btnGuardar.style.backgroundColor = '#f59e0b';
+        btnGuardar.style.borderColor = '#f59e0b';
+        btnGuardar.style.color = 'white';
+    }
+
+    // Deshabilitar campos NO editables
+    // Todos los campos de datosGenerales excepto atencionA y contacto
+    ['vendedor', 'proyecto', 'cliente', 'revision', 'fecha'].forEach(campo => {
+        const el = document.querySelector(`[name="${campo}"]`);
+        if (el) {
+            el.setAttribute('disabled', 'disabled');
+            el.style.backgroundColor = '#f3f4f6';
+            el.style.cursor = 'not-allowed';
+        }
+    });
+
+    // Deshabilitar la sección de condiciones financieras (moneda, tipoCambio, terminos)
+    ['moneda', 'tipoCambio', 'terminos'].forEach(campo => {
+        const el = document.querySelector(`[name="${campo}"]`);
+        if (el) {
+            el.setAttribute('disabled', 'disabled');
+            el.style.backgroundColor = '#f3f4f6';
+            el.style.cursor = 'not-allowed';
+        }
+    });
+
+    // En los items: deshabilitar todo excepto descripcion y notas
+    setTimeout(() => {
+        document.querySelectorAll('.item-block').forEach(bloque => {
+            bloque.querySelectorAll('input, select, textarea').forEach(el => {
+                const nombre = el.name || el.className || '';
+                const esEditable = el.classList.contains('descripcion-item') ||
+                                   (el.name && el.name === 'notas[]');
+                if (!esEditable) {
+                    el.setAttribute('disabled', 'disabled');
+                    el.style.backgroundColor = '#f3f4f6';
+                    el.style.cursor = 'not-allowed';
+                }
+            });
+            // Ocultar botones de agregar/eliminar materiales e ítems
+            bloque.querySelectorAll('.btn-eliminar-item, .btn-agregar-material, .btn-eliminar-material, .btn-agregar-otro, .btn-eliminar-otro').forEach(btn => {
+                btn.style.display = 'none';
+            });
+        });
+        // Ocultar botón agregar ítem
+        const btnAgregarItem = document.getElementById('btn-agregar-item') || document.querySelector('[onclick*="agregarItem"]');
+        if (btnAgregarItem) btnAgregarItem.style.display = 'none';
+    }, 600);
+
+    // Deshabilitar botón limpiar / PDF para no confundir
+    const btnGenerar = document.getElementById('btn-generar');
+    if (btnGenerar) btnGenerar.style.display = 'none';
+
+    console.log('[EDICION_MENOR] Modo activado para:', DATOS_EDICION_MENOR.numeroCotizacion);
+}
+
+async function guardarEdicionMenor() {
+    const btnGuardar = document.getElementById('btn-guardar');
+    const textoOriginal = btnGuardar.innerHTML;
+    btnGuardar.disabled = true;
+    btnGuardar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg> Guardando...';
+
+    try {
+        const numero = DATOS_EDICION_MENOR.numeroCotizacion;
+
+        // Recopilar solo campos editables
+        const parche = { datosGenerales: {}, condiciones: {}, items: [] };
+
+        const atencionA = document.querySelector('[name="atencionA"]');
+        if (atencionA) parche.datosGenerales.atencionA = atencionA.value.trim();
+
+        const contacto = document.querySelector('[name="contacto"]');
+        if (contacto) parche.datosGenerales.contacto = contacto.value.trim();
+
+        const tiempoEntrega = document.querySelector('[name="tiempoEntrega"]');
+        if (tiempoEntrega) parche.condiciones.tiempoEntrega = tiempoEntrega.value.trim();
+
+        const entregaEn = document.querySelector('[name="entregaEn"]');
+        if (entregaEn) parche.condiciones.entregaEn = entregaEn.value.trim();
+
+        const comentarios = document.querySelector('[name="comentarios"]');
+        if (comentarios) parche.condiciones.comentarios = comentarios.value.trim();
+
+        document.querySelectorAll('.item-block').forEach((bloque, i) => {
+            const desc = bloque.querySelector('.descripcion-item');
+            const notas = bloque.querySelector('[name="notas[]"]');
+            parche.items.push({
+                descripcion: desc ? desc.value.trim() : '',
+                notas: notas ? notas.value.trim() : ''
+            });
+        });
+
+        const respuesta = await fetch(`/api/cotizacion/${encodeURIComponent(numero)}/edicion-menor`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(parche)
+        });
+
+        const resultado = await respuesta.json();
+
+        if (resultado.success) {
+            btnGuardar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/></svg> Corrección guardada';
+            btnGuardar.style.backgroundColor = '#10b981';
+            btnGuardar.style.borderColor = '#10b981';
+            alert(`¡Corrección guardada exitosamente!\n\nNúmero: ${numero}\n\nEl PDF se regenerará con los cambios.`);
+            // Regenerar PDF en segundo plano
+            fetch('/generar_pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ numeroCotizacion: numero })
+            }).catch(() => {});
+        } else {
+            alert(`Error al guardar la corrección:\n\n${resultado.error}`);
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = textoOriginal;
+        }
+
+    } catch (error) {
+        alert(`Error inesperado:\n\n${error.message}`);
+        btnGuardar.disabled = false;
+        btnGuardar.innerHTML = textoOriginal;
     }
 }
 

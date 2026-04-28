@@ -1983,6 +1983,112 @@ class SupabaseManager:
         
         return cot_limpia
     
+    # ──────────────────────────────────────────────────────────
+    # EDICIÓN MENOR (sin nueva revisión)
+    # ──────────────────────────────────────────────────────────
+
+    # Campos que se pueden corregir sin generar revisión
+    CAMPOS_EDICION_MENOR = {
+        'datosGenerales': {'atencionA', 'contacto'},
+        'condiciones': {'tiempoEntrega', 'entregaEn', 'comentarios'},
+        'items': {'descripcion', 'notas'},
+    }
+
+    def validar_campos_edicion_menor(self, parche: dict) -> tuple:
+        """
+        Verifica que el parche solo contenga campos de la whitelist.
+        Retorna (True, '') si es válido, (False, mensaje) si no.
+        """
+        dg = parche.get('datosGenerales', {})
+        prohibidos_dg = set(dg.keys()) - self.CAMPOS_EDICION_MENOR['datosGenerales']
+        if prohibidos_dg:
+            return False, f"Campos no permitidos en datosGenerales: {prohibidos_dg}"
+
+        cond = parche.get('condiciones', {})
+        prohibidos_cond = set(cond.keys()) - self.CAMPOS_EDICION_MENOR['condiciones']
+        if prohibidos_cond:
+            return False, f"Campos no permitidos en condiciones: {prohibidos_cond}"
+
+        for i, item in enumerate(parche.get('items', [])):
+            prohibidos_item = set(item.keys()) - self.CAMPOS_EDICION_MENOR['items']
+            if prohibidos_item:
+                return False, f"Campos no permitidos en ítem {i}: {prohibidos_item}"
+
+        return True, ''
+
+    def edicion_menor_cotizacion(self, numero_cotizacion: str, parche: dict, usuario: str = '') -> dict:
+        """
+        Aplica correcciones de texto (typos, ortografía) sin generar nueva revisión.
+        Solo modifica los campos de CAMPOS_EDICION_MENOR; todo lo demás permanece intacto.
+        """
+        try:
+            # 1. Validar whitelist
+            valido, mensaje_error = self.validar_campos_edicion_menor(parche)
+            if not valido:
+                return {'success': False, 'error': mensaje_error}
+
+            # 2. Obtener cotización actual
+            resultado = self.obtener_cotizacion(numero_cotizacion)
+            if not resultado.get('encontrado'):
+                return {'success': False, 'error': f'Cotización no encontrada: {numero_cotizacion}'}
+
+            cotizacion = resultado['item']
+
+            # 3. Aplicar parche solo en campos blanqueados
+            campos_modificados = []
+
+            dg_patch = parche.get('datosGenerales', {})
+            for campo in self.CAMPOS_EDICION_MENOR['datosGenerales']:
+                if campo in dg_patch:
+                    cotizacion['datosGenerales'][campo] = dg_patch[campo]
+                    campos_modificados.append(f'datosGenerales.{campo}')
+
+            cond_patch = parche.get('condiciones', {})
+            if 'condiciones' not in cotizacion or not isinstance(cotizacion.get('condiciones'), dict):
+                cotizacion['condiciones'] = {}
+            for campo in self.CAMPOS_EDICION_MENOR['condiciones']:
+                if campo in cond_patch:
+                    cotizacion['condiciones'][campo] = cond_patch[campo]
+                    campos_modificados.append(f'condiciones.{campo}')
+
+            items_patch = parche.get('items', [])
+            for i, item_patch in enumerate(items_patch):
+                if i < len(cotizacion.get('items', [])):
+                    for campo in self.CAMPOS_EDICION_MENOR['items']:
+                        if campo in item_patch:
+                            cotizacion['items'][i][campo] = item_patch[campo]
+                            campos_modificados.append(f'items[{i}].{campo}')
+
+            if not campos_modificados:
+                return {'success': False, 'error': 'No se enviaron campos editables'}
+
+            # 4. Registrar auditoría en observaciones
+            import json as _json
+            obs_raw = cotizacion.get('observaciones') or '{}'
+            try:
+                obs = _json.loads(obs_raw) if isinstance(obs_raw, str) else (obs_raw or {})
+            except Exception:
+                obs = {}
+            if not isinstance(obs, dict):
+                obs = {}
+            historial = obs.get('ediciones_menores', [])
+            historial.append({
+                'timestamp': datetime.now().isoformat(),
+                'usuario': usuario,
+                'campos_modificados': campos_modificados,
+            })
+            obs['ediciones_menores'] = historial
+            cotizacion['observaciones'] = _json.dumps(obs, ensure_ascii=False)
+
+            # 5. Guardar (reutiliza toda la lógica de fallback existente)
+            print(f"[EDICION_MENOR] Guardando correcciones en: {numero_cotizacion} | campos: {campos_modificados}")
+            return self.guardar_cotizacion(cotizacion)
+
+        except Exception as e:
+            error_msg = safe_str(e)
+            print(f"[EDICION_MENOR] Error: {error_msg}")
+            return {'success': False, 'error': error_msg}
+
     def obtener_estado_sincronizacion(self):
         """Obtiene información del estado de sincronización"""
         try:
