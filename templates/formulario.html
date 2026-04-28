@@ -1743,8 +1743,9 @@ function cargarDatosEdicionMenor() {
         });
 
         // ── Ítems ──
-        // Mismo patrón que cargarDatosPrecargados: limpiar container y agregar
-        // un bloque por ítem, luego cargar solo descripcion/notas en cada uno.
+        // Usar cargarDatosItem() —misma función que cargarDatosPrecargados—
+        // para evitar race conditions y garantizar que todos los campos
+        // (incluyendo materiales y totales) se carguen correctamente.
         const items = DATOS_EDICION_MENOR.items || [];
         if (items.length > 0) {
             const container = document.getElementById('items-container');
@@ -1754,33 +1755,14 @@ function cargarDatosEdicionMenor() {
                 setTimeout(() => {
                     agregarItem();
                     setTimeout(() => {
-                        const bloques = document.querySelectorAll('.item-block');
-                        const bloque = bloques[index];
-                        if (!bloque) return;
-                        // Cargar todos los campos del ítem para que el usuario vea la fila completa
-                        const mapeo = {
-                            '.descripcion-item': item.descripcion,
-                            '.cantidad-item':    item.cantidad,
-                            '.uom-item':         item.uom,
-                            '.costo-unidad':     item.costoUnidad,
-                            '.transporte':       item.transporte,
-                            '.instalacion':      item.instalacion,
-                            '.seguridad':        item.seguridad,
-                            '.descuento':        item.descuento,
-                        };
-                        Object.entries(mapeo).forEach(([sel, val]) => {
-                            if (val === undefined || val === null) return;
-                            const el = bloque.querySelector(sel);
-                            if (el) el.value = val;
-                        });
-                        const notasEl = bloque.querySelector('[name="notas[]"]');
-                        if (notasEl && item.notas) notasEl.value = item.notas;
+                        cargarDatosItem(item, index);
                     }, 50);
                 }, index * 150);
             });
 
             // Activar modo edición menor DESPUÉS de que todos los ítems estén cargados
-            const tiempoItems = Math.max(800, items.length * 200 + 400);
+            // (incluye el tiempo de carga de materiales dentro de cargarDatosItem)
+            const tiempoItems = Math.max(1200, items.length * 200 + 900);
             setTimeout(() => activarModoEdicionMenor(), tiempoItems);
         } else {
             // Sin ítems, activar modo inmediatamente
