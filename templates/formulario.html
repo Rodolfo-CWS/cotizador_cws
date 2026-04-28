@@ -456,17 +456,23 @@
 
         <!-- BANNER MODO EDICIÓN MENOR -->
         <div id="banner-edicion-menor" style="display:none; background:#fef3c7; border:2px solid #f59e0b; border-radius:8px; padding:14px 20px; margin-bottom:16px;">
-            <div style="display:flex; align-items:flex-start; gap:12px;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="#f59e0b" style="flex-shrink:0; margin-top:2px;">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                </svg>
-                <div>
-                    <strong style="color:#92400e;">Modo Edición Menor</strong>
-                    <p style="margin:4px 0 0; color:#78350f; font-size:14px;">
-                        Solo puedes corregir texto: nombre de contacto, correo/teléfono, descripción de ítems, tiempo de entrega, lugar de entrega y comentarios.
-                        Los campos en gris no son editables. Para cambios en precios o condiciones comerciales usa <strong>Nueva Revisión</strong>.
-                    </p>
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+                <div style="display:flex; align-items:flex-start; gap:12px;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="#f59e0b" style="flex-shrink:0; margin-top:2px;">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                    </svg>
+                    <div>
+                        <strong style="color:#92400e;">Modo Edición Menor</strong>
+                        <p style="margin:4px 0 0; color:#78350f; font-size:14px;">
+                            Solo puedes corregir texto: nombre de contacto, correo/teléfono, descripción de ítems, tiempo de entrega, lugar de entrega y comentarios.
+                            Los campos en gris no son editables. Para cambios en precios o condiciones comerciales usa <strong>Nueva Revisión</strong>.
+                        </p>
+                    </div>
                 </div>
+                <a id="btn-cancelar-edicion" href="/" style="flex-shrink:0; background:#6b7280; color:white; border:none; border-radius:6px; padding:8px 16px; font-size:14px; font-weight:500; cursor:pointer; text-decoration:none; white-space:nowrap; display:inline-flex; align-items:center; gap:6px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    Cancelar
+                </a>
             </div>
         </div>
 
@@ -1216,12 +1222,17 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (MODO_EDICION_MENOR && DATOS_EDICION_MENOR) {
         cargarDatosEdicionMenor();
     }
-    setTimeout(() => { agregarItem(); }, 500);
+    // En edición menor los ítems se crean dentro de cargarDatosEdicionMenor
+    if (!MODO_EDICION_MENOR) {
+        setTimeout(() => { agregarItem(); }, 500);
+    }
     configurarEventListeners();
 
-    // Activar modo edición menor si corresponde
-    if (MODO_EDICION_MENOR) {
-        setTimeout(() => activarModoEdicionMenor(), 800);
+    // Activar modo edición menor si corresponde (después de que ítems estén cargados)
+    // El timeout se maneja dentro de cargarDatosEdicionMenor
+    if (MODO_EDICION_MENOR && !DATOS_EDICION_MENOR) {
+        // Sin datos no tiene sentido continuar
+        console.warn('[EDICION_MENOR] Sin DATOS_EDICION_MENOR');
     }
 
     // Inicializar modal de revisión si es necesario
@@ -1713,13 +1724,13 @@ function cargarDatosEdicionMenor() {
         const dg = DATOS_EDICION_MENOR.datosGenerales || {};
         const cond = DATOS_EDICION_MENOR.condiciones || {};
 
-        // Campos editables de datosGenerales
+        // Datos generales (todos, para que los campos readonly muestren el valor correcto)
         ['vendedor', 'proyecto', 'cliente', 'atencionA', 'contacto', 'revision', 'fecha'].forEach(campo => {
             const el = document.querySelector(`[name="${campo}"]`);
             if (el && dg[campo] !== undefined) el.value = dg[campo];
         });
 
-        // Número de cotización (siempre readonly)
+        // Número de cotización
         const campoNum = document.querySelector('[name="numeroCotizacion"]');
         if (campoNum) campoNum.value = DATOS_EDICION_MENOR.numeroCotizacion || '';
         const campoHidden = document.querySelector('[name="numeroCotizacionHidden"]');
@@ -1731,23 +1742,53 @@ function cargarDatosEdicionMenor() {
             if (el && cond[campo] !== undefined) el.value = cond[campo];
         });
 
-        // Items: se cargan en el timeout de activarModoEdicionMenor vía agregarItem
-        // Aquí precargamos las descripciones después de que se agreguen los items
-        if (DATOS_EDICION_MENOR.items && DATOS_EDICION_MENOR.items.length > 0) {
-            setTimeout(() => {
-                const bloques = document.querySelectorAll('.item-block');
-                DATOS_EDICION_MENOR.items.forEach((item, i) => {
-                    if (i < bloques.length) {
-                        const desc = bloques[i].querySelector('.descripcion-item');
-                        if (desc && item.descripcion) desc.value = item.descripcion;
-                        const notas = bloques[i].querySelector('[name="notas[]"]');
-                        if (notas && item.notas) notas.value = item.notas;
-                    }
-                });
-            }, 1200);
+        // ── Ítems ──
+        // Mismo patrón que cargarDatosPrecargados: limpiar container y agregar
+        // un bloque por ítem, luego cargar solo descripcion/notas en cada uno.
+        const items = DATOS_EDICION_MENOR.items || [];
+        if (items.length > 0) {
+            const container = document.getElementById('items-container');
+            if (container) container.innerHTML = '';
+
+            items.forEach((item, index) => {
+                setTimeout(() => {
+                    agregarItem();
+                    setTimeout(() => {
+                        const bloques = document.querySelectorAll('.item-block');
+                        const bloque = bloques[index];
+                        if (!bloque) return;
+                        // Cargar todos los campos del ítem para que el usuario vea la fila completa
+                        const mapeo = {
+                            '.descripcion-item': item.descripcion,
+                            '.cantidad-item':    item.cantidad,
+                            '.uom-item':         item.uom,
+                            '.costo-unidad':     item.costoUnidad,
+                            '.transporte':       item.transporte,
+                            '.instalacion':      item.instalacion,
+                            '.seguridad':        item.seguridad,
+                            '.descuento':        item.descuento,
+                        };
+                        Object.entries(mapeo).forEach(([sel, val]) => {
+                            if (val === undefined || val === null) return;
+                            const el = bloque.querySelector(sel);
+                            if (el) el.value = val;
+                        });
+                        const notasEl = bloque.querySelector('[name="notas[]"]');
+                        if (notasEl && item.notas) notasEl.value = item.notas;
+                    }, 50);
+                }, index * 150);
+            });
+
+            // Activar modo edición menor DESPUÉS de que todos los ítems estén cargados
+            const tiempoItems = Math.max(800, items.length * 200 + 400);
+            setTimeout(() => activarModoEdicionMenor(), tiempoItems);
+        } else {
+            // Sin ítems, activar modo inmediatamente
+            setTimeout(() => agregarItem(), 300);
+            setTimeout(() => activarModoEdicionMenor(), 800);
         }
 
-        console.log('[EDICION_MENOR] Datos cargados:', DATOS_EDICION_MENOR.numeroCotizacion);
+        console.log('[EDICION_MENOR] Cargando', items.length, 'ítem(s) para:', DATOS_EDICION_MENOR.numeroCotizacion);
     } catch (e) {
         console.error('[EDICION_MENOR] Error cargando datos:', e);
     }
@@ -3612,9 +3653,14 @@ async function guardarCotizacion() {
 function activarModoEdicionMenor() {
     if (!MODO_EDICION_MENOR || !DATOS_EDICION_MENOR) return;
 
-    // Mostrar banner
+    // Mostrar banner y actualizar enlace de cancelar
     const banner = document.getElementById('banner-edicion-menor');
     if (banner) banner.style.display = 'block';
+    const numero = DATOS_EDICION_MENOR.numeroCotizacion;
+    const btnCancelar = document.getElementById('btn-cancelar-edicion');
+    if (btnCancelar && numero) {
+        btnCancelar.href = `/ver/${encodeURIComponent(numero)}`;
+    }
 
     // Cambiar botón guardar
     const btnGuardar = document.getElementById('btn-guardar');
