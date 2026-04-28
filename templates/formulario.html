@@ -1238,8 +1238,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inicializar modal de revisión si es necesario
     inicializarModalRevision();
 
-    // Inicializar sistema de auto-guardado de drafts
-    inicializarSistemaAutoGuardado();
+    // Inicializar sistema de auto-guardado de drafts (no aplica en edición menor)
+    if (!MODO_EDICION_MENOR) {
+        inicializarSistemaAutoGuardado();
+    }
 
     // Cargar draft si viene en URL (?draft=ID)
     const urlParams = new URLSearchParams(window.location.search);
@@ -3750,6 +3752,18 @@ async function guardarEdicionMenor() {
         const resultado = await respuesta.json();
 
         if (resultado.success) {
+            // Marcar como completada para evitar drafts posteriores
+            cotizacionCompletada = true;
+            formModificado = false;
+            if (autoGuardadoTimer) {
+                clearInterval(autoGuardadoTimer);
+                autoGuardadoTimer = null;
+            }
+            if (draftActualId) {
+                fetch(`/api/draft/delete/${draftActualId}`, { method: 'DELETE' }).catch(() => {});
+                draftActualId = null;
+            }
+
             btnGuardar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/></svg> Corrección guardada';
             btnGuardar.style.backgroundColor = '#10b981';
             btnGuardar.style.borderColor = '#10b981';
