@@ -39,7 +39,10 @@
       "Bash(del test_table_format.py)",
       "WebSearch",
       "Bash(del test_descripcion_wrapping.py test_app_functionality.py test_descripcion_wrapping.pdf)",
-      "Bash(npx playwright:*)"
+      "Bash(npx playwright:*)",
+      "mcp__c755b5ce-0113-4c1b-b3d4-e48ef538ab02__list_projects",
+      "mcp__c755b5ce-0113-4c1b-b3d4-e48ef538ab02__execute_sql",
+      "mcp__c755b5ce-0113-4c1b-b3d4-e48ef538ab02__get_logs"
     ],
     "deny": []
   }
