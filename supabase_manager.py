@@ -286,7 +286,10 @@ class SupabaseManager:
         Returns: True si la conexión está activa, False si no se pudo establecer
         """
         if self.modo_offline or not self.pg_connection:
-            return self._reconectar_si_es_necesario()
+            self._reconectar_si_es_necesario()
+            # pg_connection debe existir para operaciones PostgreSQL,
+            # aunque SDK REST esté disponible (modo_offline=False)
+            return self.pg_connection is not None
         
         try:
             # Test ping simple para verificar conexión
