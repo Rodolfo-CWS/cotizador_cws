@@ -3394,7 +3394,36 @@ def servir_pdf(numero_cotizacion):
             return jsonify({"error": resultado["error"]}), 500
         
         if not resultado["encontrado"]:
-            return jsonify({"error": f"PDF '{numero_cotizacion}' no encontrado en Supabase Storage, Google Drive ni localmente"}), 404
+            # PDF no existe en Storage — intentar generarlo al vuelo desde la cotización
+            print(f"PDF: No encontrado en Storage, intentando generar al vuelo para '{numero_cotizacion}'")
+            if not (REPORTLAB_AVAILABLE or WEASYPRINT_AVAILABLE):
+                return jsonify({"error": f"PDF '{numero_cotizacion}' no encontrado y no hay generador disponible"}), 404
+
+            cot_resultado = db_manager.obtener_cotizacion(numero_cotizacion)
+            if not cot_resultado.get("encontrado"):
+                return jsonify({"error": f"PDF '{numero_cotizacion}' no encontrado en Storage ni en base de datos"}), 404
+
+            cotizacion = cot_resultado["item"]
+            try:
+                pdf_data = generar_pdf_reportlab(cotizacion) if REPORTLAB_AVAILABLE else None
+                if pdf_data is None:
+                    return jsonify({"error": "Error generando PDF al vuelo"}), 500
+
+                # Almacenar en Storage para futuras solicitudes
+                if pdf_manager:
+                    try:
+                        pdf_manager.almacenar_pdf_nuevo(pdf_content=pdf_data, cotizacion_data=cotizacion)
+                    except Exception as store_err:
+                        print(f"PDF: Advertencia — no se pudo almacenar en Storage: {store_err}")
+
+                from io import BytesIO
+                buf = BytesIO(pdf_data)
+                buf.seek(0)
+                return send_file(buf, mimetype='application/pdf', as_attachment=False,
+                                 download_name=f"{numero_cotizacion}.pdf")
+            except Exception as gen_err:
+                print(f"PDF: Error generando PDF al vuelo: {gen_err}")
+                return jsonify({"error": f"Error generando PDF: {str(gen_err)}"}), 500
         
         # Servir el archivo PDF
         ruta_completa = resultado["ruta_completa"]
