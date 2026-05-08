@@ -2533,17 +2533,77 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
 function agregarItem() {
     const container = document.getElementById('items-container');
     if (!container) return;
-    
+
     const itemCount = container.children.length + 1;
     const template = crearTemplateItem(itemCount);
     container.insertAdjacentHTML('beforeend', template);
     setTimeout(() => { actualizarTodosLosCalculos(); }, 100);
 }
 
+function clonarItem(button) {
+    const itemOriginal = button.closest('.item-block');
+    const container = document.getElementById('items-container');
+
+    const itemClonado = itemOriginal.cloneNode(true);
+
+    // Copiar valores actuales (cloneNode copia atributos HTML, no la propiedad .value dinámica)
+    const inputsOriginales = itemOriginal.querySelectorAll('input, select, textarea');
+    const inputsClonados   = itemClonado.querySelectorAll('input, select, textarea');
+    inputsOriginales.forEach((el, i) => {
+        if (el.tagName === 'SELECT') {
+            inputsClonados[i].selectedIndex = el.selectedIndex;
+        } else {
+            inputsClonados[i].value = el.value;
+        }
+    });
+
+    // Preservar estado visible de campos cotizar-por-peso (inline style)
+    const divsOrig = itemOriginal.querySelectorAll('.material-campos-normales, .material-campos-peso');
+    const divsClon = itemClonado.querySelectorAll('.material-campos-normales, .material-campos-peso');
+    divsOrig.forEach((div, i) => { divsClon[i].style.display = div.style.display; });
+
+    // Actualizar número en el summary del clon
+    const nuevoNumero = container.children.length + 1;
+    const spanNumero  = itemClonado.querySelector('summary span');
+    if (spanNumero) spanNumero.textContent = '📋 Item ' + nuevoNumero;
+
+    itemClonado.open = true;
+    container.appendChild(itemClonado);
+    setTimeout(() => { actualizarTodosLosCalculos(); }, 100);
+}
+
+function eliminarItem(button) {
+    if (!confirm('¿Está seguro que desea eliminar este ítem?')) return;
+
+    const item = button.closest('.item-block');
+    item.remove();
+
+    // Re-numerar ítems restantes (solo visual)
+    const container = document.getElementById('items-container');
+    container.querySelectorAll('.item-block').forEach((bloque, index) => {
+        const span = bloque.querySelector('summary span');
+        if (span) span.textContent = '📋 Item ' + (index + 1);
+    });
+
+    actualizarTodosLosCalculos();
+}
+
 function crearTemplateItem(numero) {
     return `
     <details class="item-block border rounded-lg p-4 bg-gray-50" open>
-        <summary class="cursor-pointer font-semibold text-lg text-blue-700 hover:text-blue-800">📋 Item ${numero}</summary>
+        <summary class="cursor-pointer font-semibold text-lg text-blue-700 hover:text-blue-800 flex items-center justify-between">
+            <span>📋 Item ${numero}</span>
+            <div class="flex gap-2 ml-4" onclick="event.stopPropagation()">
+                <button type="button" onclick="clonarItem(this)"
+                        class="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-300 font-normal">
+                    &#8962; Clonar
+                </button>
+                <button type="button" onclick="eliminarItem(this)"
+                        class="text-xs px-2 py-1 bg-red-50 hover:bg-red-100 text-red-500 rounded border border-red-200 font-normal">
+                    &#10005; Borrar
+                </button>
+            </div>
+        </summary>
         
         <div class="mt-4 space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
