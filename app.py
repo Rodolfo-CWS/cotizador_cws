@@ -2421,13 +2421,46 @@ def buscar():
                 
                 for cot in cotizaciones:
                     datos_gen = cot.get('datosGenerales', {})
+                    condiciones = cot.get('condiciones', {})
+                    if not isinstance(condiciones, dict):
+                        condiciones = {}
+                    items = cot.get('items', [])
+                    if not isinstance(items, list):
+                        items = []
+                    
+                    # Calcular total (same logic as /todas-cotizaciones)
+                    total_calc = 0.0
+                    for item in items:
+                        if isinstance(item, dict):
+                            if 'total' in item and item['total']:
+                                total_calc += float(item['total'])
+                            elif 'subtotal' in item and item['subtotal']:
+                                total_calc += float(item['subtotal'])
+                            elif 'precio_unitario' in item:
+                                total_calc += float(item['precio_unitario']) * float(item.get('cantidad', 1))
+                            elif 'precio' in item:
+                                total_calc += float(item['precio']) * float(item.get('cantidad', 1))
+                            elif 'costoUnidad' in item:
+                                total_calc += float(item['costoUnidad']) * float(item.get('cantidad', 1))
+                    
+                    moneda = condiciones.get('moneda', 'MXN') if isinstance(condiciones, dict) else 'MXN'
+                    
+                    fecha = cot.get('fechaCreacion', 'N/A')
+                    if fecha and isinstance(fecha, str) and len(fecha) > 10:
+                        fecha = fecha[:10]
+                    
                     resultados_cotizaciones.append({
                         "numero_cotizacion": cot.get('numeroCotizacion', 'N/A'),
+                        "numero": cot.get('numeroCotizacion', 'N/A'),
                         "cliente": datos_gen.get('cliente', 'N/A'),
                         "vendedor": datos_gen.get('vendedor', 'N/A'),
                         "proyecto": datos_gen.get('proyecto', 'N/A'),
                         "fecha_creacion": cot.get('fechaCreacion', 'N/A'),
+                        "fecha": fecha,
                         "tipo": "cotizacion",
+                        "total": total_calc,
+                        "moneda": moneda,
+                        "es_antigua": False,
                         "tiene_desglose": True,
                         "fuente": "supabase" if not db_manager.modo_offline else "json_local",
                         "revision": cot.get('revision', 1),
@@ -2453,11 +2486,16 @@ def buscar():
                     for pdf in pdfs:
                         resultados_pdfs.append({
                             "numero_cotizacion": pdf.get('numero_cotizacion', 'N/A'),
+                            "numero": pdf.get('numero_cotizacion', 'N/A'),
                             "cliente": pdf.get('cliente', 'N/A'),
                             "vendedor": pdf.get('vendedor', 'N/A'),
                             "proyecto": pdf.get('proyecto', 'N/A'),
                             "fecha_creacion": pdf.get('fecha_creacion', 'N/A'),
+                            "fecha": pdf.get('fecha_creacion', 'N/A')[:10] if pdf.get('fecha_creacion') and isinstance(pdf.get('fecha_creacion'), str) else 'N/A',
                             "tipo": pdf.get('tipo', 'pdf'),
+                            "total": pdf.get('total', 0),
+                            "moneda": pdf.get('moneda', 'MXN'),
+                            "es_antigua": pdf.get('es_antigua', True),
                             "tiene_desglose": pdf.get('tiene_desglose', False),
                             "fuente": pdf.get('tipo', 'pdf_manager'),
                             "revision": pdf.get('revision', 1)
