@@ -917,7 +917,7 @@
     }
 
     function buildPayload(query, page) {
-        var p = { q: query || '', page: page || 1 };
+        var p = { query: query || '', page: page || 1 };
         var num = document.getElementById('filterNumero');
         var cli = document.getElementById('filterCliente');
         var ven = document.getElementById('filterVendedor');
@@ -940,7 +940,7 @@
     }
 
     function renderTabla(d) {
-        var resultados = d.resultados_cotizaciones || [];
+        var resultados = d.resultados_cotizaciones || d.resultados || [];
         var total = d.total || resultados.length;
         document.getElementById('statsCount').textContent = total;
         var wrapper = document.getElementById('resultsWrapper');
@@ -997,10 +997,10 @@
 
     function renderPag(d) {
         var wrapper = document.getElementById('paginationWrapper');
-        var page = d.page || 1;
-        var totalPages = d.total_pages || 1;
+        var page = d.page || d.pagina || 1;
+        var totalPages = d.total_pages || d.total_paginas || 1;
         var total = d.total || 0;
-        var pageSize = d.page_size || 50;
+        var pageSize = d.page_size || d.por_pagina || 50;
         if (totalPages <= 1) { wrapper.innerHTML = ''; return; }
         var start = ((page - 1) * pageSize) + 1;
         var end = Math.min(page * pageSize, total);
@@ -1018,7 +1018,8 @@
 
     function updateUrl(payload, page) {
         var params = new URLSearchParams();
-        if (payload.q) params.set('q', payload.q);
+        if (payload.query) params.set('q', payload.query);
+        else if (payload.q) params.set('q', payload.q);
         var filterFields = ['numero','cliente','vendedor','proyecto','fecha_desde','fecha_hasta','revision','moneda','tipo'];
         for (var i = 0; i < filterFields.length; i++) {
             if (payload[filterFields[i]]) params.set(filterFields[i], payload[filterFields[i]]);
