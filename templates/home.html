@@ -417,33 +417,83 @@
             box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
         }
 
+        /* ===== AUTOCOMPLETE & SUGERENCIAS ===== */
+        .search-wrapper {
+            position: relative;
+            flex: 1;
+        }
+        .suggestions, .search-history {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+        .suggestions.show, .search-history.show { display: block; }
+        .suggestion-item, .history-item {
+            padding: 9px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #f1f3f5;
+            transition: background .15s;
+        }
+        .suggestion-item:hover, .history-item:hover { background: #f0f0ff; }
+        .suggestion-item:last-child, .history-item:last-child { border-bottom: none; }
+        .suggestion-text { color: #212529; flex: 1; }
+        .suggestion-type { font-size: 10px; color: #adb5bd; background: #f8f9fa; padding: 2px 8px; border-radius: 10px; }
+        .history-text { flex: 1; color: #495057; }
+        .history-delete { color: #dc3545; opacity: .3; cursor: pointer; padding: 2px 6px; font-size: 12px; border-radius: 4px; }
+        .history-delete:hover { opacity: 1; background: #fff0f0; }
+
+        /* ===== INLINE PREVIEW ===== */
+        .preview-row { display: none; }
+        .preview-row.show { display: table-row; }
+        .preview-cell { padding: 16px 24px; background: #f8f9fa; animation: fadeSlide .2s ease; }
+        @keyframes fadeSlide { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        .preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px; }
+        .preview-field label { display: block; font-size: 10px; font-weight: 600; color: #6c757d; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 2px; }
+        .preview-field span { font-size: 14px; color: #212529; font-weight: 500; }
+        .preview-items { margin-top: 12px; }
+        .preview-items h4 { font-size: 13px; font-weight: 600; color: #495057; margin: 0 0 8px 0; }
+        .preview-items table { width: 100%; font-size: 12px; border-collapse: collapse; background: #fff; border-radius: 6px; overflow: hidden; }
+        .preview-items th { padding: 6px 10px; text-align: left; font-weight: 600; color: #495057; background: #f1f3f5; border-bottom: 1px solid #dee2e6; font-size: 11px; }
+        .preview-items td { padding: 6px 10px; border-bottom: 1px solid #f1f3f5; }
+        .preview-loading { text-align: center; padding: 20px; color: #adb5bd; font-size: 13px; }
+        .expand-btn { cursor: pointer; color: #adb5bd; font-size: 12px; transition: all .2s; display: inline-block; width: 24px; text-align: center; border-radius: 4px; }
+        .expand-btn:hover { color: #4f46e5; background: #f0f0ff; }
+        .expand-btn.open { color: #4f46e5; }
+
+        /* ===== LOADING SPINNER ===== */
+        .search-loading { display: none; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); }
+        .search-loading.show { display: block; }
+        .search-spinner { width: 16px; height: 16px; border: 2px solid #e9ecef; border-top-color: #4f46e5; border-radius: 50%; animation: spin .6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== CHIPS ===== */
+        .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; font-size: 11px; font-weight: 500; color: #4f46e5; background: #f0f0ff; border: 1px solid #d0cfff; border-radius: 20px; }
+        .chip i { cursor: pointer; font-style: normal; opacity: .6; margin-left: 2px; }
+        .chip i:hover { opacity: 1; }
+
         @media (max-width: 768px) {
-            .header-top {
-                flex-direction: column;
-                gap: 12px;
-            }
-
-            .actions {
-                flex-direction: column;
-            }
-
-            .search-box {
-                flex-direction: column;
-            }
-
-            .search-input {
-                width: 100%;
-            }
-
-            .btn-search {
-                width: 100%;
-                justify-content: center;
-            }
-
-            td, th {
-                font-size: 12px;
-                padding: 6px 8px;
-            }
+            .header-top { flex-direction: column; gap: 12px; }
+            .actions { flex-direction: column; }
+            .search-box { flex-direction: column; }
+            .search-input { width: 100%; }
+            .btn-search { width: 100%; justify-content: center; }
+            td, th { font-size: 12px; padding: 6px 8px; }
+            .preview-grid { grid-template-columns: 1fr 1fr; }
         }
     </style>
 </head>
@@ -489,18 +539,27 @@
     <!-- Barra de Búsqueda Rápida -->
     <div class="search-container">
         <div class="search-box">
-            <input type="text"
-                   id="quickSearch"
-                   class="search-input"
-                   placeholder="Búsqueda rápida: número, cliente, vendedor, proyecto..."
-                   value="{{ request.args.get('q', '') }}">
-            <button class="btn-search" onclick="buscarRapido()">
+            <div class="search-wrapper">
+                <input type="text"
+                       id="quickSearch"
+                       class="search-input"
+                       placeholder="Búsqueda rápida: número, cliente, vendedor, proyecto..."
+                       value="{{ request.args.get('q', '') }}"
+                       autocomplete="off">
+                <div class="suggestions" id="suggestions"></div>
+                <div class="search-history" id="searchHistory"></div>
+                <div class="search-loading" id="searchLoading">
+                    <div class="search-spinner"></div>
+                </div>
+            </div>
+            <button class="btn-search" onclick="doSearch(document.getElementById('quickSearch').value.trim(), 1)">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
                 </svg>
                 Buscar
             </button>
         </div>
+        <div class="chips" id="chips"></div>
     </div>
 
     <!-- Panel de Filtros -->
@@ -580,68 +639,82 @@
     </div>
 
     <div class="stats">
-        <strong>{{ total_cotizaciones or 0 }}</strong> cotizaciones encontradas
+        <strong id="statsCount">{{ total_cotizaciones or 0 }}</strong> cotizaciones encontradas
     </div>
 
-    <div class="table-container">
+    <div id="resultsWrapper">
         {% if cotizaciones %}
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Número</th>
-                        <th>Cliente</th>
-                        <th>Vendedor</th>
-                        <th>Proyecto</th>
-                        <th>Fecha</th>
-                        <th>Rev</th>
-                        <th>Monto antes de IVA</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for cot in cotizaciones %}
-                    <tr {% if cot.es_antigua %}style="opacity: 0.7; background: #fff9e6;"{% endif %}>
-                        <td class="numero-col" title="{{ cot.numero }}">{{ cot.numero }}</td>
-                        <td title="{{ cot.cliente }}">{{ cot.cliente }}</td>
-                        <td title="{{ cot.vendedor }}">{{ cot.vendedor }}</td>
-                        <td title="{{ cot.proyecto }}">{{ cot.proyecto }}</td>
-                        <td>{{ cot.fecha }}</td>
-                        <td class="revision-col">R{{ cot.revision }}</td>
-                        <td class="total-col">
-                            {% if cot.moneda != 'N/A' %}
-                                {{ cot.moneda }} ${{ "{:,.2f}".format(cot.total|float) if cot.total else '0.00' }}
-                            {% else %}
-                                <span style="color: #999; font-size: 11px;">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="acciones-col">
-                                <a href="/pdf/{{ cot.numero }}" target="_blank" class="btn-icon">PDF</a>
-                                <button class="btn-icon" onclick="descargarOCompartirPDF('{{ cot.numero }}')">Descargar</button>
-                                {% if cot.tiene_desglose %}
-                                <a href="/desglose/{{ cot.numero }}" class="btn-icon">Desglose</a>
+        <div class="table-container">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:32px"></th>
+                            <th>Número</th>
+                            <th>Cliente</th>
+                            <th>Vendedor</th>
+                            <th>Proyecto</th>
+                            <th>Fecha</th>
+                            <th>Rev</th>
+                            <th>Monto antes de IVA</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cot in cotizaciones %}
+                        <tr {% if cot.es_antigua %}style="opacity: 0.7; background: #fff9e6;"{% endif %}>
+                            <td><span class="expand-btn" onclick="togglePreview('{{ cot.numero }}', this)">▶</span></td>
+                            <td class="numero-col" title="{{ cot.numero }}">{{ cot.numero }}</td>
+                            <td title="{{ cot.cliente }}">{{ cot.cliente }}</td>
+                            <td title="{{ cot.vendedor }}">{{ cot.vendedor }}</td>
+                            <td title="{{ cot.proyecto }}">{{ cot.proyecto }}</td>
+                            <td>{{ cot.fecha }}</td>
+                            <td class="revision-col">R{{ cot.revision }}</td>
+                            <td class="total-col">
+                                {% if cot.moneda != 'N/A' %}
+                                    {{ cot.moneda }} ${{ "{:,.2f}".format(cot.total|float) if cot.total else '0.00' }}
                                 {% else %}
-                                <span style="font-size: 10px; color: #999;">Sin desglose</span>
+                                    <span style="color: #999; font-size: 11px;">-</span>
                                 {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            </td>
+                            <td>
+                                <div class="acciones-col">
+                                    <a href="/pdf/{{ cot.numero }}" target="_blank" class="btn-icon">PDF</a>
+                                    <button class="btn-icon" onclick="descargarOCompartirPDF('{{ cot.numero }}')">Descargar</button>
+                                    {% if cot.tiene_desglose %}
+                                    <a href="/desglose/{{ cot.numero }}" class="btn-icon">Desglose</a>
+                                    {% else %}
+                                    <span style="font-size: 10px; color: #999;">Sin desglose</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="preview-row" id="preview-{{ cot.numero }}">
+                            <td colspan="9">
+                                <div class="preview-cell" id="preview-cell-{{ cot.numero }}">
+                                    <div class="preview-loading">Cargando...</div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
         {% else %}
-        <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"/>
-            </svg>
-            <p>No se encontraron cotizaciones en el sistema</p>
+        <div class="table-container">
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"/>
+                </svg>
+                <p>No se encontraron cotizaciones en el sistema</p>
+            </div>
         </div>
         {% endif %}
     </div>
 
     <!-- Paginación -->
+    <div id="paginationWrapper">
     {% if total_pages > 1 %}
     <div class="pagination-container">
         <div class="pagination-info">
@@ -664,6 +737,7 @@
         </div>
     </div>
     {% endif %}
+    </div>
 
     <!-- Modal de Borradores -->
     <div id="modalDrafts" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
@@ -680,189 +754,503 @@
     </div>
 
     <script>
-        // Toggle filtros
-        document.getElementById('toggleFilters').addEventListener('click', function() {
-            const panel = document.getElementById('filterPanel');
-            const text = document.getElementById('filterToggleText');
-            if (panel.style.display === 'none') {
-                panel.style.display = 'block';
-                text.textContent = 'Ocultar Filtros';
+    // ====== DEBOUNCE ======
+    function debounce(fn, delay) {
+        let timer;
+        return function() {
+            const ctx = this, args = arguments;
+            clearTimeout(timer);
+            timer = setTimeout(() => fn.apply(ctx, args), delay);
+        };
+    }
+
+    // ====== SEARCH HISTORY ======
+    const HK = 'cws_search_history';
+    function getHist() {
+        try { return JSON.parse(localStorage.getItem(HK) || '[]'); }
+        catch(e) { return []; }
+    }
+    function saveHist(q) {
+        if (!q || q.length < 2) return;
+        let h = getHist().filter(function(x) { return x !== q; });
+        h.unshift(q);
+        if (h.length > 8) h = h.slice(0, 8);
+        localStorage.setItem(HK, JSON.stringify(h));
+    }
+    function delHist(i) {
+        let h = getHist();
+        h.splice(i, 1);
+        localStorage.setItem(HK, JSON.stringify(h));
+        showHist();
+    }
+    function showHist() {
+        var el = document.getElementById('searchHistory');
+        var items = getHist();
+        var q = document.getElementById('quickSearch').value.trim();
+        if (!items.length || q) { el.classList.remove('show'); return; }
+        var html = '<div class="history-header">Recientes</div>';
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            html += '<div class="history-item" onclick="selHist(' + JSON.stringify(item) + ')">'
+                 + '<span style="color:#adb5bd;font-size:14px;">🕐</span>'
+                 + '<span class="history-text">' + escHtml(item) + '</span>'
+                 + '<span class="history-delete" onclick="event.stopPropagation(); delHist(' + i + ');">&times;</span>'
+                 + '</div>';
+        }
+        el.innerHTML = html;
+        el.classList.add('show');
+        document.getElementById('suggestions').classList.remove('show');
+    }
+    function selHist(text) {
+        document.getElementById('quickSearch').value = text;
+        hideDrops();
+        doSearch(text, 1);
+    }
+
+    // ====== AUTOCOMPLETE ======
+    var doSuggest = debounce(function() {
+        var q = document.getElementById('quickSearch').value.trim();
+        if (q.length < 2) { hideDrops(); return; }
+        fetch('/sugerencias?q=' + encodeURIComponent(q))
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d.success && d.sugerencias && d.sugerencias.length) {
+                renderSug(d.sugerencias);
             } else {
-                panel.style.display = 'none';
-                text.textContent = 'Mostrar Filtros';
+                document.getElementById('suggestions').classList.remove('show');
             }
-        });
+        })
+        .catch(function() { document.getElementById('suggestions').classList.remove('show'); });
+    }, 200);
 
-        // Aplicar filtros
-        document.getElementById('applyFilters').addEventListener('click', function() {
-            const params = new URLSearchParams();
-
-            const numero = document.getElementById('filterNumero').value;
-            const cliente = document.getElementById('filterCliente').value;
-            const vendedor = document.getElementById('filterVendedor').value;
-            const proyecto = document.getElementById('filterProyecto').value;
-            const fechaDesde = document.getElementById('filterFechaDesde').value;
-            const fechaHasta = document.getElementById('filterFechaHasta').value;
-            const revision = document.getElementById('filterRevision').value;
-            const moneda = document.getElementById('filterMoneda').value;
-            const tipo = document.getElementById('filterTipo').value;
-
-            if (numero) params.append('numero', numero);
-            if (cliente) params.append('cliente', cliente);
-            if (vendedor) params.append('vendedor', vendedor);
-            if (proyecto) params.append('proyecto', proyecto);
-            if (fechaDesde) params.append('fecha_desde', fechaDesde);
-            if (fechaHasta) params.append('fecha_hasta', fechaHasta);
-            if (revision) params.append('revision', revision);
-            if (moneda) params.append('moneda', moneda);
-            if (tipo) params.append('tipo', tipo);
-
-            window.location.href = '/?' + params.toString();
-        });
-
-        // Limpiar filtros
-        document.getElementById('clearFilters').addEventListener('click', function() {
-            window.location.href = '/';
-        });
-
-        // Navegación de páginas
-        function goToPage(pageNumber) {
-            const params = new URLSearchParams(window.location.search);
-            params.set('page', pageNumber);
-            window.location.href = '/?' + params.toString();
+    function renderSug(items) {
+        var el = document.getElementById('suggestions');
+        document.getElementById('searchHistory').classList.remove('show');
+        var html = '<div class="history-header">Sugerencias</div>';
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            var text = item.text || '';
+            var label = item.tipo === 'numero' ? 'Cotizacion' : item.tipo === 'cliente' ? 'Cliente' : item.tipo === 'vendedor' ? 'Vendedor' : 'Proyecto';
+            html += '<div class="suggestion-item" onclick="selSug(' + JSON.stringify(text) + ')">'
+                 + '<span class="suggestion-text">' + escHtml(text) + '</span>'
+                 + '<span class="suggestion-type">' + label + '</span>'
+                 + '</div>';
         }
+        el.innerHTML = html;
+        el.classList.add('show');
+    }
 
-        function cerrarSesion() {
-            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                window.location.href = '/logout';
-            }
+    function selSug(text) {
+        document.getElementById('quickSearch').value = text;
+        hideDrops();
+        saveHist(text);
+        updateChips();
+        doSearch(text, 1);
+    }
+    function hideDrops() {
+        document.getElementById('suggestions').classList.remove('show');
+        document.getElementById('searchHistory').classList.remove('show');
+    }
+
+    // ====== CHIPS (filtros activos) ======
+    function updateChips() {
+        var chips = document.getElementById('chips');
+        var items = [];
+        var q = document.getElementById('quickSearch').value.trim();
+        if (q) items.push({ label: 'Buscar: ' + q, type: 'q', val: '' });
+        var filterIds = ['filterNumero','filterCliente','filterVendedor','filterProyecto',
+                         'filterFechaDesde','filterFechaHasta','filterRevision','filterMoneda','filterTipo'];
+        var filterLabels = ['Numero','Cliente','Vendedor','Proyecto','Fecha desde','Fecha hasta','Revision','Moneda','Tipo'];
+        for (var i = 0; i < filterIds.length; i++) {
+            var el = document.getElementById(filterIds[i]);
+            if (el && el.value) items.push({ label: filterLabels[i] + ': ' + el.value, type: filterIds[i], val: '' });
         }
-
-        // Gestión de drafts
-        async function cargarConteoDrafts() {
-            try {
-                const respuesta = await fetch('/api/draft/list');
-                if (respuesta.ok) {
-                    const resultado = await respuesta.json();
-                    if (resultado.success && resultado.total > 0) {
-                        const badge = document.getElementById('badge-drafts');
-                        badge.textContent = resultado.total;
-                        badge.style.display = 'flex';
-                    }
-                }
-            } catch (error) {
-                console.error('[DRAFT] Error cargando conteo:', error);
-            }
+        if (!items.length) { chips.innerHTML = ''; return; }
+        var html = '';
+        for (var i = 0; i < items.length; i++) {
+            html += '<span class="chip">' + escHtml(items[i].label)
+                 + ' <i onclick="clearChip(\'' + items[i].type + '\')">&times;</i>'
+                 + '</span>';
         }
+        chips.innerHTML = html;
+    }
 
-        async function abrirModalDrafts() {
-            const modal = document.getElementById('modalDrafts');
-            const listaDrafts = document.getElementById('listaDrafts');
-            modal.style.display = 'flex';
-            listaDrafts.innerHTML = '<div style="text-align: center; padding: 40px; color: #6c757d;"><p>Cargando borradores...</p></div>';
-
-            try {
-                const respuesta = await fetch('/api/draft/list');
-                if (!respuesta.ok) throw new Error(`Error HTTP ${respuesta.status}`);
-
-                const resultado = await respuesta.json();
-                if (resultado.success) {
-                    const drafts = resultado.drafts || [];
-                    if (drafts.length === 0) {
-                        listaDrafts.innerHTML = '<div style="text-align: center; padding: 40px; color: #6c757d;"><p>No hay borradores pendientes</p></div>';
-                    } else {
-                        let html = '';
-                        drafts.forEach(draft => {
-                            const fecha = new Date(draft.ultima_modificacion || draft.fecha_creacion);
-                            const fechaFormateada = fecha.toLocaleString('es-MX', {
-                                year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                            });
-                            html += `
-                                <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-                                    <h3 style="font-size: 16px; font-weight: 600; color: #212529; margin: 0 0 4px 0;">${draft.nombre || 'Sin nombre'}</h3>
-                                    <p style="font-size: 12px; color: #6c757d; margin: 0 0 12px 0;">Vendedor: ${draft.vendedor} • ${fechaFormateada}</p>
-                                    <div style="display: flex; gap: 8px;">
-                                        <button onclick="cargarDraft('${draft.id}')" style="flex: 1; background: #4f46e5; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">Continuar editando</button>
-                                        <button onclick="eliminarDraft('${draft.id}')" style="background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">Eliminar</button>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        listaDrafts.innerHTML = html;
-                    }
-                }
-            } catch (error) {
-                listaDrafts.innerHTML = `<div style="text-align: center; padding: 40px; color: #dc2626;"><p>Error al cargar borradores: ${error.message}</p></div>`;
-            }
+    function clearChip(type) {
+        if (type === 'q') {
+            document.getElementById('quickSearch').value = '';
+        } else {
+            var el = document.getElementById(type);
+            if (el) el.value = '';
         }
+        updateChips();
+        doSearch(document.getElementById('quickSearch').value.trim(), 1);
+    }
 
-        function cerrarModalDrafts() {
-            document.getElementById('modalDrafts').style.display = 'none';
-        }
+    // ====== LIVE SEARCH (AJAX) ======
+    var doSearchDebounced = debounce(function() {
+        var q = document.getElementById('quickSearch').value.trim();
+        doSearch(q, 1);
+    }, 400);
 
-        async function cargarDraft(draftId) {
-            window.location.href = `/formulario?draft=${encodeURIComponent(draftId)}`;
-        }
+    async function doSearch(query, page) {
+        var loader = document.getElementById('searchLoading');
+        if (loader) loader.classList.add('show');
 
-        async function eliminarDraft(draftId) {
-            if (!confirm('¿Estás seguro de que deseas eliminar este borrador?')) return;
-
-            try {
-                const respuesta = await fetch(`/api/draft/delete/${draftId}`, { method: 'DELETE' });
-                if (!respuesta.ok) throw new Error(`Error HTTP ${respuesta.status}`);
-
-                const resultado = await respuesta.json();
-                if (resultado.success) {
-                    await abrirModalDrafts();
-                    await cargarConteoDrafts();
-                }
-            } catch (error) {
-                alert(`Error al eliminar borrador: ${error.message}`);
-            }
-        }
-
-        // Búsqueda rápida
-        function buscarRapido() {
-            const query = document.getElementById('quickSearch').value.trim();
-            if (query) {
-                window.location.href = '/?q=' + encodeURIComponent(query);
-            } else {
-                window.location.href = '/';
-            }
-        }
-
-        // Inicialización
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Sistema CWS iniciado');
-            cargarConteoDrafts();
-
-            // Enter en búsqueda rápida
-            document.getElementById('quickSearch').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    buscarRapido();
-                }
+        var payload = buildPayload(query, page || 1);
+        try {
+            var r = await fetch('/buscar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
+            var d = await r.json();
+            if (d.success) {
+                renderTabla(d);
+                renderPag(d);
+                updateUrl(payload, page || 1);
+            }
+        } catch (e) {
+            console.error('[BUSQUEDA] Error:', e);
+        } finally {
+            if (loader) loader.classList.remove('show');
+        }
+    }
+
+    function buildPayload(query, page) {
+        var p = { q: query || '', page: page || 1 };
+        var num = document.getElementById('filterNumero');
+        var cli = document.getElementById('filterCliente');
+        var ven = document.getElementById('filterVendedor');
+        var proy = document.getElementById('filterProyecto');
+        var fd = document.getElementById('filterFechaDesde');
+        var fh = document.getElementById('filterFechaHasta');
+        var rev = document.getElementById('filterRevision');
+        var mon = document.getElementById('filterMoneda');
+        var tip = document.getElementById('filterTipo');
+        if (num && num.value) p.numero = num.value;
+        if (cli && cli.value) p.cliente = cli.value;
+        if (ven && ven.value) p.vendedor = ven.value;
+        if (proy && proy.value) p.proyecto = proy.value;
+        if (fd && fd.value) p.fecha_desde = fd.value;
+        if (fh && fh.value) p.fecha_hasta = fh.value;
+        if (rev && rev.value) p.revision = rev.value;
+        if (mon && mon.value) p.moneda = mon.value;
+        if (tip && tip.value) p.tipo = tip.value;
+        return p;
+    }
+
+    function renderTabla(d) {
+        var resultados = d.resultados_cotizaciones || [];
+        var total = d.total || resultados.length;
+        document.getElementById('statsCount').textContent = total;
+        var wrapper = document.getElementById('resultsWrapper');
+        if (!resultados.length) {
+            wrapper.innerHTML = '<div class="table-container"><div class="empty-state">'
+                + '<svg viewBox="0 0 24 24" fill="currentColor" style="width:64px;height:64px;opacity:0.3;margin-bottom:16px;">'
+                + '<path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"/></svg>'
+                + '<p>No se encontraron cotizaciones</p></div></div>';
+            return;
+        }
+        var html = '<div class="table-container"><div class="table-wrapper"><table><thead><tr>'
+                 + '<th style="width:32px"></th>'
+                 + '<th>Numero</th><th>Cliente</th><th>Vendedor</th><th>Proyecto</th>'
+                 + '<th>Fecha</th><th>Rev</th><th>Monto antes de IVA</th><th>Acciones</th>'
+                 + '</tr></thead><tbody>';
+        for (var i = 0; i < resultados.length; i++) {
+            var cot = resultados[i];
+            var antigua = cot.es_antigua ? ' style="opacity:0.7;background:#fff9e6;"' : '';
+            var moneda = (cot.moneda && cot.moneda !== 'N/A') ? cot.moneda : '';
+            var totalVal = cot.total ? Number(cot.total) : 0;
+            var totalFmt = cot.moneda && cot.moneda !== 'N/A'
+                ? (cot.moneda + ' $' + totalVal.toLocaleString('es-MX', {minimumFractionDigits:2}))
+                : '<span style="color:#999;font-size:11px;">-</span>';
+            var num = cot.numero || '';
+            var safeNum = escHtml(num);
+            var safeCli = escHtml(cot.cliente || '');
+            var safeVen = escHtml(cot.vendedor || '');
+            var safeProy = escHtml(cot.proyecto || '');
+            var fecha = cot.fecha || '';
+            var rev = cot.revision || 1;
+            var tieneDG = cot.tiene_desglose;
+
+            html += '<tr' + antigua + '>'
+                 + '<td><span class="expand-btn" onclick="togglePreview(\'' + num.replace(/'/g, "\\'") + '\', this)">&#9654;</span></td>'
+                 + '<td class="numero-col" title="' + safeNum + '">' + safeNum + '</td>'
+                 + '<td title="' + safeCli + '">' + safeCli + '</td>'
+                 + '<td title="' + safeVen + '">' + safeVen + '</td>'
+                 + '<td title="' + safeProy + '">' + safeProy + '</td>'
+                 + '<td>' + fecha + '</td>'
+                 + '<td class="revision-col">R' + rev + '</td>'
+                 + '<td class="total-col">' + totalFmt + '</td>'
+                 + '<td><div class="acciones-col">'
+                 + '<a href="/pdf/' + encodeURIComponent(num) + '" target="_blank" class="btn-icon">PDF</a>'
+                 + '<button class="btn-icon" onclick="descargarOCompartirPDF(\'' + num.replace(/'/g, "\\'") + '\')">Descargar</button>'
+                 + (tieneDG ? '<a href="/desglose/' + encodeURIComponent(num) + '" class="btn-icon">Desglose</a>' : '<span style="font-size:10px;color:#999;">Sin desglose</span>')
+                 + '</div></td></tr>'
+                 + '<tr class="preview-row" id="preview-' + num.replace(/[^a-zA-Z0-9-]/g, '_') + '">'
+                 + '<td colspan="9"><div class="preview-cell" id="preview-cell-' + num.replace(/[^a-zA-Z0-9-]/g, '_') + '">'
+                 + '<div class="preview-loading">Cargando...</div></div></td></tr>';
+        }
+        html += '</tbody></table></div></div>';
+        wrapper.innerHTML = html;
+    }
+
+    function renderPag(d) {
+        var wrapper = document.getElementById('paginationWrapper');
+        var page = d.page || 1;
+        var totalPages = d.total_pages || 1;
+        var total = d.total || 0;
+        var pageSize = d.page_size || 50;
+        if (totalPages <= 1) { wrapper.innerHTML = ''; return; }
+        var start = ((page - 1) * pageSize) + 1;
+        var end = Math.min(page * pageSize, total);
+        var html = '<div class="pagination-container">'
+                 + '<div class="pagination-info">Mostrando ' + start + ' - ' + end + ' de ' + total + ' cotizaciones</div>'
+                 + '<div class="pagination-controls">';
+        if (page > 1) html += '<button onclick="doSearch(null, ' + (page - 1) + ')" class="page-btn">&larr; Anterior</button>';
+        else html += '<button class="page-btn" disabled>&larr; Anterior</button>';
+        html += '<span class="page-btn active">' + page + '</span>';
+        if (page < totalPages) html += '<button onclick="doSearch(null, ' + (page + 1) + ')" class="page-btn">Siguiente &rarr;</button>';
+        else html += '<button class="page-btn" disabled>Siguiente &rarr;</button>';
+        html += '</div></div>';
+        wrapper.innerHTML = html;
+    }
+
+    function updateUrl(payload, page) {
+        var params = new URLSearchParams();
+        if (payload.q) params.set('q', payload.q);
+        var filterFields = ['numero','cliente','vendedor','proyecto','fecha_desde','fecha_hasta','revision','moneda','tipo'];
+        for (var i = 0; i < filterFields.length; i++) {
+            if (payload[filterFields[i]]) params.set(filterFields[i], payload[filterFields[i]]);
+        }
+        if (page > 1) params.set('page', page);
+        var url = params.toString() ? '/?' + params.toString() : '/';
+        window.history.replaceState({}, '', url);
+    }
+
+    // ====== INLINE PREVIEW ======
+    async function togglePreview(numero, btn) {
+        var safeId = numero.replace(/[^a-zA-Z0-9-]/g, '_');
+        var row = document.getElementById('preview-' + safeId);
+        if (!row) return;
+        if (row.classList.contains('show')) {
+            row.classList.remove('show');
+            if (btn) { btn.textContent = '▶'; btn.classList.remove('open'); }
+            return;
+        }
+        if (btn) { btn.textContent = '▼'; btn.classList.add('open'); }
+        row.classList.add('show');
+        var cell = document.getElementById('preview-cell-' + safeId);
+        if (!cell) return;
+        if (cell.dataset.loaded === 'true') return;
+        try {
+            var r = await fetch('/cotizacion-resumen/' + encodeURIComponent(numero));
+            var d = await r.json();
+            if (d.success) {
+                renderPrev(cell, d.cotizacion);
+                cell.dataset.loaded = 'true';
+            } else {
+                cell.innerHTML = '<div style="color:#dc3545;padding:10px;">Error al cargar detalles</div>';
+            }
+        } catch(e) {
+            cell.innerHTML = '<div style="color:#dc3545;padding:10px;">Error: ' + escHtml(e.message) + '</div>';
+        }
+    }
+
+    function renderPrev(cell, data) {
+        var html = '<div class="preview-grid">'
+                 + '<div class="preview-field"><label>Cliente</label><span>' + escHtml(data.cliente || 'N/A') + '</span></div>'
+                 + '<div class="preview-field"><label>Vendedor</label><span>' + escHtml(data.vendedor || 'N/A') + '</span></div>'
+                 + '<div class="preview-field"><label>Proyecto</label><span>' + escHtml(data.proyecto || 'N/A') + '</span></div>'
+                 + '<div class="preview-field"><label>Fecha</label><span>' + (data.fecha || 'N/A') + '</span></div>'
+                 + '<div class="preview-field"><label>Moneda</label><span>' + (data.moneda || 'N/A') + '</span></div>'
+                 + '<div class="preview-field"><label>Revision</label><span>R' + (data.revision || 1) + '</span></div>'
+                 + '<div class="preview-field"><label>Total</label><span>' + (data.moneda || '') + ' $' + Number(data.total || 0).toLocaleString('es-MX', {minimumFractionDigits:2}) + '</span></div>'
+                 + '<div class="preview-field"><label>Items</label><span>' + (data.items_count || 0) + ' productos</span></div>'
+                 + '</div>';
+        if (data.items_preview && data.items_preview.length) {
+            html += '<div class="preview-items"><h4>Productos</h4><table><thead><tr><th>#</th><th>Descripcion</th><th>Cant</th><th>Precio</th><th>Total</th></tr></thead><tbody>';
+            for (var i = 0; i < data.items_preview.length; i++) {
+                var item = data.items_preview[i];
+                html += '<tr><td>' + (i+1) + '</td>'
+                     + '<td>' + escHtml(item.descripcion || item.descripcion || 'N/A') + '</td>'
+                     + '<td>' + (item.cantidad || 0) + '</td>'
+                     + '<td>$' + Number(item.precio_unitario || item.precio || 0).toLocaleString('es-MX', {minimumFractionDigits:2}) + '</td>'
+                     + '<td>$' + Number(item.total || item.subtotal || 0).toLocaleString('es-MX', {minimumFractionDigits:2}) + '</td></tr>';
+            }
+            html += '</tbody></table></div>';
+        }
+        cell.innerHTML = html;
+    }
+
+    // ====== FILTERS ======
+    document.getElementById('toggleFilters').addEventListener('click', function() {
+        var panel = document.getElementById('filterPanel');
+        var text = document.getElementById('filterToggleText');
+        if (panel.style.display === 'none' || !panel.style.display) {
+            panel.style.display = 'block';
+            text.textContent = 'Ocultar Filtros';
+        } else {
+            panel.style.display = 'none';
+            text.textContent = 'Mostrar Filtros';
+        }
+    });
+
+    document.getElementById('applyFilters').addEventListener('click', function() {
+        updateChips();
+        var q = document.getElementById('quickSearch').value.trim();
+        doSearch(q, 1);
+    });
+
+    document.getElementById('clearFilters').addEventListener('click', function() {
+        var ids = ['filterNumero','filterCliente','filterVendedor','filterProyecto',
+                   'filterFechaDesde','filterFechaHasta','filterRevision','filterMoneda','filterTipo'];
+        for (var i = 0; i < ids.length; i++) { var el = document.getElementById(ids[i]); if (el) el.value = ''; }
+        document.getElementById('quickSearch').value = '';
+        updateChips();
+        doSearch('', 1);
+    });
+
+    // ====== NAVEGACION ======
+    function goToPage(num) {
+        var params = new URLSearchParams(window.location.search);
+        params.set('page', num);
+        window.location.href = '/?' + params.toString();
+    }
+
+    function cerrarSesion() {
+        if (confirm('Estas seguro de que deseas cerrar sesion?')) {
+            window.location.href = '/logout';
+        }
+    }
+
+    // ====== DRAFTS ======
+    async function cargarConteoDrafts() {
+        try {
+            var r = await fetch('/api/draft/list');
+            if (r.ok) {
+                var d = await r.json();
+                if (d.success && d.total > 0) {
+                    var badge = document.getElementById('badge-drafts');
+                    badge.textContent = d.total;
+                    badge.style.display = 'flex';
+                }
+            }
+        } catch(e) { console.error('[DRAFT] Error:', e); }
+    }
+
+    async function abrirModalDrafts() {
+        var modal = document.getElementById('modalDrafts');
+        var lista = document.getElementById('listaDrafts');
+        modal.style.display = 'flex';
+        lista.innerHTML = '<div style="text-align:center;padding:40px;color:#6c757d;"><p>Cargando borradores...</p></div>';
+        try {
+            var r = await fetch('/api/draft/list');
+            if (!r.ok) throw new Error('Error HTTP ' + r.status);
+            var d = await r.json();
+            if (d.success) {
+                var drafts = d.drafts || [];
+                if (!drafts.length) {
+                    lista.innerHTML = '<div style="text-align:center;padding:40px;color:#6c757d;"><p>No hay borradores pendientes</p></div>';
+                } else {
+                    var html = '';
+                    for (var i = 0; i < drafts.length; i++) {
+                        var dr = drafts[i];
+                        var fecha = new Date(dr.ultima_modificacion || dr.fecha_creacion);
+                        var f = fecha.toLocaleString('es-MX', {year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+                        html += '<div style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:16px;margin-bottom:12px;">'
+                             + '<h3 style="font-size:16px;font-weight:600;color:#212529;margin:0 0 4px 0;">' + escHtml(dr.nombre || 'Sin nombre') + '</h3>'
+                             + '<p style="font-size:12px;color:#6c757d;margin:0 0 12px 0;">Vendedor: ' + escHtml(dr.vendedor) + ' &bull; ' + f + '</p>'
+                             + '<div style="display:flex;gap:8px;">'
+                             + '<button onclick="cargarDraft(\'' + dr.id + '\')" style="flex:1;background:#4f46e5;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;">Continuar editando</button>'
+                             + '<button onclick="eliminarDraft(\'' + dr.id + '\')" style="background:#ef4444;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;">Eliminar</button>'
+                             + '</div></div>';
+                    }
+                    lista.innerHTML = html;
+                }
+            }
+        } catch(e) {
+            lista.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;"><p>Error al cargar borradores: ' + escHtml(e.message) + '</p></div>';
+        }
+    }
+
+    function cerrarModalDrafts() { document.getElementById('modalDrafts').style.display = 'none'; }
+    function cargarDraft(id) { window.location.href = '/formulario?draft=' + encodeURIComponent(id); }
+    async function eliminarDraft(id) {
+        if (!confirm('Estas seguro de que deseas eliminar este borrador?')) return;
+        try {
+            var r = await fetch('/api/draft/delete/' + id, { method: 'DELETE' });
+            if (!r.ok) throw new Error('Error HTTP ' + r.status);
+            var d = await r.json();
+            if (d.success) { await abrirModalDrafts(); await cargarConteoDrafts(); }
+        } catch(e) { alert('Error al eliminar borrador: ' + e.message); }
+    }
+
+    // ====== UTILITY ======
+    function escHtml(str) {
+        if (!str) return '';
+        var d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    function descargarOCompartirPDF(numero) {
+        var url = '/pdf/' + encodeURIComponent(numero);
+        if (navigator.share) {
+            navigator.share({ url: window.location.origin + url }).catch(function() {});
+        } else {
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = numero + '.pdf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    }
+
+    // ====== INIT ======
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Sistema CWS iniciado (busqueda mejorada)');
+        cargarConteoDrafts();
+        updateChips();
+
+        // Search input events
+        var input = document.getElementById('quickSearch');
+        input.addEventListener('input', function() {
+            doSuggest();
+            doSearchDebounced();
+        });
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                var q = this.value.trim();
+                if (q) saveHist(q);
+                hideDrops();
+                doSearch(q, 1);
+            }
+        });
+        input.addEventListener('focus', function() {
+            var q = this.value.trim();
+            if (!q) showHist();
+        });
+        input.addEventListener('blur', function() {
+            setTimeout(hideDrops, 200);
         });
 
-        // Cerrar modal al hacer clic fuera
+        // Filter change events (auto-apply on select/date change)
+        var autoFields = ['filterRevision','filterMoneda','filterTipo'];
+        for (var i = 0; i < autoFields.length; i++) {
+            var el = document.getElementById(autoFields[i]);
+            if (el) el.addEventListener('change', function() {
+                updateChips();
+                doSearch(document.getElementById('quickSearch').value.trim(), 1);
+            });
+        }
+
+        // Modal close on click outside
         document.getElementById('modalDrafts').addEventListener('click', function(e) {
             if (e.target === this) cerrarModalDrafts();
         });
-
-        function descargarOCompartirPDF(numero) {
-            const url = `/pdf/${numero}`;
-            if (navigator.share) {
-                navigator.share({ url: window.location.origin + url })
-                    .catch(() => {});
-            } else {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${numero}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }
-        }
+    });
     </script>
 </body>
 </html>

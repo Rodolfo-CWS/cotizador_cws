@@ -2810,33 +2810,6 @@ def todas_cotizaciones():
             cotizaciones_raw = resultado_db.get("resultados", [])
             print(f"[TODAS-COTIZACIONES] Encontradas {len(cotizaciones_raw)} cotizaciones de BD")
 
-            # DEBUG: Mostrar estructura de primera cotización
-            if len(cotizaciones_raw) > 0:
-                primera = cotizaciones_raw[0]
-                print(f"[DEBUG] === ESTRUCTURA DE PRIMERA COTIZACIÓN ===")
-                print(f"[DEBUG] Keys en raíz: {list(primera.keys())}")
-                print(f"[DEBUG] numeroCotizacion: {primera.get('numeroCotizacion', 'NO ENCONTRADO')}")
-                print(f"[DEBUG] datosGenerales presente: {'datosGenerales' in primera}")
-                if 'datosGenerales' in primera:
-                    dg = primera['datosGenerales']
-                    print(f"[DEBUG] datosGenerales type: {type(dg)}")
-                    if isinstance(dg, dict):
-                        print(f"[DEBUG] datosGenerales keys: {list(dg.keys())}")
-                        print(f"[DEBUG] datosGenerales.fecha: '{dg.get('fecha', 'NO ENCONTRADO')}'")
-                        print(f"[DEBUG] datosGenerales.cliente: '{dg.get('cliente', 'NO ENCONTRADO')}'")
-                    else:
-                        print(f"[DEBUG] datosGenerales NO ES DICT: {dg}")
-                print(f"[DEBUG] items presente: {'items' in primera}")
-                if 'items' in primera:
-                    items = primera['items']
-                    print(f"[DEBUG] Total items: {len(items) if isinstance(items, list) else 'NO ES LISTA'}")
-                    if isinstance(items, list) and len(items) > 0:
-                        print(f"[DEBUG] Primer item keys: {list(items[0].keys()) if isinstance(items[0], dict) else 'NO ES DICT'}")
-                        print(f"[DEBUG] Primer item completo: {items[0]}")
-                print(f"[DEBUG] condiciones presente: {'condiciones' in primera}")
-                if 'condiciones' in primera:
-                    print(f"[DEBUG] condiciones: {primera['condiciones']}")
-                print(f"[DEBUG] === FIN ESTRUCTURA ===")
 
             # Transformar datos para tabla compacta
             for idx, cot in enumerate(cotizaciones_raw):
