@@ -2561,11 +2561,16 @@ def buscar():
                 print(f"   {key}: {value}")
         
         respuesta = {
+            "success": True,
             "resultados": resultados_paginados,
+            "resultados_cotizaciones": resultados_paginados,
             "total": total,
             "pagina": page,
+            "page": page,
             "por_pagina": per_page,
             "total_paginas": (total + per_page - 1) // per_page,
+            "total_pages": (total + per_page - 1) // per_page,
+            "page_size": per_page,
             "modo": "busqueda_unificada"
         }
         
