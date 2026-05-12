@@ -1,846 +1,489 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Todas las Cotizaciones - CWS</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f8f9fa;
-            padding: 20px;
-            color: #2c2c2c;
-        }
-
-        .header {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header h1 {
-            font-size: 24px;
-            color: #212529;
-            font-weight: 600;
-        }
-
-        .header .user-info {
-            font-size: 14px;
-            color: #6c757d;
-        }
-
-        .actions {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background: #4f46e5;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #4338ca;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background: #5a6268;
-        }
-
-        .stats {
-            background: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            font-size: 14px;
-            color: #495057;
-            font-weight: 500;
-        }
-
-        .table-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        .table-wrapper {
-            overflow-x: auto;
-            max-height: calc(100vh - 280px);
-            overflow-y: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-
-        thead {
-            position: sticky;
-            top: 0;
-            background: #f8f9fa;
-            z-index: 10;
-        }
-
-        th {
-            padding: 10px 12px;
-            text-align: left;
-            font-weight: 600;
-            color: #495057;
-            border-bottom: 2px solid #dee2e6;
-            white-space: nowrap;
-            cursor: pointer;
-            user-select: none;
-            position: relative;
-        }
-
-        th:hover {
-            background: #e9ecef;
-        }
-
-        th.sortable::after {
-            content: ' ⇅';
-            opacity: 0.3;
-            font-size: 12px;
-        }
-
-        th.sort-asc::after {
-            content: ' ↑';
-            opacity: 1;
-            color: #4f46e5;
-        }
-
-        th.sort-desc::after {
-            content: ' ↓';
-            opacity: 1;
-            color: #4f46e5;
-        }
-
-        td {
-            padding: 8px 12px;
-            border-bottom: 1px solid #f1f3f5;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 200px;
-        }
-
-        tr:hover {
-            background: #f8f9fa;
-        }
-
-        tr:nth-child(even) {
-            background: #fafbfc;
-        }
-
-        tr:nth-child(even):hover {
-            background: #f1f3f5;
-        }
-
-        .numero-col {
-            color: #4f46e5;
-            font-weight: 600;
-            max-width: 250px;
-        }
-
-        .revision-col {
-            text-align: center;
-            font-size: 11px;
-            color: #6c757d;
-        }
-
-        .total-col {
-            text-align: right;
-            font-weight: 500;
-        }
-
-        .acciones-col {
-            display: flex;
-            gap: 6px;
-            justify-content: flex-end;
-        }
-
-        .btn-icon {
-            padding: 4px 8px;
-            font-size: 11px;
-            border-radius: 4px;
-            border: 1px solid #dee2e6;
-            background: white;
-            color: #495057;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-icon:hover {
-            background: #4f46e5;
-            color: white;
-            border-color: #4f46e5;
-        }
-
-        .empty-state {
-            padding: 60px 20px;
-            text-align: center;
-            color: #6c757d;
-        }
-
-        .empty-state svg {
-            width: 64px;
-            height: 64px;
-            opacity: 0.3;
-            margin-bottom: 16px;
-        }
-
-        /* Nota de leyenda */
-        .leyenda {
-            font-size: 12px;
-            color: #6c757d;
-            margin-top: 8px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .leyenda-icono {
-            color: #f59e0b;
-            font-weight: bold;
-            font-size: 11px;
-        }
-
-        /* Estilos de paginación */
-        .pagination-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 20px;
-            padding: 15px 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        .pagination-info {
-            font-size: 14px;
-            color: #6c757d;
-        }
-
-        .pagination-controls {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .page-btn {
-            padding: 8px 12px;
-            font-size: 14px;
-            border-radius: 6px;
-            border: 1px solid #dee2e6;
-            background: white;
-            color: #495057;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-            display: inline-block;
-            min-width: 36px;
-            text-align: center;
-        }
-
-        .page-btn:hover:not(:disabled) {
-            background: #f8f9fa;
-            border-color: #4f46e5;
-            color: #4f46e5;
-        }
-
-        .page-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .page-btn.active {
-            background: #4f46e5;
-            color: white;
-            border-color: #4f46e5;
-            font-weight: 600;
-        }
-
-        .page-btn.prev-next {
-            font-weight: 600;
-        }
-
-        @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                gap: 12px;
-                text-align: center;
-            }
-
-            .actions {
-                flex-direction: column;
-            }
-
-            td, th {
-                font-size: 12px;
-                padding: 6px 8px;
-            }
-
-            .pagination-container {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .pagination-controls {
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-
-            .page-btn {
-                padding: 6px 10px;
-                font-size: 13px;
-                min-width: 32px;
-            }
-
-            .pagination-info {
-                font-size: 13px;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Todas las Cotizaciones - CWS</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;padding:20px;color:#2c2c2c}
+.hdr{background:#fff;padding:16px 24px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.hdr-l{display:flex;align-items:center;gap:10px}
+.hdr h1{font-size:20px;font-weight:700;color:#1a1a2e}
+.hdr-badge{font-size:12px;color:#6c757d;background:#f8f9fa;padding:4px 10px;border-radius:20px}
+.hdr-actions{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;transition:all .2s}
+.btn-p{background:#4f46e5;color:#fff}
+.btn-p:hover{background:#4338ca;transform:translateY(-1px);box-shadow:0 4px 12px rgba(79,70,229,.3)}
+.btn-g{background:#f8f9fa;color:#495057;border:1px solid #dee2e6}
+.btn-g:hover{background:#fff;border-color:#4f46e5;color:#4f46e5}
+.btn-sm{padding:6px 12px;font-size:12px}
+.sc{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px 20px;margin-bottom:12px;position:relative}
+.sb{display:flex;align-items:center;background:#f8f9fa;border:2px solid #e9ecef;border-radius:10px;padding:0 16px;transition:all .2s}
+.sb:focus-within{border-color:#4f46e5;background:#fff;box-shadow:0 0 0 4px rgba(79,70,229,.1)}
+.sb-ic{color:#adb5bd;margin-right:10px;flex-shrink:0}
+.sb input{flex:1;border:none;background:transparent;padding:12px 0;font-size:14px;outline:none;color:#212529;min-width:0}
+.sb input::placeholder{color:#adb5bd}
+.sb-clear{background:none;border:none;color:#adb5bd;cursor:pointer;padding:4px 8px;font-size:16px;flex-shrink:0;display:none}
+.sb-clear:hover{color:#495057}
+.sb-go{background:#4f46e5;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px;flex-shrink:0}
+.sb-go:hover{background:#4338ca}
+.sg{display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e9ecef;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.12);margin-top:4px;z-index:1000;max-height:300px;overflow-y:auto}
+.sg.v{display:block}
+.sgh{padding:8px 14px 4px;font-size:10px;font-weight:600;color:#adb5bd;text-transform:uppercase;letter-spacing:.5px}
+.sgi{padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .15s;font-size:13px}
+.sgi:hover{background:#f0f0ff}
+.sgi .sgd{color:#dc3545;opacity:.4;cursor:pointer;font-size:12px;margin-left:auto;padding:2px 4px}
+.sgi .sgd:hover{opacity:1}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;background:#f0f0ff;color:#4f46e5;border-radius:20px;font-size:11px;font-weight:500;border:1px solid #d0cfff}
+.chip-r{cursor:pointer;font-size:12px;opacity:.6}
+.chip-r:hover{opacity:1}
+.hts{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;align-items:center}
+.htl{font-size:12px;color:#adb5bd}
+.ht{font-size:11px;color:#6c757d;background:#f8f9fa;padding:2px 7px;border-radius:4px;border:1px solid #e9ecef;cursor:pointer;transition:all .2s}
+.ht:hover{background:#f0f0ff;border-color:#4f46e5;color:#4f46e5}
+.ht-f{color:#4f46e5;border-color:#d0cfff;font-weight:500}
+.fp{display:none;background:#fff;padding:16px 20px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:12px}
+.fp.v{display:block}
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:10px}
+.fg label{display:block;font-size:10px;font-weight:600;color:#495057;margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
+.fg input,.fg select{width:100%;padding:7px 9px;border:1px solid #dee2e6;border-radius:6px;font-size:12px;background:#fff}
+.fg input:focus,.fg select:focus{border-color:#4f46e5;outline:none;box-shadow:0 0 0 3px rgba(79,70,229,.1)}
+.fa{display:flex;gap:8px;justify-content:flex-end}
+.st{background:#fff;padding:8px 16px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:12px;display:flex;align-items:center;gap:14px;font-size:12px;color:#6c757d;flex-wrap:wrap}
+.st-src{display:inline-flex;align-items:center;gap:3px;padding:1px 8px;background:#f0f0ff;border-radius:10px;font-size:10px;color:#4f46e5}
+.st-ly{font-size:11px;color:#f59e0b}
+.st-tm{font-size:10px;color:#adb5bd;margin-left:auto}
+.tw{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden;position:relative}
+.lo{display:none;position:absolute;inset:0;background:rgba(255,255,255,.7);z-index:50;justify-content:center;align-items:center}
+.lo.v{display:flex}
+.sp{width:28px;height:28px;border:3px solid #e9ecef;border-top-color:#4f46e5;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ts{overflow-x:auto;max-height:calc(100vh - 300px);overflow-y:auto}
+.tb{width:100%;border-collapse:collapse;font-size:12px}
+.tb thead{position:sticky;top:0;background:#f8f9fa;z-index:10}
+.tb th{padding:9px 10px;text-align:left;font-weight:600;color:#495057;border-bottom:2px solid #dee2e6;white-space:nowrap;cursor:pointer;user-select:none;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.tb th:hover{background:#e9ecef}
+.tb th.s::after{content:' ⇅';opacity:.3;font-size:10px}
+.tb th.sa::after{content:' ↑';opacity:1;color:#4f46e5}
+.tb th.sd::after{content:' ↓';opacity:1;color:#4f46e5}
+.tb td{padding:7px 10px;border-bottom:1px solid #f1f3f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.tb tr:hover{background:#f8f9fa}
+.tb tr:nth-child(even){background:#fafbfc}
+.tb tr:nth-child(even):hover{background:#f1f3f5}
+.ant{opacity:.65;background:#fff9e6!important}
+.ant:hover{opacity:1;background:#fff3cd!important}
+.nc{color:#4f46e5;font-weight:600;cursor:pointer;max-width:220px}
+.nc:hover{text-decoration:underline}
+.ns{font-size:9px;color:#f59e0b;margin-left:3px}
+.rv{text-align:center;font-size:11px;color:#6c757d}
+.tt{text-align:right;font-weight:500}
+.na{color:#999;font-size:11px}
+.ac{display:flex;gap:4px;justify-content:flex-end}
+.ax{padding:3px 7px;font-size:10px;border-radius:4px;border:1px solid #dee2e6;background:#fff;color:#495057;cursor:pointer;text-decoration:none;display:inline-block;transition:all .2s}
+.ax:hover{background:#4f46e5;color:#fff;border-color:#4f46e5}
+.ex{background:none;border:none;color:#adb5bd;cursor:pointer;font-size:10px;transition:transform .2s;padding:2px}
+.ex:hover{color:#4f46e5}
+.ex.ed{transform:rotate(90deg);color:#4f46e5}
+.pr td{padding:0!important;border-bottom:none!important;background:#fafbfc!important}
+.pi{padding:14px 20px 14px 44px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;border-bottom:1px solid #e9ecef;animation:sl .2s ease}
+@keyframes sl{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.pb{background:#fff;padding:10px 12px;border-radius:8px;border:1px solid #e9ecef}
+.pb h4{font-size:10px;color:#adb5bd;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:600}
+.pv{font-size:12px;color:#212529;line-height:1.6}
+.pv .pl{color:#6c757d;font-size:10px}
+.pa{grid-column:1/-1;display:flex;gap:8px;margin-top:2px}
+.emp{padding:50px 20px;text-align:center;color:#6c757d}
+.emp svg{width:48px;height:48px;opacity:.15;margin-bottom:10px}
+.emp p{font-size:14px;margin-bottom:2px}
+.emp .es{font-size:11px;color:#adb5bd}
+.pg{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;flex-wrap:wrap;gap:10px;border-top:1px solid #f1f3f5}
+.pgi{font-size:12px;color:#6c757d}
+.pgb{display:flex;gap:4px;align-items:center}
+.pgx{padding:5px 9px;font-size:12px;border-radius:5px;border:1px solid #dee2e6;background:#fff;color:#495057;cursor:pointer;min-width:30px;text-align:center;transition:all .2s}
+.pgx:hover{background:#f8f9fa;border-color:#4f46e5;color:#4f46e5}
+.pgx:disabled{opacity:.4;cursor:not-allowed}
+.pgxa{background:#4f46e5!important;color:#fff!important;border-color:#4f46e5!important;font-weight:600}
+.pgd{padding:0 2px;color:#adb5bd;font-size:12px}
+@media(max-width:768px){
+body{padding:12px}
+.hdr{flex-direction:column;align-items:stretch;text-align:center}
+.hdr-actions{justify-content:center}
+.fg{grid-template-columns:1fr}
+.pi{grid-template-columns:1fr}
+.st{font-size:11px;gap:8px}
+}
+</style>
 </head>
 <body>
-    <div class="header">
-        <div>
-            <h1>Todas las Cotizaciones</h1>
-            <div class="user-info">Sesión: <strong>{{ vendedor }}</strong></div>
-        </div>
-    </div>
+<div class="hdr">
+<div class="hdr-l">
+<h1>
+<svg width="22" height="22" viewBox="0 0 24 24" fill="#4f46e5" style="vertical-align:-3px;margin-right:8px">
+<path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"/>
+</svg>
+Cotizaciones
+</h1>
+<span class="hdr-badge">{{ vendedor }}</span>
+</div>
+<div class="hdr-actions">
+<a href="/" class="btn btn-g">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+Volver
+</a>
+<a href="/formulario" class="btn btn-p">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+Nueva
+</a>
+</div>
+</div>
 
-    <div class="actions">
-        <a href="/" class="btn btn-secondary">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-            </svg>
-            Volver a Inicio
-        </a>
-        <a href="/formulario" class="btn btn-primary">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-            </svg>
-            Nueva Cotización
-        </a>
-        <button id="toggleFilters" class="btn btn-secondary">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
-            </svg>
-            <span id="filterToggleText">Mostrar Filtros</span>
-            <span id="filterBadge" style="display: none; background: #ef4444; color: white; border-radius: 10px; padding: 2px 8px; margin-left: 6px; font-size: 11px; font-weight: 600;">0</span>
-        </button>
-    </div>
+<!-- Smart Search (Mejoras 1,2,3,4) -->
+<div class="sc">
+<div class="sb">
+<svg class="sb-ic" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+<path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+</svg>
+<input type="text" id="s" placeholder="Buscar: n&uacute;mero, cliente, vendedor, proyecto... (ej: BMW, cliente:Juan R2, >2025-03-01)" autocomplete="off">
+<button class="sb-clear" id="sClr" style="display:none" title="Limpiar">&times;</button>
+<button class="sb-go" id="sGo">Buscar</button>
+</div>
+<div class="sg" id="sg"></div>
+<div class="chips" id="chips"></div>
+<div class="hts">
+<span class="htl">💡</span>
+<span class="ht" data-q="cliente:">cliente:</span>
+<span class="ht" data-q="vendedor:">vendedor:</span>
+<span class="ht" data-q="R2">R2</span>
+<span class="ht" data-q=">2025-03-01">&gt;fecha</span>
+<span class="ht" data-q="USD">USD</span>
+<span class="ht" data-q="antigua">antigua</span>
+<button class="ht ht-f" id="tF">+ Filtros</button>
+</div>
+</div>
 
-    <!-- Panel de Filtros (inicialmente oculto) -->
-    <div id="filterPanel" style="display: none; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h3 style="font-size: 16px; font-weight: 600; color: #212529; margin: 0;">Filtrar Cotizaciones</h3>
-            <button id="clearFilters" class="btn" style="background: #f8f9fa; color: #6c757d; font-size: 12px; padding: 6px 12px;">
-                Limpiar Filtros
-            </button>
-        </div>
+<!-- Filter Panel -->
+<div class="fp" id="fp">
+<div class="fg">
+<div><label>N&uacute;mero</label><input type="text" id="fNum" placeholder="Ej: CWS-001"></div>
+<div><label>Cliente</label><input type="text" id="fCli" placeholder="Nombre"></div>
+<div><label>Vendedor</label><input type="text" id="fVen" placeholder="Nombre"></div>
+<div><label>Proyecto</label><input type="text" id="fPro" placeholder="Nombre"></div>
+<div><label>Fecha Desde</label><input type="date" id="fFd"></div>
+<div><label>Fecha Hasta</label><input type="date" id="fFh"></div>
+<div><label>Revisi&oacute;n</label>
+<select id="fRev"><option value="">Todas</option><option value="1">R1</option><option value="2">R2</option><option value="3">R3</option><option value="4">R4</option><option value="5+">R5+</option></select></div>
+<div><label>Moneda</label>
+<select id="fMon"><option value="">Todas</option><option value="MXN">MXN</option><option value="USD">USD</option></select></div>
+<div><label>Tipo</label>
+<select id="fTip"><option value="">Todas</option><option value="nueva">Nuevas</option><option value="antigua">Antiguas</option></select></div>
+</div>
+<div class="fa">
+<button class="btn btn-g btn-sm" id="fClr">Limpiar</button>
+<button class="btn btn-p btn-sm" id="fApp">Aplicar</button>
+</div>
+</div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
-            <!-- Filtro por Número -->
-            <div>
-                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Número de Cotización</label>
-                <input type="text" id="filterNumero" placeholder="Ej: CLIENTE-CWS-VEN..." style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px;">
-            </div>
+<!-- Stats -->
+<div class="st">
+<span><strong id="tot">{{ total_cotizaciones }}</strong> resultados</span>
+<span class="st-src">BD Principal</span>
+<span class="st-ly">★ Antiguas</span>
+<span class="st-tm" id="stm"></span>
+</div>
 
-            <!-- Filtro por Cliente -->
-            <div>
-                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Cliente</label>
-                <input type="text" id="filterCliente" placeholder="Nombre del cliente" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px;">
-            </div>
+<!-- Table -->
+<div class="tw">
+<div class="lo" id="lo"><div class="sp"></div></div>
+<div class="ts">
+<table class="tb">
+<thead><tr>
+<th style="width:32px"></th>
+<th class="s" data-c="numero">N&uacute;mero</th>
+<th class="s" data-c="cliente">Cliente</th>
+<th class="s" data-c="vendedor">Vendedor</th>
+<th class="s" data-c="proyecto">Proyecto</th>
+<th class="s" data-c="fecha">Fecha</th>
+<th class="s" data-c="revision" style="text-align:center">Rev</th>
+<th class="s" data-c="total">Monto</th>
+<th>Acciones</th>
+</tr></thead>
+<tbody id="tbd">
+{% for cot in cotizaciones %}
+<tr class="{% if cot.es_antigua %}ant{% endif %}" data-n="{{ cot.numero }}">
+<td style="text-align:center"><button class="ex" data-n="{{ cot.numero }}" title="Vista previa">&#9654;</button></td>
+<td class="nc">{{ cot.numero }}{% if cot.es_antigua %}<span class="ns">★</span>{% endif %}</td>
+<td>{{ cot.cliente }}</td><td>{{ cot.vendedor }}</td><td>{{ cot.proyecto }}</td>
+<td>{{ cot.fecha }}</td><td class="rv">R{{ cot.revision }}</td>
+<td class="tt">{% if cot.moneda != 'N/A' %}{{ cot.moneda }} ${{ "{:,.2f}".format(cot.total|float) if cot.total else '0.00' }}{% else %}<span class="na">-</span>{% endif %}</td>
+<td class="ac">
+<a href="/pdf/{{ cot.numero }}" target="_blank" class="ax">PDF</a>
+{% if cot.tiene_desglose %}<a href="/desglose/{{ cot.numero }}" class="ax">Desg</a>{% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
 
-            <!-- Filtro por Vendedor -->
-            <div>
-                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Vendedor</label>
-                <input type="text" id="filterVendedor" placeholder="Nombre del vendedor" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px;">
-            </div>
+{% if total_pages > 1 %}
+<div class="pg" id="pg">
+<span class="pgi">{{ ((page - 1) * page_size) + 1 }}-{{ [page * page_size, total_cotizaciones]|min }} de {{ total_cotizaciones }}</span>
+<div class="pgb">
+{% if page > 1 %}<button class="pgx" data-p="{{ page - 1 }}">&larr;</button>{% endif %}
+{% set sp = [1, page - 2]|max %}{% set ep = [total_pages, page + 2]|min %}
+{% if sp > 1 %}<button class="pgx" data-p="1">1</button>{% if sp > 2 %}<span class="pgd">...</span>{% endif %}{% endif %}
+{% for p in range(sp, ep + 1) %}
+<button class="pgx {% if p == page %}pgxa{% endif %}" data-p="{{ p }}">{{ p }}</button>
+{% endfor %}
+{% if ep < total_pages %}{% if ep < total_pages - 1 %}<span class="pgd">...</span>{% endif %}<button class="pgx" data-p="{{ total_pages }}">{{ total_pages }}</button>{% endif %}
+{% if page < total_pages %}<button class="pgx" data-p="{{ page + 1 }}">&rarr;</button>{% endif %}
+</div>
+</div>
+{% endif %}
+</div>
+<script>
+// CONFIG
+var A='/buscar',G='/sugerencias',P='/cotizacion-resumen',HK='cws_hist',MH=8,DB=300;
+var SC='fecha',SD='desc',CP={{ page }},CQ='',TD,SDb,firstLoad=true;
+function gh(){try{return JSON.parse(localStorage.getItem(HK)||'[]')}catch(e){return[]}}
+function sh(q){
+ if(!q||q.trim().length<2)return;
+ var h=gh();h=[q.trim()].concat(h.filter(function(x){return x!==q.trim()})).slice(0,MH);
+ localStorage.setItem(HK,JSON.stringify(h));
+}
+function dh(q){var h=gh();localStorage.setItem(HK,JSON.stringify(h.filter(function(x){return x!==q})));rs();}
+function fgS(q){
+ if(q.length<2){rh();return}
+ fetch(G+'?q='+encodeURIComponent(q)+'&limit=8').then(function(r){return r.json()}).then(function(d){
+  if(d.success&&d.sugerencias.length) raS(d.sugerencias,q);else rh();
+ }).catch(function(){rh()});
+}
+function rh(){
+ var e=document.getElementById('sg'),h=gh();
+ if(!h.length){e.classList.remove('v');return}
+ e.innerHTML='<div class="sgh">\U0001f550 Recientes</div>';
+ for(var i=0;i<h.length;i++){
+  (function(q){
+   var d=document.createElement('div');d.className='sgi';
+   d.innerHTML='\U0001f50d '+he(q)+' <span class="sgd" data-q="'+he(q)+'">\u2715</span>';
+   d.querySelector('.sgd').onclick=function(e){e.stopPropagation();dh(q)};
+   d.onclick=function(){document.getElementById('s').value=q;e.classList.remove('v');dS(q)};
+   e.appendChild(d);
+  })(h[i]);
+ }
+ e.classList.add('v');
+}
+function raS(list,q){
+ var e=document.getElementById('sg');
+ e.innerHTML='<div class="sgh">\U0001f50d Sugerencias</div>';
+ for(var i=0;i<list.length;i++){
+  (function(s){
+   var d=document.createElement('div');d.className='sgi';
+   var re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+   d.innerHTML=s.text.replace(re,'<strong style="color:#4f46e5">$1</strong>')+' <span style="font-size:10px;color:#adb5bd;margin-left:auto">'+he(s.tipo||'')+'</span>';
+   d.onclick=function(){document.getElementById('s').value=s.text;e.classList.remove('v');dS(s.text)};
+   e.appendChild(d);
+  })(list[i]);
+ }
+ e.classList.add('v');
+}
+function he(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
+function pq(q){
+ var f={},toks=q.match(/(?:[^\s"']+|["'][^"']*["'])+/g)||[];
+ for(var i=0;i<toks.length;i++){
+  var t=toks[i];
+  if(t.indexOf(':')>-1){var x=t.indexOf(':');f[t.substring(0,x).toLowerCase().trim()]=t.substring(x+1).replace(/^["']|["']$/g,'').trim()}
+  else if(/^>\d{4}-\d{2}-\d{2}$/.test(t)) f.fd=t.substring(1)
+  else if(/^<\d{4}-\d{2}-\d{2}$/.test(t)) f.fh=t.substring(1)
+  else if(/^R(\d+)\+?$/i.test(t)) f.rev=t.substring(1)
+  else if(/^(USD|MXN)$/i.test(t)) f.mon=t.toUpperCase()
+  else f._t=(f._t||'')+' '+t
+ }
+ f._t=(f._t||'').trim();
+ return f;
+}
+function rc(q){
+ var e=document.getElementById('chips'),f=pq(q),ch=[];
+ var keys=['cliente','vendedor','proyecto','numero','fd','fh','rev','mon'];
+ for(var i=0;i<keys.length;i++){if(f[keys[i]])ch.push({k:keys[i],v:f[keys[i]]})}
+ if(!ch.length){e.innerHTML='';return}
+ e.innerHTML='';
+ for(var i=0;i<ch.length;i++){
+  (function(c){
+   var s=document.createElement('span');s.className='chip';
+   s.innerHTML=he(c.k+':'+c.v)+' <span class="chip-r" data-i="'+i+'">\u2715</span>';
+   s.querySelector('.chip-r').onclick=function(){
+    var p2=pq(document.getElementById('s').value);delete p2[c.k];
+    var nq=[];for(var k in p2){if(k!=='_t'&&p2[k])nq.push(k+':'+p2[k])}
+    if(p2._t)nq.push(p2._t);
+    document.getElementById('s').value=nq.join(' ');dS(nq.join(' '));
+   };
+   e.appendChild(s);
+  })(ch[i]);
+ }
+}
+function bp(q){
+ var f=pq(q),pl={query:f._t||'',page:1,per_page:50,filters:{}};
+ if(f.cliente)pl.filters.cliente=f.cliente;if(f.vendedor)pl.filters.vendedor=f.vendedor;
+ if(f.proyecto)pl.filters.proyecto=f.proyecto;if(f.numero)pl.filters.numero=f.numero;
+ if(f.fd)pl.filters.fecha_desde=f.fd;if(f.fh)pl.filters.fecha_hasta=f.fh;
+ if(f.rev)pl.filters.revision=f.rev;if(f.mon)pl.filters.moneda=f.mon;if(f.tipo)pl.filters.tipo=f.tipo;
+ return pl;
+}
+function dS(q,pg){
+ // Support both GET and POST search
+ var searchFn = function(url, body) {
+   return fetch(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+     .then(function(r){return r.json()});
+ };
 
-            <!-- Filtro por Proyecto -->
-            <div>
-                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Proyecto</label>
-                <input type="text" id="filterProyecto" placeholder="Nombre del proyecto" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px;">
-            </div>
+ q=q||document.getElementById('s').value.trim();
+ document.getElementById('s').value=q;CQ=q;CP=pg||1;
+ document.getElementById('lo').classList.add('v');
+ document.getElementById('sClr').style.display=q?'block':'none';
+ rc(q);if(q.length>=2&&!firstLoad)sh(q);firstLoad=false;
+ document.getElementById('sg').classList.remove('v');
+ var p=bp(q);p.page=CP;
+ searchFn(A,p)
+ .then(function(d){if(d.error===undefined||d.error===null||d.error===''||d.resultados)rT(d);else sE('Error: '+(d.error||''));})
+ .catch(function(){sE('Error de conexion')})
+ .finally(function(){document.getElementById('lo').classList.remove('v')});
+}
+function rT(d){
+ // Normalize field names (search API uses pagina/total_paginas)
+ if(d.pagina!==undefined && d.page===undefined) d.page=d.pagina;
+ if(d.total_paginas!==undefined && d.total_pages===undefined) d.total_pages=d.total_paginas;
+ if(d.por_pagina!==undefined && d.per_page===undefined) d.per_page=d.por_pagina;
 
-            <!-- Filtro por Fecha Desde -->
-            <div>
-                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Fecha Desde</label>
-                <input type="date" id="filterFechaDesde" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px;">
-            </div>
+ var rows=d.resultados||[],tb=document.getElementById('tbd');
+ if(!rows.length){sE('Sin resultados');return}
+ tb.innerHTML='';
+ for(var i=0;i<rows.length;i++){
+  var r=rows[i],num=r.numero_cotizacion||r.numero||'',cli=r.cliente||'N/A',ven=r.vendedor||'N/A',pro=r.proyecto||'N/A';
+  var fe=r.fecha||r.fecha_creacion||'N/A';if(fe.length>10)fe=fe.substring(0,10),rev=r.revision||1,mon=r.moneda||'N/A';
+  var tot=Number(r.total||0).toLocaleString('en',{minimumFractionDigits:2});
+  var ant=r.es_antigua?' ant':'';
+ // Normalize fields
+ if(r.moneda===undefined) r.moneda='MXN';
+ if(r.es_antigua===undefined) r.es_antigua=false;
+ if(r.total===undefined) r.total=0;
 
-            <!-- Filtro por Fecha Hasta -->
-            <div>
-                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Fecha Hasta</label>
-                <input type="date" id="filterFechaHasta" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px;">
-            </div>
-
-            <!-- Filtro por Revisión -->
-            <div>
-                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Revisión</label>
-                <select id="filterRevision" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px; background: white;">
-                    <option value="">Todas</option>
-                    <option value="1">R1</option>
-                    <option value="2">R2</option>
-                    <option value="3">R3</option>
-                    <option value="4">R4</option>
-                    <option value="5+">R5+</option>
-                </select>
-            </div>
-
-            <!-- Filtro por Moneda -->
-            <div>
-                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Moneda</label>
-                <select id="filterMoneda" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px; background: white;">
-                    <option value="">Todas</option>
-                    <option value="MXN">MXN (Pesos)</option>
-                    <option value="USD">USD (Dólares)</option>
-                </select>
-            </div>
-
-            <!-- Filtro por Tipo -->
-            <div>
-                <label style="display: block; font-size: 12px; font-weight: 500; color: #495057; margin-bottom: 6px;">Tipo</label>
-                <select id="filterTipo" style="width: 100%; padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px; background: white;">
-                    <option value="">Todas</option>
-                    <option value="nueva">Nuevas (BD)</option>
-                    <option value="antigua">Antiguas (Google Drive)</option>
-                </select>
-            </div>
-        </div>
-
-        <div style="display: flex; gap: 12px; justify-content: flex-end;">
-            <button id="applyFilters" class="btn btn-primary">
-                Aplicar Filtros
-            </button>
-        </div>
-    </div>
-
-    <div class="stats">
-        <strong id="total-cotizaciones">{{ cotizaciones|length }}</strong> cotizaciones encontradas
-        <div class="leyenda">
-            <span class="leyenda-icono">★</span>
-            <span>Cotizaciones antiguas</span>
-        </div>
-    </div>
-
-    <div class="table-container">
-        {% if cotizaciones %}
-        <div class="table-wrapper">
-            <table id="tabla-cotizaciones">
-                <thead>
-                    <tr>
-                        <th class="sortable" data-sort="numero">Número</th>
-                        <th class="sortable" data-sort="cliente">Cliente</th>
-                        <th class="sortable" data-sort="vendedor">Vendedor</th>
-                        <th class="sortable" data-sort="proyecto">Proyecto</th>
-                        <th class="sortable" data-sort="fecha">Fecha</th>
-                        <th class="sortable" data-sort="revision">Rev</th>
-                        <th class="sortable" data-sort="total">Monto antes de IVA</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for cot in cotizaciones %}
-                    <tr {% if cot.es_antigua %}style="opacity: 0.7; background: #fff9e6;"{% endif %}>
-                        <td class="numero-col" title="{{ cot.numero }}">
-                            {{ cot.numero }}
-                            {% if cot.es_antigua %}
-                            <span style="font-size: 10px; color: #f59e0b; font-weight: bold; margin-left: 4px;" title="Cotización antigua de Google Drive">★</span>
-                            {% endif %}
-                        </td>
-                        <td title="{{ cot.cliente }}">{{ cot.cliente }}</td>
-                        <td title="{{ cot.vendedor }}">{{ cot.vendedor }}</td>
-                        <td title="{{ cot.proyecto }}">{{ cot.proyecto }}</td>
-                        <td>{{ cot.fecha }}</td>
-                        <td class="revision-col">R{{ cot.revision }}</td>
-                        <td class="total-col">
-                            {% if cot.moneda != 'N/A' %}
-                                {{ cot.moneda }} ${{ "{:,.2f}".format(cot.total|float) if cot.total else '0.00' }}
-                            {% else %}
-                                <span style="color: #999; font-size: 11px;">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="acciones-col">
-                                <a href="/pdf/{{ cot.numero }}" target="_blank" class="btn-icon" title="Ver PDF">PDF</a>
-                                {% if cot.tiene_desglose %}
-                                <a href="/desglose/{{ cot.numero }}" class="btn-icon" title="Ver Desglose">Desglose</a>
-                                {% else %}
-                                <span style="font-size: 10px; color: #999;">Sin desglose</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"/>
-            </svg>
-            <p>No se encontraron cotizaciones en el sistema</p>
-        </div>
-        {% endif %}
-
-        <!-- Controles de paginación -->
-        {% if total_pages > 1 %}
-        <div class="pagination-container">
-            <div class="pagination-info">
-                Mostrando {{ ((page - 1) * page_size) + 1 }} - {{ [page * page_size, total_cotizaciones]|min }} de {{ total_cotizaciones }} cotizaciones
-            </div>
-            <div class="pagination-controls">
-                <!-- Botón anterior -->
-                {% if page > 1 %}
-                <a href="#" onclick="goToPage({{ page - 1 }}); return false;" class="page-btn prev-next">← Anterior</a>
-                {% else %}
-                <button class="page-btn prev-next" disabled>← Anterior</button>
-                {% endif %}
-
-                <!-- Números de página -->
-                {% set start_page = [1, page - 2]|max %}
-                {% set end_page = [total_pages, page + 2]|min %}
-
-                {% if start_page > 1 %}
-                <a href="#" onclick="goToPage(1); return false;" class="page-btn">1</a>
-                {% if start_page > 2 %}
-                <span class="page-btn" style="border: none; cursor: default;">...</span>
-                {% endif %}
-                {% endif %}
-
-                {% for p in range(start_page, end_page + 1) %}
-                {% if p == page %}
-                <button class="page-btn active" disabled>{{ p }}</button>
-                {% else %}
-                <a href="#" onclick="goToPage({{ p }}); return false;" class="page-btn">{{ p }}</a>
-                {% endif %}
-                {% endfor %}
-
-                {% if end_page < total_pages %}
-                {% if end_page < total_pages - 1 %}
-                <span class="page-btn" style="border: none; cursor: default;">...</span>
-                {% endif %}
-                <a href="#" onclick="goToPage({{ total_pages }}); return false;" class="page-btn">{{ total_pages }}</a>
-                {% endif %}
-
-                <!-- Botón siguiente -->
-                {% if page < total_pages %}
-                <a href="#" onclick="goToPage({{ page + 1 }}); return false;" class="page-btn prev-next">Siguiente →</a>
-                {% else %}
-                <button class="page-btn prev-next" disabled>Siguiente →</button>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
-    </div>
-
-    <script>
-        // Sistema de ordenamiento de tabla
-        let currentSort = {
-            column: 'fecha',
-            direction: 'desc'
-        };
-
-        // Estado de filtros
-        let activeFilters = {};
-
-        // Función para ordenar tabla
-        function sortTable(column) {
-            const table = document.getElementById('tabla-cotizaciones');
-            const tbody = table.querySelector('tbody');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-
-            // Determinar dirección de ordenamiento
-            if (currentSort.column === column) {
-                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-            } else {
-                currentSort.column = column;
-                currentSort.direction = 'asc';
-            }
-
-            // Obtener índice de columna
-            const columnIndex = {
-                'numero': 0,
-                'cliente': 1,
-                'vendedor': 2,
-                'proyecto': 3,
-                'fecha': 4,
-                'revision': 5,
-                'total': 6
-            }[column];
-
-            // Ordenar filas
-            rows.sort((a, b) => {
-                let aValue = a.cells[columnIndex].textContent.trim();
-                let bValue = b.cells[columnIndex].textContent.trim();
-
-                // Tratamiento especial para números y fechas
-                if (column === 'total') {
-                    // Extraer solo el número del formato "MXN $1,234.56"
-                    aValue = parseFloat(aValue.replace(/[^0-9.-]/g, '')) || 0;
-                    bValue = parseFloat(bValue.replace(/[^0-9.-]/g, '')) || 0;
-                } else if (column === 'revision') {
-                    aValue = parseInt(aValue.replace('R', '')) || 0;
-                    bValue = parseInt(bValue.replace('R', '')) || 0;
-                } else if (column === 'fecha') {
-                    // Intentar parsear fecha
-                    aValue = new Date(aValue).getTime() || 0;
-                    bValue = new Date(bValue).getTime() || 0;
-                }
-
-                // Comparación
-                let comparison = 0;
-                if (typeof aValue === 'number') {
-                    comparison = aValue - bValue;
-                } else {
-                    comparison = aValue.localeCompare(bValue);
-                }
-
-                return currentSort.direction === 'asc' ? comparison : -comparison;
-            });
-
-            // Reinsertar filas ordenadas
-            rows.forEach(row => tbody.appendChild(row));
-
-            // Actualizar indicadores visuales
-            updateSortIndicators();
-        }
-
-        // Actualizar indicadores de ordenamiento
-        function updateSortIndicators() {
-            document.querySelectorAll('th.sortable').forEach(th => {
-                th.classList.remove('sort-asc', 'sort-desc');
-                if (th.dataset.sort === currentSort.column) {
-                    th.classList.add('sort-' + currentSort.direction);
-                }
-            });
-        }
-
-        // Toggle panel de filtros
-        function toggleFilterPanel() {
-            const panel = document.getElementById('filterPanel');
-            const toggleText = document.getElementById('filterToggleText');
-
-            if (panel.style.display === 'none') {
-                panel.style.display = 'block';
-                toggleText.textContent = 'Ocultar Filtros';
-            } else {
-                panel.style.display = 'none';
-                toggleText.textContent = 'Mostrar Filtros';
-            }
-        }
-
-        // Construir URL con parámetros de filtro
-        function buildFilterUrl() {
-            const params = new URLSearchParams();
-
-            // Obtener valores de filtros
-            const numero = document.getElementById('filterNumero').value.trim();
-            const cliente = document.getElementById('filterCliente').value.trim();
-            const vendedor = document.getElementById('filterVendedor').value.trim();
-            const proyecto = document.getElementById('filterProyecto').value.trim();
-            const fechaDesde = document.getElementById('filterFechaDesde').value;
-            const fechaHasta = document.getElementById('filterFechaHasta').value;
-            const revision = document.getElementById('filterRevision').value;
-            const moneda = document.getElementById('filterMoneda').value;
-            const tipo = document.getElementById('filterTipo').value;
-
-            // Agregar solo parámetros no vacíos
-            if (numero) params.append('numero', numero);
-            if (cliente) params.append('cliente', cliente);
-            if (vendedor) params.append('vendedor', vendedor);
-            if (proyecto) params.append('proyecto', proyecto);
-            if (fechaDesde) params.append('fecha_desde', fechaDesde);
-            if (fechaHasta) params.append('fecha_hasta', fechaHasta);
-            if (revision) params.append('revision', revision);
-            if (moneda) params.append('moneda', moneda);
-            if (tipo) params.append('tipo', tipo);
-
-            return params.toString();
-        }
-
-        // Contar filtros activos
-        function countActiveFilters() {
-            let count = 0;
-
-            if (document.getElementById('filterNumero').value.trim()) count++;
-            if (document.getElementById('filterCliente').value.trim()) count++;
-            if (document.getElementById('filterVendedor').value.trim()) count++;
-            if (document.getElementById('filterProyecto').value.trim()) count++;
-            if (document.getElementById('filterFechaDesde').value) count++;
-            if (document.getElementById('filterFechaHasta').value) count++;
-            if (document.getElementById('filterRevision').value) count++;
-            if (document.getElementById('filterMoneda').value) count++;
-            if (document.getElementById('filterTipo').value) count++;
-
-            return count;
-        }
-
-        // Actualizar badge de filtros activos
-        function updateFilterBadge() {
-            const count = countActiveFilters();
-            const badge = document.getElementById('filterBadge');
-
-            if (count > 0) {
-                badge.textContent = count;
-                badge.style.display = 'inline-block';
-            } else {
-                badge.style.display = 'none';
-            }
-        }
-
-        // Aplicar filtros
-        function applyFilters() {
-            const filterParams = buildFilterUrl();
-
-            if (filterParams) {
-                // Redirigir con parámetros de filtro
-                window.location.href = '/todas-cotizaciones?' + filterParams;
-            } else {
-                // Si no hay filtros, redirigir a página sin filtros
-                window.location.href = '/todas-cotizaciones';
-            }
-        }
-
-        // Limpiar todos los filtros
-        function clearFilters() {
-            document.getElementById('filterNumero').value = '';
-            document.getElementById('filterCliente').value = '';
-            document.getElementById('filterVendedor').value = '';
-            document.getElementById('filterProyecto').value = '';
-            document.getElementById('filterFechaDesde').value = '';
-            document.getElementById('filterFechaHasta').value = '';
-            document.getElementById('filterRevision').value = '';
-            document.getElementById('filterMoneda').value = '';
-            document.getElementById('filterTipo').value = '';
-
-            updateFilterBadge();
-
-            // Redirigir a página sin filtros
-            window.location.href = '/todas-cotizaciones';
-        }
-
-        // Cargar valores de filtros desde URL
-        function loadFiltersFromUrl() {
-            const params = new URLSearchParams(window.location.search);
-
-            if (params.get('numero')) document.getElementById('filterNumero').value = params.get('numero');
-            if (params.get('cliente')) document.getElementById('filterCliente').value = params.get('cliente');
-            if (params.get('vendedor')) document.getElementById('filterVendedor').value = params.get('vendedor');
-            if (params.get('proyecto')) document.getElementById('filterProyecto').value = params.get('proyecto');
-            if (params.get('fecha_desde')) document.getElementById('filterFechaDesde').value = params.get('fecha_desde');
-            if (params.get('fecha_hasta')) document.getElementById('filterFechaHasta').value = params.get('fecha_hasta');
-            if (params.get('revision')) document.getElementById('filterRevision').value = params.get('revision');
-            if (params.get('moneda')) document.getElementById('filterMoneda').value = params.get('moneda');
-            if (params.get('tipo')) document.getElementById('filterTipo').value = params.get('tipo');
-
-            // Si hay filtros en la URL, mostrar panel y badge
-            const count = countActiveFilters();
-            if (count > 0) {
-                document.getElementById('filterPanel').style.display = 'block';
-                document.getElementById('filterToggleText').textContent = 'Ocultar Filtros';
-            }
-
-            updateFilterBadge();
-        }
-
-        // Función para ir a una página manteniendo los filtros
-        function goToPage(pageNumber) {
-            const filterParams = buildFilterUrl();
-
-            let url = '/todas-cotizaciones?page=' + pageNumber;
-
-            if (filterParams) {
-                url += '&' + filterParams;
-            }
-
-            window.location.href = url;
-        }
-
-        // Event listeners
-        document.addEventListener('DOMContentLoaded', function() {
-            // Cargar filtros desde URL
-            loadFiltersFromUrl();
-
-            // Event listeners para ordenamiento
-            document.querySelectorAll('th.sortable').forEach(th => {
-                th.addEventListener('click', function() {
-                    sortTable(this.dataset.sort);
-                });
-            });
-
-            // Event listeners para filtros
-            document.getElementById('toggleFilters').addEventListener('click', toggleFilterPanel);
-            document.getElementById('applyFilters').addEventListener('click', applyFilters);
-            document.getElementById('clearFilters').addEventListener('click', clearFilters);
-
-            // Aplicar filtros al presionar Enter en inputs de texto
-            ['filterNumero', 'filterCliente', 'filterVendedor', 'filterProyecto'].forEach(id => {
-                document.getElementById(id).addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        applyFilters();
-                    }
-                });
-            });
-
-            // Actualizar badge al cambiar cualquier filtro
-            ['filterNumero', 'filterCliente', 'filterVendedor', 'filterProyecto',
-             'filterFechaDesde', 'filterFechaHasta', 'filterRevision', 'filterMoneda', 'filterTipo'].forEach(id => {
-                const element = document.getElementById(id);
-                element.addEventListener('change', updateFilterBadge);
-                element.addEventListener('input', updateFilterBadge);
-            });
-
-            // Ordenar por fecha descendente por defecto
-            sortTable('fecha');
-            sortTable('fecha'); // Doble click para descendente
-        });
-    </script>
+  var tr=document.createElement('tr');tr.className=ant;tr.dataset.n=num;
+  tr.innerHTML='<td style="text-align:center"><button class="ex" data-n="'+he(num)+'">\u25b6</button></td>'+
+   '<td class="nc">'+he(num)+(r.es_antigua?'<span class="ns">\u2605</span>':'')+'</td>'+
+   '<td>'+he(cli)+'</td><td>'+he(ven)+'</td><td>'+he(pro)+'</td>'+
+   '<td>'+he(fe)+'</td><td class="rv">R'+rev+'</td>'+
+   '<td class="tt">'+(mon!=='N/A'?he(mon)+' $'+tot:'<span class="na">-</span>')+'</td>'+
+   '<td class="ac"><a href="/pdf/'+encodeURIComponent(num)+'" target="_blank" class="ax">PDF</a>'+
+   (r.tiene_desglose?'<a href="/desglose/'+encodeURIComponent(num)+'" class="ax">Desg</a>':'')+'</td>';
+  tb.appendChild(tr);
+ }
+ aE();rPg(d);
+ document.getElementById('tot').textContent=d.total||rows.length;
+ if(d.tiempo_busqueda_ms)document.getElementById('stm').textContent='\u26a1 '+d.tiempo_busqueda_ms+'ms';
+ document.querySelector('.ts').scrollTop=0;apS();
+}
+function sE(m){
+ document.getElementById('tbd').innerHTML='<tr><td colspan="9"><div class="emp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><p>'+m+'</p><div class="es">Intenta con otros terminos o <a href="#" onclick="cA();return false" style="color:#4f46e5">limpiar</a></div></div></td></tr>';
+}
+function rPg(d){
+ var pgb=document.querySelector('.pgb');
+ if(!pgb)return;
+ if(!d.total_pages||d.total_pages<=1){pgb.innerHTML='';return}
+ var p=d.page||d.pagina||CP,t=d.total_pages||d.total_paginas,html='';
+ if(p>1)html+='<button class="pgx" data-p="'+(p-1)+'">&larr;</button>';
+ var sp=Math.max(1,p-2),ep=Math.min(t,p+2);
+ if(sp>1){html+='<button class="pgx" data-p="1">1</button>';if(sp>2)html+='<span class="pgd">...</span>'}
+ for(var i=sp;i<=ep;i++)html+='<button class="pgx'+(i===p?' pgxa':'')+'" data-p="'+i+'">'+i+'</button>';
+ if(ep<t){if(ep<t-1)html+='<span class="pgd">...</span>';html+='<button class="pgx" data-p="'+t+'">'+t+'</button>'}
+ if(p<t)html+='<button class="pgx" data-p="'+(p+1)+'">&rarr;</button>';
+ pgb.innerHTML=html;
+ pgb.querySelectorAll('.pgx[data-p]').forEach(function(b){b.onclick=function(){dS(CQ,parseInt(this.dataset.p))}});
+ var inf=document.querySelector('.pgi');
+ if(inf)inf.textContent=((p-1)*50+1)+'-'+Math.min(p*50,d.total||0)+' de '+(d.total||0);
+}
+function aE(){document.querySelectorAll('.ex').forEach(function(b){b.onclick=function(){tP(this.dataset.n,this)}})}
+function tP(num,btn){
+ var tr=btn.closest('tr'),nxt=tr.nextElementSibling;
+ if(nxt&&nxt.classList.contains('pr')&&nxt.dataset.n===num){nxt.remove();btn.classList.remove('ed');return}
+ document.querySelectorAll('.pr').forEach(function(e){e.remove()});
+ document.querySelectorAll('.ed').forEach(function(e){e.classList.remove('ed')});
+ btn.classList.add('ed');
+ var pr=document.createElement('tr');pr.className='pr';pr.dataset.n=num;
+ pr.innerHTML='<td colspan="9"><div class="pi"><div class="pb"><h4>\U0001f4cb General</h4><div class="pv" id="pG'+he(num)+'"><span class="pl">Cargando...</span></div></div>'+
+ '<div class="pb"><h4>\U0001f4b0 Totales</h4><div class="pv" id="pT'+he(num)+'"><span class="pl">Cargando...</span></div></div>'+
+ '<div class="pb"><h4>\U0001f4e6 Items</h4><div class="pv" id="pI'+he(num)+'"><span class="pl">Cargando...</span></div></div>'+
+ '<div class="pa"><a href="/pdf/'+encodeURIComponent(num)+'" target="_blank" class="btn btn-p btn-sm">\U0001f4c4 PDF</a>'+
+ '<a href="/desglose/'+encodeURIComponent(num)+'" class="btn btn-g btn-sm">\U0001f4ca Desglose</a>'+
+ '<button class="btn btn-g btn-sm" onclick="this.closest(\'.pr\').remove();document.querySelector(\'.ex[data-n=\\\''+he(num)+'\\\']\').classList.remove(\'ed\')">\u2715 Cerrar</button></div></div></td>';
+ tr.after(pr);
+ fetch(P+'/'+encodeURIComponent(num)).then(function(r){return r.json()}).then(function(d){
+  if(d.success){
+   var c=d.cotizacion;
+   document.getElementById('pG'+he(num)).innerHTML='<div><span class="pl">Cliente:</span> '+he(c.cliente||'N/A')+'</div><div><span class="pl">Vendedor:</span> '+he(c.vendedor||'N/A')+'</div><div><span class="pl">Proyecto:</span> '+he(c.proyecto||'N/A')+'</div><div><span class="pl">Rev:</span> R'+(c.revision||1)+'</div><div><span class="pl">Fecha:</span> '+he(c.fecha||c.fecha_creacion||'N/A')+'</div>';
+   document.getElementById('pT'+he(num)).innerHTML='<div><span class="pl">Moneda:</span> '+he(c.moneda||'MXN')+'</div><div><span class="pl">Total:</span> <strong>'+he(c.moneda||'MXN')+' $'+Number(c.total||0).toLocaleString('en',{minimumFractionDigits:2})+'</strong></div><div><span class="pl">Items:</span> '+(c.items_count||0)+'</div>';
+   var ih='';if(c.items_preview){for(var i=0;i<c.items_preview.length;i++){ih+='<div>\u2022 '+he(c.items_preview[i].descripcion||'Item')+(c.items_preview[i].cantidad?' x'+c.items_preview[i].cantidad:'')+'</div>'}}
+   document.getElementById('pI'+he(num)).innerHTML=ih||'<span class="pl">Sin items</span>';
+  }else throw Error();
+ }).catch(function(){document.getElementById('pG'+he(num)).innerHTML='<span class="pl">Vista previa no disponible.</span>'});
+}
+function dSrt(col){
+ if(SC===col)SD=SD==='asc'?'desc':'asc';else{SC=col;SD='asc'}
+ localStorage.setItem('cws_sc',SC);localStorage.setItem('sD',SD);
+ var im={numero:1,cliente:2,vendedor:3,proyecto:4,fecha:5,revision:6,total:7},idx=im[col];
+ if(idx===undefined)return;
+ var tb=document.getElementById('tbd'),rows=Array.from(tb.querySelectorAll('tr:not(.pr)'));
+ rows.sort(function(a,b){
+  var av=a.cells[idx]?.textContent.trim()||'',bv=b.cells[idx]?.textContent.trim()||'';
+  if(col==='total'){av=parseFloat(av.replace(/[^0-9.-]/g,''))||0;bv=parseFloat(bv.replace(/[^0-9.-]/g,''))||0}
+  else if(col==='revision'){av=parseInt(av.replace('R',''))||0;bv=parseInt(bv.replace('R',''))||0}
+  else if(col==='fecha'){av=new Date(av).getTime()||0;bv=new Date(bv).getTime()||0}
+  else{av=String(av).toLowerCase();bv=String(bv).toLowerCase()}
+  var cmp=typeof av==='number'?av-bv:String(av).localeCompare(String(bv));
+  return SD==='asc'?cmp:-cmp;
+ });
+ rows.forEach(function(r){tb.appendChild(r)});
+ document.querySelectorAll('.pr').forEach(function(pr){var p=tb.querySelector('tr:not(.pr)[data-n="'+pr.dataset.n+'"]');if(p)p.after(pr)});
+ apS();
+}
+function apS(){document.querySelectorAll('.s').forEach(function(th){th.classList.remove('sa','sd');if(th.dataset.c===SC)th.classList.add(SD==='asc'?'sa':'sd')})}
+function tFp(){var p=document.getElementById('fp');p.classList.toggle('v');document.getElementById('tF').textContent=p.classList.contains('v')?'\u2212 Filtros':'+ Filtros'}
+function aFp(){
+ var f={num:document.getElementById('fNum').value.trim(),cli:document.getElementById('fCli').value.trim(),ven:document.getElementById('fVen').value.trim(),pro:document.getElementById('fPro').value.trim(),fd:document.getElementById('fFd').value,fh:document.getElementById('fFh').value,rev:document.getElementById('fRev').value,mon:document.getElementById('fMon').value,tip:document.getElementById('fTip').value};
+ var parts=[];
+ if(f.cli)parts.push('cliente:'+f.cli);if(f.ven)parts.push('vendedor:'+f.ven);if(f.pro)parts.push('proyecto:'+f.pro);if(f.num)parts.push('numero:'+f.num);
+ if(f.fd)parts.push('>'+f.fd);if(f.fh)parts.push('<'+f.fh);if(f.rev)parts.push('R'+f.rev);if(f.mon)parts.push(f.mon);
+ if(f.tip==='antigua')parts.push('tipo:antigua');else if(f.tip==='nueva')parts.push('tipo:nueva');
+ document.getElementById('s').value=parts.join(' ');dS(parts.join(' '));
+}
+function cFp(){['fNum','fCli','fVen','fPro','fFd','fFh','fRev','fMon','fTip'].forEach(function(id){document.getElementById(id).value=''})}
+function cA(){document.getElementById('s').value='';cFp();dS('')}
+document.addEventListener('DOMContentLoaded',function(){
+ var inp=document.getElementById('s');
+ inp.addEventListener('input',function(){
+  var q=this.value;
+  document.getElementById('sClr').style.display=q?'block':'none';
+  if(q.length===0)document.getElementById('sg').classList.remove('v');
+  clearTimeout(SDb);
+  if(q.length>=2)SDb=setTimeout(function(){fgS(q)},150);else if(q.length===0)rh();
+  clearTimeout(TD);
+  if(q.length===0)TD=setTimeout(function(){dS('')},300);else if(q.length>=2)TD=setTimeout(function(){dS(q)},DB);
+ });
+ inp.addEventListener('focus',function(){if(this.value.length<2)rh()});
+ document.addEventListener('click',function(e){if(!document.querySelector('.sc')?.contains(e.target))document.getElementById('sg').classList.remove('v')});
+ inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();document.getElementById('sg').classList.remove('v');dS(this.value)}});
+ document.getElementById('sGo').onclick=function(){document.getElementById('sg').classList.remove('v');dS(inp.value)};
+ document.getElementById('sClr').onclick=cA;
+ document.querySelectorAll('.ht:not(.ht-f)').forEach(function(h){h.onclick=function(){var v=this.dataset.q;inp.value=inp.value.trim()?inp.value.trim()+' '+v:v;inp.focus();inp.dispatchEvent(new Event('input',{bubbles:true}))}});
+ document.getElementById('tF').onclick=tFp;document.getElementById('fApp').onclick=aFp;document.getElementById('fClr').onclick=cFp;
+ document.querySelectorAll('.s').forEach(function(th){th.onclick=function(){dSrt(this.dataset.c)}});
+ document.querySelectorAll('.pgx[data-p]').forEach(function(b){b.onclick=function(){window.location.href='/todas-cotizaciones?page='+this.dataset.p}});
+ aE();
+ try{var sc=localStorage.getItem('cws_sc'),sd=localStorage.getItem('sD');if(sc){SC=sc;SD=sd||'desc'}}catch(e){}
+ dSrt('fecha');dSrt('fecha');firstLoad=false;
+});
+</script>
 </body>
 </html>

@@ -2540,6 +2540,145 @@ def buscar():
         traceback.print_exc()
         return jsonify({"error": "Error en búsqueda unificada"}), 500
 
+
+
+@app.route("/sugerencias")
+def sugerencias():
+    """Sugerencias de búsqueda para autocompletado (Mejora 1)"""
+    try:
+        query = request.args.get('q', '').strip()
+        limit = int(request.args.get('limit', 8))
+        
+        if not query or len(query) < 2:
+            return jsonify({"success": True, "sugerencias": []})
+        
+        sugerencias = []
+        query_lower = query.lower()
+        
+        # Buscar en base de datos
+        try:
+            resultado = db_manager.buscar_cotizaciones(query, 1, 50)
+            if not resultado.get("error"):
+                for cot in resultado.get("resultados", []):
+                    num = cot.get('numeroCotizacion', '')
+                    dg = cot.get('datosGenerales', {})
+                    if isinstance(dg, dict):
+                        cli = dg.get('cliente', '')
+                        ven = dg.get('vendedor', '')
+                        pro = dg.get('proyecto', '')
+                    else:
+                        cli = ven = pro = ''
+                    
+                    if num and query_lower in num.lower():
+                        sugerencias.append({"text": num, "tipo": "cotización"})
+                    if cli and query_lower in cli.lower() and not any(s["text"] == cli for s in sugerencias):
+                        sugerencias.append({"text": cli, "tipo": "cliente"})
+                    if ven and query_lower in ven.lower() and not any(s["text"] == ven for s in sugerencias):
+                        sugerencias.append({"text": ven, "tipo": "vendedor"})
+                    if pro and query_lower in pro.lower() and not any(s["text"] == pro for s in sugerencias):
+                        sugerencias.append({"text": pro, "tipo": "proyecto"})
+        except Exception as e:
+            print(f"[SUGERENCIAS] Error en búsqueda BD: {e}")
+        
+        # Limitar y ordenar
+        sugerencias = sugerencias[:limit]
+        
+        return jsonify({"success": True, "sugerencias": sugerencias})
+    
+    except Exception as e:
+        print(f"[SUGERENCIAS] Error: {e}")
+        return jsonify({"success": False, "sugerencias": [], "error": str(e)})
+
+
+@app.route("/cotizacion-resumen/<path:numero_cotizacion>")
+def cotizacion_resumen(numero_cotizacion):
+    """Resumen de cotización para vista previa inline (Mejora 5)"""
+    try:
+        resultado = db_manager.buscar_cotizaciones(numero_cotizacion, 1, 1)
+        
+        if resultado.get("error"):
+            return jsonify({"success": False, "error": resultado["error"]})
+        
+        cotizaciones = resultado.get("resultados", [])
+        if not cotizaciones:
+            return jsonify({"success": False, "error": "Cotización no encontrada"})
+        
+        cot = cotizaciones[0]
+        datos_gen = cot.get('datosGenerales', {})
+        condiciones = cot.get('condiciones', {})
+        items = cot.get('items', [])
+        
+        if not isinstance(datos_gen, dict):
+            datos_gen = {}
+        if not isinstance(condiciones, dict):
+            condiciones = {}
+        if not isinstance(items, list):
+            items = []
+        
+        fecha = cot.get('fechaCreacion') or datos_gen.get('fecha') or 'N/A'
+        if fecha and isinstance(fecha, str) and len(fecha) > 10:
+            fecha = fecha[:10]
+        
+        moneda = condiciones.get('moneda', 'MXN')
+        
+        # Calcular total
+        total = 0.0
+        for item in items:
+            if isinstance(item, dict):
+                if 'total' in item and item['total']:
+                    total += float(item['total'])
+                elif 'precio_unitario' in item:
+                    total += float(item['precio_unitario']) * float(item.get('cantidad', 1))
+                elif 'precio' in item:
+                    total += float(item['precio']) * float(item.get('cantidad', 1))
+        
+        # Items preview (primeros 5)
+        items_preview = []
+        for item in items[:5]:
+            if isinstance(item, dict):
+                items_preview.append({
+                    "descripcion": item.get('descripcion', 'Item'),
+                    "cantidad": item.get('cantidad', '')
+                })
+        
+        # Extraer revisión del número
+        import re
+        revision = 1
+        num = cot.get('numeroCotizacion', '')
+        match = re.search(r'-R(\d+)-', num)
+        if match:
+            revision = int(match.group(1))
+        elif 'revision' in cot:
+            try:
+                revision = int(cot['revision'])
+            except:
+                pass
+        
+        return jsonify({
+            "success": True,
+            "cotizacion": {
+                "numero": num,
+                "cliente": datos_gen.get('cliente', 'N/A'),
+                "vendedor": datos_gen.get('vendedor', 'N/A'),
+                "proyecto": datos_gen.get('proyecto', 'N/A'),
+                "fecha": fecha,
+                "fecha_creacion": fecha,
+                "moneda": moneda,
+                "total": total,
+                "revision": revision,
+                "items_count": len(items),
+                "items_preview": items_preview,
+                "tiene_desglose": True
+            }
+        })
+    
+    except Exception as e:
+        print(f"[COTIZACION-RESUMEN] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)})
+
+
 @app.route("/todas-cotizaciones")
 def todas_cotizaciones():
     """Vista de tabla Excel-style con todas las cotizaciones"""
