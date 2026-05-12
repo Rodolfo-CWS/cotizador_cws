@@ -2545,9 +2545,6 @@ def buscar():
 @app.route("/sugerencias")
 def sugerencias():
     """Sugerencias de búsqueda para autocompletado (Mejora 1)"""
-    if 'vendedor' not in session:
-        return jsonify({"success": False, "sugerencias": [], "error": "No autenticado"}), 401
-    
     try:
         query = request.args.get('q', '').strip()
         limit = int(request.args.get('limit', 8))
@@ -2596,9 +2593,6 @@ def sugerencias():
 @app.route("/cotizacion-resumen/<path:numero_cotizacion>")
 def cotizacion_resumen(numero_cotizacion):
     """Resumen de cotización para vista previa inline (Mejora 5)"""
-    if 'vendedor' not in session:
-        return jsonify({"success": False, "error": "No autenticado"}), 401
-    
     try:
         resultado = db_manager.buscar_cotizaciones(numero_cotizacion, 1, 1)
         
