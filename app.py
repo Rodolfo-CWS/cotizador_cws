@@ -3390,10 +3390,11 @@ def servir_pdf(numero_cotizacion):
             if resultado.get("encontrado", False):
                 numero_cotizacion = numero_alternativo  # Usar la versión que funcionó
         
-        if "error" in resultado:
-            return jsonify({"error": resultado["error"]}), 500
-        
-        if not resultado["encontrado"]:
+        # Verificar si el PDF fue encontrado. Si no, intentar regenerar al vuelo.
+        # IMPORTANTE: verificar "encontrado" ANTES de "error" porque _obtener_pdf_offline
+        # devuelve {"encontrado": False, "error": "no encontrado..."} para ausencia normal
+        # (no es un fallo de sistema). El bloque de regeneración al vuelo debe ser alcanzable.
+        if not resultado.get("encontrado", False):
             # PDF no existe en Storage — intentar generarlo al vuelo desde la cotización
             print(f"PDF: No encontrado en Storage, intentando generar al vuelo para '{numero_cotizacion}'")
             if not (REPORTLAB_AVAILABLE or WEASYPRINT_AVAILABLE):
@@ -4722,9 +4723,69 @@ def escanear_pdfs_existentes():
         }
         
         return jsonify(resultado)
-        
+
     except Exception as e:
         return jsonify({"error": f"Error escaneando PDFs: {str(e)}"}), 500
+
+@app.route("/admin/regenerar-pdfs-faltantes", methods=["POST"])
+def regenerar_pdfs_faltantes():
+    """Regenera PDFs para todas las cotizaciones que no tienen PDF en ningún storage."""
+    try:
+        if not (REPORTLAB_AVAILABLE or WEASYPRINT_AVAILABLE):
+            return jsonify({"error": "No hay generador de PDF disponible (ReportLab/WeasyPrint)"}), 500
+
+        # Obtener todas las cotizaciones de la base de datos
+        resultado_busqueda = db_manager.buscar_cotizaciones("", pagina=1, por_pagina=500)
+        cotizaciones = resultado_busqueda.get("items", [])
+
+        total = len(cotizaciones)
+        regenerados = 0
+        ya_existentes = 0
+        fallidos = []
+
+        for cot in cotizaciones:
+            numero = cot.get("numeroCotizacion") or cot.get("numero_cotizacion", "")
+            if not numero:
+                continue
+
+            # Verificar si ya existe el PDF en algún storage
+            resultado_pdf = pdf_manager.obtener_pdf(numero)
+            if resultado_pdf.get("encontrado"):
+                ya_existentes += 1
+                continue
+
+            # No existe — intentar regenerar
+            try:
+                # Obtener datos completos de la cotización
+                cot_completa = db_manager.obtener_cotizacion(numero)
+                if not cot_completa.get("encontrado"):
+                    fallidos.append({"numero": numero, "razon": "cotización no encontrada en DB"})
+                    continue
+
+                cotizacion_data = cot_completa["item"]
+                pdf_data = generar_pdf_reportlab(cotizacion_data) if REPORTLAB_AVAILABLE else None
+                if not pdf_data:
+                    fallidos.append({"numero": numero, "razon": "generación de PDF falló"})
+                    continue
+
+                pdf_manager.almacenar_pdf_nuevo(pdf_content=pdf_data, cotizacion_data=cotizacion_data)
+                regenerados += 1
+                print(f"[REGENERAR] PDF regenerado: {numero}")
+
+            except Exception as err:
+                fallidos.append({"numero": numero, "razon": str(err)})
+                print(f"[REGENERAR] Error con {numero}: {err}")
+
+        return jsonify({
+            "total_cotizaciones": total,
+            "ya_existentes": ya_existentes,
+            "regenerados": regenerados,
+            "fallidos": len(fallidos),
+            "detalle_fallidos": fallidos[:50]  # Limitar a 50 para no saturar la respuesta
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"Error en regeneración masiva: {str(e)}"}), 500
 
 @app.route("/admin/debug-pdf/<path:numero_cotizacion>")
 def debug_pdf_especifico(numero_cotizacion):

@@ -707,7 +707,7 @@ class PDFManager:
 
             return {
                 "encontrado": False,
-                "error": f"PDF '{numero_cotizacion}' no encontrado en {mensaje_lugares}"
+                "mensaje": f"PDF '{numero_cotizacion}' no encontrado en {mensaje_lugares}"
             }
             
         except Exception as e:
