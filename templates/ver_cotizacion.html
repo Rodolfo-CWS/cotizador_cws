@@ -284,7 +284,7 @@
 
             {% for item in cotizacion.get('items', []) %}
             <div class="item-container">
-                <h4 class="item-header">Item {{ loop.index }}: {{ item.descripcion or 'Sin descripción' }}</h4>
+                <h4 class="item-header">Item {{ loop.index }}: {{ item.descripcion | safe if item.descripcion else 'Sin descripción' }}</h4>
 
                 <!-- Información del item en formato lista compacto -->
                 <div style="background: #f9fafb; padding: 16px; border-radius: 6px; margin-bottom: 12px;">

@@ -32,6 +32,11 @@
         .btn-loading { opacity: 0.6; cursor: wait !important; }
         .item-block { transition: all 0.2s ease; }
         .item-block:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .descripcion-toolbar button { font-size: 11px; padding: 1px 7px; cursor: pointer; line-height: 1.4; }
+        .descripcion-toolbar button:hover { background: #e5e7eb; }
+        .descripcion-item[contenteditable]:empty::before { content: attr(data-placeholder); color: #9ca3af; pointer-events: none; }
+        .descripcion-item[contenteditable]:focus { outline: none; box-shadow: 0 0 0 2px #3b82f6; }
+        .descripcion-item[contenteditable] ul { list-style: disc; padding-left: 18px; margin: 2px 0; }
         details[open] summary ~ * { animation: slideDown 0.3s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         
@@ -851,7 +856,7 @@ function recopilarItems() {
     itemsBlocks.forEach((itemBlock, index) => {
         const item = {
             // Campos principales del item
-            descripcion: itemBlock.querySelector('.descripcion-item')?.value || '',
+            descripcion: itemBlock.querySelector('.descripcion-item')?.innerHTML || '',
             cantidad: itemBlock.querySelector('.cantidad-item')?.value || '',
             uom: itemBlock.querySelector('.uom-item')?.value || '',
             peso: itemBlock.querySelector('[name="peso[]"]')?.value || '',
@@ -1490,7 +1495,7 @@ function capturarEstadoFormulario() {
     itemsBlocks.forEach((itemBlock, index) => {
         const item = {
             // Campos principales del item
-            descripcion: itemBlock.querySelector('.descripcion-item')?.value || '',
+            descripcion: itemBlock.querySelector('.descripcion-item')?.innerHTML || '',
             cantidad: itemBlock.querySelector('.cantidad-item')?.value || '',
             uom: itemBlock.querySelector('.uom-item')?.value || '',
             peso: itemBlock.querySelector('[name="peso[]"]')?.value || '',
@@ -1674,10 +1679,6 @@ function configurarEventListeners() {
                     actualizarTodosLosCalculos();
                 }, 100);
             }
-        }
-        
-        if (e.target.matches('input[placeholder="Ej. Rack Metálico"]')) {
-            setTimeout(() => { actualizarTodosLosCalculos(); }, 100);
         }
         
         // Cálculo en tiempo real para campos de cotizar por peso
@@ -1921,7 +1922,7 @@ function itemEstaVacio(itemElement) {
     // Verificar si un item está vacío (sin información significativa)
 
     // Verificar descripción
-    const descripcion = itemElement.querySelector('.descripcion-item')?.value?.trim() || '';
+    const descripcion = itemElement.querySelector('.descripcion-item')?.textContent?.trim() || '';
     if (descripcion !== '') return false;
 
     // Verificar cantidad
@@ -1996,8 +1997,8 @@ function cargarDatosItem(itemData, index) {
         // Cargar descripción
         const descripcion = item.querySelector('.descripcion-item');
         if (descripcion && itemData.descripcion) {
-            descripcion.value = itemData.descripcion;
-            console.log(`[CARGAR_ITEM] ✅ Descripción cargada: ${itemData.descripcion.substring(0, 30)}...`);
+            descripcion.innerHTML = itemData.descripcion;
+            console.log(`[CARGAR_ITEM] ✅ Descripción cargada: ${String(itemData.descripcion).substring(0, 30)}...`);
         }
 
         // Cargar cantidad
@@ -2609,7 +2610,19 @@ function crearTemplateItem(numero) {
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium mb-1">Descripción:</label>
-                    <input type="text" class="descripcion-item w-full p-2 border rounded text-sm" placeholder="Ej. Rack Metálico">
+                    <div class="descripcion-toolbar flex gap-1 px-1 py-0.5 bg-gray-100 border border-b-0 rounded-t">
+                        <button type="button" class="bg-white border rounded font-bold"
+                                onmousedown="event.preventDefault();document.execCommand('bold',false,null);" title="Negrita">B</button>
+                        <button type="button" class="bg-white border rounded italic"
+                                onmousedown="event.preventDefault();document.execCommand('italic',false,null);" title="Cursiva">I</button>
+                        <button type="button" class="bg-white border rounded underline"
+                                onmousedown="event.preventDefault();document.execCommand('underline',false,null);" title="Subrayado">U</button>
+                        <button type="button" class="bg-white border rounded"
+                                onmousedown="event.preventDefault();document.execCommand('insertUnorderedList',false,null);" title="Lista de viñetas">• Lista</button>
+                    </div>
+                    <div class="descripcion-item w-full p-2 border rounded-b text-sm min-h-[36px] bg-white"
+                         contenteditable="true"
+                         data-placeholder="Ej. Rack Metálico"></div>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div>

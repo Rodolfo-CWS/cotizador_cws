@@ -563,7 +563,7 @@
                         <td><div class="item-number">{{ loop.index }}</div></td>
                         <td>{{ item.cantidad }}</td>
                         <td>{{ item.uom }}</td>
-                        <td class="description">{{ item.descripcion }}</td>
+                        <td class="description">{{ item.descripcion | safe }}</td>
                         <td class="amount">{{ moneda }} {{ item.costoUnidad }}</td>
                         <td class="amount">{{ moneda }} {{ item.total }}</td>
                     </tr>
