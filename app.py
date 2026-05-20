@@ -427,12 +427,12 @@ def wrap_description_text(text, max_chars_per_line=35):
     """Utility function to wrap long description text for PDF cells"""
     if not text or len(text) <= max_chars_per_line:
         return text
-    
+
     # Split text into words
     words = text.split()
     lines = []
     current_line = ""
-    
+
     for word in words:
         # If adding this word would exceed the limit, start a new line
         if len(current_line + " " + word) > max_chars_per_line and current_line:
@@ -443,13 +443,47 @@ def wrap_description_text(text, max_chars_per_line=35):
                 current_line += " " + word
             else:
                 current_line = word
-    
+
     # Add the last line if it has content
     if current_line:
         lines.append(current_line)
-    
+
     # Join lines with line breaks
     return "<br/>".join(lines)
+
+
+import re as _re
+from html import unescape as _html_unescape
+
+def html_to_reportlab_markup(html_str):
+    """Convert contenteditable HTML to ReportLab Paragraph XML markup."""
+    if not html_str:
+        return ''
+    if '<' not in html_str:
+        return wrap_description_text(html_str)
+
+    def replace_ul(m):
+        lis = _re.findall(r'<li[^>]*>(.*?)</li>', m.group(0), _re.DOTALL | _re.IGNORECASE)
+        rows = []
+        for li in lis:
+            text = _re.sub(r'<[^>]+>', '', li).strip()
+            if text:
+                rows.append(f'• {text}')
+        return '<br/>'.join(rows)
+
+    result = _re.sub(r'<ul[^>]*>.*?</ul>', replace_ul, html_str, flags=_re.DOTALL | _re.IGNORECASE)
+    result = _re.sub(r'<strong[^>]*>', '<b>', result, flags=_re.IGNORECASE)
+    result = _re.sub(r'</strong>', '</b>', result, flags=_re.IGNORECASE)
+    result = _re.sub(r'<em[^>]*>', '<i>', result, flags=_re.IGNORECASE)
+    result = _re.sub(r'</em>', '</i>', result, flags=_re.IGNORECASE)
+    result = _re.sub(r'<br\s*/?>', '<br/>', result, flags=_re.IGNORECASE)
+    result = _re.sub(r'</(p|div)>', '<br/>', result, flags=_re.IGNORECASE)
+    # Remove remaining tags except b, i, u, br
+    result = _re.sub(r'<(?!/?(?:b|i|u|br)(?:\s|/?>))[^>]+>', '', result, flags=_re.IGNORECASE)
+    result = _html_unescape(result)
+    result = _re.sub(r'(<br/>)+', '<br/>', result)
+    result = result.strip().strip('<br/>')
+    return result or ''
 
 def generar_pdf_reportlab(datos_cotizacion):
     """Genera PDF usando ReportLab con formato profesional CWS"""
@@ -772,8 +806,8 @@ def generar_pdf_reportlab(datos_cotizacion):
             
             # Agregar número de item y formatear datos con descripción envuelta
             descripcion_raw = item.get('descripcion', '')
-            descripcion_wrapped = wrap_description_text(descripcion_raw)
-            descripcion_paragraph = Paragraph(descripcion_wrapped, description_style)
+            descripcion_markup = html_to_reportlab_markup(descripcion_raw)
+            descripcion_paragraph = Paragraph(descripcion_markup, description_style)
             
             items_data.append([
                 str(i + 1),  # Número de item
