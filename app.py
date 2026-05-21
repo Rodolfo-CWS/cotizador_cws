@@ -477,12 +477,19 @@ def html_to_reportlab_markup(html_str):
     result = _re.sub(r'<em[^>]*>', '<i>', result, flags=_re.IGNORECASE)
     result = _re.sub(r'</em>', '</i>', result, flags=_re.IGNORECASE)
     result = _re.sub(r'<br\s*/?>', '<br/>', result, flags=_re.IGNORECASE)
-    result = _re.sub(r'</(p|div)>', '<br/>', result, flags=_re.IGNORECASE)
+    # Convert <div> blocks to line breaks (Chrome wraps paragraphs in divs)
+    result = _re.sub(r'<div[^>]*>', '<br/>', result, flags=_re.IGNORECASE)
+    result = _re.sub(r'</div>', '', result, flags=_re.IGNORECASE)
+    result = _re.sub(r'</(p)>', '<br/>', result, flags=_re.IGNORECASE)
     # Remove remaining tags except b, i, u, br
     result = _re.sub(r'<(?!/?(?:b|i|u|br)(?:\s|/?>))[^>]+>', '', result, flags=_re.IGNORECASE)
     result = _html_unescape(result)
     result = _re.sub(r'(<br/>)+', '<br/>', result)
-    result = result.strip().strip('<br/>')
+    # Strip leading/trailing <br/> as substrings (not char-by-char)
+    result = result.strip()
+    result = _re.sub(r'^(<br/>)+', '', result)
+    result = _re.sub(r'(<br/>)+$', '', result)
+    result = result.strip()
     return result or ''
 
 def generar_pdf_reportlab(datos_cotizacion):
@@ -807,7 +814,11 @@ def generar_pdf_reportlab(datos_cotizacion):
             # Agregar número de item y formatear datos con descripción envuelta
             descripcion_raw = item.get('descripcion', '')
             descripcion_markup = html_to_reportlab_markup(descripcion_raw)
-            descripcion_paragraph = Paragraph(descripcion_markup, description_style)
+            try:
+                descripcion_paragraph = Paragraph(descripcion_markup, description_style)
+            except Exception:
+                plain = _re.sub(r'<[^>]+>', '', descripcion_markup)
+                descripcion_paragraph = Paragraph(wrap_description_text(plain), description_style)
             
             items_data.append([
                 str(i + 1),  # Número de item
