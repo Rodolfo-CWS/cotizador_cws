@@ -3812,7 +3812,7 @@ async function guardarEdicionMenor() {
             const desc = bloque.querySelector('.descripcion-item');
             const notas = bloque.querySelector('[name="notas[]"]');
             parche.items.push({
-                descripcion: desc ? desc.value.trim() : '',
+                descripcion: desc ? (desc.innerHTML || '').trim() : '',
                 notas: notas ? notas.value.trim() : ''
             });
         });
