@@ -912,8 +912,9 @@ function recopilarItems() {
             }
         });
 
-        // Solo agregar items con al menos descripción
-        if (item.descripcion && item.descripcion.trim() !== '') {
+        // Solo agregar items con al menos descripción (usar textContent para ignorar markup vacío)
+        const descripcionTexto = itemBlock.querySelector('.descripcion-item')?.textContent?.trim() || '';
+        if (descripcionTexto !== '') {
             items.push(item);
         }
     });
@@ -3222,7 +3223,7 @@ function actualizarTodosLosCalculos() {
     resumenContainer.innerHTML = '';
     document.querySelectorAll('.item-block').forEach((item, index) => {
         calcularCostosItem(item);
-        const descripcion = item.querySelector('.descripcion-item')?.value?.trim() || `Item ${index + 1}`;
+        const descripcion = item.querySelector('.descripcion-item')?.textContent?.trim() || `Item ${index + 1}`;
         const totalItem = parseFloat(item.querySelector('.total-item')?.value || 0);
         const cantidad = parseFloat(item.querySelector('.cantidad-item')?.value || 0);
         const uom = item.querySelector('.uom-item')?.value || 'Pieza';
@@ -3299,7 +3300,7 @@ function actualizarTodosLosCalculos() {
             resumenContainer.innerHTML = '';
             
             itemBlocks.forEach((item, index) => {
-                const descripcion = item.querySelector('.descripcion-item')?.value?.trim() || `Item ${index + 1}`;
+                const descripcion = item.querySelector('.descripcion-item')?.textContent?.trim() || `Item ${index + 1}`;
                 const totalItemMXN = parseFloat(item.querySelector('.total-item')?.value || 0);
                 const cantidad = parseFloat(item.querySelector('.cantidad-item')?.value || 0);
                 const uom = item.querySelector('.uom-item')?.value || 'Pieza';
@@ -3435,7 +3436,7 @@ async function guardarCotizacion() {
         }
 
         itemsBlocks.forEach((item, index) => {
-            const descripcion = item.querySelector('.descripcion-item')?.value?.trim() || "";
+            const descripcion = item.querySelector('.descripcion-item')?.textContent?.trim() || "";
             const cantidad = item.querySelector('.cantidad-item')?.value || "0";
             const uom = item.querySelector('.uom-item')?.value || "Pieza";
             const costoUnidad = item.querySelector('.costo-unidad')?.value || "0";
