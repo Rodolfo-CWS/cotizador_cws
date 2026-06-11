@@ -4043,24 +4043,57 @@ def migrar_a_mongodb():
 
 @app.route("/admin/sincronizar-offline")
 def sincronizar_offline():
-    """Sincroniza Supabase hacia archivo offline como respaldo"""
+    """Sincroniza PostgreSQL → archivo offline como respaldo"""
     try:
         if db_manager.modo_offline:
             return jsonify({
-                "error": "En modo offline, no se puede sincronizar desde Supabase"
+                "error": "En modo offline, no se puede sincronizar desde la base de datos"
             }), 503
 
-        # Obtener todas las cotizaciones de Supabase
+        # Obtener todas las cotizaciones (prioridad: PostgreSQL directo → SDK REST → offline JSON)
+        cotizaciones_supabase = []
         try:
-            resp = db_manager.supabase_client.table('cotizaciones') \
-                .select('*') \
-                .order('created_at', desc=True) \
-                .execute()
-            cotizaciones_supabase = resp.data if resp.data else []
+            if hasattr(db_manager, 'pg_connection') and db_manager.pg_connection:
+                cursor = db_manager.pg_connection.cursor()
+                cursor.execute(
+                    "SELECT numero_cotizacion, datos_generales, items, condiciones, "
+                    "revision, version, fecha_creacion, timestamp, usuario, observaciones, created_at "
+                    "FROM cotizaciones ORDER BY created_at DESC;"
+                )
+                rows = cursor.fetchall()
+                for row in rows:
+                    cot_data = {
+                        "numeroCotizacion": row["numero_cotizacion"],
+                        "datosGenerales": row["datos_generales"],
+                        "items": row["items"],
+                        "condiciones": row["condiciones"],
+                        "revision": row["revision"],
+                        "version": row["version"],
+                        "fechaCreacion": str(row["fecha_creacion"]) if row["fecha_creacion"] else None,
+                        "timestamp": row["timestamp"],
+                        "usuario": row["usuario"],
+                        "observaciones": row["observaciones"],
+                        "created_at": str(row["created_at"]) if row["created_at"] else None
+                    }
+                    cotizaciones_supabase.append(cot_data)
+                cursor.close()
         except Exception as e:
-            return jsonify({
-                "error": f"Error consultando Supabase: {str(e)[:200]}"
-            }), 500
+            # Fallback: intentar via SDK REST (solo columnas básicas)
+            try:
+                resp = db_manager.supabase_client.table('cotizaciones') \
+                    .select('numero_cotizacion, datos_generales, items, condiciones, revision, version, fecha_creacion, timestamp') \
+                    .order('created_at', desc=True) \
+                    .limit(1000) \
+                    .execute()
+                cotizaciones_supabase = resp.data if resp.data else []
+            except Exception as e2:
+                # Último recurso: datos ya guardados en JSON offline
+                datos_offline = db_manager._cargar_datos_offline()
+                cotizaciones_supabase = datos_offline.get("cotizaciones", [])
+                if not cotizaciones_supabase:
+                    return jsonify({
+                        "error": f"No se pudo obtener cotizaciones. PG: {str(e)[:100]}, SDK: {str(e2)[:100]}"
+                    }), 500
 
         # Crear estructura offline
         datos_offline = {
@@ -4078,8 +4111,8 @@ def sincronizar_offline():
             return jsonify({
                 "exito": True,
                 "total_sincronizadas": len(cotizaciones_supabase),
-                "archivo": db_manager.archivo_offline if hasattr(db_manager, 'archivo_offline') else 'cotizaciones_offline.json',
-                "mensaje": f"{len(cotizaciones_supabase)} cotizaciones sincronizadas desde Supabase a archivo offline"
+                "archivo": getattr(db_manager, 'archivo_offline', 'cotizaciones_offline.json'),
+                "mensaje": f"{len(cotizaciones_supabase)} cotizaciones sincronizadas a archivo offline"
             })
         else:
             return jsonify({
