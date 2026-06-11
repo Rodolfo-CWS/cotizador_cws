@@ -1167,27 +1167,81 @@ async function cargarDraftSeleccionado(draftId) {
             agregarLog('DRAFT CARGADO EXITOSAMENTE', 'success');
             agregarLog('========================================', 'info');
 
-            // VERIFICACIÓN FINAL: Verificar que los valores realmente están en los campos después de 2 segundos
+            // VERIFICACION FINAL: Calcular delay basado en cantidad de datos
+            const maxMateriales = Math.max(...items.map(it => (it.materiales || []).length), 0);
+            const maxOtros = Math.max(...items.map(it => (it.otrosMateriales || []).length), 0);
+            const delayVerificacion = Math.max(3000, (items.length * 200) + (maxMateriales * 600) + (maxOtros * 600) + 1500);
+
+            agregarLog('VERIFICACION programada en ' + (delayVerificacion/1000).toFixed(1) + 's (items=' + items.length + ', maxMat=' + maxMateriales + ', maxOtros=' + maxOtros + ')', 'info');
+
             setTimeout(() => {
                 agregarLog('========================================', 'info');
-                agregarLog('VERIFICACION FINAL (2 segundos después):', 'step');
+                agregarLog('VERIFICACION FINAL POST-CARGA:', 'step');
 
+                // 1. Verificar campos generales
                 const camposVerificar = ['cliente', 'atencionA', 'contacto', 'vendedor', 'numeroCotizacion', 'revision', 'proyecto', 'actualizacionRevision'];
+                let erroresGen = 0;
                 camposVerificar.forEach(campo => {
-                    const elemento = document.getElementById(campo) || document.querySelector(`[name="${campo}"]`);
+                    const elemento = document.getElementById(campo) || document.querySelector('[name="' + campo + '"]');
                     if (elemento) {
                         const valorActual = elemento.value;
                         const valorEsperado = datosGenerales[campo];
                         if (valorActual === valorEsperado) {
-                            agregarLog(`${campo}: "${valorActual}" ✓ CORRECTO`, 'success');
+                            agregarLog(campo + ': "' + valorActual + '" CORRECTO', 'success');
                         } else {
-                            agregarLog(`${campo}: "${valorActual}" ✗ (esperaba "${valorEsperado}")`, 'error');
+                            agregarLog(campo + ': "' + valorActual + '" (esperaba "' + valorEsperado + '")', 'error');
+                            erroresGen++;
                         }
                     }
                 });
 
+                // 2. Verificar materiales y otros materiales por item
+                const itemBlocks = document.querySelectorAll('.item-block');
+                let totalMatEsperados = 0;
+                let totalMatEncontrados = 0;
+                let totalOtrosEsperados = 0;
+                let totalOtrosEncontrados = 0;
+
+                items.forEach((itemData, idx) => {
+                    const matsEsperados = (itemData.materiales || []).length;
+                    const otrosEsperados = (itemData.otrosMateriales || []).length;
+                    totalMatEsperados += matsEsperados;
+                    totalOtrosEsperados += otrosEsperados;
+
+                    if (idx < itemBlocks.length) {
+                        const block = itemBlocks[idx];
+                        const matsEncontrados = block.querySelectorAll('.materiales-container .material-row').length;
+                        const otrosEncontrados = block.querySelectorAll('.otros-materiales-container .otro-material-row').length;
+                        totalMatEncontrados += matsEncontrados;
+                        totalOtrosEncontrados += otrosEncontrados;
+
+                        if (matsEncontrados !== matsEsperados || otrosEncontrados !== otrosEsperados) {
+                            agregarLog('Item ' + (idx+1) + ': materiales=' + matsEncontrados + '/' + matsEsperados + ' otros=' + otrosEncontrados + '/' + otrosEsperados, 'warning');
+                        }
+                    }
+                });
+
+                agregarLog('Totales: materiales=' + totalMatEncontrados + '/' + totalMatEsperados + ' otros=' + totalOtrosEncontrados + '/' + totalOtrosEsperados, 'info');
+
+                // 3. Alerta si hay discrepancia
+                const faltanMateriales = totalMatEncontrados < totalMatEsperados;
+                const faltanOtros = totalOtrosEncontrados < totalOtrosEsperados;
+
+                if (faltanMateriales || faltanOtros) {
+                    var partes = [];
+                    if (faltanMateriales) partes.push((totalMatEsperados - totalMatEncontrados) + ' materiales');
+                    if (faltanOtros) partes.push((totalOtrosEsperados - totalOtrosEncontrados) + ' otros materiales');
+                    var msg = 'ATENCION: No se cargaron todos los datos del borrador. Faltan ' + partes.join(' y ') + '.\n\nVerifique el panel de logs para mas detalles.';
+                    agregarLog(msg, 'error');
+                    alert(msg);
+                } else if (totalMatEsperados === 0 && totalOtrosEsperados === 0) {
+                    agregarLog('Sin materiales para verificar (borrador sin datos de materiales)', 'info');
+                } else {
+                    agregarLog('TODOS LOS MATERIALES CARGADOS CORRECTAMENTE', 'success');
+                }
+
                 agregarLog('========================================', 'info');
-            }, 2000);
+            }, delayVerificacion);
 
             alert(`Borrador "${draft.nombre}" cargado exitosamente`);
 
@@ -2086,39 +2140,55 @@ function cargarDatosItem(itemData, index) {
 }
 
 function cargarMaterialesItem(itemElement, materiales, tipo) {
-    try {
-        
-        // Buscar botón de agregar material de forma más flexible
-        let botonAgregar;
-        if (tipo === 'materiales') {
-            botonAgregar = itemElement.querySelector('[onclick*="agregarFila"][onclick*="material"]');
-        } else {
-            botonAgregar = itemElement.querySelector('[onclick*="agregarFila"][onclick*="otro"]');
-        }
-        
-        if (!botonAgregar) {
-            // Intentar encontrar por texto del botón
-            const botones = itemElement.querySelectorAll('button');
-            
-            for (let btn of botones) {
-                const onclick = btn.getAttribute('onclick') || '';
-                
-                if (tipo === 'materiales' && onclick.includes('agregarFila') && onclick.includes('material')) {
-                    botonAgregar = btn;
-                    break;
-                } else if (tipo === 'otrosMateriales' && onclick.includes('agregarFila') && onclick.includes('otro')) {
-                    botonAgregar = btn;
-                    break;
-                }
-            }
-        }
-        
-        if (!botonAgregar) {
-            console.error(`No se pudo encontrar botón para ${tipo}`);
-            return;
-        }
-        
-        // Agregar cada material
+	try {
+		const tipoLabel = tipo === 'materiales' ? 'Materiales' : 'Otros Materiales';
+		agregarLog('[CARGAR] Iniciando carga de ' + tipoLabel + ': ' + materiales.length + ' elemento(s)', 'step');
+
+		// Buscar boton de agregar material: METODO 1 (robusto): por contenedor CSS
+		let botonAgregar;
+		const containerClass = tipo === 'materiales' ? '.materiales-container' : '.otros-materiales-container';
+		const container = itemElement.querySelector(containerClass);
+
+		if (container) {
+			// El boton "agregar" es el ultimo button del container que NO sea de eliminar
+			const botones = container.querySelectorAll('button:not([onclick*="eliminarFila"])');
+			if (botones.length > 0) {
+				botonAgregar = botones[botones.length - 1];
+			}
+		}
+
+		// METODO 2 (fallback): buscar por atributo onclick
+		if (!botonAgregar) {
+			const onclickPattern = tipo === 'materiales' ? 'material' : 'otro';
+			const todosBotones = itemElement.querySelectorAll('button');
+			for (let btn of todosBotones) {
+				const onclick = btn.getAttribute('onclick') || '';
+				if (onclick.includes('agregarFila') && onclick.includes(onclickPattern)) {
+					botonAgregar = btn;
+					break;
+				}
+			}
+		}
+
+		// METODO 3 (ultimo recurso): buscar ultimo button del container correcto
+		if (!botonAgregar) {
+			if (tipo === 'materiales') {
+				botonAgregar = itemElement.querySelector('.materiales-container button:last-of-type');
+			} else {
+				botonAgregar = itemElement.querySelector('.otros-materiales-container button:last-of-type');
+			}
+		}
+
+		if (!botonAgregar) {
+			var errorMsg = 'No se pudo encontrar boton para ' + tipoLabel + '. El borrador tiene ' + materiales.length + ' ' + tipo + ' pero no se pueden agregar filas.';
+			agregarLog(errorMsg, 'error');
+			console.error(errorMsg);
+			alert('ATENCION: Error cargando borrador.\\n\\n' + errorMsg + '\\n\\nLos datos estan guardados pero no se pudieron mostrar en el formulario.');
+			return;
+		}
+
+		agregarLog('[CARGAR] Boton para ' + tipoLabel + ' encontrado', 'success');
+
         materiales.forEach((material, index) => {
             
             setTimeout(() => {
@@ -2495,7 +2565,9 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
         }, (materiales.length * 500) + 1000); // Esperar que terminen todos los materiales
         
     } catch (error) {
-        console.error(`Error cargando ${tipo}:`, error);
+        var tipoLabel2 = tipo === 'materiales' ? 'Materiales' : 'Otros Materiales';
+        agregarLog('[ERROR] Fallo cargando ' + tipoLabel2 + ': ' + error.message, 'error');
+        console.error('Error cargando ' + tipo + ':', error);
     }
 }
 

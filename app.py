@@ -2175,6 +2175,116 @@ def cargar_draft(draft_id):
         return jsonify({"success": False, "error": error_msg}), 500
 
 
+@app.route("/api/draft/debug/<draft_id>", methods=["GET"])
+def debug_draft(draft_id):
+    """
+    Diagnóstico: devuelve estructura detallada de un draft para verificar integridad.
+
+    Returns:
+        {
+            "success": true,
+            "debug": {
+                "draft_id": "...",
+                "nombre": "...",
+                "total_items": N,
+                "items_detalle": [
+                    {
+                        "index": 0,
+                        "descripcion_len": N,
+                        "materiales_count": N,
+                        "materiales_detalle": [...],
+                        "otros_materiales_count": N,
+                        "otros_materiales_detalle": [...]
+                    }
+                ],
+                "raw_keys": [...],
+                "data_integridad": {...}
+            }
+        }
+    """
+    try:
+        draft = db_manager.obtener_draft(draft_id)
+
+        if not draft:
+            return jsonify({
+                "success": False,
+                "error": f"Draft {draft_id} no encontrado"
+            }), 404
+
+        datos = draft.get('datos', {})
+        items = datos.get('items', [])
+        datos_generales = datos.get('datosGenerales', {})
+        condiciones = datos.get('condiciones', {})
+
+        items_detalle = []
+        total_materiales = 0
+        total_otros = 0
+
+        for i, item in enumerate(items):
+            mats = item.get('materiales', [])
+            otros = item.get('otrosMateriales', [])
+            total_materiales += len(mats)
+            total_otros += len(otros)
+
+            items_detalle.append({
+                "index": i,
+                "descripcion_preview": (item.get('descripcion') or '')[:80],
+                "descripcion_len": len(item.get('descripcion') or ''),
+                "cantidad": item.get('cantidad'),
+                "uom": item.get('uom'),
+                "materiales_count": len(mats),
+                "materiales_detalle": [
+                    {
+                        "material": m.get('material') or m.get('descripcion') or 'N/A',
+                        "cantidad": m.get('cantidad'),
+                        "precio": m.get('precio'),
+                        "unidad": m.get('unidad'),
+                        "subtotal": m.get('subtotal')
+                    } for m in mats
+                ],
+                "otros_materiales_count": len(otros),
+                "otros_materiales_detalle": [
+                    {
+                        "descripcion": o.get('descripcion') or 'N/A',
+                        "cantidad": o.get('cantidad'),
+                        "precio": o.get('precio'),
+                        "subtotal": o.get('subtotal')
+                    } for o in otros
+                ]
+            })
+
+        import hashlib, json
+        datos_hash = hashlib.md5(
+            json.dumps(datos, sort_keys=True, default=str).encode('utf-8')
+        ).hexdigest()
+
+        return jsonify({
+            "success": True,
+            "debug": {
+                "draft_id": draft_id,
+                "nombre": draft.get('nombre', 'N/A'),
+                "vendedor": draft.get('vendedor', 'N/A'),
+                "timestamp": draft.get('timestamp'),
+                "total_items": len(items),
+                "total_materiales": total_materiales,
+                "total_otros_materiales": total_otros,
+                "datos_generales_keys": list(datos_generales.keys()) if datos_generales else [],
+                "condiciones_keys": list(condiciones.keys()) if condiciones else [],
+                "items_detalle": items_detalle,
+                "raw_keys": list(datos.keys()),
+                "data_integridad": {
+                    "hash_md5": datos_hash,
+                    "datos_size_bytes": len(json.dumps(datos, default=str))
+                }
+            }
+        }), 200
+
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[API] Error en debug draft: {error_msg}")
+        return jsonify({"success": False, "error": error_msg}), 500
+
+
 @app.route("/api/draft/delete/<draft_id>", methods=["DELETE"])
 def eliminar_draft(draft_id):
     """
