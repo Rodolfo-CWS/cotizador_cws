@@ -113,9 +113,6 @@ if errorlevel 1 (
     echo 📦 Instalando requests...
     python -m pip install requests==2.31.0
     
-    echo 📦 Instalando pymongo (opcional)...
-    python -m pip install pymongo==4.6.0
-    
     echo 📦 Instalando WeasyPrint (para PDFs)...
     python -m pip install weasyprint==61.2
     if errorlevel 1 (
@@ -135,7 +132,7 @@ echo 🔍 VERIFICANDO INSTALACIÓN...
 python -c "import flask; print('✅ Flask OK')" 2>nul || echo "❌ Flask falló"
 python -c "import dotenv; print('✅ dotenv OK')" 2>nul || echo "❌ dotenv falló"  
 python -c "import requests; print('✅ requests OK')" 2>nul || echo "❌ requests falló"
-python -c "import pymongo; print('✅ pymongo OK')" 2>nul || echo "⚠️  pymongo no disponible (modo offline activado)"
+python -c "from supabase_manager import SupabaseManager; print('✅ Supabase OK')" 2>nul || echo "⚠️  Supabase no disponible"
 python -c "import weasyprint; print('✅ WeasyPrint OK')" 2>nul || echo "⚠️  WeasyPrint no disponible (PDFs deshabilitados)"
 
 REM ============================================
