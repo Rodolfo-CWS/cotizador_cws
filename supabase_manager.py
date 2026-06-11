@@ -393,7 +393,7 @@ class SupabaseManager:
         """Guardar datos en archivo JSON offline"""
         try:
             with open(self.archivo_offline, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+                json.dump(data, f, ensure_ascii=False, indent=2, default=str)
             return True
         except Exception as e:
             print(f"[OFFLINE] Error guardando JSON: {safe_str(e)}")
