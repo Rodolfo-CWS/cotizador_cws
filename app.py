@@ -4078,7 +4078,7 @@ def sincronizar_offline():
             return jsonify({
                 "exito": True,
                 "total_sincronizadas": len(cotizaciones_supabase),
-                "archivo": db_manager.archivo_datos if hasattr(db_manager, 'archivo_datos') else 'cotizaciones_offline.json',
+                "archivo": db_manager.archivo_offline if hasattr(db_manager, 'archivo_offline') else 'cotizaciones_offline.json',
                 "mensaje": f"{len(cotizaciones_supabase)} cotizaciones sincronizadas desde Supabase a archivo offline"
             })
         else:
@@ -4779,7 +4779,7 @@ def stats_sistema():
                 "total_cotizaciones": total_cotizaciones,
                 "clientes_unicos": len(clientes_unicos),
                 "vendedores_unicos": len(vendedores_unicos),
-                "archivo_datos": db_manager.archivo_datos,
+                "archivo_datos": db_manager.archivo_offline,
                 "metadata": datos.get("metadata", {})
             })
         else:
