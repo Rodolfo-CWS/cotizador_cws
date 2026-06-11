@@ -912,9 +912,10 @@ function recopilarItems() {
             }
         });
 
-        // Solo agregar items con al menos descripción (usar textContent para ignorar markup vacío)
+        // Agregar item si tiene descripción, materiales, u otros materiales
         const descripcionTexto = itemBlock.querySelector('.descripcion-item')?.textContent?.trim() || '';
-        if (descripcionTexto !== '') {
+        const tieneContenido = descripcionTexto !== '' || item.materiales.length > 0 || item.otrosMateriales.length > 0;
+        if (tieneContenido) {
             items.push(item);
         }
     });
