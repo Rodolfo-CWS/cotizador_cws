@@ -1,148 +1,28 @@
+"""
+CWS Cotizador - Archivo principal (wrapper thin).
+La inicialización se delega al paquete cotizador/ (factory pattern).
+Todas las rutas se preservan aquí para backward compatibility.
+"""
+# ── Imports del paquete cotizador ──
+from cotizador import (
+    create_app, REPORTLAB_AVAILABLE, WEASYPRINT_AVAILABLE,
+    safe_float, safe_int, validate_material_data,
+    wrap_description_text, generar_pdf_reportlab
+)
+
+# ── Imports estándar usados por las rutas ──
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
-# CRITICAL FIX: Sep 8, 2025 - Deploy 2 - FORCE COMPLETE RESTART
-# Issue: SDK REST fix not being applied in production - quotations not appearing in Supabase
-
-# Intentar importar generadores de PDF
-WEASYPRINT_AVAILABLE = False
-REPORTLAB_AVAILABLE = False
-
-try:
-    import weasyprint
-    WEASYPRINT_AVAILABLE = True
-    print("WeasyPrint disponible")
-except ImportError:
-    print("WeasyPrint no disponible")
-
-try:
-    from reportlab.pdfgen import canvas
-    from reportlab.lib.pagesizes import letter
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import inch
-    REPORTLAB_AVAILABLE = True
-    print("ReportLab disponible - Generacion de PDF habilitada con ReportLab")
-except ImportError:
-    print("ReportLab no disponible")
-
-if not WEASYPRINT_AVAILABLE and not REPORTLAB_AVAILABLE:
-    print("ADVERTENCIA: Ningún generador de PDF disponible")
-
 import io
 import datetime
 import atexit
 import os
-import json  # ← IMPORTANTE
-import csv  # Para leer archivo CSV de materiales
+import json
+import csv
 import logging
 from logging.handlers import RotatingFileHandler
+import copy
 from dotenv import load_dotenv
-# SOLO SUPABASE - MongoDB eliminado completamente
-from supabase_manager import SupabaseManager as DatabaseManager
-from pdf_manager import PDFManager
-
-# Configurar logging detallado para detectar fallos silenciosos
-def configurar_logging():
-    """Configura logging detallado para la aplicación"""
-    # Crear directorio de logs si no existe
-    log_dir = os.path.join(os.path.dirname(__file__), 'logs')
-    os.makedirs(log_dir, exist_ok=True)
     
-    # Configurar logging principal
-    log_file = os.path.join(log_dir, 'cotizador_fallos_criticos.log')
-    
-    # Handler rotativo para evitar archivos de log enormes
-    file_handler = RotatingFileHandler(
-        log_file, 
-        maxBytes=10*1024*1024,  # 10MB por archivo
-        backupCount=5  # Mantener 5 archivos de respaldo
-    )
-    
-    # Formato detallado de logs
-    formatter = logging.Formatter(
-        '%(asctime)s [%(levelname)s] %(name)s:%(lineno)d - %(message)s'
-    )
-    file_handler.setFormatter(formatter)
-    
-    # Configurar logger raíz
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    logger.addHandler(file_handler)
-    
-    # Logger específico para fallos críticos
-    critical_logger = logging.getLogger('FALLOS_CRITICOS')
-    critical_handler = RotatingFileHandler(
-        os.path.join(log_dir, 'fallos_silenciosos_detectados.log'),
-        maxBytes=5*1024*1024,
-        backupCount=3
-    )
-    critical_handler.setFormatter(formatter)
-    critical_logger.addHandler(critical_handler)
-    critical_logger.setLevel(logging.ERROR)
-    
-    print(f"Logging configurado: {log_file}")
-    return logger
-
-# Configurar logging al inicio
-configurar_logging()
-
-# Cargar variables de entorno
-load_dotenv()
-
-# Crear aplicación Flask
-app = Flask(__name__)
-
-# Configuración básica desde variables de entorno
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-app.config['TEMPLATES_AUTO_RELOAD'] = True  # FORZAR RECARGA DE TEMPLATES
-
-# Crear instancia de base de datos
-print("Inicializando DatabaseManager (SupabaseManager)...")
-db_manager = DatabaseManager()
-
-# Validar estado de conexión al inicio
-print(f"Estado de conexión:")
-print(f"   Modo offline: {db_manager.modo_offline}")
-if not db_manager.modo_offline:
-    print(f"   Supabase conectado: {db_manager.supabase_url}")
-    print(f"   Base de datos: PostgreSQL")
-else:
-    print(f"   Modo offline activo - usando JSON local")
-    print(f"   Archivo offline: {db_manager.archivo_offline}")
-
-# Obtener estadísticas iniciales
-try:
-    stats = db_manager.obtener_estadisticas()
-    print(f"Estadísticas iniciales:")
-    for key, value in stats.items():
-        print(f"   {key}: {value}")
-except Exception as e:
-    print(f"Error obteniendo estadísticas: {e}")
-
-# Crear instancia de gestor de PDFs
-try:
-    from pdf_manager import PDFManager
-    pdf_manager = PDFManager(db_manager)
-    print("PDFManager inicializado exitosamente")
-except Exception as e:
-    print(f"Error inicializando PDFManager: {e}")
-    pdf_manager = None
-
-# Crear instancia de scheduler de sincronización
-try:
-    from sync_scheduler import SyncScheduler
-    sync_scheduler = SyncScheduler(db_manager)
-    print("SyncScheduler inicializado exitosamente")
-
-    # Iniciar scheduler automático si está habilitado
-    if sync_scheduler.auto_sync_enabled and sync_scheduler.is_available():
-        sync_scheduler.iniciar()
-
-except Exception as e:
-    print(f"Error inicializando SyncScheduler: {e}")
-    sync_scheduler = None
-
 # Crear instancia de Render Keepalive (solo en producción)
 try:
     from render_keepalive import init_keepalive, get_keepalive_instance
@@ -1099,6 +979,13 @@ def generar_pdf_reportlab(datos_cotizacion):
     buffer.seek(0)
     
     return buffer.getvalue()
+
+# ── Crear app vía factory ──
+app = create_app()
+db_manager = app.extensions['db_manager']
+pdf_manager = app.extensions['pdf_manager']
+sync_scheduler = app.extensions.get('sync_scheduler')
+LISTA_MATERIALES = app.config.get('LISTA_MATERIALES', [])
 
 def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
     """
