@@ -17,20 +17,6 @@ class Config:
     SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY')  # Para operaciones admin
     DATABASE_URL = os.environ.get('DATABASE_URL')  # PostgreSQL connection string
     
-    # MongoDB (DEPRECADO - mantenido para migración)
-    MONGO_USERNAME = os.environ.get('MONGO_USERNAME', 'admin')
-    MONGO_PASSWORD = os.environ.get('MONGO_PASSWORD', 'ADMIN123')
-    MONGO_CLUSTER = os.environ.get('MONGO_CLUSTER', 'cluster0.t4e0tp8.mongodb.net')
-    MONGO_DATABASE = os.environ.get('MONGO_DATABASE', 'cotizaciones')
-    
-    @property
-    def MONGO_URI(self):
-        """Construye la URI de MongoDB con las variables de entorno (DEPRECADO)"""
-        import urllib.parse
-        usuario = urllib.parse.quote_plus(self.MONGO_USERNAME)
-        contraseña = urllib.parse.quote_plus(self.MONGO_PASSWORD)
-        return f"mongodb+srv://{usuario}:{contraseña}@{self.MONGO_CLUSTER}/{self.MONGO_DATABASE}?retryWrites=true&w=majority&appName=Cluster0"
-    
     # Configuración de la aplicación
     APP_NAME = os.environ.get('APP_NAME', 'CWS Cotizaciones')
     APP_VERSION = os.environ.get('APP_VERSION', '1.0.0')
@@ -73,7 +59,6 @@ class TestingConfig(Config):
     """Configuración para testing"""
     TESTING = True
     DEBUG = True
-    MONGO_DATABASE = 'cotizaciones_test'
 
 # Selector de configuración basado en entorno
 config_by_name = {

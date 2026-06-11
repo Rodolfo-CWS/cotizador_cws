@@ -24,7 +24,7 @@ if exist "env\Scripts\activate.bat" (
 
 echo.
 echo [INFO] Verificando dependencias críticas...
-python -c "import flask, pymongo; print('[OK] Flask y PyMongo disponibles')" 2>nul
+python -c "import flask; from supabase_manager import SupabaseManager; print('[OK] Flask y Supabase disponibles')" 2>nul
 if errorlevel 1 (
     echo [ERROR] Dependencias faltantes - ejecuta: pip install -r requirements.txt
     pause
