@@ -2370,15 +2370,11 @@ def diagnostico_completo():
             "flask_debug": app.config.get('DEBUG'),
             "app_version": os.getenv('APP_VERSION', '1.0.0')
         },
-        "mongodb": {
+        "supabase": {
             "estado": "offline" if db_manager.modo_offline else "online",
-            "uri_configurada": bool(os.getenv('MONGODB_URI')),
-            "variables_componentes": {
-                "username": bool(os.getenv('MONGO_USERNAME')),
-                "password": bool(os.getenv('MONGO_PASSWORD')),
-                "cluster": bool(os.getenv('MONGO_CLUSTER')),
-                "database": bool(os.getenv('MONGO_DATABASE'))
-            }
+            "url_configurada": bool(os.getenv('SUPABASE_URL')),
+            "database_url_configurada": bool(os.getenv('DATABASE_URL')),
+            "service_key_configurada": bool(os.getenv('SUPABASE_SERVICE_KEY'))
         },
         "google_drive": {
             "disponible": bool(pdf_manager and pdf_manager.drive_client and pdf_manager.drive_client.is_available()),
@@ -2400,13 +2396,13 @@ def diagnostico_completo():
     # Tests adicionales si están disponibles
     if not db_manager.modo_offline:
         try:
-            # Test rápido de MongoDB
-            test_ping = db_manager.client.admin.command('ping')
-            diagnostico["mongodb"]["test_ping"] = "exitoso"
-            diagnostico["mongodb"]["database_name"] = db_manager.database_name
-            diagnostico["mongodb"]["total_cotizaciones"] = db_manager.collection.count_documents({})
+            # Test rápido de Supabase PostgreSQL
+            stats = db_manager.obtener_estadisticas()
+            diagnostico["supabase"]["test_conexion"] = "exitoso"
+            diagnostico["supabase"]["total_cotizaciones"] = stats.get('total_cotizaciones', 0)
+            diagnostico["supabase"]["fuente"] = stats.get('fuente', 'desconocida')
         except Exception as e:
-            diagnostico["mongodb"]["test_ping"] = f"fallo: {str(e)[:100]}"
+            diagnostico["supabase"]["test_conexion"] = f"fallo: {str(e)[:100]}"
     
     if pdf_manager and pdf_manager.drive_client and pdf_manager.drive_client.is_available():
         try:
@@ -2425,7 +2421,8 @@ def diagnostico_entorno():
     es_render = os.getenv('RENDER') or os.getenv('RENDER_SERVICE_NAME')
     return jsonify({
         'render_detected': bool(es_render),
-        'mongodb_uri_set': bool(os.getenv('MONGODB_URI')),
+        'supabase_url_set': bool(os.getenv('SUPABASE_URL')),
+        'database_url_set': bool(os.getenv('DATABASE_URL')),
         'google_credentials_set': bool(os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')),
         'entorno': 'RENDER' if es_render else 'LOCAL'
     })
@@ -4146,129 +4143,62 @@ def panel_admin():
 
 @app.route("/admin/migrar-a-mongodb")
 def migrar_a_mongodb():
-    """Migra todas las cotizaciones del archivo offline a MongoDB"""
-    try:
-        # Verificar que estemos en modo online
-        if db_manager.modo_offline:
-            return jsonify({
-                "error": "No se puede migrar: MongoDB no disponible",
-                "solucion": "Verificar conexión a internet y credenciales MongoDB"
-            }), 503
-        
-        # Cargar datos del archivo offline
-        datos_offline = db_manager._cargar_datos_offline()
-        cotizaciones_offline = datos_offline.get("cotizaciones", [])
-        
-        if not cotizaciones_offline:
-            return jsonify({
-                "mensaje": "No hay cotizaciones offline para migrar",
-                "total_offline": 0,
-                "total_mongodb": db_manager.collection.count_documents({})
-            })
-        
-        migradas = 0
-        errores = []
-        duplicados = 0
-        
-        for i, cotizacion in enumerate(cotizaciones_offline):
-            try:
-                # Verificar si ya existe en MongoDB (por número de cotización)
-                numero = cotizacion.get("numeroCotizacion")
-                if numero:
-                    existe = db_manager.collection.find_one({"numeroCotizacion": numero})
-                    if existe:
-                        duplicados += 1
-                        continue
-                
-                # Limpiar el _id del archivo offline (MongoDB generará uno nuevo)
-                cotizacion_limpia = cotizacion.copy()
-                if "_id" in cotizacion_limpia:
-                    del cotizacion_limpia["_id"]
-                
-                # Agregar timestamp de migración
-                cotizacion_limpia["migrado_desde_offline"] = datetime.datetime.now().isoformat()
-                
-                # Insertar en MongoDB
-                resultado = db_manager.collection.insert_one(cotizacion_limpia)
-                if resultado.inserted_id:
-                    migradas += 1
-                    print(f"Migrada {i+1}/{len(cotizaciones_offline)}: {numero}")
-                
-            except Exception as e:
-                error_msg = f"Error en cotización {i+1}: {str(e)[:100]}"
-                errores.append(error_msg)
-                print(f"{error_msg}")
-        
-        # Crear respaldo del archivo offline antes de limpiarlo
-        import shutil
-        fecha_backup = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        archivo_backup = f"cotizaciones_offline_backup_{fecha_backup}.json"
-        shutil.copy(db_manager.archivo_datos, archivo_backup)
-        
-        # Limpiar archivo offline (opcional)
-        datos_offline["cotizaciones"] = []
-        datos_offline["metadata"]["migrado_a_mongodb"] = datetime.datetime.now().isoformat()
-        datos_offline["metadata"]["total_migradas"] = migradas
-        db_manager._guardar_datos_offline(datos_offline)
-        
-        return jsonify({
-            "exito": True,
-            "total_offline": len(cotizaciones_offline),
-            "migradas": migradas,
-            "duplicados": duplicados,
-            "errores": len(errores),
-            "detalles_errores": errores[:5],  # Solo primeros 5 errores
-            "total_mongodb_actual": db_manager.collection.count_documents({}),
-            "archivo_backup": archivo_backup,
-            "mensaje": f"Migracion completada: {migradas} cotizaciones transferidas a MongoDB"
-        })
-        
-    except Exception as e:
-        return jsonify({
-            "error": f"Error durante migración: {str(e)}",
-            "tipo": "error_migracion"
-        }), 500
+    """Ruta obsoleta - MongoDB fue reemplazado por Supabase PostgreSQL en Septiembre 2025"""
+    return jsonify({
+        "error": "MongoDB ya no está disponible",
+        "mensaje": "El sistema migró completamente a Supabase PostgreSQL. "
+                   "Todas las cotizaciones se guardan directamente en Supabase "
+                   "con respaldo JSON offline. No se requiere migración.",
+        "estado": "migracion_completada",
+        "fecha_migracion": "2025-09-08",
+        "nueva_arquitectura": "Supabase PostgreSQL + SDK REST + JSON offline"
+    }), 410  # Gone
 
 @app.route("/admin/sincronizar-offline")
 def sincronizar_offline():
-    """Sincroniza MongoDB hacia archivo offline como respaldo"""
+    """Sincroniza Supabase hacia archivo offline como respaldo"""
     try:
         if db_manager.modo_offline:
             return jsonify({
-                "error": "En modo offline, no se puede sincronizar desde MongoDB"
+                "error": "En modo offline, no se puede sincronizar desde Supabase"
             }), 503
-        
-        # Obtener todas las cotizaciones de MongoDB
-        cotizaciones_mongo = list(db_manager.collection.find().sort("timestamp", -1))
-        
-        # Convertir ObjectId a string para JSON
-        for cot in cotizaciones_mongo:
-            cot["_id"] = str(cot["_id"])
-        
+
+        # Obtener todas las cotizaciones de Supabase
+        try:
+            resp = db_manager.supabase_client.table('cotizaciones') \
+                .select('*') \
+                .order('created_at', desc=True) \
+                .execute()
+            cotizaciones_supabase = resp.data if resp.data else []
+        except Exception as e:
+            return jsonify({
+                "error": f"Error consultando Supabase: {str(e)[:200]}"
+            }), 500
+
         # Crear estructura offline
         datos_offline = {
-            "cotizaciones": cotizaciones_mongo,
+            "cotizaciones": cotizaciones_supabase,
             "metadata": {
-                "sincronizado_desde_mongodb": datetime.datetime.now().isoformat(),
-                "total_cotizaciones": len(cotizaciones_mongo),
+                "sincronizado_desde_supabase": datetime.datetime.now().isoformat(),
+                "total_cotizaciones": len(cotizaciones_supabase),
                 "version": os.getenv('APP_VERSION', '1.0.0'),
-                "modo": "respaldo_mongodb"
+                "modo": "respaldo_supabase"
             }
         }
-        
+
         # Guardar archivo offline actualizado
         if db_manager._guardar_datos_offline(datos_offline):
             return jsonify({
                 "exito": True,
-                "total_sincronizadas": len(cotizaciones_mongo),
-                "archivo": db_manager.archivo_datos,
-                "mensaje": f"{len(cotizaciones_mongo)} cotizaciones sincronizadas a archivo offline"
+                "total_sincronizadas": len(cotizaciones_supabase),
+                "archivo": db_manager.archivo_datos if hasattr(db_manager, 'archivo_datos') else 'cotizaciones_offline.json',
+                "mensaje": f"{len(cotizaciones_supabase)} cotizaciones sincronizadas desde Supabase a archivo offline"
             })
         else:
             return jsonify({
                 "error": "Error guardando archivo offline"
             }), 500
-            
+
     except Exception as e:
         return jsonify({
             "error": f"Error durante sincronización: {str(e)}"
@@ -4904,33 +4834,36 @@ def debug_pdf_especifico(numero_cotizacion):
 def debug_env():
     """Diagnostico de variables de entorno para Render"""
     import os
-    
+
     # Verificar variables criticas
-    mongodb_uri = os.getenv('MONGODB_URI')
+    supabase_url = os.getenv('SUPABASE_URL')
     env_check = {
         'SECRET_KEY': 'CONFIGURADO' if os.getenv('SECRET_KEY') else 'FALTA',
-        'MONGODB_URI': 'CONFIGURADO' if mongodb_uri else 'FALTA',
-        'MONGODB_URI_PREVIEW': f"{mongodb_uri[:50]}..." if mongodb_uri else 'N/A',
+        'SUPABASE_URL': 'CONFIGURADO' if supabase_url else 'FALTA',
+        'SUPABASE_URL_PREVIEW': f"{supabase_url[:50]}..." if supabase_url else 'N/A',
+        'DATABASE_URL': 'CONFIGURADO' if os.getenv('DATABASE_URL') else 'FALTA',
         'RENDER': 'SI' if os.getenv('RENDER') else 'NO',
         'PORT': os.getenv('PORT', 'No configurado'),
         'entorno': 'RENDER' if os.getenv('RENDER') else 'LOCAL'
     }
-    
-    # Estado de MongoDB
-    env_check['mongodb_modo_offline'] = db_manager.modo_offline
-    
-    # Intentar contar cotizaciones
+
+    # Estado de Supabase
+    env_check['supabase_modo_offline'] = db_manager.modo_offline
+
+    # Intentar contar cotizaciones via Supabase
     try:
         if not db_manager.modo_offline:
-            env_check['mongodb_total_cotizaciones'] = db_manager.collection.count_documents({})
-            env_check['mongodb_conexion'] = 'EXITOSA'
+            stats = db_manager.obtener_estadisticas()
+            env_check['supabase_total_cotizaciones'] = stats.get('total_cotizaciones', 'N/A')
+            env_check['supabase_conexion'] = 'EXITOSA'
+            env_check['supabase_fuente'] = stats.get('fuente', 'desconocida')
         else:
-            env_check['mongodb_total_cotizaciones'] = 'N/A'
-            env_check['mongodb_conexion'] = 'FALLO - MODO OFFLINE'
+            env_check['supabase_total_cotizaciones'] = 'N/A'
+            env_check['supabase_conexion'] = 'FALLO - MODO OFFLINE'
     except Exception as e:
-        env_check['mongodb_total_cotizaciones'] = 'ERROR'
-        env_check['mongodb_conexion'] = f'ERROR: {str(e)}'
-    
+        env_check['supabase_total_cotizaciones'] = 'ERROR'
+        env_check['supabase_conexion'] = f'ERROR: {str(e)}'
+
     return jsonify(env_check)
 
 @app.route("/stats")
@@ -4963,47 +4896,67 @@ def stats_sistema():
                 "metadata": datos.get("metadata", {})
             })
         else:
-            # Modo online - MongoDB
-            total_cotizaciones = db_manager.collection.count_documents({})
-            
-            # Estadísticas adicionales
-            pipeline_clientes = [
-                {"$group": {"_id": "$datosGenerales.cliente"}},
-                {"$count": "total"}
-            ]
-            
-            pipeline_vendedores = [
-                {"$group": {"_id": "$datosGenerales.vendedor"}},
-                {"$count": "total"}
-            ]
-            
+            # Modo online - Supabase PostgreSQL
+            # Usar obtener_estadisticas() que ya tiene triple capa (PG → SDK → JSON)
+            stats = db_manager.obtener_estadisticas()
+            total_cotizaciones = stats.get("total_cotizaciones", 0)
+
+            # Clientes y vendedores únicos vía Supabase SDK
+            clientes_unicos = 0
+            vendedores_unicos = 0
             try:
-                clientes_count = list(db_manager.collection.aggregate(pipeline_clientes))
-                vendedores_count = list(db_manager.collection.aggregate(pipeline_vendedores))
-                
-                clientes_unicos = clientes_count[0]["total"] if clientes_count else 0
-                vendedores_unicos = vendedores_count[0]["total"] if vendedores_count else 0
-            except:
+                if hasattr(db_manager, 'supabase_client') and db_manager.supabase_client:
+                    try:
+                        resp = db_manager.supabase_client.table('cotizaciones').select('datosGenerales').execute()
+                        if resp.data:
+                            clientes_set = set()
+                            vendedores_set = set()
+                            for row in resp.data:
+                                dg = row.get('datosGenerales', {})
+                                if dg.get('cliente'):
+                                    clientes_set.add(dg['cliente'])
+                                if dg.get('vendedor'):
+                                    vendedores_set.add(dg['vendedor'])
+                            clientes_unicos = len(clientes_set)
+                            vendedores_unicos = len(vendedores_set)
+                    except Exception:
+                        # Fallback: contar desde JSON offline
+                        datos = db_manager._cargar_datos_offline()
+                        cots = datos.get("cotizaciones", [])
+                        c_set = set(c.get("datosGenerales", {}).get("cliente") for c in cots if c.get("datosGenerales", {}).get("cliente"))
+                        v_set = set(c.get("datosGenerales", {}).get("vendedor") for c in cots if c.get("datosGenerales", {}).get("vendedor"))
+                        clientes_unicos = len(c_set)
+                        vendedores_unicos = len(v_set)
+            except Exception:
                 clientes_unicos = "Error calculando"
                 vendedores_unicos = "Error calculando"
-            
-            # Última cotización
-            ultima = db_manager.collection.find_one(sort=[("timestamp", -1)])
+
+            # Última cotización vía Supabase SDK
             ultima_info = None
-            if ultima:
-                ultima_info = {
-                    "numero": ultima.get("numeroCotizacion"),
-                    "cliente": ultima.get("datosGenerales", {}).get("cliente"),
-                    "fecha": ultima.get("fechaCreacion")
-                }
-            
+            try:
+                if hasattr(db_manager, 'supabase_client') and db_manager.supabase_client:
+                    ultima_resp = db_manager.supabase_client.table('cotizaciones') \
+                        .select('numeroCotizacion, datosGenerales, fechaCreacion') \
+                        .order('created_at', desc=True) \
+                        .limit(1) \
+                        .execute()
+                    if ultima_resp.data:
+                        ultima = ultima_resp.data[0]
+                        ultima_info = {
+                            "numero": ultima.get("numeroCotizacion"),
+                            "cliente": ultima.get("datosGenerales", {}).get("cliente"),
+                            "fecha": ultima.get("fechaCreacion")
+                        }
+            except Exception:
+                ultima_info = None
+
             return jsonify({
                 "modo": "ONLINE",
                 "total_cotizaciones": total_cotizaciones,
                 "clientes_unicos": clientes_unicos,
                 "vendedores_unicos": vendedores_unicos,
-                "database": db_manager.database_name,
-                "collection": "cotizacions",
+                "database": "Supabase PostgreSQL",
+                "fuente": stats.get("fuente", "desconocida"),
                 "ultima_cotizacion": ultima_info
             })
             
@@ -5730,24 +5683,35 @@ def internal_error(error):
 
 @app.route("/admin/actualizar-timestamps")
 def actualizar_timestamps():
-    """Actualiza cotizaciones existentes con timestamps faltantes"""
+    """Actualiza cotizaciones existentes con timestamps faltantes (Supabase)"""
     try:
-        print("Actualizando cotizaciones existentes con timestamps...")
-        
-        # Buscar cotizaciones sin timestamp o fechaCreacion
-        filtro = {
-            "$or": [
-                {"timestamp": {"$exists": False}},
-                {"timestamp": None},
-                {"fechaCreacion": {"$exists": False}},
-                {"fechaCreacion": None}
-            ]
-        }
-        
-        cotizaciones_sin_timestamp = list(db_manager.collection.find(filtro))
-        
-        print(f"Encontradas {len(cotizaciones_sin_timestamp)} cotizaciones sin timestamp")
-        
+        print("Verificando cotizaciones existentes con timestamps...")
+
+        # Obtener todas las cotizaciones via Supabase SDK
+        try:
+            resp = db_manager.supabase_client.table('cotizaciones') \
+                .select('*').execute()
+            todas_cotizaciones = resp.data if resp.data else []
+        except Exception as e:
+            return f"""
+            <html>
+            <body style="font-family: Arial; margin: 20px;">
+                <h1>Error de conexión</h1>
+                <p style="color: red;">No se pudo consultar Supabase: {str(e)[:200]}</p>
+                <p>El sistema usa Supabase PostgreSQL. Esta ruta solo funciona con conexión activa.</p>
+                <p><a href="/">← Volver al inicio</a></p>
+            </body>
+            </html>
+            """, 503
+
+        ahora = datetime.datetime.now()
+        sin_timestamp = []
+        for cot in todas_cotizaciones:
+            if not cot.get("timestamp") or not cot.get("fechaCreacion"):
+                sin_timestamp.append(cot)
+
+        print(f"Encontradas {len(sin_timestamp)} cotizaciones sin timestamp")
+
         resultado_html = f"""
         <html>
         <head>
@@ -5763,12 +5727,12 @@ def actualizar_timestamps():
         </head>
         <body>
             <div class="container">
-                <h1>Actualizacion de Timestamps</h1>
+                <h1>Actualizacion de Timestamps (Supabase)</h1>
                 <div class="log">
-                    <p class="info">Encontradas {len(cotizaciones_sin_timestamp)} cotizaciones sin timestamp</p>
+                    <p class="info">Encontradas {len(sin_timestamp)} cotizaciones sin timestamp</p>
         """
-        
-        if len(cotizaciones_sin_timestamp) == 0:
+
+        if len(sin_timestamp) == 0:
             resultado_html += """
                     <p class="success">Todas las cotizaciones ya tienen timestamps</p>
                 </div>
@@ -5778,39 +5742,35 @@ def actualizar_timestamps():
         </html>
             """
             return resultado_html
-        
-        # Actualizar cada cotización
+
+        # Actualizar cada cotización via Supabase SDK
         actualizadas = 0
-        
-        for cotizacion in cotizaciones_sin_timestamp:
-            # Usar fecha actual como fallback
-            ahora = datetime.datetime.now()
-            
-            # Preparar actualización
+        for cotizacion in sin_timestamp:
+            cot_id = cotizacion.get("id")
+            if not cot_id:
+                continue
+
             update_data = {}
-            
             if not cotizacion.get("timestamp"):
                 update_data["timestamp"] = int(ahora.timestamp() * 1000)
-            
             if not cotizacion.get("fechaCreacion"):
                 update_data["fechaCreacion"] = ahora.isoformat()
-            
             if not cotizacion.get("version"):
                 update_data["version"] = os.getenv('APP_VERSION', '1.0.0')
-            
-            # Actualizar en MongoDB
+
             if update_data:
-                resultado_update = db_manager.collection.update_one(
-                    {"_id": cotizacion["_id"]},
-                    {"$set": update_data}
-                )
-                
-                if resultado_update.modified_count > 0:
+                try:
+                    db_manager.supabase_client.table('cotizaciones') \
+                        .update(update_data) \
+                        .eq('id', cot_id) \
+                        .execute()
                     actualizadas += 1
-                    numero = cotizacion.get("numeroCotizacion", str(cotizacion["_id"]))
+                    numero = cotizacion.get("numeroCotizacion", str(cot_id))
                     print(f"Actualizada: {numero}")
                     resultado_html += f'<p class="success">Actualizada: {numero}</p>\n'
-        
+                except Exception as e:
+                    resultado_html += f'<p class="error">Error en {cotizacion.get("numeroCotizacion", cot_id)}: {str(e)[:100]}</p>\n'
+
         resultado_html += f"""
                     <p class="success">{actualizadas} cotizaciones actualizadas exitosamente</p>
                 </div>
@@ -5820,9 +5780,9 @@ def actualizar_timestamps():
         </body>
         </html>
         """
-        
+
         return resultado_html
-        
+
     except Exception as e:
         return f"""
         <html>
@@ -5833,8 +5793,6 @@ def actualizar_timestamps():
         </body>
         </html>
         """, 500
-    
-    # Agregar esta ruta temporal a tu app.py para diagnosticar
 
 @app.route("/debug-estructura/<path:item_id>")
 def debug_estructura_items(item_id):
@@ -6081,34 +6039,40 @@ def buscar_texto_completo(texto):
     """Busca un texto en TODOS los campos de las cotizaciones"""
     try:
         encontradas = []
-        
+
         if db_manager.modo_offline:
             datos = db_manager._cargar_datos_offline()
             cotizaciones = datos.get("cotizaciones", [])
         else:
-            cotizaciones = list(db_manager.collection.find())
-            for cot in cotizaciones:
-                cot["_id"] = str(cot["_id"])
-        
+            # Usar Supabase SDK para obtener todas las cotizaciones
+            try:
+                resp = db_manager.supabase_client.table('cotizaciones') \
+                    .select('*').execute()
+                cotizaciones = resp.data if resp.data else []
+            except Exception:
+                # Fallback a JSON offline
+                datos = db_manager._cargar_datos_offline()
+                cotizaciones = datos.get("cotizaciones", [])
+
         # Buscar en TODO el documento
         for cot in cotizaciones:
             # Convertir todo el documento a string
             doc_str = json.dumps(cot, ensure_ascii=False).lower()
             if texto.lower() in doc_str:
                 encontradas.append({
-                    "id": cot.get("_id"),
+                    "id": cot.get("id", cot.get("_id")),
                     "numero": cot.get("numeroCotizacion"),
                     "cliente": cot.get("datosGenerales", {}).get("cliente"),
                     "vendedor": cot.get("datosGenerales", {}).get("vendedor"),
                     "proyecto": cot.get("datosGenerales", {}).get("proyecto")
                 })
-        
+
         return jsonify({
             "texto_buscado": texto,
             "total_encontradas": len(encontradas),
             "cotizaciones": encontradas
         })
-        
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
@@ -6117,27 +6081,57 @@ def verificar_ultima():
     """Verifica la última cotización guardada"""
     try:
         if db_manager.modo_offline:
-            return jsonify({"error": "No disponible en modo offline"}), 400
-        
-        # Obtener la última cotización
-        ultima = db_manager.collection.find_one(
-            sort=[("timestamp", -1)]
-        )
-        
-        if ultima:
-            ultima["_id"] = str(ultima["_id"])
+            # En modo offline, buscar en JSON local
+            datos = db_manager._cargar_datos_offline()
+            cotizaciones = datos.get("cotizaciones", [])
+            if cotizaciones:
+                # Ordenar por timestamp descendente
+                cotizaciones_ordenadas = sorted(
+                    cotizaciones,
+                    key=lambda c: c.get("timestamp", 0),
+                    reverse=True
+                )
+                ultima = cotizaciones_ordenadas[0]
+                return jsonify({
+                    "encontrada": True,
+                    "id": ultima.get("_id"),
+                    "numero": ultima.get("numeroCotizacion"),
+                    "cliente": ultima.get("datosGenerales", {}).get("cliente"),
+                    "vendedor": ultima.get("datosGenerales", {}).get("vendedor"),
+                    "timestamp": ultima.get("timestamp"),
+                    "fecha": ultima.get("fechaCreacion"),
+                    "fuente": "JSON offline"
+                })
+            else:
+                return jsonify({"encontrada": False})
+
+        # Modo online - Supabase
+        try:
+            ultima_resp = db_manager.supabase_client.table('cotizaciones') \
+                .select('*') \
+                .order('created_at', desc=True) \
+                .limit(1) \
+                .execute()
+
+            if ultima_resp.data:
+                ultima = ultima_resp.data[0]
+                return jsonify({
+                    "encontrada": True,
+                    "id": ultima.get("id"),
+                    "numero": ultima.get("numeroCotizacion"),
+                    "cliente": ultima.get("datosGenerales", {}).get("cliente"),
+                    "vendedor": ultima.get("datosGenerales", {}).get("vendedor"),
+                    "fecha": ultima.get("fechaCreacion"),
+                    "fuente": "Supabase PostgreSQL"
+                })
+            else:
+                return jsonify({"encontrada": False})
+        except Exception as e:
             return jsonify({
-                "encontrada": True,
-                "id": ultima["_id"],
-                "numero": ultima.get("numeroCotizacion"),
-                "cliente": ultima.get("datosGenerales", {}).get("cliente"),
-                "vendedor": ultima.get("datosGenerales", {}).get("vendedor"),
-                "timestamp": ultima.get("timestamp"),
-                "fecha": ultima.get("fechaCreacion")
+                "encontrada": False,
+                "error_supabase": str(e)[:200]
             })
-        else:
-            return jsonify({"encontrada": False})
-            
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
