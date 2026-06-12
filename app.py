@@ -3220,6 +3220,139 @@ def listar_cotizaciones():
     
 
 # ============================================
+# GENERACIÓN DE TEXTO IA
+# ============================================
+
+@app.route("/api/generar-texto-ia", methods=["POST"])
+def generar_texto_ia():
+    """
+    Genera texto introductorio personalizado usando Claude AI.
+
+    Body JSON:
+        {
+            "datosGenerales": {...},
+            "items": [...],
+            "condiciones": {...},
+            "revision": "1",
+            "cambiosRevision": "(opcional) descripción de cambios vs rev anterior"
+        }
+
+    Returns:
+        {
+            "success": true,
+            "texto": "texto generado en formato HTML simple"
+        }
+    """
+    try:
+        datos = request.get_json()
+        if not datos:
+            return jsonify({"success": False, "error": "No se recibieron datos"}), 400
+
+        # Intentar usar Claude si está configurado
+        api_key = os.getenv('ANTHROPIC_API_KEY', '').strip()
+        # Solo usar IA si la API key está configurada y no es placeholder
+        if api_key and not api_key.endswith('...') and api_key.startswith('sk-ant-'):
+            import anthropic
+
+            datos_generales = datos.get('datosGenerales', {})
+            items = datos.get('items', [])
+            condiciones = datos.get('condiciones', {})
+            revision = datos.get('revision', '1')
+            cambios = datos.get('cambiosRevision', '')
+
+            cliente = datos_generales.get('cliente', 'Cliente')
+            proyecto = datos_generales.get('proyecto', 'su proyecto')
+            vendedor = datos_generales.get('vendedor', 'CWS Company')
+
+            # Construir resumen de items
+            items_resumen = ""
+            for i, item in enumerate(items[:10]):  # max 10 items para no exceder tokens
+                desc = (item.get('descripcion') or 'Sin descripción')[:100]
+                precio = item.get('total') or item.get('totalItem') or 'N/A'
+                uom = item.get('uom', '')
+                cant = item.get('cantidad', '')
+                items_resumen += f"- Item {i+1}: {desc} | {cant} {uom} | ${precio}\n"
+
+            moneda = condiciones.get('moneda', 'MXN')
+
+            # System prompt
+            system_prompt = (
+                "Eres un cotizador profesional mexicano. Generas textos introductorios "
+                "para PDFs de cotizaciones. Sé conciso, profesional y cálido. "
+                "Escribe en español formal. NO uses markdown. "
+                "Formato: texto plano con saltos de línea simples. "
+                "Máximo 3 párrafos breves."
+            )
+
+            # User prompt
+            user_prompt = f"""Genera el texto introductorio para un PDF de cotización con estos datos:
+
+Cliente: {cliente}
+Proyecto: {proyecto}
+Vendedor: {vendedor}
+Moneda: {moneda}
+Revisión: R{revision}
+
+Resumen de ítems cotizados:
+{items_resumen if items_resumen else 'No se especificaron ítems'}"""
+
+            if cambios and revision != '1':
+                user_prompt += f"\nCambios respecto a revisión anterior:\n{cambios}\nExplica estos cambios de forma profesional.\n"
+
+            user_prompt += "\nEscribe un texto introductorio de 2-3 párrafos que presente la cotización."
+
+            try:
+                client = anthropic.Anthropic(api_key=api_key)
+                message = client.messages.create(
+                    model="claude-sonnet-4-6",
+                    max_tokens=600,
+                    temperature=0.7,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": user_prompt}]
+                )
+                texto_generado = message.content[0].text
+                print(f"[IA] Texto generado: {len(texto_generado)} caracteres")
+
+                return jsonify({
+                    "success": True,
+                    "texto": texto_generado,
+                    "fuente": "ia"
+                }), 200
+
+            except Exception as ia_error:
+                print(f"[IA] Error llamando a Claude: {str(ia_error)}")
+                # Fallback a texto genérico
+        else:
+            print("[IA] ANTHROPIC_API_KEY no configurada - usando texto genérico")
+
+        # Texto genérico (fallback)
+        datos_generales = datos.get('datosGenerales', {})
+        cliente = datos_generales.get('cliente', 'Cliente')
+        proyecto = datos_generales.get('proyecto', 'su proyecto')
+
+        texto_generico = (
+            f"Estimado {cliente},\n\n"
+            f"CWS Company se complace en presentar esta propuesta económica "
+            f"para {proyecto}. "
+            f"Hemos analizado sus requerimientos y presentamos una solución "
+            f"que equilibra calidad, funcionalidad y costo.\n\n"
+            f"Esperamos haber entendido sus necesidades y permanecemos "
+            f"a la espera de su respuesta."
+        )
+
+        return jsonify({
+            "success": True,
+            "texto": texto_generico,
+            "fuente": "generico"
+        }), 200
+
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[IA] Error en generar-texto-ia: {error_msg}")
+        return jsonify({"success": False, "error": error_msg}), 500
+
+
+# ============================================
 # GENERACIÓN DE PDF
 # ============================================
 
@@ -3237,10 +3370,11 @@ def generar_pdf():
     try:
         datos = request.get_json()
         numero_cotizacion = datos.get('numeroCotizacion')
-        
+        texto_personalizado = datos.get('textoPersonalizado', None)
+
         if not numero_cotizacion:
             return jsonify({"error": "Número de cotización requerido"}), 400
-        
+
         # Buscar la cotización en la base de datos
         resultado = db_manager.obtener_cotizacion(numero_cotizacion)
         
@@ -3305,7 +3439,7 @@ def generar_pdf():
         # Intentar con ReportLab primero (más estable)
         if REPORTLAB_AVAILABLE:
             print("Generando PDF con ReportLab")
-            pdf_data = generar_pdf_reportlab(cotizacion)
+            pdf_data = generar_pdf_reportlab(cotizacion, texto_personalizado=texto_personalizado)
             pdf_buffer = io.BytesIO(pdf_data)
             
         elif WEASYPRINT_AVAILABLE:
