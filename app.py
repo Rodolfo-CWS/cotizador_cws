@@ -1089,8 +1089,8 @@ def formulario():
             print(f"[FORM_DEBUG] TIPO_CAMBIO RECIBIDO: '{condiciones_recibidas.get('tipoCambio', 'NO_ENCONTRADO')}'")
             print(f"[FORM_DEBUG] TIEMPO_ENTREGA: '{condiciones_recibidas.get('tiempoEntrega', 'NO_ENCONTRADO')}'")
             print(f"[FORM_DEBUG] ENTREGAR_EN: '{condiciones_recibidas.get('entregaEn', 'NO_ENCONTRADO')}'")
-            print(f"[FORM_DEBUG] TERMINOS: '{condiciones_recibidas.get('terminos', 'NO_ENCONTRADO')}'")
-            print(f"[FORM_DEBUG] COMENTARIOS: '{condiciones_recibidas.get('comentarios', 'NO_ENCONTRADO')}'")
+            print(f"[FORM_DEBUG] CONDICIONES_PAGO: '{condiciones_recibidas.get('condicionesPago', 'NO_ENCONTRADO')}'")
+            print(f"[FORM_DEBUG] COMENTARIOS_ADICIONALES: '{condiciones_recibidas.get('comentariosAdicionales', 'NO_ENCONTRADO')}'")
             print(f"[FORM_DEBUG] ======= FIN DIAGNÓSTICO FORMULARIO =======")
             
             # VALIDACIÓN MEJORADA PARA REVISIONES con logging detallado
@@ -2813,8 +2813,8 @@ def generar_pdf():
             'tipoCambio': condiciones.get('tipoCambio', ''),
             'tiempoEntrega': condiciones.get('tiempoEntrega', ''),
             'entregaEn': condiciones.get('entregaEn', ''),
-            'terminos': condiciones.get('terminos', ''),
-            'comentarios': condiciones.get('comentarios', ''),
+            'terminos': condiciones.get('condicionesPago') or condiciones.get('terminos', ''),
+            'comentarios': condiciones.get('comentariosAdicionales') or condiciones.get('comentarios', ''),
             
             # Totales
             'subtotal': f"{subtotal:.2f}",
