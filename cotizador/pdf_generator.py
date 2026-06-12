@@ -16,8 +16,14 @@ from cotizador._compat import REPORTLAB_AVAILABLE
 from cotizador.utilities import wrap_description_text
 
 
-def generar_pdf_reportlab(datos_cotizacion):
-    """Genera PDF usando ReportLab con formato profesional CWS"""
+def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
+    """Genera PDF usando ReportLab con formato profesional CWS
+
+    Args:
+        datos_cotizacion: Dict con datos de la cotización
+        texto_personalizado: Texto introductorio personalizado (opcional).
+                            Si es None, se usa el texto genérico.
+    """
     if not REPORTLAB_AVAILABLE:
         raise ImportError("ReportLab no está disponible")
     
@@ -235,10 +241,14 @@ def generar_pdf_reportlab(datos_cotizacion):
         borderWidth=0.5
     )
     
-    intro_text = """Estimado Cliente,<br/>
-    CWS Company se complace en presentar esta propuesta económica para el proyecto solicitado. 
-    Esperamos haber entendido sus requerimientos y permanecemos a la espera de su respuesta."""
-    
+    if texto_personalizado:
+        # Usar texto generado por IA (ya viene con formato HTML de ReportLab)
+        intro_text = texto_personalizado.replace("\n", "<br/>\n")
+    else:
+        intro_text = """Estimado Cliente,<br/>
+        CWS Company se complace en presentar esta propuesta económica para el proyecto solicitado.
+        Esperamos haber entendido sus requerimientos y permanecemos a la espera de su respuesta."""
+
     story.append(Paragraph(intro_text, intro_style))
     story.append(Spacer(1, 8))
     

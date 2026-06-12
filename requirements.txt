@@ -43,6 +43,9 @@ gunicorn==25.1.0
 google-api-python-client==2.191.0
 google-auth==2.48.0
 
+# Claude/Anthropic API (IA para generación de texto personalizado)
+anthropic>=0.84.0
+
 # Cloudinary eliminado - migrado a Supabase Storage
 
 # Scheduler para sincronización automática
