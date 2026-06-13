@@ -1711,6 +1711,23 @@ def eliminar_draft(draft_id):
 # EDICIÓN MENOR (sin nueva revisión)
 # ========================================
 
+@app.route("/api/cotizacion/<path:numero_cotizacion>", methods=["GET"])
+def obtener_cotizacion_api(numero_cotizacion):
+    """
+    Devuelve los datos de una cotización en formato JSON.
+    Usado como fallback cuando el template no puede inyectar los datos directamente.
+    """
+    try:
+        from urllib.parse import unquote
+        numero_cotizacion = unquote(numero_cotizacion)
+        resultado = db_manager.obtener_cotizacion(numero_cotizacion)
+        if resultado.get('encontrado'):
+            return jsonify({"success": True, "cotizacion": resultado['item']}), 200
+        else:
+            return jsonify({"success": False, "error": f"Cotización '{numero_cotizacion}' no encontrada"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route("/api/cotizacion/<path:numero_cotizacion>/edicion-menor", methods=["PATCH"])
 def edicion_menor(numero_cotizacion):
     """
