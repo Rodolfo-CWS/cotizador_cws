@@ -1795,10 +1795,33 @@ function cargarDatosEdicionMenor() {
         const campoHidden = document.querySelector('[name="numeroCotizacionHidden"]');
         if (campoHidden) campoHidden.value = DATOS_EDICION_MENOR.numeroCotizacion || '';
 
-        // Condiciones
-        ['moneda', 'tipoCambio', 'tiempoEntrega', 'entregaEn', 'terminos', 'comentarios'].forEach(campo => {
-            const el = document.querySelector(`[name="${campo}"]`);
-            if (el && cond[campo] !== undefined) el.value = cond[campo];
+        // Condiciones — mapeo explícito para manejar nombres históricos y actuales:
+        // 'condicionesPago' es el nombre almacenado en DB; 'terminos' es el campo HTML
+        // 'comentariosAdicionales' es el nombre almacenado; 'comentarios' es el campo HTML
+        // También se intenta fallback a datosGenerales para cotizaciones antiguas
+        const mapeoCondiciones = {
+            'moneda':                 'moneda',
+            'tipoCambio':             'tipoCambio',
+            'tiempoEntrega':          'tiempoEntrega',
+            'entregaEn':              'entregaEn',
+            'condicionesPago':        'terminos',
+            'terminos':               'terminos',
+            'comentariosAdicionales': 'comentarios',
+            'comentarios':            'comentarios'
+        };
+        Object.entries(mapeoCondiciones).forEach(([claveDB, campoForm]) => {
+            const valor = cond[claveDB] ?? dg[claveDB];
+            if (valor !== undefined && valor !== null && valor !== '') {
+                const el = document.querySelector(`[name="${campoForm}"]`);
+                if (el && el.value === '') el.value = valor;
+            }
+        });
+        console.log('[EDICION_MENOR] Condiciones cargadas:', {
+            moneda: document.querySelector('[name="moneda"]')?.value,
+            tiempoEntrega: document.querySelector('[name="tiempoEntrega"]')?.value,
+            entregaEn: document.querySelector('[name="entregaEn"]')?.value,
+            terminos: document.querySelector('[name="terminos"]')?.value,
+            comentarios: document.querySelector('[name="comentarios"]')?.value
         });
 
         // ── Ítems ──
