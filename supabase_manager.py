@@ -1195,20 +1195,27 @@ class SupabaseManager:
             # Extraer condiciones de datos_generales si existen (compatibilidad)
             datos_generales = row['datos_generales'] or {}
             condiciones = datos_generales.pop('condiciones', {}) if isinstance(datos_generales, dict) else {}
-            
+
+            # Normalizar aliases históricos para que el frontend siempre encuentre los campos
+            if isinstance(condiciones, dict):
+                if 'condicionesPago' in condiciones and 'terminos' not in condiciones:
+                    condiciones['terminos'] = condiciones['condicionesPago']
+                if 'comentariosAdicionales' in condiciones and 'comentarios' not in condiciones:
+                    condiciones['comentarios'] = condiciones['comentariosAdicionales']
+
             cotizacion = {
                 "_id": str(row['id']),
                 "numeroCotizacion": row['numero_cotizacion'],
                 "datosGenerales": datos_generales,
-                "items": row['items'],
+                "items": row['items'] or [],
                 "condiciones": condiciones,
                 "revision": row['revision'],
-                "fechaCreacion": row['fecha_creacion'],
+                "fechaCreacion": str(row['fecha_creacion']) if row['fecha_creacion'] else None,
                 "timestamp": row['timestamp'],
                 "usuario": row['usuario'],
                 "observaciones": row['observaciones']
             }
-            
+
             print(f"[SDK_REST] Cotización obtenida: {numero_cotizacion}")
             return {"encontrado": True, "item": cotizacion}
             
@@ -1239,20 +1246,27 @@ class SupabaseManager:
             # Extraer condiciones de datos_generales si existen
             datos_generales = row['datos_generales'] or {}
             condiciones = datos_generales.pop('condiciones', {}) if isinstance(datos_generales, dict) else {}
-            
+
+            # Normalizar aliases históricos para que el frontend siempre encuentre los campos
+            if isinstance(condiciones, dict):
+                if 'condicionesPago' in condiciones and 'terminos' not in condiciones:
+                    condiciones['terminos'] = condiciones['condicionesPago']
+                if 'comentariosAdicionales' in condiciones and 'comentarios' not in condiciones:
+                    condiciones['comentarios'] = condiciones['comentariosAdicionales']
+
             cotizacion = {
                 "_id": str(row['id']),
                 "numeroCotizacion": row['numero_cotizacion'],
                 "datosGenerales": datos_generales,
-                "items": row['items'],
-                "condiciones": condiciones,  # Extraídas de datos_generales
+                "items": row['items'] or [],
+                "condiciones": condiciones,
                 "revision": row['revision'],
                 "fechaCreacion": row['fecha_creacion'].isoformat() if row['fecha_creacion'] else None,
                 "timestamp": row['timestamp'],
                 "usuario": row['usuario'],
                 "observaciones": row['observaciones']
             }
-            
+
             return {"encontrado": True, "item": cotizacion}
             
         except Exception as e:
@@ -1265,13 +1279,23 @@ class SupabaseManager:
         try:
             data = self._cargar_datos_offline()
             cotizaciones = data.get("cotizaciones", [])
-            
+
             for cot in cotizaciones:
                 if cot.get('numeroCotizacion') == numero_cotizacion:
+                    # Normalizar aliases históricos en condiciones
+                    condiciones = cot.get('condiciones')
+                    if isinstance(condiciones, dict):
+                        if 'condicionesPago' in condiciones and 'terminos' not in condiciones:
+                            condiciones['terminos'] = condiciones['condicionesPago']
+                        if 'comentariosAdicionales' in condiciones and 'comentarios' not in condiciones:
+                            condiciones['comentarios'] = condiciones['comentariosAdicionales']
+                    # Asegurar que items es siempre lista
+                    if cot.get('items') is None:
+                        cot['items'] = []
                     return {"encontrado": True, "item": cot}
-            
+
             return {"encontrado": False, "error": "Cotización no encontrada"}
-            
+
         except Exception as e:
             error_msg = safe_str(e)
             print(f"[OFFLINE] Error obteniendo cotización: {error_msg}")
