@@ -4319,6 +4319,43 @@ def regenerar_pdfs_faltantes():
     except Exception as e:
         return jsonify({"error": f"Error en regeneración masiva: {str(e)}"}), 500
 
+@app.route("/admin/forzar-regenerar-pdf/<path:numero_cotizacion>", methods=["POST"])
+def forzar_regenerar_pdf(numero_cotizacion):
+    """Fuerza la regeneración de un PDF específico, sobreescribiendo el existente en storage."""
+    try:
+        from urllib.parse import unquote
+        numero_cotizacion = unquote(numero_cotizacion).rstrip('/')
+
+        if not (REPORTLAB_AVAILABLE or WEASYPRINT_AVAILABLE):
+            return jsonify({"error": "No hay generador de PDF disponible"}), 500
+
+        cot_resultado = db_manager.obtener_cotizacion(numero_cotizacion)
+        if not cot_resultado.get("encontrado"):
+            return jsonify({"error": f"Cotización '{numero_cotizacion}' no encontrada en base de datos"}), 404
+
+        cotizacion_data = cot_resultado["item"]
+        condiciones = cotizacion_data.get("condiciones", {})
+        print(f"[FORZAR_REGEN] Condiciones encontradas: {condiciones}")
+
+        pdf_data = generar_pdf_reportlab(cotizacion_data) if REPORTLAB_AVAILABLE else None
+        if not pdf_data:
+            return jsonify({"error": "Error generando PDF"}), 500
+
+        if pdf_manager:
+            pdf_manager.almacenar_pdf_nuevo(pdf_content=pdf_data, cotizacion_data=cotizacion_data)
+
+        print(f"[FORZAR_REGEN] PDF regenerado exitosamente: {numero_cotizacion}")
+        return jsonify({
+            "exito": True,
+            "numero_cotizacion": numero_cotizacion,
+            "mensaje": f"PDF regenerado correctamente para {numero_cotizacion}",
+            "condiciones_usadas": condiciones
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"Error regenerando PDF: {str(e)}"}), 500
+
+
 @app.route("/admin/debug-pdf/<path:numero_cotizacion>")
 def debug_pdf_especifico(numero_cotizacion):
     """Debug específico para un PDF que no se encuentra"""
