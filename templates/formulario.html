@@ -524,14 +524,14 @@
 const LISTA_MATERIALES = {{ materiales | tojson }};
 
 // Datos precargados (para nueva revisión)
-const DATOS_PRECARGADOS = {{ datos_precargados | tojson if datos_precargados else 'null' }};
+let DATOS_PRECARGADOS = {{ datos_precargados | tojson if datos_precargados else 'null' }};
 
 // Información de bloqueo de revisión (si intenta crear revisión desde versión antigua)
 const INFO_BLOQUEO_REVISION = {{ info_bloqueo_revision | tojson if info_bloqueo_revision else 'null' }};
 
 // Modo edición menor (corrección de typos sin nueva revisión)
-const MODO_EDICION_MENOR = {{ modo_edicion_menor | tojson if modo_edicion_menor is defined else 'false' }};
-const DATOS_EDICION_MENOR = {{ datos_edicion_menor | tojson if datos_edicion_menor is defined and datos_edicion_menor else 'null' }};
+let MODO_EDICION_MENOR = {{ modo_edicion_menor | tojson if modo_edicion_menor is defined else 'false' }};
+let DATOS_EDICION_MENOR = {{ datos_edicion_menor | tojson if datos_edicion_menor is defined and datos_edicion_menor else 'null' }};
 
 // Función para generar opciones de materiales
 function generarOpcionesMateriales() {
@@ -1279,6 +1279,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Cargar datos precargados si existen (revisión) o edición menor
     if (DATOS_PRECARGADOS) {
+        inicializarModalRevision();
         cargarDatosPrecargados();
     } else if (DATOS_EDICION_MENOR) {
         // DATOS_EDICION_MENOR vino inyectado correctamente desde el template
@@ -1295,18 +1296,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(resultado => {
                     if (resultado.success && resultado.cotizacion) {
                         console.log('[EDICION_MENOR] Datos obtenidos vía API fallback');
-                        // Inyectar datos y activar modo edición
-                        window._DATOS_EDICION_MENOR_FALLBACK = resultado.cotizacion;
-                        Object.defineProperty(window, 'DATOS_EDICION_MENOR', {
-                            get() { return window._DATOS_EDICION_MENOR_FALLBACK; },
-                            configurable: true
-                        });
-                        // MODO_EDICION_MENOR puede ser false si DB falló; forzarlo
-                        window._MODO_EDICION_MENOR_FALLBACK = true;
-                        Object.defineProperty(window, 'MODO_EDICION_MENOR', {
-                            get() { return window._MODO_EDICION_MENOR_FALLBACK; },
-                            configurable: true
-                        });
+                        // Inyectar datos y activar modo edición (reasignación directa — let permite esto)
+                        DATOS_EDICION_MENOR = resultado.cotizacion;
+                        MODO_EDICION_MENOR = true;
                         cargarDatosEdicionMenor();
                     } else {
                         console.error('[EDICION_MENOR] API fallback no encontró la cotización:', edicionMenorId, resultado);
@@ -1327,7 +1319,9 @@ document.addEventListener('DOMContentLoaded', function() {
     configurarEventListeners();
 
     // Inicializar modal de revisión si es necesario
-    inicializarModalRevision();
+    if (!DATOS_PRECARGADOS) {
+        inicializarModalRevision();
+    }
 
     // Fallback Nueva Revisión: si DATOS_PRECARGADOS es null pero ?revision=ID está en la URL,
     // intentar cargar vía API y preparar los datos para nueva revisión
@@ -1340,13 +1334,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(resultado => {
                     if (resultado.success && resultado.cotizacion) {
                         console.log('[REVISION] Datos obtenidos vía API fallback');
-                        window._DATOS_PRECARGADOS_FALLBACK = resultado.cotizacion;
-                        Object.defineProperty(window, 'DATOS_PRECARGADOS', {
-                            get() { return window._DATOS_PRECARGADOS_FALLBACK; },
-                            configurable: true
-                        });
-                        cargarDatosPrecargados();
+                        DATOS_PRECARGADOS = resultado.cotizacion;
                         inicializarModalRevision();
+                        cargarDatosPrecargados();
                     } else {
                         console.error('[REVISION] API fallback no encontró la cotización:', revisionId, resultado);
                         alert('No se pudieron cargar los datos de la cotización "' + revisionId + '" para nueva revisión.');
