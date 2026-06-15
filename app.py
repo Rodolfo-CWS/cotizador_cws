@@ -536,6 +536,23 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
             'numero_ultima_revision': numero_cotizacion
         }
 
+def _safe_for_json(obj):
+    """Convierte recursivamente objetos no JSON-serializables (Decimal, datetime, etc.)
+    a tipos nativos de Python que Jinja2's tojson y json.dumps pueden serializar."""
+    from decimal import Decimal
+    import datetime as dt
+    if isinstance(obj, dict):
+        return {k: _safe_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_safe_for_json(v) for v in obj]
+    if isinstance(obj, Decimal):
+        return float(obj)
+    if isinstance(obj, (dt.datetime, dt.date)):
+        return obj.isoformat()
+    if isinstance(obj, bytes):
+        return obj.hex()
+    return obj
+
 def preparar_datos_nueva_revision(cotizacion_original):
     """Prepara los datos de una cotización para crear una nueva revisión"""
     try:
@@ -651,7 +668,7 @@ def preparar_datos_nueva_revision(cotizacion_original):
         datos['datosGenerales']['actualizacionRevision'] = f"Revisión {nueva_revision} basada en cotización original"
         
         print(f"[OK] Datos preparados para nueva revisión: {nuevo_numero}")
-        return datos
+        return _safe_for_json(datos)
         
     except Exception as e:
         print(f"[ERROR] Error preparando nueva revisión: {e}")
@@ -1348,6 +1365,7 @@ def formulario():
         resultado_em = db_manager.obtener_cotizacion(edicion_menor_id)
         if resultado_em.get('encontrado'):
             datos_edicion_menor = resultado_em['item']
+            datos_edicion_menor = _safe_for_json(datos_edicion_menor)
             modo_edicion_menor = True
             print(f"[EDICION_MENOR] Cotización cargada para edición menor: {edicion_menor_id}")
         else:
@@ -1719,11 +1737,15 @@ def obtener_cotizacion_api(numero_cotizacion):
     Soporta ?preparar_revision=true para el flujo de Nueva Revisión.
     """
     try:
+        import time
+        t0 = time.time()
         from urllib.parse import unquote
         numero_cotizacion = unquote(numero_cotizacion)
+        print(f"[API_COTIZACION] Buscando: {numero_cotizacion!r} | preparar_revision={preparar_revision}")
         preparar_revision = request.args.get('preparar_revision', '').lower() == 'true'
 
         resultado = db_manager.obtener_cotizacion(numero_cotizacion)
+        print(f"[API_COTIZACION] Resultado: encontrado={resultado.get('encontrado')} | keys={list(resultado.keys())}")
         if resultado.get('encontrado'):
             cotizacion = resultado['item']
             if preparar_revision:
@@ -1741,11 +1763,14 @@ def obtener_cotizacion_api(numero_cotizacion):
                 cotizacion = preparar_datos_nueva_revision(cotizacion)
                 if cotizacion is None:
                     return jsonify({"success": False, "error": "Error al preparar revisión"}), 500
+            nc_api = cotizacion.get("numeroCotizacion", "?"); rev_api = cotizacion.get("datosGenerales",{}).get("revision","?"); print(f"[API_COTIZACION] [OK] Exito en {time.time()-t0:.3f}s | num={nc_api} | rev={rev_api}")
             return jsonify({"success": True, "cotizacion": cotizacion}), 200
         else:
+            print(f"[API_COTIZACION] ❌ No encontrada: {numero_cotizacion!r} en {time.time()-t0:.3f}s")
             return jsonify({"success": False, "error": f"Cotización '{numero_cotizacion}' no encontrada"}), 404
     except Exception as e:
         import traceback
+        print(f"[API_COTIZACION] [ERROR] {type(e).__name__}: {e} en {time.time()-t0:.3f}s")
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -3005,7 +3030,7 @@ def servir_pdf(numero_cotizacion):
                 return jsonify({"error": f"PDF '{numero_cotizacion}' no encontrado y no hay generador disponible"}), 404
 
             cot_resultado = db_manager.obtener_cotizacion(numero_cotizacion)
-            if not cot_resultado.get("encontrado"):
+            if not cot_resultado.get('encontrado'):
                 return jsonify({"error": f"PDF '{numero_cotizacion}' no encontrado en Storage ni en base de datos"}), 404
 
             cotizacion = cot_resultado["item"]
