@@ -1876,12 +1876,6 @@ function cargarDatosPrecargados() {
             'revision': datosGenerales.revision,
             'proyecto': datosGenerales.proyecto,
             'fecha': datosGenerales.fecha,
-            'moneda': datosGenerales.moneda,
-            'tipoCambio': datosGenerales.tipoCambio,
-            'tiempoEntrega': datosGenerales.tiempoEntrega,
-            'entregaEn': datosGenerales.entregaEn,
-            'terminos': datosGenerales.terminos,
-            'comentarios': datosGenerales.comentarios,
             'actualizacionRevision': datosGenerales.actualizacionRevision
         };
         
@@ -1912,8 +1906,8 @@ function cargarDatosPrecargados() {
                 'tipoCambio': condiciones.tipoCambio,
                 'tiempoEntrega': condiciones.tiempoEntrega,
                 'entregaEn': condiciones.entregaEn,
-                'terminos': condiciones.terminos || condiciones.terminosPago,
-                'comentarios': condiciones.comentarios
+                'terminos': condiciones.terminos || condiciones.condicionesPago,
+                'comentarios': condiciones.comentarios || condiciones.comentariosAdicionales || ''
             };
             
             Object.entries(camposCondiciones).forEach(([campo, valor]) => {
