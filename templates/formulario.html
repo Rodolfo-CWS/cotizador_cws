@@ -1280,27 +1280,87 @@ document.addEventListener('DOMContentLoaded', function() {
     // Cargar datos precargados si existen (revisión) o edición menor
     if (DATOS_PRECARGADOS) {
         cargarDatosPrecargados();
-    } else if (MODO_EDICION_MENOR && DATOS_EDICION_MENOR) {
+    } else if (DATOS_EDICION_MENOR) {
+        // DATOS_EDICION_MENOR vino inyectado correctamente desde el template
         cargarDatosEdicionMenor();
+    } else {
+        // Fallback: si el template no pudo inyectar los datos (error de serialización
+        // o DB fallo al rendir la página), intentar cargar vía API directamente.
+        const urlParams2 = new URLSearchParams(window.location.search);
+        const edicionMenorId = urlParams2.get('edicion_menor');
+        if (edicionMenorId) {
+            console.warn('[EDICION_MENOR] DATOS_EDICION_MENOR es null — intentando fetch fallback para:', edicionMenorId);
+            fetch(`/api/cotizacion/${encodeURIComponent(edicionMenorId)}`)
+                .then(r => r.json())
+                .then(resultado => {
+                    if (resultado.success && resultado.cotizacion) {
+                        console.log('[EDICION_MENOR] Datos obtenidos vía API fallback');
+                        // Inyectar datos y activar modo edición
+                        window._DATOS_EDICION_MENOR_FALLBACK = resultado.cotizacion;
+                        Object.defineProperty(window, 'DATOS_EDICION_MENOR', {
+                            get() { return window._DATOS_EDICION_MENOR_FALLBACK; },
+                            configurable: true
+                        });
+                        // MODO_EDICION_MENOR puede ser false si DB falló; forzarlo
+                        window._MODO_EDICION_MENOR_FALLBACK = true;
+                        Object.defineProperty(window, 'MODO_EDICION_MENOR', {
+                            get() { return window._MODO_EDICION_MENOR_FALLBACK; },
+                            configurable: true
+                        });
+                        cargarDatosEdicionMenor();
+                    } else {
+                        console.error('[EDICION_MENOR] API fallback no encontró la cotización:', edicionMenorId, resultado);
+                        alert('No se pudieron cargar los datos de la cotización "' + edicionMenorId + '".\nVerifique que la cotización existe y vuelva a intentarlo.');
+                    }
+                })
+                .catch(err => {
+                    console.error('[EDICION_MENOR] Error en fetch fallback:', err);
+                    alert('Error de conexión al cargar los datos de edición. Intente recargar la página.');
+                });
+        }
     }
     // En edición menor los ítems se crean dentro de cargarDatosEdicionMenor
-    if (!MODO_EDICION_MENOR) {
+    const _edicionMenorParam = new URLSearchParams(window.location.search).get('edicion_menor');
+    if (!MODO_EDICION_MENOR && !_edicionMenorParam) {
         setTimeout(() => { agregarItem(); }, 500);
     }
     configurarEventListeners();
 
-    // Activar modo edición menor si corresponde (después de que ítems estén cargados)
-    // El timeout se maneja dentro de cargarDatosEdicionMenor
-    if (MODO_EDICION_MENOR && !DATOS_EDICION_MENOR) {
-        // Sin datos no tiene sentido continuar
-        console.warn('[EDICION_MENOR] Sin DATOS_EDICION_MENOR');
-    }
-
     // Inicializar modal de revisión si es necesario
     inicializarModalRevision();
 
-    // Inicializar sistema de auto-guardado de drafts (no aplica en edición menor)
-    if (!MODO_EDICION_MENOR) {
+    // Fallback Nueva Revisión: si DATOS_PRECARGADOS es null pero ?revision=ID está en la URL,
+    // intentar cargar vía API y preparar los datos para nueva revisión
+    if (!DATOS_PRECARGADOS) {
+        const revisionId = new URLSearchParams(window.location.search).get('revision');
+        if (revisionId) {
+            console.warn('[REVISION] DATOS_PRECARGADOS es null — intentando fetch fallback para:', revisionId);
+            fetch('/api/cotizacion/' + encodeURIComponent(revisionId) + '?preparar_revision=true')
+                .then(r => r.json())
+                .then(resultado => {
+                    if (resultado.success && resultado.cotizacion) {
+                        console.log('[REVISION] Datos obtenidos vía API fallback');
+                        window._DATOS_PRECARGADOS_FALLBACK = resultado.cotizacion;
+                        Object.defineProperty(window, 'DATOS_PRECARGADOS', {
+                            get() { return window._DATOS_PRECARGADOS_FALLBACK; },
+                            configurable: true
+                        });
+                        cargarDatosPrecargados();
+                        inicializarModalRevision();
+                    } else {
+                        console.error('[REVISION] API fallback no encontró la cotización:', revisionId, resultado);
+                        alert('No se pudieron cargar los datos de la cotización "' + revisionId + '" para nueva revisión.');
+                    }
+                })
+                .catch(err => {
+                    console.error('[REVISION] Error en fetch fallback (revisión):', err);
+                    alert('Error de conexión al cargar los datos de revisión. Intente recargar la página.');
+                });
+        }
+    }
+
+    // Inicializar sistema de auto-guardado de drafts (no aplica en edición menor ni fallback)
+    if (!MODO_EDICION_MENOR && !_edicionMenorParam) {
         inicializarSistemaAutoGuardado();
     }
 
@@ -1798,22 +1858,23 @@ function cargarDatosEdicionMenor() {
         // Condiciones — mapeo explícito para manejar nombres históricos y actuales:
         // 'condicionesPago' es el nombre almacenado en DB; 'terminos' es el campo HTML
         // 'comentariosAdicionales' es el nombre almacenado; 'comentarios' es el campo HTML
-        // También se intenta fallback a datosGenerales para cotizaciones antiguas
+        // IMPORTANTE: las claves normalizadas ('terminos', 'comentarios') van PRIMERO
+        // para que su valor (el más actualizado) tome precedencia sobre los alias históricos.
         const mapeoCondiciones = {
             'moneda':                 'moneda',
             'tipoCambio':             'tipoCambio',
             'tiempoEntrega':          'tiempoEntrega',
             'entregaEn':              'entregaEn',
-            'condicionesPago':        'terminos',
             'terminos':               'terminos',
-            'comentariosAdicionales': 'comentarios',
-            'comentarios':            'comentarios'
+            'condicionesPago':        'terminos',
+            'comentarios':            'comentarios',
+            'comentariosAdicionales': 'comentarios'
         };
         Object.entries(mapeoCondiciones).forEach(([claveDB, campoForm]) => {
-            const valor = cond[claveDB] ?? dg[claveDB];
+            const valor = cond[claveDB];
             if (valor !== undefined && valor !== null && valor !== '') {
                 const el = document.querySelector(`[name="${campoForm}"]`);
-                if (el && el.value === '') el.value = valor;
+                if (el) el.value = valor;
             }
         });
         console.log('[EDICION_MENOR] Condiciones cargadas:', {

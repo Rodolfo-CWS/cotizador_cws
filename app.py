@@ -1711,6 +1711,44 @@ def eliminar_draft(draft_id):
 # EDICIÓN MENOR (sin nueva revisión)
 # ========================================
 
+@app.route("/api/cotizacion/<path:numero_cotizacion>", methods=["GET"])
+def obtener_cotizacion_api(numero_cotizacion):
+    """
+    Devuelve los datos de una cotización en formato JSON.
+    Usado como fallback cuando el template no puede inyectar los datos directamente.
+    Soporta ?preparar_revision=true para el flujo de Nueva Revisión.
+    """
+    try:
+        from urllib.parse import unquote
+        numero_cotizacion = unquote(numero_cotizacion)
+        preparar_revision = request.args.get('preparar_revision', '').lower() == 'true'
+
+        resultado = db_manager.obtener_cotizacion(numero_cotizacion)
+        if resultado.get('encontrado'):
+            cotizacion = resultado['item']
+            if preparar_revision:
+                # Verificar que sea la revisión más reciente
+                nc = cotizacion.get('numeroCotizacion', '')
+                info_revision = verificar_revision_mas_reciente(nc, db_manager)
+                if not info_revision.get('es_mas_reciente'):
+                    return jsonify({
+                        "success": False,
+                        "error": "No es la revisión más reciente",
+                        "bloqueada": True,
+                        "info": info_revision
+                    }), 409
+                # Preparar datos para nueva revisión
+                cotizacion = preparar_datos_nueva_revision(cotizacion)
+                if cotizacion is None:
+                    return jsonify({"success": False, "error": "Error al preparar revisión"}), 500
+            return jsonify({"success": True, "cotizacion": cotizacion}), 200
+        else:
+            return jsonify({"success": False, "error": f"Cotización '{numero_cotizacion}' no encontrada"}), 404
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route("/api/cotizacion/<path:numero_cotizacion>/edicion-menor", methods=["PATCH"])
 def edicion_menor(numero_cotizacion):
     """
@@ -2813,8 +2851,8 @@ def generar_pdf():
             'tipoCambio': condiciones.get('tipoCambio', ''),
             'tiempoEntrega': condiciones.get('tiempoEntrega', ''),
             'entregaEn': condiciones.get('entregaEn', ''),
-            'terminos': condiciones.get('condicionesPago') or condiciones.get('terminos', ''),
-            'comentarios': condiciones.get('comentariosAdicionales') or condiciones.get('comentarios', ''),
+            'terminos': condiciones.get('terminos') or condiciones.get('condicionesPago', ''),
+            'comentarios': condiciones.get('comentarios') or condiciones.get('comentariosAdicionales', ''),
             
             # Totales
             'subtotal': f"{subtotal:.2f}",
