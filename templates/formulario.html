@@ -1871,7 +1871,9 @@ function cargarDatosEdicionMenor() {
             'comentariosAdicionales': 'comentarios'
         };
         Object.entries(mapeoCondiciones).forEach(([claveDB, campoForm]) => {
-            const valor = cond[claveDB];
+            // Primero buscar en condiciones, luego en datosGenerales (fallback
+            // para cotizaciones antiguas donde los campos se guardaban planos)
+            const valor = cond[claveDB] ?? dg[claveDB];
             if (valor !== undefined && valor !== null && valor !== '') {
                 const el = document.querySelector(`[name="${campoForm}"]`);
                 if (el) el.value = valor;
@@ -1960,15 +1962,21 @@ function cargarDatosPrecargados() {
         }
         
         // Cargar condiciones/términos
-        if (DATOS_PRECARGADOS.condiciones) {
-            const condiciones = DATOS_PRECARGADOS.condiciones;
+        // Buscar tanto en condiciones como en datosGenerales (fallback para
+        // cotizaciones antiguas donde los campos se guardaban planos en DG)
+        const _condiciones = DATOS_PRECARGADOS.condiciones || {};
+        const _dgFallback = DATOS_PRECARGADOS.datosGenerales || {};
+        const _getCond = (key, fallbackKey) => {
+            return _condiciones[key] || _condiciones[fallbackKey] || _dgFallback[key] || _dgFallback[fallbackKey] || '';
+        };
+        {
             const camposCondiciones = {
-                'moneda': condiciones.moneda,
-                'tipoCambio': condiciones.tipoCambio,
-                'tiempoEntrega': condiciones.tiempoEntrega,
-                'entregaEn': condiciones.entregaEn,
-                'terminos': condiciones.terminos || condiciones.condicionesPago,
-                'comentarios': condiciones.comentarios || condiciones.comentariosAdicionales || ''
+                'moneda': _getCond('moneda', ''),
+                'tipoCambio': _getCond('tipoCambio', ''),
+                'tiempoEntrega': _getCond('tiempoEntrega', ''),
+                'entregaEn': _getCond('entregaEn', ''),
+                'terminos': _getCond('terminos', 'condicionesPago'),
+                'comentarios': _getCond('comentarios', 'comentariosAdicionales')
             };
             
             Object.entries(camposCondiciones).forEach(([campo, valor]) => {
