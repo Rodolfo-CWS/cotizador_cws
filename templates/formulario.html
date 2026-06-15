@@ -1281,8 +1281,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (DATOS_PRECARGADOS) {
         inicializarModalRevision();
         cargarDatosPrecargados();
-    } else if (DATOS_EDICION_MENOR) {
-        // DATOS_EDICION_MENOR vino inyectado correctamente desde el template
+    } else if (MODO_EDICION_MENOR && DATOS_EDICION_MENOR) {
         cargarDatosEdicionMenor();
     } else {
         // Fallback: si el template no pudo inyectar los datos (error de serialización

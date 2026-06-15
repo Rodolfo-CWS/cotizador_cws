@@ -300,8 +300,6 @@ def cargar_materiales_csv():
     return materiales
 
 # Cargar materiales al iniciar la aplicación
-LISTA_MATERIALES = cargar_materiales_csv()
-print(f"[OK] Cargados {len(LISTA_MATERIALES)} materiales desde CSV")
 
 def wrap_description_text(text, max_chars_per_line=35):
     """Utility function to wrap long description text for PDF cells"""
@@ -539,6 +537,7 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
 def _safe_for_json(obj):
     """Convierte recursivamente objetos no JSON-serializables (Decimal, datetime, etc.)
     a tipos nativos de Python que Jinja2's tojson y json.dumps pueden serializar."""
+    import math
     from decimal import Decimal
     import datetime as dt
     if isinstance(obj, dict):
@@ -549,6 +548,10 @@ def _safe_for_json(obj):
         return float(obj)
     if isinstance(obj, (dt.datetime, dt.date)):
         return obj.isoformat()
+    if isinstance(obj, set):
+        return list(obj)
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
     if isinstance(obj, bytes):
         return obj.hex()
     return obj
@@ -1741,8 +1744,8 @@ def obtener_cotizacion_api(numero_cotizacion):
         t0 = time.time()
         from urllib.parse import unquote
         numero_cotizacion = unquote(numero_cotizacion)
-        print(f"[API_COTIZACION] Buscando: {numero_cotizacion!r} | preparar_revision={preparar_revision}")
         preparar_revision = request.args.get('preparar_revision', '').lower() == 'true'
+        print(f"[API_COTIZACION] Buscando: {numero_cotizacion!r} | preparar_revision={preparar_revision}")
 
         resultado = db_manager.obtener_cotizacion(numero_cotizacion)
         print(f"[API_COTIZACION] Resultado: encontrado={resultado.get('encontrado')} | keys={list(resultado.keys())}")
