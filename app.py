@@ -2813,8 +2813,8 @@ def generar_pdf():
             'tipoCambio': condiciones.get('tipoCambio', ''),
             'tiempoEntrega': condiciones.get('tiempoEntrega', ''),
             'entregaEn': condiciones.get('entregaEn', ''),
-            'terminos': condiciones.get('condicionesPago') or condiciones.get('terminos', ''),
-            'comentarios': condiciones.get('comentariosAdicionales') or condiciones.get('comentarios', ''),
+            'terminos': condiciones.get('terminos') or condiciones.get('condicionesPago', ''),
+            'comentarios': condiciones.get('comentarios') or condiciones.get('comentariosAdicionales', ''),
             
             # Totales
             'subtotal': f"{subtotal:.2f}",

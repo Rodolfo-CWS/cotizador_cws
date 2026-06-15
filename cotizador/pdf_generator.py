@@ -458,8 +458,8 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         ('Moneda:', condiciones.get('moneda', 'MXN') if condiciones else 'MXN'),
         ('Tiempo de Entrega:', condiciones.get('tiempoEntrega', '') if condiciones else ''),
         ('Entregar En:', condiciones.get('entregaEn', '') if condiciones else ''),
-        ('Términos de Pago:', (condiciones.get('condicionesPago') or condiciones.get('terminos', '')) if condiciones else ''),
-        ('Comentarios:', (condiciones.get('comentariosAdicionales') or condiciones.get('comentarios', '')) if condiciones else '')
+        ('Términos de Pago:', (condiciones.get('terminos') or condiciones.get('condicionesPago', '')) if condiciones else ''),
+        ('Comentarios:', (condiciones.get('comentarios') or condiciones.get('comentariosAdicionales', '')) if condiciones else '')
     ]
     
     # Agregar tipo de cambio si es USD
