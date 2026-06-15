@@ -1329,6 +1329,36 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inicializar modal de revisión si es necesario
     inicializarModalRevision();
 
+    // Fallback Nueva Revisión: si DATOS_PRECARGADOS es null pero ?revision=ID está en la URL,
+    // intentar cargar vía API y preparar los datos para nueva revisión
+    if (!DATOS_PRECARGADOS) {
+        const revisionId = new URLSearchParams(window.location.search).get('revision');
+        if (revisionId) {
+            console.warn('[REVISION] DATOS_PRECARGADOS es null — intentando fetch fallback para:', revisionId);
+            fetch('/api/cotizacion/' + encodeURIComponent(revisionId) + '?preparar_revision=true')
+                .then(r => r.json())
+                .then(resultado => {
+                    if (resultado.success && resultado.cotizacion) {
+                        console.log('[REVISION] Datos obtenidos vía API fallback');
+                        window._DATOS_PRECARGADOS_FALLBACK = resultado.cotizacion;
+                        Object.defineProperty(window, 'DATOS_PRECARGADOS', {
+                            get() { return window._DATOS_PRECARGADOS_FALLBACK; },
+                            configurable: true
+                        });
+                        cargarDatosPrecargados();
+                        inicializarModalRevision();
+                    } else {
+                        console.error('[REVISION] API fallback no encontró la cotización:', revisionId, resultado);
+                        alert('No se pudieron cargar los datos de la cotización "' + revisionId + '" para nueva revisión.');
+                    }
+                })
+                .catch(err => {
+                    console.error('[REVISION] Error en fetch fallback (revisión):', err);
+                    alert('Error de conexión al cargar los datos de revisión. Intente recargar la página.');
+                });
+        }
+    }
+
     // Inicializar sistema de auto-guardado de drafts (no aplica en edición menor ni fallback)
     if (!MODO_EDICION_MENOR && !_edicionMenorParam) {
         inicializarSistemaAutoGuardado();
@@ -1828,22 +1858,23 @@ function cargarDatosEdicionMenor() {
         // Condiciones — mapeo explícito para manejar nombres históricos y actuales:
         // 'condicionesPago' es el nombre almacenado en DB; 'terminos' es el campo HTML
         // 'comentariosAdicionales' es el nombre almacenado; 'comentarios' es el campo HTML
-        // También se intenta fallback a datosGenerales para cotizaciones antiguas
+        // IMPORTANTE: las claves normalizadas ('terminos', 'comentarios') van PRIMERO
+        // para que su valor (el más actualizado) tome precedencia sobre los alias históricos.
         const mapeoCondiciones = {
             'moneda':                 'moneda',
             'tipoCambio':             'tipoCambio',
             'tiempoEntrega':          'tiempoEntrega',
             'entregaEn':              'entregaEn',
-            'condicionesPago':        'terminos',
             'terminos':               'terminos',
-            'comentariosAdicionales': 'comentarios',
-            'comentarios':            'comentarios'
+            'condicionesPago':        'terminos',
+            'comentarios':            'comentarios',
+            'comentariosAdicionales': 'comentarios'
         };
         Object.entries(mapeoCondiciones).forEach(([claveDB, campoForm]) => {
-            const valor = cond[claveDB] ?? dg[claveDB];
+            const valor = cond[claveDB];
             if (valor !== undefined && valor !== null && valor !== '') {
                 const el = document.querySelector(`[name="${campoForm}"]`);
-                if (el && el.value === '') el.value = valor;
+                if (el) el.value = valor;
             }
         });
         console.log('[EDICION_MENOR] Condiciones cargadas:', {
@@ -1906,12 +1937,6 @@ function cargarDatosPrecargados() {
             'revision': datosGenerales.revision,
             'proyecto': datosGenerales.proyecto,
             'fecha': datosGenerales.fecha,
-            'moneda': datosGenerales.moneda,
-            'tipoCambio': datosGenerales.tipoCambio,
-            'tiempoEntrega': datosGenerales.tiempoEntrega,
-            'entregaEn': datosGenerales.entregaEn,
-            'terminos': datosGenerales.terminos,
-            'comentarios': datosGenerales.comentarios,
             'actualizacionRevision': datosGenerales.actualizacionRevision
         };
         
@@ -1942,8 +1967,8 @@ function cargarDatosPrecargados() {
                 'tipoCambio': condiciones.tipoCambio,
                 'tiempoEntrega': condiciones.tiempoEntrega,
                 'entregaEn': condiciones.entregaEn,
-                'terminos': condiciones.terminos || condiciones.terminosPago,
-                'comentarios': condiciones.comentarios
+                'terminos': condiciones.terminos || condiciones.condicionesPago,
+                'comentarios': condiciones.comentarios || condiciones.comentariosAdicionales || ''
             };
             
             Object.entries(camposCondiciones).forEach(([campo, valor]) => {

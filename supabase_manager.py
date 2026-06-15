@@ -2089,6 +2089,19 @@ class SupabaseManager:
                             cotizacion['items'][i][campo] = item_patch[campo]
                             campos_modificados.append(f'items[{i}].{campo}')
 
+            # Sincronizar aliases de condiciones para evitar divergencia entre
+            # claves históricas y normalizadas (comentarios <-> comentariosAdicionales)
+            condiciones_actualizadas = cotizacion.get('condiciones') or {}
+            if isinstance(condiciones_actualizadas, dict):
+                if 'comentarios' in condiciones_actualizadas:
+                    condiciones_actualizadas['comentariosAdicionales'] = condiciones_actualizadas['comentarios']
+                elif 'comentariosAdicionales' in condiciones_actualizadas:
+                    condiciones_actualizadas['comentarios'] = condiciones_actualizadas['comentariosAdicionales']
+                if 'terminos' in condiciones_actualizadas:
+                    condiciones_actualizadas['condicionesPago'] = condiciones_actualizadas['terminos']
+                elif 'condicionesPago' in condiciones_actualizadas:
+                    condiciones_actualizadas['terminos'] = condiciones_actualizadas['condicionesPago']
+
             if not campos_modificados:
                 return {'success': False, 'error': 'No se enviaron campos editables'}
 
