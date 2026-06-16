@@ -1262,6 +1262,13 @@ async function cargarDraftSeleccionado(draftId) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('[DIAGNOSTICO] ===== DOMContentLoaded INICIADO =====');
+    console.log('[DIAGNOSTICO] DATOS_PRECARGADOS:', DATOS_PRECARGADOS);
+    console.log('[DIAGNOSTICO] DATOS_EDICION_MENOR:', DATOS_EDICION_MENOR);
+    console.log('[DIAGNOSTICO] MODO_EDICION_MENOR:', MODO_EDICION_MENOR);
+    console.log('[DIAGNOSTICO] INFO_BLOQUEO_REVISION:', INFO_BLOQUEO_REVISION);
+    console.log('[DIAGNOSTICO] URLSearchParams:', window.location.search);
+
     const fechaElement = document.getElementById('fecha-actual');
     if (fechaElement) {
         fechaElement.textContent = new Date().toLocaleDateString('es-MX', {
