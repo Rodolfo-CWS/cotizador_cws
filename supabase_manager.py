@@ -1152,28 +1152,35 @@ class SupabaseManager:
         """
         try:
             # SISTEMA HÍBRIDO TRIPLE LAYER (REORDENADO PARA ESTABILIDAD):
-            # 1. PRIORIDAD: SDK REST de Supabase (funciona independiente de PostgreSQL) 
+            # 1. PRIORIDAD: SDK REST de Supabase (funciona independiente de PostgreSQL)
             if self.supabase_client:
                 try:
                     print("[HIBRIDO_GET] PRIORIDAD 1: Intentando SDK REST para obtener cotización...")
-                    return self._obtener_cotizacion_sdk(numero_cotizacion)
+                    resultado_sdk = self._obtener_cotizacion_sdk(numero_cotizacion)
+                    if resultado_sdk.get('encontrado'):
+                        return resultado_sdk
+                    print("[HIBRIDO_GET] SDK REST no encontró la cotización, intentando PostgreSQL...")
                 except Exception as sdk_error:
                     print(f"[SDK_REST] Error obteniendo cotización: {safe_str(sdk_error)}")
                     print("[SDK_REST] Intentando fallback a PostgreSQL directo...")
-            
+
             # 2. FALLBACK: PostgreSQL directo (solo si está disponible)
             if self.postgresql_disponible:
                 try:
                     print("[HIBRIDO_GET] FALLBACK: Intentando PostgreSQL directo...")
-                    return self._obtener_cotizacion_supabase(numero_cotizacion)
+                    resultado_pg = self._obtener_cotizacion_supabase(numero_cotizacion)
+                    if resultado_pg.get('encontrado'):
+                        return resultado_pg
+                    print("[HIBRIDO_GET] PostgreSQL no encontró la cotización, intentando offline...")
                 except Exception as pg_error:
                     print(f"[POSTGRES] Error obteniendo cotización: {safe_str(pg_error)}")
                     print("[POSTGRES] Activando modo offline para búsqueda...")
                     print("[SDK_REST] Fallback a modo offline")
-            
+
             # 3. Último recurso: JSON offline
+            print("[HIBRIDO_GET] ÚLTIMO RECURSO: Buscando en JSON offline...")
             return self._obtener_cotizacion_offline(numero_cotizacion)
-        
+
         except Exception as e:
             error_msg = safe_str(e)
             print(f"[OBTENER] Error general: {error_msg}")
