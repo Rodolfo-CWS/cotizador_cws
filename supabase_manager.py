@@ -1147,52 +1147,67 @@ class SupabaseManager:
     
     def obtener_cotizacion(self, numero_cotizacion: str) -> Dict:
         """
-        Obtener cotización específica por número
+        Obtener cotización específica por número.
+        Busca primero por numero_cotizacion; si no encuentra y el valor
+        es numérico, intenta también por id (clave primaria).
         API compatible con DatabaseManager
         """
+        # === Búsqueda primaria: por numero_cotizacion ===
+        resultado = self._buscar_cotizacion_en_capas(numero_cotizacion, columna='numero_cotizacion')
+        if resultado.get('encontrado'):
+            return resultado
+
+        # === Fallback: si el ID es numérico, buscar por clave primaria ===
+        if numero_cotizacion.isdigit():
+            print(f"[HIBRIDO_GET] Búsqueda por numero_cotizacion='{numero_cotizacion}' falló — intentando por id...")
+            resultado_por_id = self._buscar_cotizacion_en_capas(numero_cotizacion, columna='id')
+            if resultado_por_id.get('encontrado'):
+                return resultado_por_id
+
+        return resultado  # {"encontrado": False, ...}
+
+    def _buscar_cotizacion_en_capas(self, valor: str, columna: str = 'numero_cotizacion') -> Dict:
+        """Busca una cotización recorriendo las 3 capas (SDK → PostgreSQL → offline)."""
         try:
-            # SISTEMA HÍBRIDO TRIPLE LAYER (REORDENADO PARA ESTABILIDAD):
-            # 1. PRIORIDAD: SDK REST de Supabase (funciona independiente de PostgreSQL)
+            # 1. PRIORIDAD: SDK REST de Supabase
             if self.supabase_client:
                 try:
-                    print("[HIBRIDO_GET] PRIORIDAD 1: Intentando SDK REST para obtener cotización...")
-                    resultado_sdk = self._obtener_cotizacion_sdk(numero_cotizacion)
-                    if resultado_sdk.get('encontrado'):
-                        return resultado_sdk
-                    print("[HIBRIDO_GET] SDK REST no encontró la cotización, intentando PostgreSQL...")
+                    print(f"[HIBRIDO_GET] PRIORIDAD 1: SDK REST buscando por {columna}='{valor}'...")
+                    resultado = self._obtener_cotizacion_sdk(valor, columna=columna)
+                    if resultado.get('encontrado'):
+                        return resultado
+                    print(f"[HIBRIDO_GET] SDK REST no encontró (columna={columna}), intentando PostgreSQL...")
                 except Exception as sdk_error:
-                    print(f"[SDK_REST] Error obteniendo cotización: {safe_str(sdk_error)}")
-                    print("[SDK_REST] Intentando fallback a PostgreSQL directo...")
+                    print(f"[SDK_REST] Error: {safe_str(sdk_error)} — intentando PostgreSQL...")
 
-            # 2. FALLBACK: PostgreSQL directo (solo si está disponible)
+            # 2. FALLBACK: PostgreSQL directo
             if self.postgresql_disponible:
                 try:
-                    print("[HIBRIDO_GET] FALLBACK: Intentando PostgreSQL directo...")
-                    resultado_pg = self._obtener_cotizacion_supabase(numero_cotizacion)
-                    if resultado_pg.get('encontrado'):
-                        return resultado_pg
-                    print("[HIBRIDO_GET] PostgreSQL no encontró la cotización, intentando offline...")
+                    print(f"[HIBRIDO_GET] FALLBACK: PostgreSQL buscando por {columna}='{valor}'...")
+                    resultado = self._obtener_cotizacion_supabase(valor, columna=columna)
+                    if resultado.get('encontrado'):
+                        return resultado
+                    print(f"[HIBRIDO_GET] PostgreSQL no encontró (columna={columna}), intentando offline...")
                 except Exception as pg_error:
-                    print(f"[POSTGRES] Error obteniendo cotización: {safe_str(pg_error)}")
-                    print("[POSTGRES] Activando modo offline para búsqueda...")
-                    print("[SDK_REST] Fallback a modo offline")
+                    print(f"[POSTGRES] Error: {safe_str(pg_error)} — intentando offline...")
 
-            # 3. Último recurso: JSON offline
-            print("[HIBRIDO_GET] ÚLTIMO RECURSO: Buscando en JSON offline...")
-            return self._obtener_cotizacion_offline(numero_cotizacion)
+            # 3. ÚLTIMO RECURSO: JSON offline
+            print(f"[HIBRIDO_GET] ÚLTIMO RECURSO: Offline buscando por {columna}='{valor}'...")
+            return self._obtener_cotizacion_offline(valor, columna=columna)
 
         except Exception as e:
             error_msg = safe_str(e)
             print(f"[OBTENER] Error general: {error_msg}")
             return {"error": error_msg, "encontrado": False}
     
-    def _obtener_cotizacion_sdk(self, numero_cotizacion: str) -> Dict:
+    def _obtener_cotizacion_sdk(self, numero_cotizacion: str, columna: str = 'numero_cotizacion') -> Dict:
         """Obtener cotización específica usando Supabase SDK REST"""
         try:
             if not self.supabase_client:
                 raise Exception("SDK de Supabase no disponible")
-            
-            response = self.supabase_client.table('cotizaciones').select('*').eq('numero_cotizacion', numero_cotizacion).execute()
+
+            valor_busqueda = int(numero_cotizacion) if columna == 'id' else numero_cotizacion
+            response = self.supabase_client.table('cotizaciones').select('*').eq(columna, valor_busqueda).execute()
             
             if not response.data:
                 return {"encontrado": False, "error": "Cotización no encontrada"}
@@ -1231,19 +1246,25 @@ class SupabaseManager:
             print(f"[SDK_REST] Error obteniendo cotización: {error_msg}")
             raise e
 
-    def _obtener_cotizacion_supabase(self, numero_cotizacion: str) -> Dict:
+    def _obtener_cotizacion_supabase(self, numero_cotizacion: str, columna: str = 'numero_cotizacion') -> Dict:
         """Obtener cotización desde Supabase"""
         try:
+            # Whitelist de columnas permitidas (evita SQL injection)
+            columnas_permitidas = {'numero_cotizacion', 'id'}
+            if columna not in columnas_permitidas:
+                raise ValueError(f"Columna no permitida: {columna}")
+
             cursor = self.pg_connection.cursor()
-            
-            query = """
+
+            valor_busqueda = int(numero_cotizacion) if columna == 'id' else numero_cotizacion
+            query = f"""
                 SELECT id, numero_cotizacion, datos_generales, items,
                        revision, fecha_creacion, timestamp, usuario, observaciones
-                FROM cotizaciones 
-                WHERE numero_cotizacion = %s;
+                FROM cotizaciones
+                WHERE {columna} = %s;
             """
-            
-            cursor.execute(query, (numero_cotizacion,))
+
+            cursor.execute(query, (valor_busqueda,))
             row = cursor.fetchone()
             cursor.close()
             
@@ -1281,14 +1302,21 @@ class SupabaseManager:
             print(f"[SUPABASE] Error obteniendo cotización: {error_msg}")
             raise e
     
-    def _obtener_cotizacion_offline(self, numero_cotizacion: str) -> Dict:
+    def _obtener_cotizacion_offline(self, numero_cotizacion: str, columna: str = 'numero_cotizacion') -> Dict:
         """Obtener cotización desde JSON offline"""
         try:
             data = self._cargar_datos_offline()
             cotizaciones = data.get("cotizaciones", [])
 
             for cot in cotizaciones:
-                if cot.get('numeroCotizacion') == numero_cotizacion:
+                # Si buscamos por id, comparar con _id (string) o id (int)
+                if columna == 'id':
+                    match = (str(cot.get('_id')) == numero_cotizacion or
+                             str(cot.get('id')) == numero_cotizacion)
+                else:
+                    match = (cot.get('numeroCotizacion') == numero_cotizacion)
+
+                if match:
                     # Normalizar aliases históricos en condiciones
                     condiciones = cot.get('condiciones')
                     if isinstance(condiciones, dict):
