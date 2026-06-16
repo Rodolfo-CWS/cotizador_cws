@@ -1741,8 +1741,8 @@ def obtener_cotizacion_api(numero_cotizacion):
         t0 = time.time()
         from urllib.parse import unquote
         numero_cotizacion = unquote(numero_cotizacion)
-        print(f"[API_COTIZACION] Buscando: {numero_cotizacion!r} | preparar_revision={preparar_revision}")
         preparar_revision = request.args.get('preparar_revision', '').lower() == 'true'
+        print(f"[API_COTIZACION] Buscando: {numero_cotizacion!r} | preparar_revision={preparar_revision}")
 
         resultado = db_manager.obtener_cotizacion(numero_cotizacion)
         print(f"[API_COTIZACION] Resultado: encontrado={resultado.get('encontrado')} | keys={list(resultado.keys())}")
