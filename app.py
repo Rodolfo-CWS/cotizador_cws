@@ -4202,6 +4202,148 @@ def admin_importar_pdf():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+
+@app.route("/admin/normalizar-terminos")
+@login_required
+def admin_normalizar_terminos():
+    """
+    Migración única: normaliza las keys de términos y condiciones en todas las cotizaciones.
+    Copia condicionesPago → terminos y comentariosAdicionales → comentarios
+    cuando la key destino está vacía. Bidireccional e idempotente.
+    """
+    resultado = {
+        "total_escaneadas": 0,
+        "total_con_condiciones": 0,
+        "fix_condicionesPago_a_terminos": 0,
+        "fix_comentariosAdicionales_a_comentarios": 0,
+        "fix_terminos_a_condicionesPago": 0,
+        "fix_comentarios_a_comentariosAdicionales": 0,
+        "actualizadas": 0,
+        "errores": 0,
+        "detalle": []
+    }
+
+    try:
+        # Leer todas las cotizaciones vía SDK
+        response = db_manager.supabase_client.table('cotizaciones').select('*').execute()
+        if not response.data:
+            return "<h2>No se encontraron cotizaciones</h2>", 200
+
+        resultado["total_escaneadas"] = len(response.data)
+
+        for row in response.data:
+            row_id = row['id']
+            numero = row.get('numero_cotizacion', f'id:{row_id}')
+            dg = row.get('datos_generales') or {}
+            condiciones = dg.get('condiciones') if isinstance(dg, dict) else None
+
+            if not isinstance(condiciones, dict):
+                continue
+
+            resultado["total_con_condiciones"] += 1
+            cambios = []
+
+            # Bidireccional: copiar key con valor → key vacía
+            if condiciones.get('condicionesPago') and not condiciones.get('terminos'):
+                condiciones['terminos'] = condiciones['condicionesPago']
+                cambios.append('condicionesPago → terminos')
+                resultado["fix_condicionesPago_a_terminos"] += 1
+            if condiciones.get('terminos') and not condiciones.get('condicionesPago'):
+                condiciones['condicionesPago'] = condiciones['terminos']
+                cambios.append('terminos → condicionesPago')
+                resultado["fix_terminos_a_condicionesPago"] += 1
+            if condiciones.get('comentariosAdicionales') and not condiciones.get('comentarios'):
+                condiciones['comentarios'] = condiciones['comentariosAdicionales']
+                cambios.append('comentariosAdicionales → comentarios')
+                resultado["fix_comentariosAdicionales_a_comentarios"] += 1
+            if condiciones.get('comentarios') and not condiciones.get('comentariosAdicionales'):
+                condiciones['comentariosAdicionales'] = condiciones['comentarios']
+                cambios.append('comentarios → comentariosAdicionales')
+                resultado["fix_comentarios_a_comentariosAdicionales"] += 1
+
+            if cambios:
+                try:
+                    dg['condiciones'] = condiciones
+                    db_manager.supabase_client.table('cotizaciones') \
+                        .update({'datos_generales': dg}) \
+                        .eq('id', row_id) \
+                        .execute()
+                    resultado["actualizadas"] += 1
+                    resultado["detalle"].append({
+                        "id": row_id,
+                        "numero": str(numero),
+                        "cambios": cambios
+                    })
+                except Exception as e:
+                    resultado["errores"] += 1
+                    resultado["detalle"].append({
+                        "id": row_id,
+                        "numero": str(numero),
+                        "error": str(e)
+                    })
+
+        # Renderizar reporte HTML
+        html = f"""
+        <!DOCTYPE html>
+        <html lang="es">
+        <head><meta charset="UTF-8"><title>Normalización T&C — Resultados</title>
+        <style>
+            body {{ font-family: system-ui, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; }}
+            .card {{ background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); padding: 20px; margin-bottom: 20px; }}
+            .stat {{ display: inline-block; min-width: 80px; font-size: 28px; font-weight: 700; text-align: center; }}
+            .stat-label {{ font-size: 13px; color: #666; }}
+            table {{ width: 100%; border-collapse: collapse; }}
+            th, td {{ padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }}
+            th {{ background: #f9fafb; font-weight: 600; }}
+            .ok {{ color: #16a34a; }} .err {{ color: #dc2626; }}
+        </style></head>
+        <body>
+        <h1>Normalización de Términos y Condiciones</h1>
+        <div class="card">
+            <p><strong>Ejecución completada.</strong> Esta migración es idempotente — puede ejecutarse múltiples veces sin riesgo.</p>
+        </div>
+        <div class="card">
+            <div style="display:flex; gap:24px; flex-wrap:wrap;">
+                <div><div class="stat">{resultado["total_escaneadas"]}</div><div class="stat-label">Cotizaciones escaneadas</div></div>
+                <div><div class="stat">{resultado["total_con_condiciones"]}</div><div class="stat-label">Con condiciones</div></div>
+                <div><div class="stat" style="color:#2563eb">{resultado["actualizadas"]}</div><div class="stat-label">Actualizadas</div></div>
+                <div><div class="stat" style="color:#dc2626">{resultado["errores"]}</div><div class="stat-label">Errores</div></div>
+            </div>
+        </div>
+        <div class="card">
+            <h3>Desglose de fixes aplicados</h3>
+            <table>
+                <tr><td>condicionesPago → terminos</td><td class="ok"><strong>{resultado["fix_condicionesPago_a_terminos"]}</strong></td></tr>
+                <tr><td>comentariosAdicionales → comentarios</td><td class="ok"><strong>{resultado["fix_comentariosAdicionales_a_comentarios"]}</strong></td></tr>
+                <tr><td>terminos → condicionesPago</td><td><strong>{resultado["fix_terminos_a_condicionesPago"]}</strong></td></tr>
+                <tr><td>comentarios → comentariosAdicionales</td><td><strong>{resultado["fix_comentarios_a_comentariosAdicionales"]}</strong></td></tr>
+            </table>
+        </div>"""
+
+        if resultado["detalle"]:
+            html += """
+        <div class="card">
+            <h3>Cotizaciones actualizadas</h3>
+            <table>
+                <tr><th>ID</th><th>Número Cotización</th><th>Cambios</th></tr>"""
+            for d in resultado["detalle"]:
+                cambios_str = ', '.join(d.get('cambios', []))
+                error_str = d.get('error', '')
+                if error_str:
+                    html += f'<tr><td>{d["id"]}</td><td>{d["numero"]}</td><td class="err">ERROR: {error_str}</td></tr>'
+                else:
+                    html += f'<tr><td>{d["id"]}</td><td>{d["numero"]}</td><td class="ok">{cambios_str}</td></tr>'
+            html += "</table></div>"
+
+        html += '<p style="margin-top:24px;color:#666;font-size:13px;">Segunda ejecución debe reportar 0 actualizaciones (idempotente).</p></body></html>'
+        return html
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return f"<h2>Error</h2><pre>{escape(str(e))}</pre>", 500
+
+
 @app.route("/admin/actualizar-rutas-pdf")
 def actualizar_rutas_pdf():
     """Actualiza las rutas de PDFs existentes a la nueva ubicación"""

@@ -1220,9 +1220,9 @@ class SupabaseManager:
 
             # Normalizar aliases históricos para que el frontend siempre encuentre los campos
             if isinstance(condiciones, dict):
-                if 'condicionesPago' in condiciones and 'terminos' not in condiciones:
+                if condiciones.get('condicionesPago') and not condiciones.get('terminos'):
                     condiciones['terminos'] = condiciones['condicionesPago']
-                if 'comentariosAdicionales' in condiciones and 'comentarios' not in condiciones:
+                if condiciones.get('comentariosAdicionales') and not condiciones.get('comentarios'):
                     condiciones['comentarios'] = condiciones['comentariosAdicionales']
 
             cotizacion = {
@@ -1277,9 +1277,9 @@ class SupabaseManager:
 
             # Normalizar aliases históricos para que el frontend siempre encuentre los campos
             if isinstance(condiciones, dict):
-                if 'condicionesPago' in condiciones and 'terminos' not in condiciones:
+                if condiciones.get('condicionesPago') and not condiciones.get('terminos'):
                     condiciones['terminos'] = condiciones['condicionesPago']
-                if 'comentariosAdicionales' in condiciones and 'comentarios' not in condiciones:
+                if condiciones.get('comentariosAdicionales') and not condiciones.get('comentarios'):
                     condiciones['comentarios'] = condiciones['comentariosAdicionales']
 
             cotizacion = {
@@ -2128,14 +2128,15 @@ class SupabaseManager:
             # claves históricas y normalizadas (comentarios <-> comentariosAdicionales)
             condiciones_actualizadas = cotizacion.get('condiciones') or {}
             if isinstance(condiciones_actualizadas, dict):
-                if 'comentarios' in condiciones_actualizadas:
-                    condiciones_actualizadas['comentariosAdicionales'] = condiciones_actualizadas['comentarios']
-                elif 'comentariosAdicionales' in condiciones_actualizadas:
-                    condiciones_actualizadas['comentarios'] = condiciones_actualizadas['comentariosAdicionales']
-                if 'terminos' in condiciones_actualizadas:
+                # Valor real manda: si una key tiene contenido y la otra no, copiar
+                if condiciones_actualizadas.get('terminos') and not condiciones_actualizadas.get('condicionesPago'):
                     condiciones_actualizadas['condicionesPago'] = condiciones_actualizadas['terminos']
-                elif 'condicionesPago' in condiciones_actualizadas:
+                if condiciones_actualizadas.get('condicionesPago') and not condiciones_actualizadas.get('terminos'):
                     condiciones_actualizadas['terminos'] = condiciones_actualizadas['condicionesPago']
+                if condiciones_actualizadas.get('comentarios') and not condiciones_actualizadas.get('comentariosAdicionales'):
+                    condiciones_actualizadas['comentariosAdicionales'] = condiciones_actualizadas['comentarios']
+                if condiciones_actualizadas.get('comentariosAdicionales') and not condiciones_actualizadas.get('comentarios'):
+                    condiciones_actualizadas['comentarios'] = condiciones_actualizadas['comentariosAdicionales']
 
             if not campos_modificados:
                 return {'success': False, 'error': 'No se enviaron campos editables'}
