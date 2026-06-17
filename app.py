@@ -2750,6 +2750,7 @@ def generar_texto_ia():
 
     Body JSON:
         {
+            "numeroCotizacion": "(opcional) para buscar texto guardado previamente",
             "datosGenerales": {...},
             "items": [...],
             "condiciones": {...},
@@ -2760,13 +2761,33 @@ def generar_texto_ia():
     Returns:
         {
             "success": true,
-            "texto": "texto generado en formato HTML simple"
+            "texto": "texto generado en formato HTML simple",
+            "fuente": "ia" | "generico",
+            "textoGuardado": "texto previamente guardado en BD (opcional, para fallback)"
         }
     """
     try:
         datos = request.get_json()
         if not datos:
             return jsonify({"success": False, "error": "No se recibieron datos"}), 400
+
+        # Buscar texto guardado previamente en la cotización
+        texto_guardado = None
+        numero_cotizacion = datos.get('numeroCotizacion', '').strip()
+        if numero_cotizacion:
+            try:
+                resultado_bd = db_manager.obtener_cotizacion(numero_cotizacion)
+                if resultado_bd.get('encontrado'):
+                    item = resultado_bd['item']
+                    texto_guardado = (
+                        item.get('datosGenerales', {}).get('textoIntroductorio', '') or
+                        item.get('textoIntroductorio', '') or
+                        None
+                    )
+                    if texto_guardado:
+                        print(f"[IA] Texto guardado encontrado en BD ({len(texto_guardado)} chars)")
+            except Exception as e:
+                print(f"[IA] Error buscando texto guardado: {e}")
 
         # Intentar usar Claude si está configurado
         api_key = os.getenv('ANTHROPIC_API_KEY', '').strip()
@@ -2836,7 +2857,8 @@ Resumen de ítems cotizados:
                 return jsonify({
                     "success": True,
                     "texto": texto_generado,
-                    "fuente": "ia"
+                    "fuente": "ia",
+                    "textoGuardado": texto_guardado or texto_generado
                 }), 200
 
             except Exception as ia_error:
@@ -2863,13 +2885,14 @@ Resumen de ítems cotizados:
         return jsonify({
             "success": True,
             "texto": texto_generico,
-            "fuente": "generico"
+            "fuente": "generico",
+            "textoGuardado": texto_guardado or None
         }), 200
 
     except Exception as e:
         error_msg = str(e)
         print(f"[IA] Error en generar-texto-ia: {error_msg}")
-        return jsonify({"success": False, "error": error_msg}), 500
+        return jsonify({"success": False, "error": error_msg, "textoGuardado": None}), 500
 
 
 # ============================================

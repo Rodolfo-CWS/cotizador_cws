@@ -4085,14 +4085,20 @@ async function guardarEdicionMenor() {
 let numeroCotizacionActual = null;
 let textoIntroductorioGuardado = '';
 
-// Cargar texto introductorio guardado desde datos precargados
-if (DATOS_PRECARGADOS) {
-    textoIntroductorioGuardado = (DATOS_PRECARGADOS.datosGenerales || {}).textoIntroductorio
-        || DATOS_PRECARGADOS.textoIntroductorio || '';
-    if (textoIntroductorioGuardado) {
-        console.log('[INIT] Texto introductorio cargado de BD:', textoIntroductorioGuardado.substring(0, 60) + '...');
+// Cargar texto introductorio guardado desde datos precargados (nueva revisión o edición menor)
+(function cargarTextoIntroductorioGuardado() {
+    // Intentar desde DATOS_PRECARGADOS (nueva revisión: ?revision=ID)
+    const fuente = DATOS_PRECARGADOS || DATOS_EDICION_MENOR;
+    if (fuente) {
+        textoIntroductorioGuardado = (fuente.datosGenerales || {}).textoIntroductorio
+            || fuente.textoIntroductorio || '';
+        if (textoIntroductorioGuardado) {
+            console.log('[INIT] Texto introductorio cargado desde ' +
+                (DATOS_PRECARGADOS ? 'DATOS_PRECARGADOS' : 'DATOS_EDICION_MENOR') +
+                ':', textoIntroductorioGuardado.substring(0, 60) + '...');
+        }
     }
-}
+})();
 
 function cerrarModalVistaPrevia() {
     document.getElementById('modal-vista-previa').classList.add('hidden');
@@ -4127,11 +4133,13 @@ async function abrirModalVistaPrevia(numeroCotizacion) {
         }
     }
 
+    let resultado = null;
     try {
         const resp = await fetch('/api/generar-texto-ia', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                numeroCotizacion: numeroCotizacion || '',
                 datosGenerales: datosGenerales,
                 items: items,
                 condiciones: condiciones,
@@ -4140,7 +4148,7 @@ async function abrirModalVistaPrevia(numeroCotizacion) {
             })
         });
 
-        const resultado = await resp.json();
+        resultado = await resp.json();
 
         // Ocultar spinner
         document.getElementById('preview-loading').style.display = 'none';
@@ -4153,6 +4161,9 @@ async function abrirModalVistaPrevia(numeroCotizacion) {
             // Guardar para usar como fallback en futuras aperturas
             if (resultado.fuente === 'ia') {
                 textoIntroductorioGuardado = resultado.texto;
+            } else if (resultado.textoGuardado) {
+                // Si cayó en genérico pero hay texto guardado en BD, usarlo
+                textoIntroductorioGuardado = resultado.textoGuardado;
             }
 
             // Mostrar fuente (IA o generico)
@@ -4169,9 +4180,12 @@ async function abrirModalVistaPrevia(numeroCotizacion) {
         document.getElementById('preview-loading').style.display = 'none';
         document.getElementById('preview-content').classList.remove('hidden');
 
-        // Usar texto guardado de BD como fallback (en vez del genérico)
-        if (textoIntroductorioGuardado) {
-            document.getElementById('preview-texto-intro').value = textoIntroductorioGuardado;
+        // Prioridad: 1) texto guardado local, 2) textoGuardado del backend, 3) genérico
+        const textoGuardadoBackend = (typeof resultado !== 'undefined' && resultado && resultado.textoGuardado) || '';
+        const textoFallback = textoIntroductorioGuardado || textoGuardadoBackend;
+
+        if (textoFallback) {
+            document.getElementById('preview-texto-intro').value = textoFallback;
             document.getElementById('preview-fuente').textContent = 'Texto guardado (IA no disponible: ' + error.message + ')';
         } else {
             document.getElementById('preview-texto-intro').value =
