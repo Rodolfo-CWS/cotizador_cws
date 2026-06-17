@@ -4200,7 +4200,9 @@ async function generarPDFDesdePreview() {
             })
         });
 
-        if (!response.ok) {
+        // Verificar si la respuesta es JSON (error) o PDF (éxito)
+        const contentType = response.headers.get('Content-Type') || '';
+        if (!response.ok || contentType.includes('application/json')) {
             const errorData = await response.json();
             throw new Error(errorData.error || 'Error HTTP ' + response.status);
         }
@@ -4208,11 +4210,18 @@ async function generarPDFDesdePreview() {
         // Guardar numero antes de cerrar (cierre lo borra)
         const numeroParaPDF = numeroCotizacionActual;
 
+        // Usar el PDF directamente desde la respuesta (evita segunda request a /pdf/)
+        const pdfBlob = await response.blob();
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+
         // Cerrar modal
         cerrarModalVistaPrevia();
 
-        // Abrir PDF en nueva pestana
-        window.open('/pdf/' + numeroParaPDF, '_blank');
+        // Abrir PDF en nueva pestaña desde el blob
+        window.open(pdfUrl, '_blank');
+
+        // Liberar el blob URL después de un tiempo
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
 
         alert('PDF generado exitosamente para ' + numeroParaPDF + '\n\nEl PDF se ha abierto en una nueva pestana.');
 

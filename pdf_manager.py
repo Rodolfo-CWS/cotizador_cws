@@ -84,8 +84,11 @@ class PDFManager:
         
         if es_nube:
             # En la nube, usar carpeta local temporal
+            # Usar ruta absoluta basada en la ubicación de este archivo (raíz del proyecto)
+            # en lugar de Path("./") que depende del CWD (puede variar según como inicie el servidor)
             print("Entorno en la nube detectado - usando almacenamiento temporal")
-            fallback = Path("./pdfs_cotizaciones")
+            proyecto_raiz = os.path.dirname(os.path.abspath(__file__))
+            fallback = Path(proyecto_raiz) / "pdfs_cotizaciones"
             fallback.mkdir(parents=True, exist_ok=True)
             print(f"Usando ruta para nube: {fallback.absolute()}")
             return fallback
