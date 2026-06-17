@@ -4205,13 +4205,16 @@ async function generarPDFDesdePreview() {
             throw new Error(errorData.error || 'Error HTTP ' + response.status);
         }
 
+        // Guardar numero antes de cerrar (cierre lo borra)
+        const numeroParaPDF = numeroCotizacionActual;
+
         // Cerrar modal
         cerrarModalVistaPrevia();
 
         // Abrir PDF en nueva pestana
-        window.open('/pdf/' + numeroCotizacionActual, '_blank');
+        window.open('/pdf/' + numeroParaPDF, '_blank');
 
-        alert('PDF generado exitosamente para ' + numeroCotizacionActual + '\n\nEl PDF se ha abierto en una nueva pestana.');
+        alert('PDF generado exitosamente para ' + numeroParaPDF + '\n\nEl PDF se ha abierto en una nueva pestana.');
 
     } catch (error) {
         alert('Error al generar el PDF:\n\n' + error.message);
