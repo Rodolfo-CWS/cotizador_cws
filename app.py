@@ -1355,6 +1355,13 @@ def formulario():
                 "detalle": str(e)
             }), 500
     
+    # ===== DIAGNÓSTICO GET =====
+    print(f"[FORM_GET] ===== INICIO GET formulario =====")
+    print(f"[FORM_GET] Query params recibidos: {dict(request.args)}")
+    print(f"[FORM_GET] edicion_menor = {request.args.get('edicion_menor', 'NO_PRESENTE')!r}")
+    print(f"[FORM_GET] revision = {request.args.get('revision', 'NO_PRESENTE')!r}")
+    # ===== FIN DIAGNÓSTICO =====
+
     # Verificar si es edición menor (corrección sin nueva revisión)
     edicion_menor_id = request.args.get('edicion_menor')
     modo_edicion_menor = False
@@ -1409,6 +1416,15 @@ def formulario():
         else:
             print(f"[REVISION] ⚠️ Cotización original no encontrada para: '{revision_id}'")
 
+    print(f"[FORM_GET] ===== RENDERIZANDO TEMPLATE =====")
+    print(f"[FORM_GET] modo_edicion_menor={modo_edicion_menor!r} | datos_edicion_menor presente={datos_edicion_menor is not None}")
+    print(f"[FORM_GET] datos_precargados presente={datos_precargados is not None} | info_bloqueo_revision presente={info_bloqueo_revision is not None}")
+    if datos_edicion_menor:
+        print(f"[FORM_GET] datos_edicion_menor keys: {list(datos_edicion_menor.keys())[:10]}")
+    if datos_precargados:
+        print(f"[FORM_GET] datos_precargados keys: {list(datos_precargados.keys())[:10]}")
+    print(f"[FORM_GET] ===== FIN RENDERIZANDO =====")
+
     return render_template("formulario.html",
                          materiales=LISTA_MATERIALES,
                          datos_precargados=datos_precargados,
@@ -1416,6 +1432,49 @@ def formulario():
                          vendedor_sesion=session.get('vendedor', ''),
                          modo_edicion_menor=modo_edicion_menor,
                          datos_edicion_menor=datos_edicion_menor)
+
+
+@app.route("/debug/test-obtener-cotizacion/<path:item_id>")
+@login_required
+def debug_test_obtener_cotizacion(item_id):
+    """Endpoint de diagnóstico: prueba obtener_cotizacion() directamente."""
+    from urllib.parse import unquote
+    item_id = unquote(item_id)
+    resultado = db_manager.obtener_cotizacion(item_id)
+    encontrado = resultado.get('encontrado', False)
+    response = {
+        "id_buscado": item_id,
+        "encontrado": encontrado,
+        "error": resultado.get('error'),
+    }
+    if encontrado:
+        item = resultado['item']
+        response["keys_en_item"] = list(item.keys())
+        response["numeroCotizacion"] = item.get('numeroCotizacion')
+        response["tiene_datosGenerales"] = 'datosGenerales' in item
+        response["tiene_condiciones"] = 'condiciones' in item
+        response["cantidad_items"] = len(item.get('items', []))
+        # Probar _safe_for_json
+        try:
+            safe = _safe_for_json(item)
+            import json
+            json.dumps(safe)  # validar serialización
+            response["_safe_for_json_ok"] = True
+        except Exception as e:
+            response["_safe_for_json_ok"] = False
+            response["_safe_for_json_error"] = str(e)
+        # Probar preparar_datos_nueva_revision
+        try:
+            preparado = preparar_datos_nueva_revision(item)
+            response["preparar_revision_ok"] = preparado is not None
+            if preparado:
+                response["preparado_keys"] = list(preparado.keys())
+                response["preparado_revision"] = preparado.get('datosGenerales', {}).get('revision')
+        except Exception as e:
+            response["preparar_revision_ok"] = False
+            response["preparar_revision_error"] = str(e)
+    return jsonify(response)
+
 
 @app.route("/debug-materiales")
 def debug_materiales():
