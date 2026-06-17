@@ -929,8 +929,8 @@ function recopilarCondiciones() {
     return {
         tiempoEntrega: document.querySelector('[name="tiempoEntrega"]')?.value || '',
         entregaEn: document.querySelector('[name="entregaEn"]')?.value || '',
-        condicionesPago: document.querySelector('[name="terminos"]')?.value || '',
-        comentariosAdicionales: document.querySelector('[name="comentarios"]')?.value || '',
+        terminos: document.querySelector('[name="terminos"]')?.value || '',
+        comentarios: document.querySelector('[name="comentarios"]')?.value || '',
         moneda: moneda,
         tipoCambio: moneda === 'USD' ? (document.querySelector('[name="tipoCambio"]')?.value || '') : null
     };
