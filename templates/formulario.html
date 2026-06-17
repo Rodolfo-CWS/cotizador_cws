@@ -3709,7 +3709,9 @@ async function guardarCotizacion() {
             condiciones: condiciones,
             // Agregar campos de numeración que espera el servidor
             numeroCotizacionHidden: numeroHidden || datosGenerales.numeroCotizacion,
-            numeroCotizacion: datosGenerales.numeroCotizacion
+            numeroCotizacion: datosGenerales.numeroCotizacion,
+            // Preservar texto introductorio IA entre saves
+            textoIntroductorio: textoIntroductorioGuardado || ''
         };
         
         // Debug para Issue #1
@@ -4081,6 +4083,16 @@ async function guardarEdicionMenor() {
 // ============================================
 
 let numeroCotizacionActual = null;
+let textoIntroductorioGuardado = '';
+
+// Cargar texto introductorio guardado desde datos precargados
+if (DATOS_PRECARGADOS) {
+    textoIntroductorioGuardado = (DATOS_PRECARGADOS.datosGenerales || {}).textoIntroductorio
+        || DATOS_PRECARGADOS.textoIntroductorio || '';
+    if (textoIntroductorioGuardado) {
+        console.log('[INIT] Texto introductorio cargado de BD:', textoIntroductorioGuardado.substring(0, 60) + '...');
+    }
+}
 
 function cerrarModalVistaPrevia() {
     document.getElementById('modal-vista-previa').classList.add('hidden');
@@ -4138,6 +4150,11 @@ async function abrirModalVistaPrevia(numeroCotizacion) {
             // Poblar textarea con el texto generado
             document.getElementById('preview-texto-intro').value = resultado.texto;
 
+            // Guardar para usar como fallback en futuras aperturas
+            if (resultado.fuente === 'ia') {
+                textoIntroductorioGuardado = resultado.texto;
+            }
+
             // Mostrar fuente (IA o generico)
             const fuente = resultado.fuente === 'ia' ?
                 'Generado por IA' :
@@ -4151,11 +4168,18 @@ async function abrirModalVistaPrevia(numeroCotizacion) {
         console.error('[PREVIEW] Error:', error);
         document.getElementById('preview-loading').style.display = 'none';
         document.getElementById('preview-content').classList.remove('hidden');
-        document.getElementById('preview-texto-intro').value =
-            'Estimado Cliente,\n\n' +
-            'CWS Company se complace en presentar esta propuesta economica para el proyecto solicitado. ' +
-            'Esperamos haber entendido sus requerimientos y permanecemos a la espera de su respuesta.';
-        document.getElementById('preview-fuente').textContent = 'Texto generico (error: ' + error.message + ')';
+
+        // Usar texto guardado de BD como fallback (en vez del genérico)
+        if (textoIntroductorioGuardado) {
+            document.getElementById('preview-texto-intro').value = textoIntroductorioGuardado;
+            document.getElementById('preview-fuente').textContent = 'Texto guardado (IA no disponible: ' + error.message + ')';
+        } else {
+            document.getElementById('preview-texto-intro').value =
+                'Estimado Cliente,\n\n' +
+                'CWS Company se complace en presentar esta propuesta economica para el proyecto solicitado. ' +
+                'Esperamos haber entendido sus requerimientos y permanecemos a la espera de su respuesta.';
+            document.getElementById('preview-fuente').textContent = 'Texto generico (error: ' + error.message + ')';
+        }
     }
 
     // Poblar resumen de items
@@ -4184,6 +4208,12 @@ async function generarPDFDesdePreview() {
     }
 
     const textoPersonalizado = document.getElementById('preview-texto-intro').value.trim();
+
+    // Guardar para futuras referencias (sobrevive al cierre del modal)
+    if (textoPersonalizado) {
+        textoIntroductorioGuardado = textoPersonalizado;
+    }
+
     const btnGenerar = document.getElementById('btn-preview-generar');
     const textoOriginal = btnGenerar.innerHTML;
 

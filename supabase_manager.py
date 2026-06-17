@@ -654,6 +654,11 @@ class SupabaseManager:
 
             print(f"[SDK_REST] Fecha procesada: {fecha_creacion}")
 
+            # Preservar texto introductorio IA (viene en el root del form o en datosGenerales)
+            texto_intro = datos.get('textoIntroductorio') or datos_generales.get('textoIntroductorio', '')
+            if texto_intro:
+                datos_generales['textoIntroductorio'] = texto_intro
+
             # Preparar datos para SDK (condiciones ya incluida dentro de datos_generales)
             sdk_data = {
                 'numero_cotizacion': numero_cotizacion,
@@ -764,7 +769,12 @@ class SupabaseManager:
         # NOTA: Condiciones se guardan dentro de datos_generales temporalmente
         if condiciones:
             datos_generales['condiciones'] = condiciones
-        
+
+        # Preservar texto introductorio IA (del root o de datosGenerales)
+        texto_intro = datos.get('textoIntroductorio') or datos_generales.get('textoIntroductorio', '')
+        if texto_intro:
+            datos_generales['textoIntroductorio'] = texto_intro
+
         def _operacion_guardar():
             """Operación de guardado que será ejecutada con reintentos"""
             cursor = self.pg_connection.cursor()

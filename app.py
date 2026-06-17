@@ -571,9 +571,14 @@ def preparar_datos_nueva_revision(cotizacion_original):
         # Actualizar datos generales
         if 'datosGenerales' not in datos:
             datos['datosGenerales'] = {}
-        
+
         datos['datosGenerales']['revision'] = nueva_revision
         datos['datosGenerales']['fecha'] = datetime.datetime.now().strftime('%Y-%m-%d')
+
+        # Preservar texto introductorio de la revisión anterior (si existe)
+        texto_anterior = datos.get('textoIntroductorio') or datos.get('datosGenerales', {}).get('textoIntroductorio', '')
+        if texto_anterior:
+            datos['datosGenerales']['textoIntroductorio'] = texto_anterior
         
         # Generar nuevo número de cotización con revisión usando el sistema automático
         numero_original = datos['datosGenerales'].get('numeroCotizacion', '')
@@ -2999,7 +3004,22 @@ def generar_pdf():
             except Exception as e:
                 print(f"Error en almacenamiento de PDF: {e}")
                 # No fallar la descarga por error de almacenamiento
-        
+
+        # Guardar texto introductorio en la cotización para futuras referencias
+        if texto_personalizado and texto_personalizado.strip():
+            try:
+                if 'datosGenerales' not in cotizacion:
+                    cotizacion['datosGenerales'] = {}
+                cotizacion['datosGenerales']['textoIntroductorio'] = texto_personalizado
+                cotizacion['textoIntroductorio'] = texto_personalizado
+                resultado_texto = db_manager.guardar_cotizacion(cotizacion)
+                if resultado_texto.get('success'):
+                    print(f"Texto introductorio guardado en cotización ({len(texto_personalizado)} chars)")
+                else:
+                    print(f"Error guardando texto introductorio: {resultado_texto.get('error')}")
+            except Exception as e:
+                print(f"Error guardando texto introductorio: {e}")
+
         # Regresar el buffer al inicio para la descarga
         pdf_buffer.seek(0)
         
