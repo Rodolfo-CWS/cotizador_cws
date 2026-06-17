@@ -4149,9 +4149,7 @@ async function abrirModalVistaPrevia(numeroCotizacion) {
         document.getElementById('preview-loading').style.display = 'none';
         document.getElementById('preview-content').classList.remove('hidden');
         document.getElementById('preview-texto-intro').value =
-            'Estimado Cliente,
-
-' +
+            'Estimado Cliente,\n\n' +
             'CWS Company se complace en presentar esta propuesta economica para el proyecto solicitado. ' +
             'Esperamos haber entendido sus requerimientos y permanecemos a la espera de su respuesta.';
         document.getElementById('preview-fuente').textContent = 'Texto generico (error: ' + error.message + ')';
