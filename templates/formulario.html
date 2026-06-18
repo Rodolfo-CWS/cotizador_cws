@@ -3966,6 +3966,11 @@ async function guardarEdicionMenor() {
         const comentarios = document.querySelector('[name="comentarios"]');
         if (comentarios) parche.condiciones.comentarios = comentarios.value.trim();
 
+        // Preservar texto introductorio IA entre ediciones menores
+        if (textoIntroductorioGuardado) {
+            parche.textoIntroductorio = textoIntroductorioGuardado;
+        }
+
         document.querySelectorAll('.item-block').forEach((bloque, i) => {
             const desc = bloque.querySelector('.descripcion-item');
             const notas = bloque.querySelector('[name="notas[]"]');
@@ -4000,11 +4005,16 @@ async function guardarEdicionMenor() {
             btnGuardar.style.backgroundColor = '#10b981';
             btnGuardar.style.borderColor = '#10b981';
             alert(`¡Corrección guardada exitosamente!\n\nNúmero: ${numero}\n\nEl PDF se regenerará con los cambios.`);
-            // Regenerar PDF en segundo plano
+
+            // Regenerar PDF en segundo plano con el texto introductorio guardado
+            const bodyPDF = { numeroCotizacion: numero };
+            if (textoIntroductorioGuardado) {
+                bodyPDF.textoPersonalizado = textoIntroductorioGuardado;
+            }
             fetch('/generar_pdf', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ numeroCotizacion: numero })
+                body: JSON.stringify(bodyPDF)
             }).catch(() => {});
         } else {
             alert(`Error al guardar la corrección:\n\n${resultado.error}`);

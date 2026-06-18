@@ -2067,6 +2067,8 @@ class SupabaseManager:
         'datosGenerales': {'atencionA', 'contacto'},
         'condiciones': {'tiempoEntrega', 'entregaEn', 'comentarios'},
         'items': {'descripcion', 'notas'},
+        # textoIntroductorio se permite a nivel raíz (no anidado en datosGenerales)
+        # para preservar el texto IA entre ediciones menores
     }
 
     def validar_campos_edicion_menor(self, parche: dict) -> tuple:
@@ -2112,6 +2114,17 @@ class SupabaseManager:
             # 3. Aplicar parche solo en campos blanqueados
             campos_modificados = []
 
+            # SALVAGUARDA: asegurar que condiciones tenga todos los campos originales.
+            # Si la cotización tiene condiciones en datosGenerales (formato histórico),
+            # mergearlas con las del nivel raíz para no perder moneda, tipoCambio, terminos, etc.
+            dg_cond = cotizacion.get('datosGenerales', {})
+            if isinstance(dg_cond, dict) and 'condiciones' in dg_cond:
+                cond_embebidas = dg_cond.get('condiciones', {}) or {}
+                if isinstance(cond_embebidas, dict):
+                    for k, v in cond_embebidas.items():
+                        if k not in cotizacion.get('condiciones', {}) or not cotizacion['condiciones'].get(k):
+                            cotizacion.setdefault('condiciones', {})[k] = v
+
             dg_patch = parche.get('datosGenerales', {})
             for campo in self.CAMPOS_EDICION_MENOR['datosGenerales']:
                 if campo in dg_patch:
@@ -2147,6 +2160,14 @@ class SupabaseManager:
                     condiciones_actualizadas['comentariosAdicionales'] = condiciones_actualizadas['comentarios']
                 if condiciones_actualizadas.get('comentariosAdicionales') and not condiciones_actualizadas.get('comentarios'):
                     condiciones_actualizadas['comentarios'] = condiciones_actualizadas['comentariosAdicionales']
+
+            # Preservar texto introductorio IA si viene en el parche
+            if 'textoIntroductorio' in parche and parche['textoIntroductorio']:
+                cotizacion['textoIntroductorio'] = parche['textoIntroductorio']
+                if 'datosGenerales' not in cotizacion:
+                    cotizacion['datosGenerales'] = {}
+                cotizacion['datosGenerales']['textoIntroductorio'] = parche['textoIntroductorio']
+                campos_modificados.append('textoIntroductorio')
 
             if not campos_modificados:
                 return {'success': False, 'error': 'No se enviaron campos editables'}
