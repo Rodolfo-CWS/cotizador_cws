@@ -639,8 +639,7 @@ class SupabaseManager:
             observaciones = datos.get('observaciones')
 
             # condiciones se almacena dentro de datos_generales (no existe columna separada en la tabla)
-            if condiciones:
-                datos_generales['condiciones'] = condiciones
+            datos_generales['condiciones'] = condiciones if condiciones else {}
 
             print(f"[SDK_REST] Datos extraídos - Número: {numero_cotizacion}, Items: {len(items)}, Revisión: {revision}")
             print(f"[SDK_REST] Condiciones extraídas: {condiciones if condiciones else 'VACÍAS'}")
@@ -775,8 +774,7 @@ class SupabaseManager:
                     fecha_dt = datetime.now()
         
         # NOTA: Condiciones se guardan dentro de datos_generales temporalmente
-        if condiciones:
-            datos_generales['condiciones'] = condiciones
+        datos_generales['condiciones'] = condiciones if condiciones else {}
 
         # Preservar texto introductorio IA (del root o de datosGenerales)
         texto_intro = datos.get('textoIntroductorio') or datos_generales.get('textoIntroductorio', '')
