@@ -5,8 +5,8 @@
 ## 🌐 Aplicación en Producción
 
 **URL:** https://cotizador-cws.onrender.com/
-**Status:** ✅ **100% Operacional - Sistema Bulletproof con Triple Redundancia**
-**Última actualización:** Septiembre 8, 2025 - Supabase Hybrid Triple-Layer Architecture
+**Status:** ✅ **100% Operacional - Sistema Bulletproof con Triple Redundancia + IA**
+**Última actualización:** Junio 18, 2026 - IA Text Generation + Minor Edits + PDF Preview
 
 ---
 
@@ -59,6 +59,27 @@
 - ✅ Diseño corporativo CWS con logo y colores oficiales
 - ✅ Formato profesional: encabezado, tablas estructuradas, resumen financiero
 - ✅ Descarga automática con nombres descriptivos
+- ✅ **Vista previa interactiva** antes de generar el PDF final
+- ✅ **Texto introductorio personalizado** generado por IA o editable manualmente
+
+### 🤖 **Generación de Texto con Inteligencia Artificial**
+- ✅ **Claude (Anthropic)** como motor de IA para texto introductorio
+- ✅ Texto personalizado basado en cliente, proyecto, items y vendedor
+- ✅ **Detección de revisiones**: el prompt incluye cambios vs revisión anterior
+- ✅ **Fallback inteligente**: si la IA no está disponible, usa texto guardado en BD
+- ✅ **Texto genérico** como último recurso (nunca se pierde el texto)
+- ✅ **Persistencia automática**: el texto se guarda en la cotización al generar PDF
+- ✅ **Preservación entre revisiones**: el texto IA se hereda a nuevas revisiones
+- ✅ **Preservación en ediciones menores**: el texto sobrevive correcciones de typos
+- ✅ Configuración simple: solo requiere `ANTHROPIC_API_KEY` en `.env`
+
+### ✏️ **Sistema de Edición Menor**
+- ✅ **Corrección de typos y texto** sin generar nueva revisión
+- ✅ Preserva el número de cotización y revisión original
+- ✅ **Whitelist de campos editables**: atención, contacto, tiempos, comentarios, items
+- ✅ **Regeneración automática del PDF** tras guardar la corrección
+- ✅ **Auditoría**: registro de cambios en `observaciones.ediciones_menores`
+- ✅ **Texto IA preservado**: el texto introductorio no se pierde al corregir
 
 ### ☁️ **Almacenamiento Permanente de PDFs**
 - ✅ **Supabase Storage** (Primario): CDN global, URLs directas, escalable
@@ -119,13 +140,16 @@ SUPABASE_URL=https://[REF].supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_KEY=your-service-key  # REQUERIDO para Storage
 
+# Anthropic API (Claude - IA para generación de texto personalizado)
+ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
+
 # Google Drive (Fallback - Opcional)
 GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 GOOGLE_DRIVE_FOLDER_NUEVAS=folder-id-nuevas
 GOOGLE_DRIVE_FOLDER_ANTIGUAS=folder-id-antiguas
 
 # System Configuration
-APP_VERSION=2.2.0
+APP_VERSION=2.3.0
 DEFAULT_PAGE_SIZE=20
 ```
 
@@ -243,10 +267,12 @@ cotizador_cws/
 
 ### 4. Generar y Visualizar PDFs
 
-1. **Generación automática**: Al guardar cotización, PDF se genera automáticamente
-2. **Descarga directa**: Click en "Ver PDF" descarga el documento
-3. **Triple almacenamiento**: PDF guardado en Supabase Storage + Google Drive + Local
-4. **Formato profesional**: Diseño CWS con logo, tablas estructuradas, resumen financiero
+1. **Click en "Generar PDF"**: Abre el modal de vista previa
+2. **Texto introductorio**: Generado automáticamente por IA (Claude) basado en los datos de la cotización
+3. **Editar texto**: Puedes modificar el texto introductorio antes de generar el PDF
+4. **Click en "Generar PDF"**: El PDF se descarga y se abre en nueva pestaña
+5. **Triple almacenamiento**: PDF guardado en Supabase Storage + Google Drive + Local
+6. **Texto IA persistido**: El texto se guarda en la cotización para futuras referencias
 
 ### 5. Sistema de Revisiones
 
@@ -254,6 +280,15 @@ cotizador_cws/
 2. **Justificación obligatoria**: Para R2 y superiores, se requiere justificación
 3. **Numeración automática**: Sistema incrementa R1 → R2 → R3...
 4. **Datos preservados**: La revisión original se mantiene intacta
+5. **Texto IA heredado**: El texto introductorio se preserva de la revisión anterior
+
+### 6. Edición Menor (Corrección sin Nueva Revisión)
+
+1. **Acceder**: Desde la vista de cotización, click en "Corregir typos o texto"
+2. **Solo campos de texto**: Edita atención, contacto, tiempos, comentarios e items
+3. **Guardar**: Click en "Guardar Corrección" — no genera nueva revisión
+4. **PDF regenerado**: El PDF se regenera automáticamente con los cambios
+5. **Texto IA preservado**: El texto introductorio no se pierde
 
 ---
 
@@ -266,13 +301,22 @@ cotizador_cws/
 | `/` | GET/POST | Página principal con búsqueda |
 | `/formulario` | GET/POST | Formulario de cotización con auto-guardado |
 | `/formulario?draft=ID` | GET | Cargar borrador específico en formulario |
-| `/generar_pdf` | POST | Generar PDF con triple redundancia |
+| `/formulario?revision=ID` | GET | Crear nueva revisión desde cotización existente |
+| `/formulario?edicion_menor=ID` | GET | Corregir cotización sin generar nueva revisión |
+| `/generar_pdf` | POST | Generar PDF con texto personalizado y triple almacenamiento |
 | `/pdf/<id>` | GET | Servir PDF directamente (sin redirects) |
 | `/ver/<id>` | GET | Ver cotización completa (breakdown) |
 | `/desglose/<id>` | GET | Desglose detallado de cotización |
 | `/buscar` | POST | Búsqueda unificada con paginación |
 | `/info` | GET | Información del sistema y estado |
 | `/stats` | GET | Estadísticas de base de datos |
+
+### **API IA y Edición Menor**
+
+| Ruta | Método | Descripción |
+|------|--------|-------------|
+| `/api/generar-texto-ia` | POST | Genera texto introductorio con Claude AI |
+| `/api/cotizacion/<id>/edicion-menor` | PATCH | Aplica corrección sin nueva revisión |
 
 ### **API Drafts (Sistema de Borradores)**
 
@@ -454,6 +498,28 @@ curl https://cotizador-cws.onrender.com/api/draft/list
 
 ## 📊 PROBLEMAS RESUELTOS (Historial)
 
+### ✅ **PDF null + Texto IA perdido en edición menor** (Junio 18, 2026)
+- **Problema**: Tras edición menor, PDF no se encontraba (`/pdf/null`) y texto IA se perdía
+- **Solución**: 
+  - Número de cotización guardado antes de cerrar modal de preview
+  - PDF servido directamente como blob (elimina segunda request)
+  - Texto IA persistido en BD y preservado en ediciones menores
+  - Salvaguarda de merge de condiciones en edición menor
+- **Impacto**: Robustez completa en flujo de edición y generación de PDFs
+- **Archivos**: `app.py`, `pdf_manager.py`, `supabase_manager.py`, `templates/formulario.html`
+
+### ✅ **IA Text Generation + Preview Modal** (Junio 17, 2026)
+- **Problema**: Texto introductorio de PDFs era siempre genérico
+- **Solución**: Integración con Claude API (Anthropic) para generar texto personalizado basado en cliente, proyecto e items. Modal de vista previa permite editar el texto antes de generar el PDF.
+- **Impacto**: PDFs profesionales con texto introductorio personalizado
+- **Archivos**: `app.py`, `templates/formulario.html`, `cotizador/pdf_generator.py`
+
+### ✅ **Persistencia de texto IA entre revisiones** (Junio 17, 2026)
+- **Problema**: Texto IA se perdía al crear nuevas revisiones o editar
+- **Solución**: Texto guardado en `datosGenerales.textoIntroductorio` al generar PDF, heredado en nuevas revisiones via `preparar_datos_nueva_revision`, y preservado en ediciones menores via PATCH.
+- **Impacto**: El texto IA sobrevive a todo el ciclo de vida de la cotización
+- **Archivos**: `app.py`, `supabase_manager.py`, `templates/formulario.html`
+
 ### ✅ **UnboundLocalError Deployment Crash** (Sept 8, 2025)
 - **Problema**: App no iniciaba por error de alcance de variable `estado_cambio`
 - **Solución**: Variable movida a scope del exception handler
@@ -545,8 +611,11 @@ GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 GOOGLE_DRIVE_FOLDER_NUEVAS=folder-id
 GOOGLE_DRIVE_FOLDER_ANTIGUAS=folder-id
 
+# Anthropic API (IA para texto personalizado)
+ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
+
 # App
-APP_VERSION=2.2.0
+APP_VERSION=2.3.0
 DEFAULT_PAGE_SIZE=20
 ```
 
@@ -657,6 +726,9 @@ print(json.dumps(status, indent=2))
 ✅ **Triple-Layer Fallback**: PostgreSQL → SDK REST → JSON
 ✅ **Auto-Save System**: Borradores cada 30 segundos
 ✅ **Professional PDFs**: Diseño corporativo oficial CWS
+✅ **AI-Powered Text**: Claude genera texto introductorio personalizado
+✅ **PDF Preview Modal**: Editar texto IA antes de generar PDF
+✅ **Minor Edits**: Correcciones sin nueva revisión, con preservación de IA
 ✅ **Unified Storage**: Supabase Storage + Google Drive + Local
 ✅ **Offline-First**: 100% funcional sin internet
 ✅ **Smart Routing**: Failover automático inteligente
@@ -664,10 +736,10 @@ print(json.dumps(status, indent=2))
 
 ---
 
-**Última actualización:** Septiembre 8, 2025
-**Versión:** 2.2.0
+**Última actualización:** Junio 18, 2026
+**Versión:** 2.3.0
 **Proyecto:** CWS Cotizador - Sistema Profesional de Cotizaciones
-**Arquitectura:** Supabase Hybrid Triple-Layer Bulletproof System
+**Arquitectura:** Supabase Hybrid Triple-Layer + IA Anthropic Claude
 
 ---
 
