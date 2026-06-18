@@ -3290,7 +3290,7 @@ def ver_desglose(numero_cotizacion):
 
             # Asegurar que exista condiciones (evitar errores de template)
             if not cotizacion.get('condiciones'):
-                cotizacion['condiciones'] = {}
+                cotizacion['condiciones'] = {'moneda': 'MXN'}
                 print(f"[DESGLOSE] Inicializado condiciones con valores por defecto")
 
             # CALCULAR TOTALES para asegurar que se muestren correctamente

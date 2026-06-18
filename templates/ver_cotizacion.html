@@ -512,7 +512,7 @@
             </div>
 
             <!-- Información de Moneda y Tipo de Cambio -->
-            {% if cotizacion.condiciones %}
+            {% if cotizacion.condiciones is not none %}
             <div style="margin-top: 20px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
                     <div>
@@ -542,7 +542,7 @@
         {% endif %}
 
         <!-- Términos y Condiciones -->
-        {% if cotizacion.condiciones %}
+        {% if cotizacion.condiciones is not none %}
         <div class="section" style="background: #ffffff; border: 2px solid #e5e7eb;">
             <h3 style="display: flex; align-items: center; gap: 10px; color: #374151;">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="#374151">
