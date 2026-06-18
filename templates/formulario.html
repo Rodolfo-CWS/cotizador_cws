@@ -199,6 +199,13 @@
         <div class="modal-footer">
             <button
                 type="button"
+                id="btn-cancelar-revision"
+                class="px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-100 transition-colors mr-3"
+            >
+                Cancelar
+            </button>
+            <button
+                type="button"
                 id="btn-confirmar-revision"
                 class="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled
@@ -1483,6 +1490,7 @@ function inicializarModalRevision() {
     const numeroRevisionSpan = document.getElementById('numero-revision-modal');
     const descripcionInput = document.getElementById('descripcion-revision-input');
     const btnConfirmar = document.getElementById('btn-confirmar-revision');
+    const btnCancelar = document.getElementById('btn-cancelar-revision');
     const contadorCaracteres = document.getElementById('contador-caracteres');
     const errorDescripcion = document.getElementById('error-descripcion');
     const formularioPrincipal = document.getElementById('cotizacion-form');
@@ -1558,6 +1566,17 @@ function inicializarModalRevision() {
 
         // Mostrar mensaje de confirmación
         console.log('[MODAL_REVISION] Modal cerrado, descripción guardada');
+    });
+
+    // Event listener para botón de cancelar
+    btnCancelar.addEventListener('click', function() {
+        // Detener auto-guardado para que no se cree ningún draft
+        if (autoGuardadoTimer) {
+            clearInterval(autoGuardadoTimer);
+            autoGuardadoTimer = null;
+        }
+        // Redirigir al inicio (no se guarda nada)
+        window.location.href = '/';
     });
 
     // Enfocar en el textarea al cargar
