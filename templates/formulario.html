@@ -1582,6 +1582,9 @@ function inicializarModalRevision() {
             clearInterval(autoGuardadoTimer);
             autoGuardadoTimer = null;
         }
+        // Prevenir que beforeunload guarde un draft al navegar
+        formModificado = false;
+        cotizacionCompletada = true;
         // Redirigir al inicio (no se guarda nada)
         window.location.href = '/';
     });
