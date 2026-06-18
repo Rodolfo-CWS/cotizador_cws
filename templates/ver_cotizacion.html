@@ -633,7 +633,7 @@
                 </svg>
                 Nueva Cotización
             </a>
-            {% set numero_cotizacion = cotizacion.get('numeroCotizacion') or cotizacion.get('numero_cotizacion') or cotizacion.get('_id') %}
+            {% set numero_cotizacion = cotizacion.get('numeroCotizacion') or cotizacion.get('numero_cotizacion') %}
             {% if numero_cotizacion %}
             <a href="/formulario?revision={{ numero_cotizacion | urlencode }}" class="btn" style="background-color: #10b981; color: white; border-color: #10b981;" title="Crear nueva revisión basada en {{ numero_cotizacion }}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
