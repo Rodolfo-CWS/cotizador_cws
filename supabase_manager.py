@@ -629,7 +629,11 @@ class SupabaseManager:
             datos_generales = dict(datos.get('datosGenerales', {}))
             items = datos.get('items', [])
             condiciones = datos.get('condiciones', {})
-            revision = datos.get('revision', 1)
+            revision = datos.get('datosGenerales', {}).get('revision', 1)
+            try:
+                revision = int(revision)
+            except (ValueError, TypeError):
+                revision = 1
             version = datos.get('version', '1.0.0')
             usuario = datos.get('usuario')
             observaciones = datos.get('observaciones')
@@ -748,7 +752,11 @@ class SupabaseManager:
         datos_generales = datos.get('datosGenerales', {})
         items = datos.get('items', [])
         condiciones = datos.get('condiciones', {})
-        revision = datos.get('revision', 1)
+        revision = datos.get('datosGenerales', {}).get('revision', 1)
+        try:
+            revision = int(revision)
+        except (ValueError, TypeError):
+            revision = 1
         version = datos.get('version', '1.0.0')
         usuario = datos.get('usuario')
         observaciones = datos.get('observaciones')
@@ -1235,13 +1243,23 @@ class SupabaseManager:
                 if condiciones.get('comentariosAdicionales') and not condiciones.get('comentarios'):
                     condiciones['comentarios'] = condiciones['comentariosAdicionales']
 
+            # Corregir revision desde numero de cotizacion (fix para datos legacy)
+            revision = row['revision']
+            if revision == 1:
+                import re
+                match = re.search(r'-R(\d+)-', str(row['numero_cotizacion']))
+                if match:
+                    revision_parseada = int(match.group(1))
+                    if revision_parseada > 1:
+                        revision = revision_parseada
+
             cotizacion = {
                 "_id": str(row['id']),
                 "numeroCotizacion": row['numero_cotizacion'],
                 "datosGenerales": datos_generales,
                 "items": row['items'] or [],
                 "condiciones": condiciones,
-                "revision": row['revision'],
+                "revision": revision,
                 "fechaCreacion": str(row['fecha_creacion']) if row['fecha_creacion'] else None,
                 "timestamp": row['timestamp'],
                 "usuario": row['usuario'],
@@ -1292,13 +1310,23 @@ class SupabaseManager:
                 if condiciones.get('comentariosAdicionales') and not condiciones.get('comentarios'):
                     condiciones['comentarios'] = condiciones['comentariosAdicionales']
 
+            # Corregir revision desde numero de cotizacion (fix para datos legacy)
+            revision = row['revision']
+            if revision == 1:
+                import re
+                match = re.search(r'-R(\d+)-', str(row['numero_cotizacion']))
+                if match:
+                    revision_parseada = int(match.group(1))
+                    if revision_parseada > 1:
+                        revision = revision_parseada
+
             cotizacion = {
                 "_id": str(row['id']),
                 "numeroCotizacion": row['numero_cotizacion'],
                 "datosGenerales": datos_generales,
                 "items": row['items'] or [],
                 "condiciones": condiciones,
-                "revision": row['revision'],
+                "revision": revision,
                 "fechaCreacion": row['fecha_creacion'].isoformat() if row['fecha_creacion'] else None,
                 "timestamp": row['timestamp'],
                 "usuario": row['usuario'],
@@ -1327,8 +1355,13 @@ class SupabaseManager:
                     match = (cot.get('numeroCotizacion') == numero_cotizacion)
 
                 if match:
-                    # Normalizar aliases históricos en condiciones
+                    # Normalizar aliases historicos en condiciones
                     condiciones = cot.get('condiciones')
+                    # Si no hay condiciones en nivel raiz, buscar dentro de datosGenerales
+                    if not condiciones:
+                        dg = cot.get('datosGenerales', {})
+                        if isinstance(dg, dict):
+                            condiciones = dg.get('condiciones', {})
                     if isinstance(condiciones, dict):
                         if 'condicionesPago' in condiciones and 'terminos' not in condiciones:
                             condiciones['terminos'] = condiciones['condicionesPago']
