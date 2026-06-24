@@ -761,7 +761,8 @@ def procesar_imagen_referencia(datos, numero_cotizacion):
     extension = extension_map.get(mime_type, '.jpg')
 
     # Generar nombre de archivo unico (sanitizar numero_cotizacion para URLs)
-    num_sanitizado = re.sub(r'[^a-zA-Z0-9_-]', '-', str(numero_cotizacion))
+    import re as _re_sanitize
+    num_sanitizado = _re_sanitize.sub(r'[^a-zA-Z0-9_-]', '-', str(numero_cotizacion))
     nombre_archivo = f"REF_{num_sanitizado}_{uuid.uuid4().hex[:8]}{extension}"
     storage_path = f"imagenes_referencia/{nombre_archivo}"
 
