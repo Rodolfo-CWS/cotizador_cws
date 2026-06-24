@@ -2822,10 +2822,11 @@ def generar_texto_ia():
             # System prompt
             system_prompt = (
                 "Eres un cotizador profesional mexicano. Generas textos introductorios "
-                "para PDFs de cotizaciones. Sé conciso, profesional y cálido. "
+                "para PDFs de cotizaciones. Sé MUY conciso — escribe 30% más breve de lo "
+                "que normalmente harías. Profesional y cálido. "
                 "Escribe en español formal. NO uses markdown. "
                 "Formato: texto plano con saltos de línea simples. "
-                "Máximo 3 párrafos breves."
+                "Máximo 2 párrafos breves. Ve directo al punto, sin rodeos."
             )
 
             # User prompt
@@ -2843,13 +2844,13 @@ Resumen de ítems cotizados:
             if cambios and revision != '1':
                 user_prompt += f"\nCambios respecto a revisión anterior:\n{cambios}\nExplica estos cambios de forma profesional.\n"
 
-            user_prompt += "\nEscribe un texto introductorio de 2-3 párrafos que presente la cotización."
+            user_prompt += "\nEscribe un texto introductorio de 1-2 párrafos breves (30% más corto de lo habitual) que presente la cotización. Ve directo al punto."
 
             try:
                 client = anthropic.Anthropic(api_key=api_key)
                 message = client.messages.create(
                     model="claude-sonnet-4-6",
-                    max_tokens=600,
+                    max_tokens=400,
                     temperature=0.7,
                     system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}]
@@ -2877,12 +2878,10 @@ Resumen de ítems cotizados:
 
         texto_generico = (
             f"Estimado {cliente},\n\n"
-            f"CWS Company se complace en presentar esta propuesta económica "
-            f"para {proyecto}. "
-            f"Hemos analizado sus requerimientos y presentamos una solución "
-            f"que equilibra calidad, funcionalidad y costo.\n\n"
-            f"Esperamos haber entendido sus necesidades y permanecemos "
-            f"a la espera de su respuesta."
+            f"CWS Company presenta esta propuesta económica "
+            f"para {proyecto}, "
+            f"equilibrando calidad, funcionalidad y costo.\n\n"
+            f"Quedamos a la espera de su respuesta."
         )
 
         return jsonify({

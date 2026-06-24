@@ -246,8 +246,8 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         intro_text = texto_personalizado.replace("\n", "<br/>\n")
     else:
         intro_text = """Estimado Cliente,<br/>
-        CWS Company se complace en presentar esta propuesta económica para el proyecto solicitado.
-        Esperamos haber entendido sus requerimientos y permanecemos a la espera de su respuesta."""
+        CWS Company presenta esta propuesta económica para el proyecto solicitado.
+        Quedamos a la espera de su respuesta."""
 
     story.append(Paragraph(intro_text, intro_style))
     story.append(Spacer(1, 8))
