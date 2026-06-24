@@ -1978,12 +1978,31 @@ def edicion_menor(numero_cotizacion):
     Corrige campos de texto (typos, ortografía) sin generar nueva revisión.
     Solo acepta: datosGenerales.atencionA/contacto,
                  condiciones.tiempoEntrega/entregaEn/comentarios,
-                 items[].descripcion/notas
+                 items[].descripcion/notas,
+                 imagenReferencia (opcional, para agregar/quitar/actualizar imagen)
     """
     try:
         parche = request.get_json()
         if not parche:
             return jsonify({"success": False, "error": "No se recibieron datos"}), 400
+
+        # Procesar imagen de referencia en el parche (si fue enviada)
+        if 'imagenReferencia' in parche:
+            img_raw = parche.pop('imagenReferencia')
+            if img_raw is not None and not (isinstance(img_raw, dict) and img_raw.get('conservar')):
+                # Nueva imagen: procesar base64 y subir
+                datos_temp = {
+                    'imagenReferencia': img_raw,
+                    'datosGenerales': {}
+                }
+                img_resultado = procesar_imagen_referencia(datos_temp, numero_cotizacion)
+                parche['imagenReferenciaProcesada'] = img_resultado  # dict o None
+            elif img_raw is not None and isinstance(img_raw, dict) and img_raw.get('conservar'):
+                # Imagen no modificada — no hacer nada (se preserva la existente)
+                pass
+            else:
+                # img_raw es None → el usuario eliminó la imagen explícitamente
+                parche['imagenReferenciaProcesada'] = None
 
         usuario = session.get('vendedor', 'desconocido')
         resultado = db_manager.edicion_menor_cotizacion(numero_cotizacion, parche, usuario)

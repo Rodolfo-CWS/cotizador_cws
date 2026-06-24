@@ -4152,6 +4152,9 @@ async function guardarEdicionMenor() {
             parche.textoIntroductorio = textoIntroductorioGuardado;
         }
 
+        // Incluir imagen de referencia (nueva, conservada o eliminada)
+        parche.imagenReferencia = obtenerImagenReferenciaPayload();
+
         document.querySelectorAll('.item-block').forEach((bloque, i) => {
             const desc = bloque.querySelector('.descripcion-item');
             const notas = bloque.querySelector('[name="notas[]"]');

@@ -2200,6 +2200,21 @@ class SupabaseManager:
                 cotizacion['datosGenerales']['textoIntroductorio'] = parche['textoIntroductorio']
                 campos_modificados.append('textoIntroductorio')
 
+            # Manejar imagen de referencia procesada (agregar, actualizar o eliminar)
+            if 'imagenReferenciaProcesada' in parche:
+                if 'datosGenerales' not in cotizacion:
+                    cotizacion['datosGenerales'] = {}
+                if parche['imagenReferenciaProcesada'] is not None:
+                    # Agregar o actualizar imagen
+                    cotizacion['datosGenerales']['imagenReferencia'] = parche['imagenReferenciaProcesada']
+                    campos_modificados.append('imagenReferencia')
+                    print(f"[EDICION_MENOR] Imagen actualizada: {parche['imagenReferenciaProcesada'].get('url', 'sin URL')}")
+                else:
+                    # Eliminar imagen (el usuario la quitó explícitamente)
+                    cotizacion['datosGenerales'].pop('imagenReferencia', None)
+                    campos_modificados.append('imagenReferencia (eliminada)')
+                    print(f"[EDICION_MENOR] Imagen eliminada por el usuario")
+
             if not campos_modificados:
                 return {'success': False, 'error': 'No se enviaron campos editables'}
 
