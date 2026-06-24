@@ -2095,7 +2095,7 @@ class SupabaseManager:
 
     # Campos que se pueden corregir sin generar revisión
     CAMPOS_EDICION_MENOR = {
-        'datosGenerales': {'atencionA', 'contacto'},
+        'datosGenerales': {'atencionA', 'contacto', 'comentariosInternos'},
         'condiciones': {'tiempoEntrega', 'entregaEn', 'comentarios'},
         'items': {'descripcion', 'notas'},
         # textoIntroductorio se permite a nivel raíz (no anidado en datosGenerales)
