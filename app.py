@@ -19,6 +19,9 @@ import os
 import json
 import csv
 import logging
+import base64
+import uuid
+from pathlib import Path
 from logging.handlers import RotatingFileHandler
 import copy
 from dotenv import load_dotenv
@@ -688,6 +691,124 @@ def preparar_datos_nueva_revision(cotizacion_original):
 atexit.register(db_manager.cerrar_conexion)
 
 # ============================================
+# PROCESAMIENTO DE IMAGEN DE REFERENCIA
+# ============================================
+
+def procesar_imagen_referencia(datos, numero_cotizacion):
+    """
+    Procesa una imagen de referencia enviada como base64 desde el formulario.
+
+    Extrae, valida, guarda en Supabase Storage (o local como fallback) y
+    retorna un dict con {url, nombre, tamano_bytes, mime_type} para almacenar en datos_generales.
+
+    Args:
+        datos: Dict completo de la cotizacion recibido del formulario
+        numero_cotizacion: Numero de cotizacion para nombrar el archivo
+
+    Returns:
+        dict con {url, nombre, tamano_bytes, mime_type} o None si no hay imagen o error
+    """
+    img_data = datos.get('imagenReferencia')
+    if not img_data:
+        return None
+
+    # Si tiene flag conservar, retornar referencia existente sin cambios
+    if img_data.get('conservar'):
+        datos_generales = datos.get('datosGenerales', {})
+        existente = datos_generales.get('imagenReferencia')
+        if existente:
+            print(f"[IMAGEN] Conservando imagen existente: {existente.get('url', 'sin URL')}")
+            return existente
+        return None
+
+    base64_str = img_data.get('base64', '')
+    if not base64_str:
+        print("[IMAGEN] No se recibio base64 — ignorando")
+        return None
+
+    # Validar y decodificar base64
+    try:
+        # Formato esperado: "data:image/jpeg;base64,/9j/4AAQ..."
+        if ',' in base64_str:
+            header, encoded = base64_str.split(',', 1)
+        else:
+            encoded = base64_str
+
+        image_bytes = base64.b64decode(encoded)
+    except Exception as e:
+        print(f"[IMAGEN] Error decodificando base64: {e}")
+        return None
+
+    # Validar tamano (max 5 MB)
+    max_size = 5 * 1024 * 1024
+    if len(image_bytes) > max_size:
+        print(f"[IMAGEN] Imagen demasiado grande: {len(image_bytes)} bytes (max {max_size})")
+        return None
+
+    # Validar tipo MIME
+    mime_type = img_data.get('mime_type', 'image/jpeg')
+    allowed_types = ['image/jpeg', 'image/png']
+    if mime_type not in allowed_types:
+        print(f"[IMAGEN] Tipo MIME no soportado: {mime_type}")
+        return None
+
+    # Determinar extension del archivo
+    extension_map = {
+        'image/jpeg': '.jpg',
+        'image/png': '.png',
+        'image/jpg': '.jpg'
+    }
+    extension = extension_map.get(mime_type, '.jpg')
+
+    # Generar nombre de archivo unico
+    nombre_archivo = f"REF_{numero_cotizacion}_{uuid.uuid4().hex[:8]}{extension}"
+    storage_path = f"imagenes_referencia/{nombre_archivo}"
+
+    url = None
+
+    # Intentar guardar en Supabase Storage
+    try:
+        from supabase_storage_manager import SupabaseStorageManager
+        storage_manager = SupabaseStorageManager()
+
+        if storage_manager and storage_manager.is_available():
+            resultado = storage_manager.subir_archivo(
+                file_bytes=image_bytes,
+                storage_path=storage_path,
+                content_type=mime_type
+            )
+            if not resultado.get('error'):
+                url = resultado.get('url', '')
+                if url and url.endswith('?'):
+                    url = url[:-1]
+                print(f"[IMAGEN] Subida exitosa a Supabase Storage: {url}")
+    except ImportError:
+        print("[IMAGEN] SupabaseStorageManager no disponible — guardando localmente")
+    except Exception as e:
+        print(f"[IMAGEN] Error subiendo a Supabase Storage: {e}")
+
+    # Fallback: guardar localmente
+    if not url:
+        try:
+            local_images_dir = Path("static/imagenes_referencia")
+            local_images_dir.mkdir(parents=True, exist_ok=True)
+            local_path = local_images_dir / nombre_archivo
+            local_path.write_bytes(image_bytes)
+            url = f"static/imagenes_referencia/{nombre_archivo}"
+            print(f"[IMAGEN] Guardada localmente: {local_path}")
+        except Exception as e:
+            print(f"[IMAGEN] Error en fallback local: {e}")
+            return None
+
+    print(f"[IMAGEN] Procesada: {url}")
+    return {
+        "url": url,
+        "nombre": img_data.get('nombre', nombre_archivo),
+        "tamano_bytes": len(image_bytes),
+        "mime_type": mime_type
+    }
+
+# ============================================
 # FILTROS PARA TEMPLATES
 # ============================================
 
@@ -1180,6 +1301,16 @@ def formulario():
             else:
                 print(f"[NUMERO_DEBUG] ⚠️ Procediendo sin número - será generado automáticamente")
             
+            # Procesar imagen de referencia (si fue enviada)
+            img_ref_resultado = procesar_imagen_referencia(datos, numero_final or 'nueva')
+            if img_ref_resultado:
+                if 'datosGenerales' not in datos:
+                    datos['datosGenerales'] = {}
+                datos['datosGenerales']['imagenReferencia'] = img_ref_resultado
+                # Remover base64 crudo del payload antes de guardar en BD
+                datos.pop('imagenReferencia', None)
+                print(f"[FORM] Imagen de referencia procesada: {img_ref_resultado.get('url', 'sin URL')}")
+
             # Guardar usando DatabaseManager con manejo robusto de errores
             print("[FORM] FORMULARIO: Llamando a guardar_cotizacion...")
             resultado = db_manager.guardar_cotizacion(datos)

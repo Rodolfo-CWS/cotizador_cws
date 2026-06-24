@@ -251,7 +251,84 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
 
     story.append(Paragraph(intro_text, intro_style))
     story.append(Spacer(1, 8))
-    
+
+    # ── IMAGEN DE REFERENCIA (OPCIONAL) ──────────────────────────
+    imagen_referencia = datos_cotizacion.get('datosGenerales', {}).get('imagenReferencia', None)
+    if imagen_referencia and imagen_referencia.get('url'):
+        img_url = imagen_referencia.get('url', '')
+        img_path = None
+        _is_temp = False
+        try:
+            # Si es URL remota (Supabase Storage), descargar a archivo temporal
+            if img_url.startswith('http'):
+                import urllib.request
+                import tempfile
+                with urllib.request.urlopen(img_url, timeout=15) as response:
+                    img_bytes = response.read()
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
+                    tmp.write(img_bytes)
+                    img_path = tmp.name
+                    _is_temp = True
+            # Si es ruta local relativa (static/imagenes_referencia/...)
+            elif img_url.startswith('static/'):
+                candidate = os.path.join(os.path.dirname(os.path.dirname(__file__)), img_url)
+                if os.path.exists(candidate):
+                    img_path = candidate
+            # Ruta absoluta o relativa directa
+            elif os.path.exists(img_url):
+                img_path = img_url
+
+            if img_path and os.path.exists(img_path):
+                from reportlab.lib.utils import ImageReader
+                img_reader = ImageReader(img_path)
+                img_w, img_h = img_reader.getSize()
+
+                # Escalar proporcionalmente (máx 4" ancho × 3" alto)
+                max_w = 4 * inch
+                max_h = 3 * inch
+                scale = min(max_w / img_w, max_h / img_h, 1.0)
+                display_w = img_w * scale
+                display_h = img_h * scale
+
+                img_flowable = Image(img_path, width=display_w, height=display_h)
+                img_container = Table([[img_flowable]], colWidths=[7 * inch])
+                img_container.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ]))
+
+                caption_style = ParagraphStyle(
+                    'ImageCaption',
+                    parent=styles['Normal'],
+                    fontSize=7,
+                    fontName='Helvetica-Oblique',
+                    textColor=colors.HexColor('#718096'),
+                    alignment=1,  # Center
+                    spaceAfter=4
+                )
+                nombre_img = imagen_referencia.get('nombre', 'Sin nombre')
+                caption_text = f"<i>Imagen de referencia: {nombre_img}</i>"
+
+                story.append(Spacer(1, 4))
+                story.append(img_container)
+                story.append(Paragraph(caption_text, caption_style))
+                story.append(Spacer(1, 6))
+
+                print(f"[PDF_IMAGEN] Imagen incrustada: {nombre_img} ({display_w:.0f}x{display_h:.0f}px)")
+            else:
+                print(f"[PDF_IMAGEN] No se pudo resolver ruta de imagen: {img_url}")
+        except Exception as e:
+            print(f"[PDF_IMAGEN] Error incrustando imagen (se omite): {e}")
+        finally:
+            if _is_temp and img_path and os.path.exists(img_path):
+                try:
+                    os.unlink(img_path)
+                except Exception:
+                    pass
+    # ── FIN IMAGEN DE REFERENCIA ─────────────────────────────────
+
     # Definir variables de moneda y tipo de cambio GLOBALMENTE
     condiciones = datos_cotizacion.get('condiciones', {})
     moneda = condiciones.get('moneda', 'MXN')

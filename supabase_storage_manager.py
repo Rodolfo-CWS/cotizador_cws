@@ -230,6 +230,76 @@ class SupabaseStorageManager:
                 "numero_cotizacion": numero_cotizacion
             }
 
+    def subir_archivo(self, file_bytes: bytes, storage_path: str, content_type: str = "application/octet-stream") -> dict:
+        """
+        Sube un archivo genérico (imagen, PDF, etc.) a Supabase Storage con reintentos automáticos.
+        Método reutilizable para cualquier tipo de archivo.
+
+        Args:
+            file_bytes: Bytes del archivo a subir
+            storage_path: Ruta en el bucket (ej: "imagenes_referencia/REF_CWS-001.jpg")
+            content_type: MIME type del archivo (ej: "image/jpeg", "image/png")
+
+        Returns:
+            Dict con info del archivo subido o error
+        """
+        if not self.storage_available:
+            print("SUPABASE_STORAGE: Servicio no disponible - usando fallback")
+            return {
+                "error": "Supabase Storage no disponible",
+                "fallback": True,
+                "tipo_error": "servicio_no_disponible"
+            }
+
+        try:
+            print(f"SUPABASE_STORAGE: Subiendo archivo: {storage_path} ({len(file_bytes)} bytes, {content_type})")
+
+            # Forzar upsert como string (requerido por ciertas versiones del SDK)
+            import io
+            file_obj = io.BytesIO(file_bytes)
+
+            # Función interna para la subida (para usar con retry)
+            def _upload_operation():
+                return self.supabase.storage.from_(self.bucket_name).upload(
+                    path=storage_path,
+                    file=file_obj,
+                    file_options={
+                        "content-type": content_type,
+                        "upsert": "true"
+                    }
+                )
+
+            # Ejecutar con reintentos
+            self._retry_operation(_upload_operation)
+
+            # Obtener URL pública
+            url_publica = self.supabase.storage.from_(self.bucket_name).get_public_url(storage_path)
+
+            # Limpiar URL si tiene parámetros extra vacíos
+            if url_publica.endswith('?'):
+                url_publica = url_publica[:-1]
+
+            info_archivo = {
+                "url": url_publica,
+                "file_path": storage_path,
+                "bytes": len(file_bytes),
+                "content_type": content_type,
+                "fecha_subida": datetime.datetime.now().isoformat(),
+                "bucket": self.bucket_name
+            }
+
+            print(f"OK: Archivo subido a Supabase Storage: {url_publica}")
+            return info_archivo
+
+        except Exception as e:
+            error_msg = f"Error subiendo archivo a Supabase Storage: {e}"
+            print(f"SUPABASE_STORAGE: [ERROR] {error_msg}")
+            return {
+                "error": error_msg,
+                "fallback": True,
+                "tipo_error": "error_subida"
+            }
+
     def descargar_pdf(self, file_path: str, destino_local: str = None) -> dict:
         """
         Descarga un PDF desde Supabase Storage

@@ -358,6 +358,36 @@
                                   minlength="10"></textarea>
                     </div>
                 </div>
+
+                <!-- IMAGEN DE REFERENCIA (opcional) -->
+                <div class="col-span-full mt-4 pt-4 border-t border-gray-200">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Imagen de Referencia (opcional)
+                    </label>
+                    <p class="text-xs text-gray-500 mb-3">
+                        Agrega una imagen (producto, diagrama, etc.) que aparecerá en el PDF.
+                        Formatos: JPG, PNG. Máximo: 5 MB.
+                    </p>
+                    <div class="flex items-start gap-4">
+                        <div class="flex-shrink-0">
+                            <div id="image-preview-container" class="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50 overflow-hidden">
+                                <img id="image-preview" src="" alt="Vista previa" class="hidden w-full h-full object-contain">
+                                <span id="image-placeholder" class="text-gray-400 text-xs text-center px-2">
+                                    <svg class="w-8 h-8 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
+                                    Sin imagen
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <input type="file" id="imagen-referencia-input" accept="image/jpeg,image/png"
+                                   class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                            <button type="button" id="btn-remove-image" class="text-xs text-red-600 hover:text-red-800 underline hidden">Eliminar imagen</button>
+                        </div>
+                    </div>
+                    <div id="image-error" class="text-red-600 text-xs mt-1 hidden"></div>
+                </div>
             </div>
         </section>
         <!-- ITEMS DINÁMICOS -->
@@ -822,6 +852,106 @@ function autoGuardarDraftSincrono() {
     // Usar sendBeacon para garantizar que se envíe antes de cerrar
     const blob = new Blob([JSON.stringify(datosDraft)], { type: 'application/json' });
     navigator.sendBeacon('/api/draft/save', blob);
+}
+
+// ============================================
+// IMAGEN DE REFERENCIA
+// ============================================
+
+let imagenReferenciaBase64 = null;  // base64 para preview y transmisión
+let imagenReferenciaInfo = null;    // { nombre, tamano_bytes, mime_type }
+
+function inicializarManejadorImagen() {
+    const input = document.getElementById('imagen-referencia-input');
+    const preview = document.getElementById('image-preview');
+    const placeholder = document.getElementById('image-placeholder');
+    const btnRemove = document.getElementById('btn-remove-image');
+    const errorDiv = document.getElementById('image-error');
+    const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+    if (!input) return;
+
+    input.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        errorDiv.classList.add('hidden');
+        errorDiv.textContent = '';
+
+        if (file.size > MAX_SIZE_BYTES) {
+            errorDiv.textContent = 'La imagen excede el límite de 5 MB.';
+            errorDiv.classList.remove('hidden');
+            input.value = '';
+            return;
+        }
+
+        if (!['image/jpeg', 'image/png'].includes(file.type)) {
+            errorDiv.textContent = 'Solo se permiten formatos JPG y PNG.';
+            errorDiv.classList.remove('hidden');
+            input.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            imagenReferenciaBase64 = e.target.result;
+            imagenReferenciaInfo = {
+                nombre: file.name,
+                tamano_bytes: file.size,
+                mime_type: file.type
+            };
+
+            preview.src = imagenReferenciaBase64;
+            preview.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+            btnRemove.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    });
+
+    btnRemove.addEventListener('click', function() {
+        removeImagenReferencia();
+    });
+}
+
+function removeImagenReferencia() {
+    imagenReferenciaBase64 = null;
+    imagenReferenciaInfo = null;
+    const input = document.getElementById('imagen-referencia-input');
+    const preview = document.getElementById('image-preview');
+    const placeholder = document.getElementById('image-placeholder');
+    const btnRemove = document.getElementById('btn-remove-image');
+    const errorDiv = document.getElementById('image-error');
+    if (input) input.value = '';
+    if (preview) { preview.classList.add('hidden'); preview.src = ''; }
+    if (placeholder) placeholder.classList.remove('hidden');
+    if (btnRemove) btnRemove.classList.add('hidden');
+    if (errorDiv) errorDiv.classList.add('hidden');
+}
+
+function cargarImagenPrecargada(datosGenerales) {
+    if (!datosGenerales || !datosGenerales.imagenReferencia) return;
+
+    const imgInfo = datosGenerales.imagenReferencia;
+    if (!imgInfo.url) return;
+
+    const preview = document.getElementById('image-preview');
+    const placeholder = document.getElementById('image-placeholder');
+    const btnRemove = document.getElementById('btn-remove-image');
+
+    if (preview) {
+        preview.src = imgInfo.url;
+        preview.classList.remove('hidden');
+    }
+    if (placeholder) placeholder.classList.add('hidden');
+    if (btnRemove) btnRemove.classList.remove('hidden');
+
+    imagenReferenciaInfo = {
+        nombre: imgInfo.nombre || 'imagen',
+        tamano_bytes: imgInfo.tamano_bytes || 0,
+        mime_type: imgInfo.mime_type || 'image/jpeg'
+    };
+    // No se re-asigna imagenReferenciaBase64: el servidor ya tiene el archivo
 }
 
 function mostrarNotificacionGuardado() {
@@ -1366,6 +1496,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!MODO_EDICION_MENOR && !_edicionMenorParam) {
         inicializarSistemaAutoGuardado();
     }
+
+    // Inicializar manejador de imagen de referencia
+    inicializarManejadorImagen();
 
     // Cargar draft si viene en URL (?draft=ID)
     const urlParams = new URLSearchParams(window.location.search);
@@ -1934,6 +2067,9 @@ function cargarDatosEdicionMenor() {
         }
 
         console.log('[EDICION_MENOR] Cargando', items.length, 'ítem(s) para:', DATOS_EDICION_MENOR.numeroCotizacion);
+
+        // Restaurar imagen de referencia precargada
+        cargarImagenPrecargada(DATOS_EDICION_MENOR.datosGenerales);
     } catch (e) {
         console.error('[EDICION_MENOR] Error cargando datos:', e);
     }
@@ -2068,6 +2204,8 @@ function cargarDatosPrecargados() {
             );
         }, tiempoEspera);
 
+        // Restaurar imagen de referencia precargada
+        cargarImagenPrecargada(DATOS_PRECARGADOS.datosGenerales);
     } catch (error) {
         console.error('Error cargando datos precargados:', error);
         mostrarNotificacion('Error cargando algunos datos', 'warning');
@@ -3732,8 +3870,30 @@ async function guardarCotizacion() {
             numeroCotizacionHidden: numeroHidden || datosGenerales.numeroCotizacion,
             numeroCotizacion: datosGenerales.numeroCotizacion,
             // Preservar texto introductorio IA entre saves
-            textoIntroductorio: textoIntroductorioGuardado || ''
+            textoIntroductorio: textoIntroductorioGuardado || '',
+            // Imagen de referencia (opcional)
+            imagenReferencia: obtenerImagenReferenciaPayload()
         };
+
+        function obtenerImagenReferenciaPayload() {
+            if (imagenReferenciaBase64) {
+                return {
+                    base64: imagenReferenciaBase64,
+                    nombre: imagenReferenciaInfo.nombre,
+                    tamano_bytes: imagenReferenciaInfo.tamano_bytes,
+                    mime_type: imagenReferenciaInfo.mime_type
+                };
+            } else if (imagenReferenciaInfo) {
+                // Imagen no modificada (ya almacenada en BD)
+                return {
+                    nombre: imagenReferenciaInfo.nombre,
+                    tamano_bytes: imagenReferenciaInfo.tamano_bytes,
+                    mime_type: imagenReferenciaInfo.mime_type,
+                    conservar: true
+                };
+            }
+            return null;
+        }
         
         // Debug para Issue #1
         console.log('[ISSUE1_DEBUG] Enviando al servidor:');
