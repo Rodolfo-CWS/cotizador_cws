@@ -11,7 +11,7 @@ from cotizador import (
 )
 
 # ── Imports estándar usados por las rutas ──
-from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
+from flask import Flask, render_template, render_template_string, request, jsonify, send_file, session, redirect, url_for
 import io
 import datetime
 import atexit
@@ -760,8 +760,9 @@ def procesar_imagen_referencia(datos, numero_cotizacion):
     }
     extension = extension_map.get(mime_type, '.jpg')
 
-    # Generar nombre de archivo unico
-    nombre_archivo = f"REF_{numero_cotizacion}_{uuid.uuid4().hex[:8]}{extension}"
+    # Generar nombre de archivo unico (sanitizar numero_cotizacion para URLs)
+    num_sanitizado = re.sub(r'[^a-zA-Z0-9_-]', '-', str(numero_cotizacion))
+    nombre_archivo = f"REF_{num_sanitizado}_{uuid.uuid4().hex[:8]}{extension}"
     storage_path = f"imagenes_referencia/{nombre_archivo}"
 
     url = None
