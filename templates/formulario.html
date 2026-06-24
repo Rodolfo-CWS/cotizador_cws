@@ -929,6 +929,26 @@ function removeImagenReferencia() {
     if (errorDiv) errorDiv.classList.add('hidden');
 }
 
+function obtenerImagenReferenciaPayload() {
+    if (imagenReferenciaBase64) {
+        return {
+            base64: imagenReferenciaBase64,
+            nombre: imagenReferenciaInfo.nombre,
+            tamano_bytes: imagenReferenciaInfo.tamano_bytes,
+            mime_type: imagenReferenciaInfo.mime_type
+        };
+    } else if (imagenReferenciaInfo) {
+        // Imagen no modificada (ya almacenada en BD)
+        return {
+            nombre: imagenReferenciaInfo.nombre,
+            tamano_bytes: imagenReferenciaInfo.tamano_bytes,
+            mime_type: imagenReferenciaInfo.mime_type,
+            conservar: true
+        };
+    }
+    return null;
+}
+
 function cargarImagenPrecargada(datosGenerales) {
     if (!datosGenerales || !datosGenerales.imagenReferencia) return;
 
@@ -3875,26 +3895,6 @@ async function guardarCotizacion() {
             imagenReferencia: obtenerImagenReferenciaPayload()
         };
 
-        function obtenerImagenReferenciaPayload() {
-            if (imagenReferenciaBase64) {
-                return {
-                    base64: imagenReferenciaBase64,
-                    nombre: imagenReferenciaInfo.nombre,
-                    tamano_bytes: imagenReferenciaInfo.tamano_bytes,
-                    mime_type: imagenReferenciaInfo.mime_type
-                };
-            } else if (imagenReferenciaInfo) {
-                // Imagen no modificada (ya almacenada en BD)
-                return {
-                    nombre: imagenReferenciaInfo.nombre,
-                    tamano_bytes: imagenReferenciaInfo.tamano_bytes,
-                    mime_type: imagenReferenciaInfo.mime_type,
-                    conservar: true
-                };
-            }
-            return null;
-        }
-        
         // Debug para Issue #1
         console.log('[ISSUE1_DEBUG] Enviando al servidor:');
         console.log('[ISSUE1_DEBUG] numeroCotizacionHidden:', datosCompletos.numeroCotizacionHidden);
