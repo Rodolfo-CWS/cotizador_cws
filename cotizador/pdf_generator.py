@@ -528,16 +528,28 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
     if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
         campos_terminos.insert(1, ('Tipo de Cambio:', f'{tipo_cambio:.2f} MXN/USD'))
     
+    # Estilo para valores de terminos con word-wrap
+    terms_value_style = ParagraphStyle(
+        'TermsValue',
+        parent=styles['Normal'],
+        fontSize=8,
+        fontName='Helvetica',
+        textColor=colors.HexColor('#4A5568'),
+        alignment=0,  # LEFT
+        leading=11,
+        wordWrap='CJK'
+    )
+
     # Usar datos reales del formulario, mostrar "A definir" solo si están vacíos
     for label, value in campos_terminos:
-        if value and value.strip():  # Si tiene contenido real, usarlo
-            terminos_data.append([label, value.strip()])
-        else:  # Solo si está vacío, mostrar valor por defecto
-            default_value = 'A definir' if 'Tiempo' in label or 'Entregar' in label or 'Términos' in label else ('Sin comentarios adicionales' if 'Comentarios' in label else 'MXN')
-            terminos_data.append([label, default_value])
-    
-    # SIEMPRE crear la tabla (eliminar condicional)
-    terminos_table = Table(terminos_data, colWidths=[2*inch, 5*inch])
+        texto = value.strip() if (value and value.strip()) else (
+            'A definir' if 'Tiempo' in label or 'Entregar' in label or 'Términos' in label
+            else ('Sin comentarios adicionales' if 'Comentarios' in label else 'MXN')
+        )
+        terminos_data.append([Paragraph(label, terms_value_style), Paragraph(texto, terms_value_style)])
+
+    # Calcular colWidths dinamicamente (label mas angosto, valor mas ancho)
+    terminos_table = Table(terminos_data, colWidths=[1.8*inch, 5.2*inch])
     terminos_table.setStyle(TableStyle([
         # Fuentes y tamaños - reducidas
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),

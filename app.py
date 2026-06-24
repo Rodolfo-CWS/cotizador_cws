@@ -3669,7 +3669,6 @@ def ver_desglose(numero_cotizacion):
         traceback.print_exc()
 
         # Retornar página de error amigable
-        from flask import render_template_string
         return render_template_string("""
         <!DOCTYPE html>
         <html lang="es">
