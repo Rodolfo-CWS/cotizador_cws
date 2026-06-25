@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cotizador CWS - Nuevo Formulario</title>
+    <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
@@ -25,7 +26,7 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: var(--gray-50) !important;
+            background: var(--gray-50);
             color: var(--gray-800);
         }
         
@@ -40,18 +41,6 @@
         details[open] summary ~ * { animation: slideDown 0.3s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* Override Tailwind colors with minimalist grayscale */
-        .bg-gradient-to-r { background: var(--gray-800) !important; }
-        .text-white { color: white !important; }
-        .text-blue-200 { color: var(--gray-400) !important; }
-        .text-blue-700 { color: var(--gray-700) !important; }
-        .bg-white { background: white !important; }
-        .shadow-lg { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24) !important; }
-        .rounded-lg { border-radius: 8px !important; }
-        .border-gray-300 { border-color: var(--gray-300) !important; }
-        .focus\:ring-blue-500:focus { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important; }
-        .focus\:border-blue-500:focus { border-color: var(--primary) !important; }
-        .text-gray-700 { color: var(--gray-700) !important; }
         
         /* Icon buttons styles */
         .icon-btn {
@@ -182,7 +171,7 @@
                 </label>
                 <textarea
                     id="descripcion-revision-input"
-                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     placeholder="Ejemplo: Actualización de precios, cambio de materiales, ajuste de cantidades, etc."
                     rows="4"
                 ></textarea>
@@ -207,7 +196,7 @@
             <button
                 type="button"
                 id="btn-confirmar-revision"
-                class="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled
             >
                 Continuar con la Cotización
@@ -244,8 +233,8 @@
                 </div>
             </div>
 
-            <div class="bg-blue-50 border-l-4 border-blue-500 p-3">
-                <p class="text-xs text-blue-800">
+            <div class="bg-indigo-50 border-l-4 border-indigo-500 p-3">
+                <p class="text-xs text-indigo-800">
                     <strong>Tip:</strong> Haz click en "Ir a la Última Revisión" para crear una nueva versión.
                 </p>
             </div>
@@ -271,19 +260,19 @@
 </div>
 
 <!-- ENCABEZADO -->
-<header class="bg-gradient-to-r from-blue-700 to-blue-800 text-white shadow-lg mb-6">
+<header class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg mb-6">
     <div class="container mx-auto px-4 py-6">
         <div class="flex justify-between items-center">
             <div class="flex items-center gap-4">
                 <img src="/static/logo.png" alt="CWS Company" style="max-height: 50px; max-width: 120px; object-fit: contain;">
                 <div>
                     <h1 class="text-3xl font-bold">Cotizador CWS</h1>
-                    <p class="text-blue-200 mt-1">Sistema de Cotizaciones - Nuevo Formulario</p>
+                    <p class="text-indigo-200 mt-1">Sistema de Cotizaciones - Nuevo Formulario</p>
                 </div>
             </div>
             <div class="text-right">
                 <p class="text-sm"><span id="fecha-actual"></span></p>
-                <p class="text-xs text-blue-200">Versión 2.0</p>
+                <p class="text-xs text-indigo-200">Versión 2.0</p>
             </div>
         </div>
     </div>
@@ -295,7 +284,7 @@
         
         <!-- DATOS GENERALES -->
         <section class="bg-white rounded-lg shadow-lg p-6">
-            <h2 class="text-2xl font-bold text-blue-700 mb-4 flex items-center">
+            <h2 class="text-2xl font-bold text-indigo-700 mb-4 flex items-center">
                 Datos Generales
             </h2>
             
@@ -305,31 +294,31 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">Vendedor:</label>
                         <input type="text" name="vendedor" required
                                value="{{ vendedor_sesion }}"
-                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                     </div>
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Proyecto:</label>
                         <input type="text" name="proyecto" required 
-                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                     </div>
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Cliente:</label>
                         <input type="text" name="cliente" required 
-                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                     </div>
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Atención A:</label>
                         <input type="text" name="atencionA" required 
-                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                     </div>
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Contacto:</label>
                         <input type="text" name="contacto" required 
-                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                     </div>
                     
                     <div>
@@ -343,7 +332,7 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Revisión:</label>
                         <input type="number" name="revision" id="revision" min="1" value="1" onchange="manejarRevision()"
-                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                     </div>
                     
                     <div id="actualizacion-container" style="display: none;" class="md:col-span-2">
@@ -353,7 +342,7 @@
                             <span class="text-xs text-gray-500">(mínimo 10 caracteres)</span>
                         </label>
                         <textarea name="actualizacionRevision" rows="3" 
-                                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                   placeholder="Describa detalladamente los cambios realizados en esta revisión (mínimo 10 caracteres)..."
                                   minlength="10"></textarea>
                     </div>
@@ -382,7 +371,7 @@
                         </div>
                         <div class="flex flex-col gap-2">
                             <input type="file" id="imagen-referencia-input" accept="image/jpeg,image/png"
-                                   class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                   class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
                             <button type="button" id="btn-remove-image" class="text-xs text-red-600 hover:text-red-800 underline hidden">Eliminar imagen</button>
                         </div>
                     </div>
@@ -393,7 +382,7 @@
         <!-- ITEMS DINÁMICOS -->
         <section class="bg-white rounded-lg shadow-lg p-6">
             <div class="mb-4">
-                <h2 class="text-2xl font-bold text-blue-700 flex items-center">
+                <h2 class="text-2xl font-bold text-indigo-700 flex items-center">
                     Items de Cotización
                 </h2>
             </div>
@@ -415,7 +404,7 @@
 
         <!-- TÉRMINOS Y CONDICIONES -->
         <section class="bg-white rounded-lg shadow-lg p-6">
-            <h2 class="text-2xl font-bold text-blue-700 mb-4 flex items-center">
+            <h2 class="text-2xl font-bold text-indigo-700 mb-4 flex items-center">
                 Términos y Condiciones
             </h2>
             
@@ -423,7 +412,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Moneda:</label>
                     <select name="moneda" id="moneda" required onchange="toggleTipoCambio()" 
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                         <option value="">Seleccione moneda</option>
                         <option value="MXN">MXN - Peso Mexicano</option>
                         <option value="USD">USD - Dólar Americano</option>
@@ -433,27 +422,27 @@
                 <div id="tipo-cambio-container" style="display: none;">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cambio:</label>
                     <input type="number" name="tipoCambio" id="tipo-cambio" step="0.01" 
-                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
                 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Tiempo de Entrega:</label>
                     <input type="text" name="tiempoEntrega" required 
-                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                            placeholder="Ej. 15 días hábiles">
                 </div>
                 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Entregar En:</label>
                     <input type="text" name="entregaEn" required 
-                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                            placeholder="Ubicación de entrega">
                 </div>
                 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Términos de Pago:</label>
                     <input type="text" name="terminos" required 
-                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                            placeholder="Ej. 50% anticipo, 50% contra entrega">
                 </div>
             </div>
@@ -461,7 +450,7 @@
             <div class="mt-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Comentarios Adicionales:</label>
                 <textarea name="comentarios" rows="3"
-                          class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                           placeholder="Comentarios o notas adicionales..."></textarea>
             </div>
 
@@ -2942,7 +2931,7 @@ function eliminarItem(button) {
 function crearTemplateItem(numero) {
     return `
     <details class="item-block border rounded-lg p-4 bg-gray-50" open>
-        <summary class="cursor-pointer font-semibold text-lg text-blue-700 hover:text-blue-800 flex items-center justify-between">
+        <summary class="cursor-pointer font-semibold text-lg text-indigo-700 hover:text-indigo-800 flex items-center justify-between">
             <span>📋 Item ${numero}</span>
             <div class="flex gap-2 ml-4" onclick="event.stopPropagation()">
                 <button type="button" onclick="clonarItem(this)"
@@ -2990,7 +2979,7 @@ function crearTemplateItem(numero) {
             </div>
 
             <div class="border-t pt-4">
-                <h3 class="text-lg font-semibold text-blue-600 mb-3">🔧 Materiales</h3>
+                <h3 class="text-lg font-semibold text-indigo-600 mb-3">🔧 Materiales</h3>
                 <div class="materiales-container space-y-2">
                     <div class="material-row flex gap-2 items-end">
                         <div class="w-1/4">
@@ -3068,7 +3057,7 @@ function crearTemplateItem(numero) {
             </div>
 
             <div class="border-t pt-4">
-                <h3 class="text-lg font-semibold text-blue-600 mb-3">Otros Materiales</h3>
+                <h3 class="text-lg font-semibold text-indigo-600 mb-3">Otros Materiales</h3>
                 <div class="otros-materiales-container space-y-2">
                     <div class="otro-material-row grid grid-cols-12 gap-2 items-end">
                         <div class="col-span-5">
@@ -3100,7 +3089,7 @@ function crearTemplateItem(numero) {
             </div>
 
             <div class="border-t pt-4">
-                <h3 class="text-lg font-semibold text-blue-600 mb-3">Costos y Totales</h3>
+                <h3 class="text-lg font-semibold text-indigo-600 mb-3">Costos y Totales</h3>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Transporte ($):</label>
@@ -3127,7 +3116,7 @@ function crearTemplateItem(numero) {
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Total del Item ($):</label>
-                        <input type="number" step="0.01" class="total-item w-full p-2 border rounded text-sm bg-blue-50 font-semibold" readonly>
+                        <input type="number" step="0.01" class="total-item w-full p-2 border rounded text-sm bg-indigo-50 font-semibold" readonly>
                     </div>
                 </div>
             </div>
@@ -3579,7 +3568,7 @@ function actualizarTodosLosCalculos() {
         subtotalGeneral += totalItem;
         if (totalItem > 0 || descripcion !== `Item ${index + 1}`) {
             const itemResumen = document.createElement('div');
-            itemResumen.className = 'bg-white p-3 rounded-lg shadow border-l-4 border-blue-500 mb-2';
+            itemResumen.className = 'bg-white p-3 rounded-lg shadow border-l-4 border-indigo-500 mb-2';
             
             // Esta secci\u00f3n se actualizar\u00e1 despu\u00e9s con la conversi\u00f3n USD si aplica
             itemResumen.innerHTML = `
@@ -3589,7 +3578,7 @@ function actualizarTodosLosCalculos() {
                         <p class="text-sm text-gray-600">${cantidad} ${uom} \u00d7 $${(totalItem/cantidad || 0).toFixed(2)} c/u</p>
                     </div>
                     <div class="text-right">
-                        <p class="text-lg font-bold text-blue-600 item-total-display">$${totalItem.toFixed(2)}</p>
+                        <p class="text-lg font-bold text-indigo-600 item-total-display">$${totalItem.toFixed(2)}</p>
                     </div>
                 </div>
             `;
@@ -3660,7 +3649,7 @@ function actualizarTodosLosCalculos() {
                     const precioUnitarioUSD = cantidad > 0 ? totalItemUSD / cantidad : 0;
                     
                     const itemResumen = document.createElement('div');
-                    itemResumen.className = 'bg-white p-3 rounded-lg shadow border-l-4 border-blue-500 mb-2';
+                    itemResumen.className = 'bg-white p-3 rounded-lg shadow border-l-4 border-indigo-500 mb-2';
                     itemResumen.innerHTML = `
                         <div class="flex justify-between items-center">
                             <div>
@@ -3668,7 +3657,7 @@ function actualizarTodosLosCalculos() {
                                 <p class="text-sm text-gray-600">${cantidad} ${uom} × USD $${precioUnitarioUSD.toFixed(2)} c/u</p>
                             </div>
                             <div class="text-right">
-                                <p class="text-lg font-bold text-blue-600">USD $${totalItemUSD.toFixed(2)}</p>
+                                <p class="text-lg font-bold text-indigo-600">USD $${totalItemUSD.toFixed(2)}</p>
                             </div>
                         </div>
                     `;
@@ -4014,7 +4003,7 @@ async function guardarCotizacion() {
             }
 
             btnGuardar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/></svg> Guardado';
-            btnGuardar.classList.remove("bg-blue-600", "hover:bg-blue-700");
+            btnGuardar.classList.remove("bg-indigo-600", "hover:bg-indigo-700");
             btnGuardar.classList.add("bg-green-600");
 
         } else {
@@ -4245,7 +4234,7 @@ async function guardarEdicionMenor() {
 <div id="modal-vista-previa" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background-color: rgba(0,0,0,0.5);">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
         <!-- Header -->
-        <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-800 text-white px-6 py-4 rounded-t-xl flex items-center justify-between">
+        <div class="sticky top-0 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-4 rounded-t-xl flex items-center justify-between">
             <h2 class="text-xl font-bold">Vista Previa del PDF</h2>
             <button onclick="cerrarModalVistaPrevia()" class="text-white hover:text-gray-200 text-2xl leading-none">&times;</button>
         </div>
@@ -4254,7 +4243,7 @@ async function guardarEdicionMenor() {
         <div class="px-6 py-4 space-y-4">
             <!-- Spinner de carga -->
             <div id="preview-loading" class="text-center py-8">
-                <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent"></div>
+                <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-indigo-600 border-t-transparent"></div>
                 <p class="mt-3 text-gray-600">Generando texto personalizado...</p>
             </div>
 
@@ -4264,7 +4253,7 @@ async function guardarEdicionMenor() {
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Texto Introductorio:</label>
                     <textarea id="preview-texto-intro" rows="10"
-                        class="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"></textarea>
+                        class="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-y"></textarea>
                 </div>
 
                 <!-- Resumen de items (solo lectura) -->
