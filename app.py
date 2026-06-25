@@ -3511,24 +3511,16 @@ def ver_desglose(numero_cotizacion):
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>Datos de Cotización No Disponibles - CWS</title>
+                    <link rel="stylesheet" href="/static/css/style.css">
                     <style>
-                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                               background: #f8f9fa; margin: 0; padding: 20px; }
-                        .container { max-width: 600px; margin: 50px auto; background: white; 
-                                   border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 30px; }
-                        .header { text-align: center; margin-bottom: 30px; }
-                        .logo { color: #2C5282; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
-                        .mensaje { background: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; 
+                        body { background: var(--gray-50); margin: 0; padding: 20px; }
+                        .container { max-width: 600px; margin: 50px auto; }
+                        .logo { color: var(--primary); font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+                        .mensaje { background: #fff3cd; border: 1px solid #ffeaa7; padding: 20px;
                                  border-radius: 8px; margin: 20px 0; }
-                        .info { background: #e3f2fd; border: 1px solid #bbdefb; padding: 15px; 
+                        .info { background: #e3f2fd; border: 1px solid #bbdefb; padding: 15px;
                               border-radius: 8px; margin: 15px 0; }
                         .buttons { display: flex; gap: 15px; justify-content: center; margin-top: 30px; }
-                        .btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; 
-                             font-weight: 500; transition: transform 0.2s; }
-                        .btn:hover { transform: translateY(-1px); }
-                        .btn-primary { background: #2C5282; color: white; }
-                        .btn-secondary { background: #718096; color: white; }
-                        .btn-outline { border: 2px solid #2C5282; color: #2C5282; background: white; }
                     </style>
                 </head>
                 <body>
@@ -3554,7 +3546,7 @@ def ver_desglose(numero_cotizacion):
                                 📄 Ver PDF Completo
                             </a>
                             <a href="/" class="btn btn-outline">
-                                🏠 Volver al Inicio  
+                                🏠 Volver al Inicio
                             </a>
                         </div>
                         
@@ -3575,21 +3567,14 @@ def ver_desglose(numero_cotizacion):
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>Desglose No Disponible - CWS</title>
+                    <link rel="stylesheet" href="/static/css/style.css">
                     <style>
-                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                               background: #f8f9fa; margin: 0; padding: 20px; }
-                        .container { max-width: 500px; margin: 50px auto; background: white; 
-                                   border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 30px; }
-                        .header { text-align: center; margin-bottom: 30px; }
-                        .logo { color: #2C5282; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
-                        .mensaje { background: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; 
+                        body { background: var(--gray-50); margin: 0; padding: 20px; }
+                        .container { max-width: 500px; margin: 50px auto; }
+                        .logo { color: var(--primary); font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+                        .mensaje { background: #fff3cd; border: 1px solid #ffeaa7; padding: 20px;
                                  border-radius: 8px; margin: 20px 0; }
                         .buttons { display: flex; gap: 15px; justify-content: center; margin-top: 30px; }
-                        .btn { padding: 12px 24px; border-radius: 8px; text-decoration: none; 
-                             font-weight: 500; transition: transform 0.2s; }
-                        .btn:hover { transform: translateY(-1px); }
-                        .btn-primary { background: #2C5282; color: white; }
-                        .btn-outline { border: 2px solid #2C5282; color: #2C5282; background: white; }
                     </style>
                 </head>
                 <body>
@@ -3628,19 +3613,15 @@ def ver_desglose(numero_cotizacion):
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Cotización No Encontrada - CWS</title>
+            <link rel="stylesheet" href="/static/css/style.css">
             <style>
-                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                       background: #f8f9fa; margin: 0; padding: 20px; }
-                .container { max-width: 500px; margin: 50px auto; background: white; 
-                           border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 30px; }
-                .header { text-align: center; margin-bottom: 30px; }
-                .logo { color: #2C5282; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
-                .mensaje { background: #fef2f2; border: 1px solid #fecaca; padding: 20px; 
-                         border-radius: 8px; margin: 20px 0; color: #dc2626; }
-                .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; 
-                     text-decoration: none; font-weight: 500; margin-top: 20px;
-                     border: 2px solid #2C5282; color: #2C5282; background: white; }
-                .btn:hover { background: #2C5282; color: white; }
+                body { background: var(--gray-50); margin: 0; padding: 20px; }
+                .container { max-width: 500px; margin: 50px auto; }
+                .logo { color: var(--primary); font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+                .mensaje { background: #fef2f2; border: 1px solid #fecaca; padding: 20px;
+                         border-radius: 8px; margin: 20px 0; color: var(--danger); }
+                .btn { display: inline-block; padding: 12px 24px; border-radius: 8px;
+                     text-decoration: none; font-weight: 500; margin-top: 20px; }
             </style>
         </head>
         <body>
@@ -3657,7 +3638,7 @@ def ver_desglose(numero_cotizacion):
                 </div>
                 
                 <div style="text-align: center;">
-                    <a href="/" class="btn">🏠 Volver al Inicio</a>
+                    <a href="/" class="btn btn-outline">🏠 Volver al Inicio</a>
                 </div>
             </div>
         </body>

@@ -4,133 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Todas las Cotizaciones - CWS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        /* Estilos específicos de todas_cotizaciones.html */
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f8f9fa;
             padding: 20px;
-            color: #2c2c2c;
         }
 
         .header {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .header h1 {
-            font-size: 24px;
-            color: #212529;
-            font-weight: 600;
-        }
-
-        .header .user-info {
-            font-size: 14px;
-            color: #6c757d;
-        }
-
-        .actions {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background: #4f46e5;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #4338ca;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background: #5a6268;
-        }
-
-        .stats {
-            background: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            font-size: 14px;
-            color: #495057;
-            font-weight: 500;
-        }
-
-        .table-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        .table-wrapper {
-            overflow-x: auto;
-            max-height: calc(100vh - 280px);
-            overflow-y: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-
-        thead {
-            position: sticky;
-            top: 0;
-            background: #f8f9fa;
-            z-index: 10;
-        }
-
+        /* Ordenamiento de columnas */
         th {
-            padding: 10px 12px;
-            text-align: left;
-            font-weight: 600;
-            color: #495057;
-            border-bottom: 2px solid #dee2e6;
-            white-space: nowrap;
             cursor: pointer;
             user-select: none;
             position: relative;
         }
 
         th:hover {
-            background: #e9ecef;
+            background: var(--gray-200);
         }
 
         th.sortable::after {
@@ -142,95 +38,19 @@
         th.sort-asc::after {
             content: ' ↑';
             opacity: 1;
-            color: #4f46e5;
+            color: var(--primary);
         }
 
         th.sort-desc::after {
             content: ' ↓';
             opacity: 1;
-            color: #4f46e5;
+            color: var(--primary);
         }
 
-        td {
-            padding: 8px 12px;
-            border-bottom: 1px solid #f1f3f5;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 200px;
-        }
-
-        tr:hover {
-            background: #f8f9fa;
-        }
-
-        tr:nth-child(even) {
-            background: #fafbfc;
-        }
-
-        tr:nth-child(even):hover {
-            background: #f1f3f5;
-        }
-
-        .numero-col {
-            color: #4f46e5;
-            font-weight: 600;
-            max-width: 250px;
-        }
-
-        .revision-col {
-            text-align: center;
-            font-size: 11px;
-            color: #6c757d;
-        }
-
-        .total-col {
-            text-align: right;
-            font-weight: 500;
-        }
-
-        .acciones-col {
-            display: flex;
-            gap: 6px;
-            justify-content: flex-end;
-        }
-
-        .btn-icon {
-            padding: 4px 8px;
-            font-size: 11px;
-            border-radius: 4px;
-            border: 1px solid #dee2e6;
-            background: white;
-            color: #495057;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-icon:hover {
-            background: #4f46e5;
-            color: white;
-            border-color: #4f46e5;
-        }
-
-        .empty-state {
-            padding: 60px 20px;
-            text-align: center;
-            color: #6c757d;
-        }
-
-        .empty-state svg {
-            width: 64px;
-            height: 64px;
-            opacity: 0.3;
-            margin-bottom: 16px;
-        }
-
-        /* Nota de leyenda */
+        /* Leyenda */
         .leyenda {
             font-size: 12px;
-            color: #6c757d;
+            color: var(--gray-600);
             margin-top: 8px;
             display: flex;
             align-items: center;
@@ -238,67 +58,9 @@
         }
 
         .leyenda-icono {
-            color: #f59e0b;
+            color: var(--warning);
             font-weight: bold;
             font-size: 11px;
-        }
-
-        /* Estilos de paginación */
-        .pagination-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 20px;
-            padding: 15px 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        .pagination-info {
-            font-size: 14px;
-            color: #6c757d;
-        }
-
-        .pagination-controls {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .page-btn {
-            padding: 8px 12px;
-            font-size: 14px;
-            border-radius: 6px;
-            border: 1px solid #dee2e6;
-            background: white;
-            color: #495057;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-            display: inline-block;
-            min-width: 36px;
-            text-align: center;
-        }
-
-        .page-btn:hover:not(:disabled) {
-            background: #f8f9fa;
-            border-color: #4f46e5;
-            color: #4f46e5;
-        }
-
-        .page-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .page-btn.active {
-            background: #4f46e5;
-            color: white;
-            border-color: #4f46e5;
-            font-weight: 600;
         }
 
         .page-btn.prev-next {
@@ -310,15 +72,6 @@
                 flex-direction: column;
                 gap: 12px;
                 text-align: center;
-            }
-
-            .actions {
-                flex-direction: column;
-            }
-
-            td, th {
-                font-size: 12px;
-                padding: 6px 8px;
             }
 
             .pagination-container {
@@ -349,6 +102,7 @@
             <h1>Todas las Cotizaciones</h1>
             <div class="user-info">Sesión: <strong>{{ vendedor }}</strong></div>
         </div>
+        <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
     </div>
 
     <div class="actions">
@@ -508,6 +262,7 @@
                         <td>
                             <div class="acciones-col">
                                 <a href="/pdf/{{ cot.numero }}" target="_blank" class="btn-icon" title="Ver PDF">PDF</a>
+                                <button class="btn-icon" onclick="descargarOCompartirPDF('{{ cot.numero }}')" title="Descargar o compartir PDF">Descargar</button>
                                 {% if cot.tiene_desglose %}
                                 <a href="/desglose/{{ cot.numero }}" class="btn-icon" title="Ver Desglose">Desglose</a>
                                 {% else %}
@@ -841,6 +596,27 @@
             sortTable('fecha');
             sortTable('fecha'); // Doble click para descendente
         });
+
+        function cerrarSesion() {
+            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                window.location.href = '/logout';
+            }
+        }
+
+        function descargarOCompartirPDF(numero) {
+            const url = '/pdf/' + numero;
+            if (navigator.share) {
+                navigator.share({ url: window.location.origin + url })
+                    .catch(() => {});
+            } else {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = numero + '.pdf';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
     </script>
 </body>
 </html>

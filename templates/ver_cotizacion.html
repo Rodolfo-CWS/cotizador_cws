@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cotización {{ cotizacion.numeroCotizacion or 'Sin número' }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
@@ -94,15 +94,13 @@
         .btn {
             padding: 12px 16px;
             margin: 0 8px;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-lg);
             cursor: pointer;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background-color: #ffffff;
-            color: #495057;
             font-size: 14px;
             font-weight: 500;
             transition: all 0.2s ease;
@@ -111,15 +109,6 @@
             transform: translateY(-1px);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             text-decoration: none;
-            color: #495057;
-        }
-        .btn.primary {
-            background-color: #4f46e5;
-            color: white;
-            border-color: #4f46e5;
-        }
-        .btn.primary:hover {
-            color: white;
         }
         .item-container {
             border: 1px solid #e9ecef;
@@ -646,34 +635,40 @@
         
         <!-- Acciones -->
         <div class="actions">
-            <a href="/" class="btn">
+            <a href="/" class="btn btn-outline">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/>
                 </svg>
                 Inicio
             </a>
-            <a href="/formulario" class="btn primary">
+            <a href="/formulario" class="btn btn-primary">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                 </svg>
                 Nueva Cotización
             </a>
+            <a href="/pdf/{{ cotizacion.numeroCotizacion or cotizacion.get('numero_cotizacion', '') }}" target="_blank" class="btn btn-outline" title="Abrir PDF en nueva pestaña">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                </svg>
+                Ver PDF
+            </a>
             {% set numero_cotizacion = cotizacion.get('numeroCotizacion') or cotizacion.get('numero_cotizacion') %}
             {% if numero_cotizacion %}
-            <a href="/formulario?revision={{ numero_cotizacion | urlencode }}" class="btn" style="background-color: #10b981; color: white; border-color: #10b981;" title="Crear nueva revisión basada en {{ numero_cotizacion }}">
+            <a href="/formulario?revision={{ numero_cotizacion | urlencode }}" class="btn btn-success" title="Crear nueva revisión basada en {{ numero_cotizacion }}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M17,13H13V17H11V13H7V11H11V7H13V11H17M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/>
                 </svg>
                 Nueva Revisión
             </a>
-            <a href="/formulario?edicion_menor={{ numero_cotizacion | urlencode }}" class="btn" style="background-color: #f59e0b; color: white; border-color: #f59e0b;" title="Corregir typos o texto sin generar nueva revisión">
+            <a href="/formulario?edicion_menor={{ numero_cotizacion | urlencode }}" class="btn btn-warning" title="Corregir typos o texto sin generar nueva revisión">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                 </svg>
                 Editar
             </a>
             {% endif %}
-            <button onclick="window.print()" class="btn">
+            <button onclick="window.print()" class="btn btn-outline">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M18,3H6V7H18M19,12A1,1 0 0,1 18,11A1,1 0 0,1 19,10A1,1 0 0,1 20,11A1,1 0 0,1 19,12M16,19H8V14H16M19,8H5A3,3 0 0,0 2,11V17H6V21H18V17H22V11A3,3 0 0,0 19,8Z"/>
                 </svg>
