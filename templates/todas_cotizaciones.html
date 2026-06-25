@@ -102,6 +102,7 @@
             <h1>Todas las Cotizaciones</h1>
             <div class="user-info">Sesión: <strong>{{ vendedor }}</strong></div>
         </div>
+        <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
     </div>
 
     <div class="actions">
@@ -261,6 +262,7 @@
                         <td>
                             <div class="acciones-col">
                                 <a href="/pdf/{{ cot.numero }}" target="_blank" class="btn-icon" title="Ver PDF">PDF</a>
+                                <button class="btn-icon" onclick="descargarOCompartirPDF('{{ cot.numero }}')" title="Descargar o compartir PDF">Descargar</button>
                                 {% if cot.tiene_desglose %}
                                 <a href="/desglose/{{ cot.numero }}" class="btn-icon" title="Ver Desglose">Desglose</a>
                                 {% else %}
@@ -594,6 +596,27 @@
             sortTable('fecha');
             sortTable('fecha'); // Doble click para descendente
         });
+
+        function cerrarSesion() {
+            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                window.location.href = '/logout';
+            }
+        }
+
+        function descargarOCompartirPDF(numero) {
+            const url = '/pdf/' + numero;
+            if (navigator.share) {
+                navigator.share({ url: window.location.origin + url })
+                    .catch(() => {});
+            } else {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = numero + '.pdf';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
     </script>
 </body>
 </html>
