@@ -2644,16 +2644,29 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                                         if (opcion.value === desc) {
                                             descripcion.value = opcion.value;
                                             opcionEncontrada = true;
-                                            // CRÍTICO: Actualizar peso inmediatamente después de seleccionar
-                                            const pesoValor = opcion.getAttribute('data-peso') || 1;
+                                            // CRÍTICO: Usar peso almacenado si existe, sino data-peso del CSV
                                             const pesoInput = ultimoMaterial.querySelector('.peso-input');
                                             if (pesoInput) {
-                                                pesoInput.value = pesoValor;
+                                                const pesoAlmacenado = (material.peso !== undefined && material.peso !== null && material.peso !== '') ? parseFloat(material.peso) : NaN;
+                                                if (!isNaN(pesoAlmacenado) && pesoAlmacenado > 0) {
+                                                    pesoInput.value = pesoAlmacenado;
+                                                } else {
+                                                    pesoInput.value = opcion.getAttribute('data-peso') || 1;
+                                                }
+                                            }
+                                            // Si la descripción almacenada es más detallada, crear opción con ella
+                                            if (desc && desc !== opcion.value && !Array.from(opciones).some(o => o.value === desc)) {
+                                                const optFull = document.createElement('option');
+                                                optFull.value = desc;
+                                                optFull.textContent = desc;
+                                                optFull.setAttribute('data-peso', material.peso || opcion.getAttribute('data-peso') || '1');
+                                                descripcion.appendChild(optFull);
+                                                descripcion.value = desc;
                                             }
                                             break;
                                         }
                                     }
-                                    
+
                                     // 2. Buscar coincidencia normalizada
                                     if (!opcionEncontrada) {
                                         for (let opcion of opciones) {
@@ -2661,30 +2674,56 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
                                                 normalizar(opcion.textContent) === descNormalizado) {
                                                 descripcion.value = opcion.value;
                                                 opcionEncontrada = true;
-                                                // CRÍTICO: Actualizar peso inmediatamente
-                                                const pesoValor = opcion.getAttribute('data-peso') || 1;
+                                                // CRÍTICO: Usar peso almacenado si existe, sino data-peso del CSV
                                                 const pesoInput = ultimoMaterial.querySelector('.peso-input');
                                                 if (pesoInput) {
-                                                    pesoInput.value = pesoValor;
+                                                    const pesoAlmacenado = (material.peso !== undefined && material.peso !== null && material.peso !== '') ? parseFloat(material.peso) : NaN;
+                                                    if (!isNaN(pesoAlmacenado) && pesoAlmacenado > 0) {
+                                                        pesoInput.value = pesoAlmacenado;
+                                                    } else {
+                                                        pesoInput.value = opcion.getAttribute('data-peso') || 1;
+                                                    }
+                                                }
+                                                // Si la descripción almacenada es más detallada, crear opción con ella
+                                                if (desc && desc !== opcion.value && !Array.from(opciones).some(o => o.value === desc)) {
+                                                    const optFull = document.createElement('option');
+                                                    optFull.value = desc;
+                                                    optFull.textContent = desc;
+                                                    optFull.setAttribute('data-peso', material.peso || opcion.getAttribute('data-peso') || '1');
+                                                    descripcion.appendChild(optFull);
+                                                    descripcion.value = desc;
                                                 }
                                                 break;
                                             }
                                         }
                                     }
-                                    
+
                                     // 3. Buscar coincidencia parcial flexible
                                     if (!opcionEncontrada) {
                                         for (let opcion of opciones) {
                                             const opcionNormalizada = normalizar(opcion.textContent);
-                                            if (opcionNormalizada.includes(descNormalizado) || 
+                                            if (opcionNormalizada.includes(descNormalizado) ||
                                                 descNormalizado.includes(opcionNormalizada)) {
                                                 descripcion.value = opcion.value;
                                                 opcionEncontrada = true;
-                                                // CRÍTICO: Actualizar peso inmediatamente
-                                                const pesoValor = opcion.getAttribute('data-peso') || 1;
+                                                // CRÍTICO: Usar peso almacenado si existe, sino data-peso del CSV
                                                 const pesoInput = ultimoMaterial.querySelector('.peso-input');
                                                 if (pesoInput) {
-                                                    pesoInput.value = pesoValor;
+                                                    const pesoAlmacenado = (material.peso !== undefined && material.peso !== null && material.peso !== '') ? parseFloat(material.peso) : NaN;
+                                                    if (!isNaN(pesoAlmacenado) && pesoAlmacenado > 0) {
+                                                        pesoInput.value = pesoAlmacenado;
+                                                    } else {
+                                                        pesoInput.value = opcion.getAttribute('data-peso') || 1;
+                                                    }
+                                                }
+                                                // Si la descripción almacenada es más detallada, crear opción con ella
+                                                if (desc && desc !== opcion.value && !Array.from(opciones).some(o => o.value === desc)) {
+                                                    const optFull = document.createElement('option');
+                                                    optFull.value = desc;
+                                                    optFull.textContent = desc;
+                                                    optFull.setAttribute('data-peso', material.peso || opcion.getAttribute('data-peso') || '1');
+                                                    descripcion.appendChild(optFull);
+                                                    descripcion.value = desc;
                                                 }
                                                 break;
                                             }
