@@ -3457,9 +3457,31 @@ def ver_desglose(numero_cotizacion):
                 print(f"[DESGLOSE] Inicializado datosGenerales vacío")
 
             # Asegurar que exista condiciones (evitar errores de template)
-            if not cotizacion.get('condiciones'):
-                cotizacion['condiciones'] = {'moneda': 'MXN'}
-                print(f"[DESGLOSE] Inicializado condiciones con valores por defecto")
+            # Intentar recuperar condiciones de datosGenerales si no existen a nivel raíz
+            if not cotizacion.get('condiciones') or not isinstance(cotizacion.get('condiciones'), dict) or not any(
+                k in cotizacion.get('condiciones', {}) for k in ['tiempoEntrega', 'entregaEn', 'terminos', 'terminosPago', 'condicionesPago']
+            ):
+                # Fallback: buscar condiciones anidadas en datosGenerales (cotizaciones antiguas)
+                dg = cotizacion.get('datosGenerales', {})
+                cond_dg = dg.get('condiciones', {}) if isinstance(dg, dict) else {}
+                if cond_dg and isinstance(cond_dg, dict) and any(
+                    k in cond_dg for k in ['tiempoEntrega', 'entregaEn', 'terminos', 'terminosPago', 'condicionesPago', 'moneda']
+                ):
+                    # Migrar condiciones desde datosGenerales al nivel raíz
+                    if not cotizacion.get('condiciones') or not isinstance(cotizacion['condiciones'], dict):
+                        cotizacion['condiciones'] = {}
+                    for k, v in cond_dg.items():
+                        if k not in cotizacion['condiciones'] or not cotizacion['condiciones'].get(k):
+                            cotizacion['condiciones'][k] = v
+                    # Normalizar alias
+                    if 'condicionesPago' in cotizacion['condiciones'] and 'terminos' not in cotizacion['condiciones']:
+                        cotizacion['condiciones']['terminos'] = cotizacion['condiciones']['condicionesPago']
+                    print(f"[DESGLOSE] Condiciones recuperadas de datosGenerales: {list(cotizacion['condiciones'].keys())}")
+                else:
+                    cotizacion['condiciones'] = {'moneda': 'MXN'}
+                    print(f"[DESGLOSE] Inicializado condiciones con valores por defecto")
+            else:
+                print(f"[DESGLOSE] Condiciones ya existentes: {list(cotizacion['condiciones'].keys())}")
 
             # CALCULAR TOTALES para asegurar que se muestren correctamente
             if cotizacion.get('items') and isinstance(cotizacion['items'], list):

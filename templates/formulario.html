@@ -571,6 +571,7 @@ const INFO_BLOQUEO_REVISION = {{ info_bloqueo_revision | tojson if info_bloqueo_
 // Modo edición menor (corrección de typos sin nueva revisión)
 let MODO_EDICION_MENOR = {{ modo_edicion_menor | tojson if modo_edicion_menor is defined else 'false' }};
 let DATOS_EDICION_MENOR = {{ datos_edicion_menor | tojson if datos_edicion_menor is defined and datos_edicion_menor else 'null' }};
+let CARGANDO_DATOS_EDICION = false;  // Flag para evitar recálculos prematuros durante carga de datos
 
 // Función para generar opciones de materiales
 function generarOpcionesMateriales() {
@@ -2062,6 +2063,10 @@ function cargarDatosEdicionMenor() {
         });
 
         // ── Ítems ──
+        // Activar flag para prevenir recálculos prematuros de agregarItem()
+        // que sobreescribirían los totales cargados con ceros
+        CARGANDO_DATOS_EDICION = true;
+
         // Usar cargarDatosItem() —misma función que cargarDatosPrecargados—
         // para evitar race conditions y garantizar que todos los campos
         // (incluyendo materiales y totales) se carguen correctamente.
@@ -2083,8 +2088,23 @@ function cargarDatosEdicionMenor() {
             // (incluye el tiempo de carga de materiales dentro de cargarDatosItem)
             const tiempoItems = Math.max(1200, items.length * 200 + 900);
             setTimeout(() => activarModoEdicionMenor(), tiempoItems);
+
+            // Desactivar flag y forzar recálculo final después de que TODOS los
+            // materiales hayan terminado de cargar (incluyendo staggered delays)
+            const tiempoMateriales = items.reduce((max, item) => {
+                const mats = (item.materiales || []).length;
+                const otros = (item.otrosMateriales || []).length;
+                return Math.max(max, mats * 500 + 1000, otros * 500 + 1300);
+            }, 0);
+            const tiempoTotal = Math.max(tiempoItems + 600, items.length * 150 + tiempoMateriales + 500);
+            setTimeout(() => {
+                CARGANDO_DATOS_EDICION = false;
+                actualizarTodosLosCalculos();
+                console.log('[EDICION_MENOR] Carga completa — recálculo final ejecutado');
+            }, tiempoTotal);
         } else {
             // Sin ítems, activar modo inmediatamente
+            CARGANDO_DATOS_EDICION = false;
             setTimeout(() => agregarItem(), 300);
             setTimeout(() => activarModoEdicionMenor(), 800);
         }
@@ -2398,6 +2418,21 @@ function cargarDatosItem(itemData, index) {
             setTimeout(() => {
                 cargarMaterialesItem(item, itemData.otrosMateriales, 'otrosMateriales');
             }, 800);
+        }
+
+        // Programar recálculo final después de que todos los materiales estén cargados
+        // cargarMaterialesItem usa staggered delays de 500ms por material + 1000ms final
+        const numMateriales = (itemData.materiales || []).length;
+        const numOtros = (itemData.otrosMateriales || []).length;
+        const maxDelay = Math.max(
+            numMateriales > 0 ? 500 + numMateriales * 500 + 1000 : 0,
+            numOtros > 0 ? 800 + numOtros * 500 + 1000 : 0
+        );
+        if (maxDelay > 0) {
+            setTimeout(() => {
+                calcularCostosItem(item);
+                actualizarTodosLosCalculos();
+            }, maxDelay + 200);  // +200ms de margen
         }
 
     } catch (error) {
@@ -2877,7 +2912,9 @@ function agregarItem() {
     const itemCount = container.children.length + 1;
     const template = crearTemplateItem(itemCount);
     container.insertAdjacentHTML('beforeend', template);
-    setTimeout(() => { actualizarTodosLosCalculos(); }, 100);
+    setTimeout(() => {
+        if (!CARGANDO_DATOS_EDICION) actualizarTodosLosCalculos();
+    }, 100);
 }
 
 function clonarItem(button) {
@@ -2909,7 +2946,9 @@ function clonarItem(button) {
 
     itemClonado.open = true;
     container.appendChild(itemClonado);
-    setTimeout(() => { actualizarTodosLosCalculos(); }, 100);
+    setTimeout(() => {
+        if (!CARGANDO_DATOS_EDICION) actualizarTodosLosCalculos();
+    }, 100);
 }
 
 function eliminarItem(button) {
@@ -4112,12 +4151,11 @@ function activarModoEdicionMenor() {
                     el.style.cursor = 'not-allowed';
                 }
             });
-            // Ocultar botones de agregar/eliminar materiales e ítems
-            bloque.querySelectorAll('.btn-eliminar-item, .btn-agregar-material, .btn-eliminar-material, .btn-agregar-otro, .btn-eliminar-otro').forEach(btn => {
-                btn.style.display = 'none';
-            });
+            // NOTA: NO ocultamos los botones de agregar/eliminar materiales porque
+            // cargarMaterialesItem() los necesita para crear filas durante la carga.
+            // Los inputs ya están disabled, así que el usuario no puede modificarlos.
         });
-        // Ocultar botón agregar ítem
+        // Ocultar botón agregar ítem (seguro porque no se usa durante carga)
         const btnAgregarItem = document.getElementById('btn-agregar-item') || document.querySelector('[onclick*="agregarItem"]');
         if (btnAgregarItem) btnAgregarItem.style.display = 'none';
     }, 600);
