@@ -574,7 +574,50 @@ class SupabaseManager:
                     print(f"[GUARDAR] Número consecutivo generado: {numero_cotizacion}")
             
             print(f"[GUARDAR] Procesando cotización: {numero_cotizacion}")
-            
+
+            # RECALCULAR totales de items desde componentes para garantizar consistencia
+            # (misma fórmula que preparar_datos_nueva_revision() y JS calcularCostosItem())
+            items = datos.get('items', [])
+            if isinstance(items, list):
+                for item in items:
+                    if isinstance(item, dict):
+                        try:
+                            # Sumar subtotales de materiales normales
+                            mats = item.get('materiales', [])
+                            total_mat = sum(
+                                float(m.get('subtotal', 0)) if isinstance(m, dict) else 0.0
+                                for m in (mats if isinstance(mats, list) else [])
+                            )
+                            # Sumar subtotales de otros materiales
+                            otros = item.get('otrosMateriales', [])
+                            total_otr = sum(
+                                float(m.get('subtotal', 0)) if isinstance(m, dict) else 0.0
+                                for m in (otros if isinstance(otros, list) else [])
+                            )
+                            # Extraer campos con defaults seguros
+                            def _f(v, d=0.0):
+                                try: return float(v) if v not in (None, '') else d
+                                except (ValueError, TypeError): return d
+                            transp = _f(item.get('transporte', 0))
+                            inst   = _f(item.get('instalacion', 0))
+                            seg    = _f(item.get('seguridad', 0))
+                            desc   = _f(item.get('descuento', 0))
+                            cant   = _f(item.get('cantidad', 1))
+                            if cant <= 0:
+                                cant = 1.0
+                            # Fórmula completa
+                            subtotal_base     = total_mat + total_otr + transp + inst
+                            aumento_seguridad = subtotal_base * (seg / 100.0)
+                            subtotal_con_seg  = subtotal_base + aumento_seguridad
+                            reduccion_desc    = subtotal_con_seg * (desc / 100.0)
+                            costo_unidad      = subtotal_con_seg - reduccion_desc
+                            total_item        = costo_unidad * cant
+                            # Actualizar campos calculados
+                            item['costoUnidad'] = round(costo_unidad, 2)
+                            item['total']       = round(total_item, 2)
+                        except Exception as calc_err:
+                            print(f"[GUARDAR] Error recalculando total de item: {calc_err}")
+
             # SISTEMA HÍBRIDO TRIPLE LAYER (REORDENADO PARA ESTABILIDAD):
             # 1. PRIORIDAD: SDK REST de Supabase (funciona independiente de PostgreSQL)
             if self.supabase_client:

@@ -2390,34 +2390,51 @@ def todas_cotizaciones():
                 if not fecha:
                     fecha = 'N/A'
 
-                # CÁLCULO ROBUSTODEL TOTAL - probar todas las variantes posibles
+                # CÁLCULO ROBUSTO DEL TOTAL - Recalcular desde componentes para garantizar
+                # consistencia con el formulario de edición y preparar_datos_nueva_revision()
+                # Fórmula: (Σmateriales + Σotros + transporte + instalacion)
+                #           * (1 + seguridad/100) * (1 - descuento/100) * cantidad
                 total_calculado = 0.0
                 items = cot.get('items', [])
 
                 if isinstance(items, list):
                     for item in items:
                         if isinstance(item, dict):
-                            # Opción 1: campo 'total' directo en el item
-                            if 'total' in item and item['total']:
-                                total_calculado += safe_float(item.get('total', 0))
-                            # Opción 2: campo 'subtotal'
-                            elif 'subtotal' in item and item['subtotal']:
-                                total_calculado += safe_float(item.get('subtotal', 0))
-                            # Opción 3: calcular de precio_unitario * cantidad
-                            elif 'precio_unitario' in item:
-                                precio = safe_float(item.get('precio_unitario', 0))
-                                cantidad = safe_float(item.get('cantidad', 1))
-                                total_calculado += precio * cantidad
-                            # Opción 4: calcular de precio * cantidad
-                            elif 'precio' in item:
-                                precio = safe_float(item.get('precio', 0))
-                                cantidad = safe_float(item.get('cantidad', 1))
-                                total_calculado += precio * cantidad
-                            # Opción 5: costoUnidad * cantidad
-                            elif 'costoUnidad' in item:
-                                costo = safe_float(item.get('costoUnidad', 0))
-                                cantidad = safe_float(item.get('cantidad', 1))
-                                total_calculado += costo * cantidad
+                            # Sumar subtotales de materiales normales
+                            materiales_list = item.get('materiales', [])
+                            total_materiales = 0.0
+                            if isinstance(materiales_list, list):
+                                total_materiales = sum(
+                                    safe_float(m.get('subtotal', 0))
+                                    for m in materiales_list if isinstance(m, dict)
+                                )
+
+                            # Sumar subtotales de otros materiales
+                            otros_list = item.get('otrosMateriales', [])
+                            total_otros = 0.0
+                            if isinstance(otros_list, list):
+                                total_otros = sum(
+                                    safe_float(m.get('subtotal', 0))
+                                    for m in otros_list if isinstance(m, dict)
+                                )
+
+                            transporte  = safe_float(item.get('transporte', 0))
+                            instalacion = safe_float(item.get('instalacion', 0))
+                            seguridad   = safe_float(item.get('seguridad', 0))
+                            descuento   = safe_float(item.get('descuento', 0))
+                            cantidad    = safe_float(item.get('cantidad', 1))
+                            if cantidad <= 0:
+                                cantidad = 1
+
+                            # Misma fórmula que preparar_datos_nueva_revision() y JS calcularCostosItem()
+                            subtotal_base     = total_materiales + total_otros + transporte + instalacion
+                            aumento_seguridad = subtotal_base * (seguridad / 100.0)
+                            subtotal_con_seg  = subtotal_base + aumento_seguridad
+                            reduccion_desc    = subtotal_con_seg * (descuento / 100.0)
+                            costo_unidad      = subtotal_con_seg - reduccion_desc
+                            total_item        = costo_unidad * cantidad
+
+                            total_calculado += total_item
 
                 # Obtener moneda de condiciones o datosGenerales
                 condiciones = cot.get('condiciones', {})
