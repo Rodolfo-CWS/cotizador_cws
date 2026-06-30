@@ -520,8 +520,8 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
     # ── PIE DE PÁGINA ──
     story.append(Spacer(1, 14))
 
-    footer_line = Drawing(430, 2)
-    footer_line.add(GraphicsLine(0, 0, 430, 0, strokeColor=CORPORATE_INDIGO, strokeWidth=2))
+    footer_line = Drawing(526, 2)
+    footer_line.add(GraphicsLine(0, 0, 526, 0, strokeColor=CORPORATE_INDIGO, strokeWidth=2))
     story.append(footer_line)
     story.append(Spacer(1, 8))
 
