@@ -16,10 +16,10 @@ from cotizador._compat import REPORTLAB_AVAILABLE
 from cotizador.utilities import wrap_description_text
 
 
-# ── Constantes de color corporativo ──
-CORPORATE_INDIGO = colors.HexColor('#4f46e5')
-CORPORATE_INDIGO_DARK = colors.HexColor('#3730a3')
-CORPORATE_INDIGO_LIGHT = colors.HexColor('#eef2ff')
+# ── Constantes de color corporativo (paleta monocromática) ──
+CORPORATE_INDIGO = colors.HexColor('#1f2937')       # texto y líneas principales
+CORPORATE_INDIGO_DARK = colors.HexColor('#111827')  # énfasis fuerte
+CORPORATE_INDIGO_LIGHT = colors.HexColor('#f3f4f6') # fondo sutil
 TEXT_DARK = colors.HexColor('#1f2937')
 TEXT_GRAY = colors.HexColor('#6b7280')
 TEXT_BODY = colors.HexColor('#374151')
@@ -372,65 +372,6 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
 
         story.append(totales_container)
 
-    # ── IMAGEN DE REFERENCIA ──
-    imagen_referencia = datos_cotizacion.get('datosGenerales', {}).get('imagenReferencia', None)
-    if imagen_referencia and imagen_referencia.get('url'):
-        img_url = imagen_referencia.get('url', '')
-        img_path = None
-        _is_temp = False
-        try:
-            if img_url.startswith('http'):
-                import urllib.request
-                import tempfile
-                with urllib.request.urlopen(img_url, timeout=15) as response:
-                    img_bytes = response.read()
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
-                    tmp.write(img_bytes)
-                    img_path = tmp.name
-                    _is_temp = True
-            elif img_url.startswith('static/'):
-                candidate = os.path.join(os.path.dirname(os.path.dirname(__file__)), img_url)
-                if os.path.exists(candidate):
-                    img_path = candidate
-            elif os.path.exists(img_url):
-                img_path = img_url
-
-            if img_path and os.path.exists(img_path):
-                from reportlab.lib.utils import ImageReader
-                img_reader = ImageReader(img_path)
-                img_w, img_h = img_reader.getSize()
-
-                max_w = 4 * inch
-                max_h = 3 * inch
-                scale = min(max_w / img_w, max_h / img_h, 1.0)
-                display_w = img_w * scale
-                display_h = img_h * scale
-
-                img_flowable = Image(img_path, width=display_w, height=display_h)
-                img_container = Table([[img_flowable]], colWidths=[6.5 * inch])
-                img_container.setStyle(TableStyle([
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ]))
-
-                story.append(Spacer(1, 10))
-                story.append(Paragraph("IMAGEN DE REFERENCIA", subtitle_style))
-                story.append(Spacer(1, 4))
-                story.append(img_container)
-                story.append(Spacer(1, 4))
-
-                print(f"[PDF_IMAGEN] Imagen incrustada ({display_w:.0f}x{display_h:.0f}px)")
-            else:
-                print(f"[PDF_IMAGEN] No se pudo resolver ruta: {img_url}")
-        except Exception as e:
-            print(f"[PDF_IMAGEN] Error incrustando imagen (se omite): {e}")
-        finally:
-            if _is_temp and img_path and os.path.exists(img_path):
-                try:
-                    os.unlink(img_path)
-                except Exception:
-                    pass
-
     # ── NOTA DE CONVERSIÓN USD ──
     if moneda == 'USD' and conversion_note:
         story.append(Spacer(1, 6))
@@ -518,6 +459,65 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
     terminos_table.setStyle(TableStyle(base_style))
 
     story.append(terminos_table)
+
+    # ── IMAGEN DE REFERENCIA ──
+    imagen_referencia = datos_cotizacion.get('datosGenerales', {}).get('imagenReferencia', None)
+    if imagen_referencia and imagen_referencia.get('url'):
+        img_url = imagen_referencia.get('url', '')
+        img_path = None
+        _is_temp = False
+        try:
+            if img_url.startswith('http'):
+                import urllib.request
+                import tempfile
+                with urllib.request.urlopen(img_url, timeout=15) as response:
+                    img_bytes = response.read()
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
+                    tmp.write(img_bytes)
+                    img_path = tmp.name
+                    _is_temp = True
+            elif img_url.startswith('static/'):
+                candidate = os.path.join(os.path.dirname(os.path.dirname(__file__)), img_url)
+                if os.path.exists(candidate):
+                    img_path = candidate
+            elif os.path.exists(img_url):
+                img_path = img_url
+
+            if img_path and os.path.exists(img_path):
+                from reportlab.lib.utils import ImageReader
+                img_reader = ImageReader(img_path)
+                img_w, img_h = img_reader.getSize()
+
+                max_w = 4 * inch
+                max_h = 3 * inch
+                scale = min(max_w / img_w, max_h / img_h, 1.0)
+                display_w = img_w * scale
+                display_h = img_h * scale
+
+                img_flowable = Image(img_path, width=display_w, height=display_h)
+                img_container = Table([[img_flowable]], colWidths=[6.5 * inch])
+                img_container.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ]))
+
+                story.append(Spacer(1, 6))
+                story.append(Paragraph("IMAGEN DE REFERENCIA", subtitle_style))
+                story.append(Spacer(1, 4))
+                story.append(img_container)
+                story.append(Spacer(1, 4))
+
+                print(f"[PDF_IMAGEN] Imagen incrustada ({display_w:.0f}x{display_h:.0f}px)")
+            else:
+                print(f"[PDF_IMAGEN] No se pudo resolver ruta: {img_url}")
+        except Exception as e:
+            print(f"[PDF_IMAGEN] Error incrustando imagen (se omite): {e}")
+        finally:
+            if _is_temp and img_path and os.path.exists(img_path):
+                try:
+                    os.unlink(img_path)
+                except Exception:
+                    pass
 
     # ── PIE DE PÁGINA ──
     story.append(Spacer(1, 8))
