@@ -491,9 +491,12 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         tl('Comentarios:'), tv(comentarios_val, 'Sin comentarios adicionales'), '', ''
     ])
 
-    terms_col = 1.25*inch
-    terms_val_col = 2.4*inch
-    terminos_table = Table(terminos_data, colWidths=[terms_col, terms_val_col, terms_col, terms_val_col])
+    # Columnas asimétricas: labels derechos más anchos ("Tiempo de Entrega:", "Términos de Pago:")
+    terms_col_L = 1.0*inch
+    terms_val_L = 2.5*inch
+    terms_col_R = 1.45*inch
+    terms_val_R = 2.35*inch
+    terminos_table = Table(terminos_data, colWidths=[terms_col_L, terms_val_L, terms_col_R, terms_val_R])
 
     # Estilo base
     base_style = [
@@ -502,8 +505,8 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('TOPPADDING', (0, 0), (-1, -1), 5),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ('LEFTPADDING', (0, 0), (-1, -1), 8),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
         ('BOX', (0, 0), (-1, -1), 0.3, BORDER_GRAY),
         ('INNERGRID', (0, 0), (-1, -1), 0.3, BORDER_GRAY),
     ]
