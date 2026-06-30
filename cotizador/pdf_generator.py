@@ -212,10 +212,9 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
     # ── TEXTO INTRODUCTORIO ──
     intro_style = ParagraphStyle(
         'IntroText', parent=styles['Normal'],
-        fontSize=8, fontName='Helvetica',
+        fontSize=9, fontName='Helvetica',
         textColor=TEXT_BODY, alignment=4,
-        spaceAfter=8, borderPadding=8,
-        backColor=BG_LIGHT, borderColor=BORDER_GRAY, borderWidth=0.5
+        spaceAfter=8, leading=13
     )
 
     if texto_personalizado:
