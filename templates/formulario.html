@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cotizador CWS - Nuevo Formulario</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/toast.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
@@ -40,6 +41,30 @@
         .descripcion-item[contenteditable] ul { list-style: disc; padding-left: 18px; margin: 2px 0; }
         details[open] summary ~ * { animation: slideDown 0.3s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Secciones colapsables del formulario */
+        details.form-section { margin-bottom: 24px; }
+        details.form-section > summary {
+            list-style: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            user-select: none;
+        }
+        details.form-section > summary::-webkit-details-marker { display: none; }
+        details.form-section > summary::before {
+            content: '▼';
+            margin-right: 10px;
+            font-size: 12px;
+            transition: transform 0.2s ease;
+            color: var(--primary, #4f46e5);
+        }
+        details.form-section:not([open]) > summary::before {
+            content: '▶';
+        }
+        details.form-section > summary h2 { margin: 0; flex: 1; }
+        details.form-section[open] > summary ~ * { animation: slideDown 0.3s ease; }
         
         
         /* Icon buttons styles */
@@ -283,10 +308,10 @@
     <form id="cotizacion-form" class="space-y-6">
         
         <!-- DATOS GENERALES -->
-        <section class="bg-white rounded-lg shadow-lg p-6">
-            <h2 class="text-2xl font-bold text-indigo-700 mb-4 flex items-center">
+        <details class="form-section bg-white rounded-lg shadow-lg p-6" open>
+            <summary class="text-2xl font-bold text-indigo-700 mb-4 flex items-center">
                 Datos Generales
-            </h2>
+            </summary>
             
             <div id="datos-generales-form">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -378,14 +403,12 @@
                     <div id="image-error" class="text-red-600 text-xs mt-1 hidden"></div>
                 </div>
             </div>
-        </section>
+        </details>
         <!-- ITEMS DINÁMICOS -->
-        <section class="bg-white rounded-lg shadow-lg p-6">
-            <div class="mb-4">
-                <h2 class="text-2xl font-bold text-indigo-700 flex items-center">
-                    Items de Cotización
-                </h2>
-            </div>
+        <details class="form-section bg-white rounded-lg shadow-lg p-6" open>
+            <summary class="text-2xl font-bold text-indigo-700 flex items-center mb-4">
+                Items de Cotización
+            </summary>
             
             <div id="items-container" class="space-y-4">
                 <!-- Los items se agregan dinámicamente aquí -->
@@ -400,13 +423,13 @@
                     Agregar Item
                 </button>
             </div>
-        </section>
+        </details>
 
         <!-- TÉRMINOS Y CONDICIONES -->
-        <section class="bg-white rounded-lg shadow-lg p-6">
-            <h2 class="text-2xl font-bold text-indigo-700 mb-4 flex items-center">
+        <details class="form-section bg-white rounded-lg shadow-lg p-6" open>
+            <summary class="text-2xl font-bold text-indigo-700 mb-4 flex items-center">
                 Términos y Condiciones
-            </h2>
+            </summary>
             
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
@@ -466,13 +489,13 @@
                           placeholder="Notas internas del equipo — NO aparecerán en el PDF del cliente..."></textarea>
                 <p class="text-xs text-amber-600 mt-1">Estos comentarios son solo para uso interno. No se incluyen en el PDF.</p>
             </div>
-        </section>
+        </details>
 
         <!-- RESUMEN FINANCIERO DESGLOSADO -->
-        <section class="bg-white rounded-lg shadow-lg p-6 border border-gray-300">
-            <h2 class="text-2xl font-bold text-gray-700 mb-4 flex items-center">
+        <details class="form-section bg-white rounded-lg shadow-lg p-6 border border-gray-300" open>
+            <summary class="text-2xl font-bold text-gray-700 mb-4 flex items-center">
                 Resumen Financiero
-            </h2>
+            </summary>
             
             <!-- Desglose por Items -->
             <div id="resumen-items" class="mb-6">
@@ -496,7 +519,7 @@
                     <p id="gran-total" class="text-3xl font-bold text-gray-900">$0.00</p>
                 </div>
             </div>
-        </section>
+        </details>
 
         <!-- BANNER MODO EDICIÓN MENOR -->
         <div id="banner-edicion-menor" style="display:none; background:#fef3c7; border:2px solid #f59e0b; border-radius:8px; padding:14px 20px; margin-bottom:16px;">
@@ -1395,7 +1418,7 @@ async function cargarDraftSeleccionado(draftId) {
                     if (faltanOtros) partes.push((totalOtrosEsperados - totalOtrosEncontrados) + ' otros materiales');
                     var msg = 'ATENCION: No se cargaron todos los datos del borrador. Faltan ' + partes.join(' y ') + '.\n\nVerifique el panel de logs para mas detalles.';
                     agregarLog(msg, 'error');
-                    alert(msg);
+                    showToast(msg, 'warning');
                 } else if (totalMatEsperados === 0 && totalOtrosEsperados === 0) {
                     agregarLog('Sin materiales para verificar (borrador sin datos de materiales)', 'info');
                 } else {
@@ -1405,7 +1428,7 @@ async function cargarDraftSeleccionado(draftId) {
                 agregarLog('========================================', 'info');
             }, delayVerificacion);
 
-            alert(`Borrador "${draft.nombre}" cargado exitosamente`);
+            showToast('Borrador "' + draft.nombre + '" cargado exitosamente', 'success');
 
         } else {
             throw new Error(resultado.error || 'Draft no encontrado');
@@ -1418,7 +1441,7 @@ async function cargarDraftSeleccionado(draftId) {
         agregarLog(`Stack: ${error.stack}`, 'error');
         agregarLog('========================================', 'info');
         console.error('[DRAFT] Error completo:', error);
-        alert(`Error al cargar borrador: ${error.message}\n\nMira el panel de logs en la pantalla para más detalles.`);
+        showToast('Error al cargar borrador: ' + error.message, 'error');
     }
 }
 
@@ -1469,12 +1492,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         cargarDatosEdicionMenor();
                     } else {
                         console.error('[EDICION_MENOR] API fallback no encontró la cotización:', edicionMenorId, resultado);
-                        alert('No se pudieron cargar los datos de la cotización "' + edicionMenorId + '".\nVerifique que la cotización existe y vuelva a intentarlo.');
+                        showToast('No se pudieron cargar los datos de la cotización. Verifique que existe y vuelva a intentarlo.', 'error');
                     }
                 })
                 .catch(err => {
                     console.error('[EDICION_MENOR] Error en fetch fallback:', err);
-                    alert('Error de conexión al cargar los datos de edición. Intente recargar la página.');
+                    showToast('Error de conexión al cargar los datos de edición. Intente recargar la página.', 'error');
                 });
         }
     }
@@ -1506,12 +1529,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         cargarDatosPrecargados();
                     } else {
                         console.error('[REVISION] API fallback no encontró la cotización:', revisionId, resultado);
-                        alert('No se pudieron cargar los datos de la cotización "' + revisionId + '" para nueva revisión.');
+                        showToast('No se pudieron cargar los datos de la cotización para nueva revisión.', 'error');
                     }
                 })
                 .catch(err => {
                     console.error('[REVISION] Error en fetch fallback (revisión):', err);
-                    alert('Error de conexión al cargar los datos de revisión. Intente recargar la página.');
+                    showToast('Error de conexión al cargar los datos de revisión. Intente recargar la página.', 'error');
                 });
         }
     }
@@ -2484,7 +2507,7 @@ function cargarMaterialesItem(itemElement, materiales, tipo) {
 			var errorMsg = 'No se pudo encontrar boton para ' + tipoLabel + '. El borrador tiene ' + materiales.length + ' ' + tipo + ' pero no se pueden agregar filas.';
 			agregarLog(errorMsg, 'error');
 			console.error(errorMsg);
-			alert('ATENCION: Error cargando borrador.\\n\\n' + errorMsg + '\\n\\nLos datos estan guardados pero no se pudieron mostrar en el formulario.');
+			showToast('ATENCION: Error cargando borrador. Los datos estan guardados pero no se pudieron mostrar en el formulario.', 'warning');
 			return;
 		}
 
@@ -2990,8 +3013,9 @@ function clonarItem(button) {
     }, 100);
 }
 
-function eliminarItem(button) {
-    if (!confirm('¿Está seguro que desea eliminar este ítem?')) return;
+async function eliminarItem(button) {
+    const confirmDelete = await showConfirm('¿Está seguro que desea eliminar este ítem?');
+    if (!confirmDelete) return;
 
     const item = button.closest('.item-block');
     item.remove();
@@ -3777,7 +3801,7 @@ async function guardarCotizacion() {
         for (let campo of camposRequeridos) {
             const elemento = document.querySelector(`[name="${campo}"]`);
             if (!elemento || !elemento.value.trim()) {
-                alert(`El campo "${campo}" es obligatorio.`);
+                showToast('El campo "' + campo + '" es obligatorio.', 'warning');
                 elemento?.focus();
                 return;
             }
@@ -3798,7 +3822,7 @@ async function guardarCotizacion() {
                     'La justificación debe tener al menos 10 caracteres para explicar los cambios realizados.' :
                     'Debe proporcionar una justificación detallada para revisiones R2 o superiores.';
                 
-                alert(errorMsg);
+                showToast(errorMsg, 'warning');
                 actualizacionTextarea?.focus();
                 
                 // Remover el estilo de error después de 3 segundos
@@ -3816,7 +3840,7 @@ async function guardarCotizacion() {
             const hayCambios = formularioTieneCambios();
 
             if (!hayCambios) {
-                alert('No se han detectado cambios en el formulario.\n\nDebe realizar al menos una modificación (en items, cantidades, precios, términos, etc.) antes de guardar la revisión.');
+                showToast('No se han detectado cambios en el formulario. Debe realizar al menos una modificación antes de guardar la revisión.', 'warning');
 
                 btnGuardar.disabled = false;
                 btnGuardar.classList.remove('btn-loading');
@@ -3853,7 +3877,7 @@ async function guardarCotizacion() {
         const itemsBlocks = document.querySelectorAll('.item-block');
         
         if (itemsBlocks.length === 0) {
-            alert('Debe agregar al menos un item a la cotización.');
+            showToast('Debe agregar al menos un item a la cotización.', 'warning');
             return;
         }
 
@@ -3940,7 +3964,7 @@ async function guardarCotizacion() {
         });
 
         if (items.length === 0) {
-            alert('Debe completar al menos un item con información válida.');
+            showToast('Debe completar al menos un item con información válida.', 'warning');
             return;
         }
 
@@ -3955,13 +3979,13 @@ async function guardarCotizacion() {
 
         // Solo moneda es obligatoria - otros campos opcionales para flexibilidad USD
         if (!condiciones.moneda || condiciones.moneda.trim() === "") {
-            alert('El campo "moneda" en Términos y Condiciones es obligatorio.');
+            showToast('El campo "moneda" en Términos y Condiciones es obligatorio.', 'warning');
             document.querySelector('[name="moneda"]')?.focus();
             return;
         }
 
         if (condiciones.moneda === 'USD' && (!condiciones.tipoCambio || parseFloat(condiciones.tipoCambio) <= 0)) {
-            alert('El tipo de cambio es obligatorio para USD y debe ser mayor a 0.');
+            showToast('El tipo de cambio es obligatorio para USD y debe ser mayor a 0.', 'warning');
             document.getElementById('tipo-cambio')?.focus();
             return;
         }
@@ -4069,7 +4093,7 @@ async function guardarCotizacion() {
 
             const mensaje = `¡Cotización guardada exitosamente!\n\nNúmero: ${numeroGenerado || datosGenerales.numeroCotizacion}\nRevisión: ${datosGenerales.revision}\nID: ${resultado.id || 'Generado automáticamente'}\nCliente: ${datosGenerales.cliente}\nVendedor: ${datosGenerales.vendedor}\nItems procesados: ${items.length}\nTotal: ${document.getElementById('gran-total')?.textContent || 'N/A'}`;
 
-            alert(mensaje);
+            showToast(mensaje, 'success');
             cotizacionGuardada = true;
 
             const botonGenerar = document.getElementById("btn-generar");
@@ -4104,7 +4128,7 @@ async function guardarCotizacion() {
                 }
             }
             
-            alert(`Error al guardar la cotización:\n\n${errorMensaje}\n\nPor favor, verifica los datos e intenta nuevamente.`);
+            showToast('Error al guardar la cotización: ' + errorMensaje, 'error');
             throw new Error(errorMensaje);
         }
 
@@ -4119,7 +4143,7 @@ async function guardarCotizacion() {
             mensajeError += error.message;
         }
         
-        alert(`${mensajeError}\n\nIntenta nuevamente o contacta al administrador del sistema.`);
+        showToast(mensajeError + ' Intenta nuevamente o contacta al administrador del sistema.', 'error');
         cotizacionGuardada = false;
     } finally {
         if (!cotizacionGuardada) {
@@ -4277,7 +4301,7 @@ async function guardarEdicionMenor() {
             btnGuardar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/></svg> Corrección guardada';
             btnGuardar.style.backgroundColor = '#10b981';
             btnGuardar.style.borderColor = '#10b981';
-            alert(`¡Corrección guardada exitosamente!\n\nNúmero: ${numero}\n\nEl PDF se regenerará con los cambios.`);
+            showToast('¡Corrección guardada exitosamente! Número: ' + numero + '. El PDF se regenerará con los cambios.', 'success');
 
             // Regenerar PDF en segundo plano con el texto introductorio guardado
             const bodyPDF = { numeroCotizacion: numero };
@@ -4290,13 +4314,13 @@ async function guardarEdicionMenor() {
                 body: JSON.stringify(bodyPDF)
             }).catch(() => {});
         } else {
-            alert(`Error al guardar la corrección:\n\n${resultado.error}`);
+            showToast('Error al guardar la corrección: ' + resultado.error, 'error');
             btnGuardar.disabled = false;
             btnGuardar.innerHTML = textoOriginal;
         }
 
     } catch (error) {
-        alert(`Error inesperado:\n\n${error.message}`);
+        showToast('Error inesperado: ' + error.message, 'error');
         btnGuardar.disabled = false;
         btnGuardar.innerHTML = textoOriginal;
     }
@@ -4500,7 +4524,7 @@ async function abrirModalVistaPrevia(numeroCotizacion) {
 
 async function generarPDFDesdePreview() {
     if (!numeroCotizacionActual) {
-        alert('Error: No se encontro el numero de cotizacion.');
+        showToast('Error: No se encontro el numero de cotizacion.', 'error');
         return;
     }
 
@@ -4550,10 +4574,10 @@ async function generarPDFDesdePreview() {
         // Liberar el blob URL después de un tiempo
         setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
 
-        alert('PDF generado exitosamente para ' + numeroParaPDF + '\n\nEl PDF se ha abierto en una nueva pestana.');
+        showToast('PDF generado exitosamente. El PDF se ha abierto en una nueva pestaña.', 'success');
 
     } catch (error) {
-        alert('Error al generar el PDF:\n\n' + error.message);
+        showToast('Error al generar el PDF: ' + error.message, 'error');
     } finally {
         btnGenerar.disabled = false;
         btnGenerar.innerHTML = textoOriginal;
@@ -4562,7 +4586,7 @@ async function generarPDFDesdePreview() {
 
 async function intentarGenerarCotizacion() {
     if (!cotizacionGuardada) {
-        alert("Primero debes guardar la cotización antes de generar el PDF.\n\nHaz clic en 'Guardar Cotización' para continuar.");
+        showToast("Primero debes guardar la cotización antes de generar el PDF. Haz clic en 'Guardar Cotización' para continuar.", 'warning');
         return;
     }
     
@@ -4583,7 +4607,7 @@ async function intentarGenerarCotizacion() {
     }
     
     if (!numeroCotizacion) {
-        alert('No se encontró el número de cotización. Asegúrate de que la cotización esté guardada correctamente.\n\nVerifica la consola del navegador (F12) para más detalles.');
+        showToast('No se encontró el número de cotización. Asegúrate de que la cotización esté guardada correctamente.', 'error');
         return;
     }
     

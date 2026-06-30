@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CWS - Cotizaciones</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/toast.js"></script>
     <style>
         /* Estilos específicos de home.html */
 
@@ -53,6 +54,31 @@
             font-weight: 600;
             color: var(--gray-900);
             margin: 0;
+        }
+
+        /* Indicadores de ordenamiento */
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        th.sortable:hover {
+            background: var(--gray-200);
+        }
+        th.sortable::after {
+            content: ' ⇅';
+            opacity: 0.3;
+            font-size: 12px;
+        }
+        th.sort-asc::after {
+            content: ' ↑';
+            opacity: 1;
+            color: var(--primary);
+        }
+        th.sort-desc::after {
+            content: ' ↓';
+            opacity: 1;
+            color: var(--primary);
         }
     </style>
 </head>
@@ -198,13 +224,13 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Número</th>
-                        <th>Cliente</th>
-                        <th>Vendedor</th>
-                        <th>Proyecto</th>
-                        <th>Fecha</th>
-                        <th>Rev</th>
-                        <th>Monto antes de IVA</th>
+                        <th class="sortable" data-sort="numero">Número</th>
+                        <th class="sortable" data-sort="cliente">Cliente</th>
+                        <th class="sortable" data-sort="vendedor">Vendedor</th>
+                        <th class="sortable" data-sort="proyecto">Proyecto</th>
+                        <th class="sortable" data-sort="fecha">Fecha</th>
+                        <th class="sortable" data-sort="revision">Rev</th>
+                        <th class="sortable" data-sort="total">Monto antes de IVA</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -341,8 +367,9 @@
             window.location.href = '/?' + params.toString();
         }
 
-        function cerrarSesion() {
-            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+        async function cerrarSesion() {
+            const confirmLogout = await showConfirm('¿Estás seguro de que deseas cerrar sesión?');
+            if (confirmLogout) {
                 window.location.href = '/logout';
             }
         }
@@ -414,7 +441,8 @@
         }
 
         async function eliminarDraft(draftId) {
-            if (!confirm('¿Estás seguro de que deseas eliminar este borrador?')) return;
+            const confirmDel = await showConfirm('¿Estás seguro de que deseas eliminar este borrador?');
+            if (!confirmDel) return;
 
             try {
                 const respuesta = await fetch(`/api/draft/delete/${draftId}`, { method: 'DELETE' });
@@ -426,7 +454,7 @@
                     await cargarConteoDrafts();
                 }
             } catch (error) {
-                alert(`Error al eliminar borrador: ${error.message}`);
+                showToast('Error al eliminar borrador: ' + error.message, 'error');
             }
         }
 
@@ -451,12 +479,72 @@
                     buscarRapido();
                 }
             });
+
+            // Ordenamiento por columnas
+            document.querySelectorAll('th.sortable').forEach(function(th) {
+                th.addEventListener('click', function() {
+                    sortTable(this.dataset.sort);
+                });
+            });
+            // Ordenar por fecha descendente por defecto
+            sortTable('fecha');
+            sortTable('fecha');
         });
 
         // Cerrar modal al hacer clic fuera
         document.getElementById('modalDrafts').addEventListener('click', function(e) {
             if (e.target === this) cerrarModalDrafts();
         });
+
+        var currentSort = { column: 'fecha', direction: 'desc' };
+
+        function sortTable(column) {
+            var table = document.querySelector('.table-container table');
+            if (!table || !table.tBodies || !table.tBodies[0]) return;
+            var tbody = table.tBodies[0];
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+
+            var colIndex = { numero: 0, cliente: 1, vendedor: 2, proyecto: 3, fecha: 4, revision: 5, total: 6 }[column];
+
+            rows.sort(function(a, b) {
+                var aVal = (a.cells[colIndex] ? a.cells[colIndex].textContent.trim() : '');
+                var bVal = (b.cells[colIndex] ? b.cells[colIndex].textContent.trim() : '');
+                var cmp = 0;
+
+                if (column === 'total') {
+                    var aNum = parseFloat(aVal.replace(/[^0-9.-]/g, '')) || 0;
+                    var bNum = parseFloat(bVal.replace(/[^0-9.-]/g, '')) || 0;
+                    cmp = aNum - bNum;
+                } else if (column === 'revision') {
+                    cmp = (parseInt(aVal.replace('R', '')) || 0) - (parseInt(bVal.replace('R', '')) || 0);
+                } else if (column === 'fecha') {
+                    cmp = (new Date(aVal) - new Date(bVal)) || aVal.localeCompare(bVal);
+                } else {
+                    cmp = aVal.localeCompare(bVal, 'es', { sensitivity: 'base' });
+                }
+
+                return currentSort.direction === 'asc' ? cmp : -cmp;
+            });
+
+            rows.forEach(function(row) { tbody.appendChild(row); });
+            updateSortIndicators();
+        }
+
+        function updateSortIndicators() {
+            document.querySelectorAll('th.sortable').forEach(function(th) {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.dataset.sort === currentSort.column) {
+                    th.classList.add(currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+        }
 
         function descargarOCompartirPDF(numero) {
             const url = `/pdf/${numero}`;

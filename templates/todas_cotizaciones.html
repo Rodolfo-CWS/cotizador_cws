@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Todas las Cotizaciones - CWS</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/toast.js"></script>
     <style>
         /* Estilos específicos de todas_cotizaciones.html */
 
@@ -597,8 +598,9 @@
             sortTable('fecha'); // Doble click para descendente
         });
 
-        function cerrarSesion() {
-            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+        async function cerrarSesion() {
+            const confirmLogout = await showConfirm('¿Estás seguro de que deseas cerrar sesión?');
+            if (confirmLogout) {
                 window.location.href = '/logout';
             }
         }
