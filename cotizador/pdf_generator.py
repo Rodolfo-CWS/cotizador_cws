@@ -470,14 +470,23 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
             if img_url.startswith('http'):
                 import urllib.request
                 import tempfile
-                with urllib.request.urlopen(img_url, timeout=15) as response:
+                req = urllib.request.Request(img_url, headers={'User-Agent': 'CWS-Cotizador/1.0'})
+                with urllib.request.urlopen(req, timeout=15) as response:
+                    content_type = response.headers.get('Content-Type', '')
+                    if response.status != 200:
+                        raise Exception(f"HTTP {response.status}")
+                    # Verificar que sea una imagen, no HTML de login/error
+                    if 'text/html' in content_type:
+                        raise Exception(f"Recibido HTML en vez de imagen (URL requiere auth?). Content-Type: {content_type}")
                     img_bytes = response.read()
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
                     tmp.write(img_bytes)
                     img_path = tmp.name
                     _is_temp = True
-            elif img_url.startswith('static/'):
-                candidate = os.path.join(os.path.dirname(os.path.dirname(__file__)), img_url)
+            elif img_url.startswith('/static/') or img_url.startswith('static/'):
+                # Soporta tanto /static/... como static/...
+                clean_url = img_url.lstrip('/')
+                candidate = os.path.join(os.path.dirname(os.path.dirname(__file__)), clean_url)
                 if os.path.exists(candidate):
                     img_path = candidate
             elif os.path.exists(img_url):
