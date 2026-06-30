@@ -442,7 +442,7 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         story.append(Paragraph(f"<i>{conversion_note}</i>", conversion_style))
 
     # ── TÉRMINOS Y CONDICIONES ──
-    story.append(Spacer(1, 14))
+    story.append(Spacer(1, 4))
     story.append(Paragraph("TÉRMINOS Y CONDICIONES", subtitle_style))
     story.append(Spacer(1, 6))
 
@@ -491,8 +491,8 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         tl('Comentarios:'), tv(comentarios_val, 'Sin comentarios adicionales'), '', ''
     ])
 
-    terms_col = 1.15*inch
-    terms_val_col = 2.5*inch
+    terms_col = 1.25*inch
+    terms_val_col = 2.4*inch
     terminos_table = Table(terminos_data, colWidths=[terms_col, terms_val_col, terms_col, terms_val_col])
 
     # Estilo base
