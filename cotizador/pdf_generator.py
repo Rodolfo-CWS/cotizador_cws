@@ -504,8 +504,7 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
         ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-        ('BACKGROUND', (0, 0), (-1, -1), BG_LIGHT),
-        ('BOX', (0, 0), (-1, -1), 0.75, CORPORATE_INDIGO),
+        ('BOX', (0, 0), (-1, -1), 0.3, BORDER_GRAY),
         ('INNERGRID', (0, 0), (-1, -1), 0.3, BORDER_GRAY),
     ]
 
