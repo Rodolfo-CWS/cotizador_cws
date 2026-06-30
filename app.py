@@ -796,7 +796,7 @@ def procesar_imagen_referencia(datos, numero_cotizacion):
             local_images_dir.mkdir(parents=True, exist_ok=True)
             local_path = local_images_dir / nombre_archivo
             local_path.write_bytes(image_bytes)
-            url = f"static/imagenes_referencia/{nombre_archivo}"
+            url = f"/static/imagenes_referencia/{nombre_archivo}"
             print(f"[IMAGEN] Guardada localmente: {local_path}")
         except Exception as e:
             print(f"[IMAGEN] Error en fallback local: {e}")
