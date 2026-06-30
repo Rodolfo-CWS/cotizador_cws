@@ -142,13 +142,7 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
     ]))
 
     story.append(header_table)
-    story.append(Spacer(1, 6))
-
-    # Línea separadora gruesa
-    line_drawing = Drawing(430, 2)
-    line_drawing.add(GraphicsLine(0, 0, 430, 0, strokeColor=CORPORATE_INDIGO, strokeWidth=3))
-    story.append(line_drawing)
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 4))
 
     # ── INFORMACIÓN DEL CLIENTE ──
     # Proyecto destacado
@@ -160,19 +154,30 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
             borderPadding=6, alignment=1
         )
         story.append(Paragraph(f"PROYECTO: {datos_generales.get('proyecto', '')}", proyecto_style))
-        story.append(Spacer(1, 8))
+        story.append(Spacer(1, 6))
 
-    # Datos del cliente
+    # Estilo para valores del cliente con word-wrap
+    client_value_style = ParagraphStyle(
+        'ClientValue', parent=styles['Normal'],
+        fontSize=9, fontName='Helvetica',
+        textColor=TEXT_DARK, alignment=0,
+        leading=11, wordWrap='CJK'
+    )
+
+    # Datos del cliente con Paragraph para wrap
+    def p(text):
+        return Paragraph(text or '', client_value_style)
+
     info_data = [
-        ['Cliente:', datos_generales.get('cliente', ''), 'Vendedor:', datos_generales.get('vendedor', '')],
-        ['Atención A:', datos_generales.get('atencionA', ''), 'Contacto:', datos_generales.get('contacto', '')],
+        ['Cliente:', p(datos_generales.get('cliente', '')), 'Vendedor:', p(datos_generales.get('vendedor', ''))],
+        ['Atención A:', p(datos_generales.get('atencionA', '')), 'Contacto:', p(datos_generales.get('contacto', ''))],
     ]
 
     if datos_generales.get('revision', '1') != '1':
-        info_data.append(['Revisión:', f"Rev. {datos_generales.get('revision', '1')}",
-                         'Actualización:', datos_generales.get('actualizacionRevision', '')])
+        info_data.append(['Revisión:', p(f"Rev. {datos_generales.get('revision', '1')}"),
+                         'Actualización:', p(datos_generales.get('actualizacionRevision', ''))])
 
-    info_table = Table(info_data, colWidths=[1.2*inch, 2.8*inch, 1.2*inch, 2.8*inch])
+    info_table = Table(info_data, colWidths=[1.1*inch, 2.9*inch, 1.1*inch, 2.9*inch])
     info_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
@@ -193,7 +198,7 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         ('TEXTCOLOR', (3, 0), (3, -1), TEXT_DARK),
 
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
 
         ('BOX', (0, 0), (-1, -1), 1.5, CORPORATE_INDIGO),
         ('INNERGRID', (0, 0), (-1, -1), 0.5, BORDER_GRAY),
