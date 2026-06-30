@@ -446,17 +446,11 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
     story.append(Paragraph("TÉRMINOS Y CONDICIONES", subtitle_style))
     story.append(Spacer(1, 6))
 
-    campos_terminos = [
-        ('Moneda:', condiciones.get('moneda', 'MXN') if condiciones else 'MXN'),
-        ('Tiempo de Entrega:', condiciones.get('tiempoEntrega', '') if condiciones else ''),
-        ('Entregar En:', condiciones.get('entregaEn', '') if condiciones else ''),
-        ('Términos de Pago:', (condiciones.get('terminos') or condiciones.get('condicionesPago', '')) if condiciones else ''),
-        ('Comentarios:', (condiciones.get('comentarios') or condiciones.get('comentariosAdicionales', '')) if condiciones else '')
-    ]
-
-    if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
-        campos_terminos.insert(1, ('Tipo de Cambio:', f'{tipo_cambio:.2f} MXN/USD'))
-
+    terms_label_style = ParagraphStyle(
+        'TermsLabel', parent=styles['Normal'],
+        fontSize=9, fontName='Helvetica-Bold',
+        textColor=TEXT_DARK, alignment=0, leading=12
+    )
     terms_value_style = ParagraphStyle(
         'TermsValue', parent=styles['Normal'],
         fontSize=9, fontName='Helvetica',
@@ -464,34 +458,62 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         leading=12, wordWrap='CJK'
     )
 
-    terminos_data = []
-    for label, value in campos_terminos:
-        texto = value.strip() if (value and value.strip()) else (
-            'A definir' if 'Tiempo' in label or 'Entregar' in label or 'Términos' in label
-            else ('Sin comentarios adicionales' if 'Comentarios' in label else 'MXN')
-        )
-        terminos_data.append([Paragraph(label, terms_value_style), Paragraph(texto, terms_value_style)])
+    def tv(value, default=''):
+        """Formatea valor de término con fallback"""
+        v = value.strip() if (value and value.strip()) else default
+        return Paragraph(v, terms_value_style)
 
-    terminos_table = Table(terminos_data, colWidths=[1.8*inch, 4.7*inch])
-    terminos_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+    def tl(label):
+        return Paragraph(label, terms_label_style)
+
+    moneda_val = condiciones.get('moneda', 'MXN') if condiciones else 'MXN'
+    tiempo_val = condiciones.get('tiempoEntrega', '') if condiciones else ''
+    entrega_val = condiciones.get('entregaEn', '') if condiciones else ''
+    pago_val = (condiciones.get('terminos') or condiciones.get('condicionesPago', '')) if condiciones else ''
+    comentarios_val = (condiciones.get('comentarios') or condiciones.get('comentariosAdicionales', '')) if condiciones else ''
+
+    # Pares en 2 filas: layout 4 columnas
+    terminos_data = [
+        [tl('Moneda:'), tv(moneda_val, 'MXN'),
+         tl('Tiempo de Entrega:'), tv(tiempo_val, 'A definir')],
+        [tl('Entregar En:'), tv(entrega_val, 'A definir'),
+         tl('Términos de Pago:'), tv(pago_val, 'A definir')],
+    ]
+
+    # USD: agregar fila de tipo de cambio
+    if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
+        terminos_data.append([
+            tl('Tipo de Cambio:'), tv(f'{tipo_cambio:.2f} MXN/USD', ''), '', ''
+        ])
+
+    # Comentarios en fila aparte (full width)
+    terminos_data.append([
+        tl('Comentarios:'), tv(comentarios_val, 'Sin comentarios adicionales'), '', ''
+    ])
+
+    terms_col = 1.0*inch
+    terms_val_col = 2.3*inch
+    terminos_table = Table(terminos_data, colWidths=[terms_col, terms_val_col, terms_col, terms_val_col])
+
+    # Estilo base
+    base_style = [
         ('FONTSIZE', (0, 0), (-1, -1), 9),
-
-        ('TEXTCOLOR', (0, 0), (0, -1), TEXT_DARK),
-        ('TEXTCOLOR', (1, 0), (1, -1), TEXT_BODY),
-
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('TOPPADDING', (0, 0), (-1, -1), 5),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
         ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-
         ('BACKGROUND', (0, 0), (-1, -1), BG_LIGHT),
-        ('BOX', (0, 0), (-1, -1), 0.5, BORDER_GRAY),
-        ('INNERGRID', (0, 0), (-1, -1), 0.25, BORDER_GRAY),
-    ]))
+        ('BOX', (0, 0), (-1, -1), 0.75, CORPORATE_INDIGO),
+        ('INNERGRID', (0, 0), (-1, -1), 0.3, BORDER_GRAY),
+    ]
+
+    # Comentarios: combinar celdas 1-3 en la última fila
+    last_row = len(terminos_data) - 1
+    base_style.append(('SPAN', (1, last_row), (-1, last_row)))
+
+    terminos_table.setStyle(TableStyle(base_style))
 
     story.append(terminos_table)
 
