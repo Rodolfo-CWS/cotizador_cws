@@ -77,9 +77,9 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
 
     description_style = ParagraphStyle(
         'DescriptionStyle', parent=styles['Normal'],
-        fontSize=8, fontName='Helvetica',
+        fontSize=9, fontName='Helvetica',
         alignment=0, leftIndent=0, rightIndent=0,
-        spaceAfter=0, spaceBefore=0, leading=10
+        spaceAfter=0, spaceBefore=0, leading=11
     )
 
     # Extraer datos
@@ -287,14 +287,14 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
             ('BACKGROUND', (0, 0), (-1, 0), CORPORATE_INDIGO),
             ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 8),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
             ('ALIGN', (0, 0), (0, 0), 'CENTER'),
             ('ALIGN', (1, 0), (1, 0), 'CENTER'),
             ('ALIGN', (2, 0), (-1, 0), 'CENTER'),
 
             # Contenido
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
             ('ALIGN', (0, 1), (0, -1), 'CENTER'),
             ('ALIGN', (1, 1), (1, -1), 'LEFT'),
             ('ALIGN', (2, 1), (3, -1), 'CENTER'),
@@ -315,7 +315,6 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
             ('BOX', (0, 0), (-1, -1), 0.75, CORPORATE_INDIGO),
             ('INNERGRID', (0, 0), (-1, -1), 0.3, BORDER_GRAY),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, BG_LIGHT]),
-            ('LINEBELOW', (0, 0), (-1, 0), 2, CORPORATE_INDIGO_DARK),
         ]))
 
         story.append(items_table)
