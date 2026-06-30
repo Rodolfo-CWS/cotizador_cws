@@ -177,7 +177,7 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         info_data.append(['Revisión:', p(f"Rev. {datos_generales.get('revision', '1')}"),
                          'Actualización:', p(datos_generales.get('actualizacionRevision', ''))])
 
-    info_table = Table(info_data, colWidths=[1.1*inch, 2.9*inch, 1.1*inch, 2.9*inch])
+    info_table = Table(info_data, colWidths=[1.0*inch, 2.65*inch, 1.0*inch, 2.65*inch])
     info_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
