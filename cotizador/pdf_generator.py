@@ -200,8 +200,8 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
 
-        ('BOX', (0, 0), (-1, -1), 1.5, CORPORATE_INDIGO),
-        ('INNERGRID', (0, 0), (-1, -1), 0.5, BORDER_GRAY),
+        ('BOX', (0, 0), (-1, -1), 0.75, CORPORATE_INDIGO),
+        ('INNERGRID', (0, 0), (-1, -1), 0.3, BORDER_GRAY),
         ('BACKGROUND', (1, 0), (1, -1), WHITE),
         ('BACKGROUND', (3, 0), (3, -1), WHITE),
     ]))
@@ -225,7 +225,7 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         Quedamos a la espera de su respuesta."""
 
     story.append(Paragraph(intro_text, intro_style))
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 4))
 
     # ── MONEDA Y TIPO DE CAMBIO ──
     condiciones = datos_cotizacion.get('condiciones', {})
@@ -281,7 +281,7 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
             subtotal += total_mxn
 
         # Columnas optimizadas: descripción más ancha, total más ancho
-        items_table = Table(items_data, colWidths=[0.45*inch, 2.85*inch, 0.55*inch, 0.5*inch, 1.05*inch, 1.1*inch])
+        items_table = Table(items_data, colWidths=[0.4*inch, 3.3*inch, 0.55*inch, 0.5*inch, 1.1*inch, 1.45*inch])
         items_table.setStyle(TableStyle([
             # Header
             ('BACKGROUND', (0, 0), (-1, 0), CORPORATE_INDIGO),
@@ -312,10 +312,10 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
             ('RIGHTPADDING', (0, 0), (-1, -1), 5),
 
             # Bordes
-            ('BOX', (0, 0), (-1, -1), 1.5, CORPORATE_INDIGO),
-            ('INNERGRID', (0, 0), (-1, -1), 0.5, BORDER_GRAY),
+            ('BOX', (0, 0), (-1, -1), 0.75, CORPORATE_INDIGO),
+            ('INNERGRID', (0, 0), (-1, -1), 0.3, BORDER_GRAY),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, BG_LIGHT]),
-            ('LINEBELOW', (0, 0), (-1, 0), 3, CORPORATE_INDIGO_DARK),
+            ('LINEBELOW', (0, 0), (-1, 0), 2, CORPORATE_INDIGO_DARK),
         ]))
 
         story.append(items_table)
