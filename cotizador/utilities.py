@@ -95,7 +95,7 @@ def validate_material_data(material, item_index=0, material_index=0):
     }
 
 
-def wrap_description_text(text, max_chars_per_line=35):
+def wrap_description_text(text, max_chars_per_line=45):
     """Utility function to wrap long description text for PDF cells"""
     if not text or len(text) <= max_chars_per_line:
         return text
