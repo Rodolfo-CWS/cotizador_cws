@@ -16,16 +16,16 @@ from cotizador._compat import REPORTLAB_AVAILABLE
 from cotizador.utilities import wrap_description_text
 
 
-# ── Constantes de color corporativo (paleta monocromática) ──
-CORPORATE_INDIGO = colors.HexColor('#1f2937')       # texto y líneas principales
-CORPORATE_INDIGO_DARK = colors.HexColor('#111827')  # énfasis fuerte
-CORPORATE_INDIGO_LIGHT = colors.HexColor('#f3f4f6') # fondo sutil
-TEXT_DARK = colors.HexColor('#1f2937')
-TEXT_GRAY = colors.HexColor('#6b7280')
-TEXT_BODY = colors.HexColor('#374151')
-BORDER_GRAY = colors.HexColor('#d1d5db')
-BG_LIGHT = colors.HexColor('#f9fafb')
-BG_STRIPE = colors.HexColor('#f3f4f6')
+# ── Constantes de color corporativo (matices discretos azul + naranja) ──
+CORPORATE_INDIGO = colors.HexColor('#1e293b')       # slate-800, sutil azul
+CORPORATE_INDIGO_DARK = colors.HexColor('#0f172a')  # slate-900
+CORPORATE_INDIGO_LIGHT = colors.HexColor('#f5f4f1') # sutil naranja (warm stone)
+TEXT_DARK = colors.HexColor('#1e293b')
+TEXT_GRAY = colors.HexColor('#78716c')              # stone-500, sutil naranja
+TEXT_BODY = colors.HexColor('#44403c')              # stone-700
+BORDER_GRAY = colors.HexColor('#d6d3d1')            # stone-300, sutil naranja
+BG_LIGHT = colors.HexColor('#faf9f7')              # casi blanco, matiz cálido
+BG_STRIPE = colors.HexColor('#f5f4f1')             # rayas suaves cálidas
 WHITE = colors.white
 
 
