@@ -491,8 +491,8 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         tl('Comentarios:'), tv(comentarios_val, 'Sin comentarios adicionales'), '', ''
     ])
 
-    terms_col = 1.0*inch
-    terms_val_col = 2.3*inch
+    terms_col = 1.15*inch
+    terms_val_col = 2.5*inch
     terminos_table = Table(terminos_data, colWidths=[terms_col, terms_val_col, terms_col, terms_val_col])
 
     # Estilo base
@@ -517,11 +517,6 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
     story.append(terminos_table)
 
     # ── PIE DE PÁGINA ──
-    story.append(Spacer(1, 14))
-
-    footer_line = Drawing(526, 2)
-    footer_line.add(GraphicsLine(0, 0, 526, 0, strokeColor=CORPORATE_INDIGO, strokeWidth=2))
-    story.append(footer_line)
     story.append(Spacer(1, 8))
 
     vendedor = datos_generales.get('vendedor', 'Equipo CWS')
