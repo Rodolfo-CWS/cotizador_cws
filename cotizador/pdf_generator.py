@@ -89,25 +89,35 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
     # ── ENCABEZADO REDISEÑADO ──
     logo_path = "static/logo.png"
 
-    # Logo más grande
+    # Logo
     try:
         if os.path.exists(logo_path):
-            logo = Image(logo_path, width=1.2*inch, height=0.75*inch)
+            logo = Image(logo_path, width=1.0*inch, height=0.65*inch)
         else:
             logo = Paragraph("CWS<br/>COMPANY", header_style)
     except:
         logo = Paragraph("CWS<br/>COMPANY", header_style)
 
-    # Empresa + logo juntos en columna izquierda
+    # Empresa al lado del logo, dirección en font pequeño
     empresa_info = Paragraph("""
         <b>CWS COMPANY SA DE CV</b><br/>
-        Puerta de los monos 250, 78421 Villa de Pozos, SLP<br/>
-        <b>COTIZACIÓN OFICIAL</b>
+        <font size="7">Puerta de los monos 250, 78421 Villa de Pozos, SLP</font>
     """, ParagraphStyle(
         'EmpresaInfo', parent=styles['Normal'],
         fontSize=9, fontName='Helvetica',
-        textColor=TEXT_DARK, alignment=0
+        textColor=TEXT_DARK, alignment=0, leading=12
     ))
+
+    # Logo + empresa juntos en la izquierda
+    left_block_data = [[logo, empresa_info]]
+    left_block = Table(left_block_data, colWidths=[1.15*inch, 2.85*inch])
+    left_block.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('ALIGN', (1, 0), (1, 0), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (1, 0), (1, 0), 8),
+        ('RIGHTPADDING', (0, 0), (0, 0), 0),
+    ]))
 
     # Cotización alineada a la derecha
     fecha_actual = datetime.datetime.now().strftime('%d/%m/%Y')
@@ -122,19 +132,16 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
     ))
 
     # Header en 2 columnas: [Logo+Empresa] [Datos Cotización]
-    header_data = [[logo, cotizacion_info]]
-    header_table = Table(header_data, colWidths=[4.5*inch, 2.5*inch])
+    header_data = [[left_block, cotizacion_info]]
+    header_table = Table(header_data, colWidths=[4.0*inch, 3.0*inch])
     header_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (0, 0), 'LEFT'),
         ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
     ]))
 
     story.append(header_table)
-
-    # Empresa debajo del logo
-    story.append(empresa_info)
     story.append(Spacer(1, 6))
 
     # Línea separadora gruesa
@@ -144,9 +151,6 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
     story.append(Spacer(1, 10))
 
     # ── INFORMACIÓN DEL CLIENTE ──
-    story.append(Paragraph("INFORMACIÓN DEL CLIENTE", subtitle_style))
-    story.append(Spacer(1, 4))
-
     # Proyecto destacado
     if datos_generales.get('proyecto'):
         proyecto_style = ParagraphStyle(
