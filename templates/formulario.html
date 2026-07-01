@@ -4322,6 +4322,15 @@ async function guardarEdicionMenor() {
             btnGuardar.style.borderColor = '#10b981';
             showToast('¡Corrección guardada exitosamente! Número: ' + numero + '. El PDF se regenerará con los cambios.', 'success');
 
+            // Mostrar botón "Ver PDF" junto al de guardar
+            const btnVerPDF = document.createElement('a');
+            btnVerPDF.href = '/pdf/' + encodeURIComponent(numero);
+            btnVerPDF.target = '_blank';
+            btnVerPDF.className = 'btn btn-outline ml-2';
+            btnVerPDF.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg> Ver PDF';
+            btnVerPDF.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:6px;font-size:14px;font-weight:500;text-decoration:none;background:var(--primary);color:white;border:1px solid var(--primary);transition:all 0.2s;';
+            btnGuardar.parentNode.insertBefore(btnVerPDF, btnGuardar.nextSibling);
+
             // Regenerar PDF en segundo plano con el texto introductorio guardado
             const bodyPDF = { numeroCotizacion: numero };
             if (textoIntroductorioGuardado) {
