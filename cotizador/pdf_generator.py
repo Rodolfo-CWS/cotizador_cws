@@ -736,101 +736,120 @@ def generar_desglose_pdf_reportlab(datos_cotizacion):
             item_info = f"Cantidad: <b>{cantidad:,.0f}</b> {uom} &nbsp;|&nbsp; Precio Unitario: <b>{simbolo}{pu_mostrar:,.2f}</b> &nbsp;|&nbsp; Total Item: <b>{simbolo}{total_mostrar:,.2f}</b>"
             story.append(Paragraph(item_info, cell_style))
 
-            # Transporte (siempre visible) + Instalación / Seguridad / Descuento si aplican
-            extras = []
-            if float(item.get('instalacion', 0)) > 0:
-                extras.append(f"Inst: ${float(item.get('instalacion', 0)):,.2f}")
-            if float(item.get('seguridad', 0)) > 0:
-                extras.append(f"Seg: {float(item.get('seguridad', 0))}%")
-            if float(item.get('descuento', 0)) > 0:
-                extras.append(f"Desc: {float(item.get('descuento', 0))}%")
-            transp_val = float(item.get('transporte', 0))
-            transp_str = f"Transp: ${transp_val:,.2f}"
-            if extras:
-                story.append(Paragraph(transp_str + " &nbsp;|&nbsp; " + " &nbsp;|&nbsp; ".join(extras), small_style))
-            else:
-                story.append(Paragraph(transp_str, small_style))
-
-            # Materiales
+            # Materiales + Extras (Transporte siempre, otros si > 0) — unificados en tabla
             materiales = item.get('materiales', [])
             otros_materiales = item.get('otrosMateriales', [])
 
-            if materiales or otros_materiales:
-                mat_data = [['Material', 'Detalle', 'Subtotal']]
-                mat_subtotal = 0.0
+            # Construir tabla unificada
+            mat_data = [['Concepto', 'Detalle', 'Subtotal']]
+            mat_subtotal = 0.0
 
-                for mat in materiales:
-                    nombre_mat = mat.get('material', 'Sin descripción')
-                    if nombre_mat == 'COTIZAR_POR_PESO':
-                        peso = float(mat.get('pesoEstructura', 0))
-                        precio_kg = float(mat.get('precioKg', 0))
-                        sub = peso * precio_kg
-                        detalle = f"{peso:,.1f} KG × ${precio_kg:,.2f}/KG"
-                    else:
-                        peso = float(mat.get('peso', 0))
-                        precio = float(mat.get('precio', 0))
-                        cant = float(mat.get('cantidad', 0))
-                        sub = float(mat.get('subtotal', peso * precio * cant))
-                        detalle = f"{cant:,.0f} × {peso:,.1f}kg × ${precio:,.2f}/kg"
+            # Materiales
+            for mat in materiales:
+                nombre_mat = mat.get('material', 'Sin descripción')
+                if nombre_mat == 'COTIZAR_POR_PESO':
+                    peso = float(mat.get('pesoEstructura', 0))
+                    precio_kg = float(mat.get('precioKg', 0))
+                    sub = peso * precio_kg
+                    detalle = f"{peso:,.1f} KG × ${precio_kg:,.2f}/KG"
+                else:
+                    peso = float(mat.get('peso', 0))
+                    precio = float(mat.get('precio', 0))
+                    cant = float(mat.get('cantidad', 0))
+                    sub = float(mat.get('subtotal', peso * precio * cant))
+                    unidad = mat.get('unidad', 'm')
+                    detalle = f"{cant:,.0f} {unidad} × {peso:,.1f}kg × ${precio:,.2f}/kg"
 
-                    mat_subtotal += sub
-                    mat_data.append([
-                        Paragraph(nombre_mat[:60], cell_style),
-                        Paragraph(detalle, cell_style),
-                        Paragraph(f"${sub:,.2f}", cell_style)
-                    ])
+                mat_subtotal += sub
+                mat_data.append([
+                    Paragraph(nombre_mat[:60], cell_style),
+                    Paragraph(detalle, cell_style),
+                    Paragraph(f"${sub:,.2f}", cell_style)
+                ])
 
+            # Subtotal Materiales (si hay)
+            if materiales:
+                mat_data.append([
+                    Paragraph('<b>Subtotal Materiales</b>', cell_style),
+                    '',
+                    Paragraph(f'<b>${mat_subtotal:,.2f}</b>', cell_style)
+                ])
+
+            # Otros Materiales
+            if otros_materiales:
+                otro_subtotal = 0.0
                 for otro in otros_materiales:
                     sub = float(otro.get('subtotal', 0))
-                    mat_subtotal += sub
+                    otro_subtotal += sub
                     mat_data.append([
                         Paragraph(str(otro.get('descripcion', 'Sin descripción'))[:60], cell_style),
                         Paragraph(f"Cant: {otro.get('cantidad', '0')}", cell_style),
                         Paragraph(f"${sub:,.2f}", cell_style)
                     ])
-
-                # Tabla de materiales compacta
-                mat_table = Table(mat_data, colWidths=[2.8*inch, 2.2*inch, 1.0*inch])
-                mat_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), CORPORATE_INDIGO),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 8),
-                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                    ('FONTSIZE', (0, 1), (-1, -1), 8),
-                    ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-                    ('ALIGN', (1, 1), (1, -1), 'CENTER'),
-                    ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('TOPPADDING', (0, 0), (-1, -1), 3),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 4),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-                    ('BOX', (0, 0), (-1, -1), 0.5, BORDER_GRAY),
-                    ('INNERGRID', (0, 0), (-1, -1), 0.25, BORDER_GRAY),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, BG_LIGHT]),
-                ]))
-
-                story.append(Spacer(1, 3))
-                story.append(mat_table)
-
-                # Subtotal materiales
-                mat_total_row = [
-                    Paragraph('<b>Subtotal Materiales</b>', cell_style),
+                mat_data.append([
+                    Paragraph('<b>Subtotal Otros Materiales</b>', cell_style),
                     '',
-                    Paragraph(f'<b>${mat_subtotal:,.2f}</b>', cell_style)
-                ]
-                mat_total_table = Table([mat_total_row], colWidths=[2.8*inch, 2.2*inch, 1.0*inch])
-                mat_total_table.setStyle(TableStyle([
-                    ('ALIGN', (0, 0), (0, 0), 'RIGHT'),
-                    ('ALIGN', (2, 0), (2, 0), 'RIGHT'),
-                    ('SPAN', (0, 0), (1, 0)),
-                    ('TOPPADDING', (0, 0), (-1, -1), 2),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-                    ('BACKGROUND', (0, 0), (-1, -1), BG_LIGHT),
-                    ('BOX', (0, 0), (-1, -1), 0.5, BORDER_GRAY),
-                ]))
-                story.append(mat_total_table)
+                    Paragraph(f'<b>${otro_subtotal:,.2f}</b>', cell_style)
+                ])
+
+            # Transporte (siempre visible)
+            transp_val = float(item.get('transporte', 0))
+            mat_data.append([
+                Paragraph('<b>Transporte</b>', cell_style),
+                '',
+                Paragraph(f'${transp_val:,.2f}', cell_style)
+            ])
+
+            # Instalación (si > 0)
+            if float(item.get('instalacion', 0)) > 0:
+                inst_val = float(item.get('instalacion', 0))
+                mat_data.append([
+                    Paragraph('<b>Instalación</b>', cell_style),
+                    '',
+                    Paragraph(f'${inst_val:,.2f}', cell_style)
+                ])
+
+            # Seguridad (si > 0)
+            if float(item.get('seguridad', 0)) > 0:
+                seg_val = float(item.get('seguridad', 0))
+                mat_data.append([
+                    Paragraph('<b>Seguridad</b>', cell_style),
+                    '',
+                    Paragraph(f'{seg_val}%', cell_style)
+                ])
+
+            # Descuento (si > 0)
+            if float(item.get('descuento', 0)) > 0:
+                desc_val = float(item.get('descuento', 0))
+                mat_data.append([
+                    Paragraph('<b>Descuento</b>', cell_style),
+                    '',
+                    Paragraph(f'{desc_val}%', cell_style)
+                ])
+
+            # Renderizar tabla
+            story.append(Spacer(1, 3))
+            mat_table = Table(mat_data, colWidths=[2.8*inch, 2.2*inch, 1.0*inch])
+            mat_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), CORPORATE_INDIGO),
+                ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+                ('ALIGN', (1, 1), (1, -1), 'CENTER'),
+                ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('TOPPADDING', (0, 0), (-1, -1), 3),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                ('BOX', (0, 0), (-1, -1), 0.5, BORDER_GRAY),
+                ('INNERGRID', (0, 0), (-1, -1), 0.25, BORDER_GRAY),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, BG_LIGHT]),
+            ]))
+            story.append(mat_table)
 
             # Comentarios internos del item
             comentarios = item.get('comentariosInternos', '')
