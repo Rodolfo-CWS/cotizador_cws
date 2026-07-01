@@ -830,6 +830,19 @@ def generar_desglose_pdf_reportlab(datos_cotizacion):
                 ]))
                 story.append(mat_total_table)
 
+            # Comentarios internos del item
+            comentarios = item.get('comentariosInternos', '')
+            if comentarios and comentarios.strip():
+                note_style = ParagraphStyle(
+                    'ItemNote', parent=styles['Normal'],
+                    fontSize=8, fontName='Helvetica-Oblique',
+                    textColor=TEXT_GRAY, leading=10,
+                    borderPadding=5, backColor=colors.HexColor('#fffbeb'),
+                    borderColor=colors.HexColor('#f59e0b'), borderWidth=0.5
+                )
+                story.append(Spacer(1, 4))
+                story.append(Paragraph(f"<i>Nota interna: {comentarios.strip()}</i>", note_style))
+
             story.append(Spacer(1, 8))
 
         # ── TOTALES ──
