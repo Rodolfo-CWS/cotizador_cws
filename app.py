@@ -7,7 +7,7 @@ Todas las rutas se preservan aquí para backward compatibility.
 from cotizador import (
     create_app, REPORTLAB_AVAILABLE, WEASYPRINT_AVAILABLE,
     safe_float, safe_int, validate_material_data,
-    wrap_description_text, generar_pdf_reportlab
+    wrap_description_text, generar_pdf_reportlab, generar_desglose_pdf_reportlab
 )
 
 # ── Imports estándar usados por las rutas ──
@@ -3793,6 +3793,76 @@ def ver_desglose(numero_cotizacion):
         </body>
         </html>
         """, numero=numero_cotizacion, error_msg=str(e)), 500
+
+
+@app.route("/desglose/<path:numero_cotizacion>/pdf")
+def descargar_desglose_pdf(numero_cotizacion):
+    """Genera y sirve un PDF compacto del desglose — optimizado para compartir.
+
+    Este PDF es diferente al PDF formal de cotización:
+    - Sin logo, branding pesado, intro, imagen de referencia
+    - Layout de lista compacta — legible en celular
+    - Ideal para WhatsApp, email, screenshots
+    """
+    try:
+        from urllib.parse import unquote
+        numero_cotizacion = unquote(numero_cotizacion)
+        print(f"[DESGLOSE_PDF] Generando PDF compacto para: '{numero_cotizacion}'")
+
+        # Obtener datos de la cotización (misma lógica que ver_desglose)
+        resultado = db_manager.obtener_cotizacion(numero_cotizacion)
+
+        if not resultado.get("encontrado"):
+            print(f"[DESGLOSE_PDF] Cotización no encontrada: '{numero_cotizacion}'")
+            return jsonify({"error": "Cotización no encontrada", "numero": numero_cotizacion}), 404
+
+        cotizacion = resultado["item"]
+
+        # Asegurar numeroCotizacion
+        if not cotizacion.get('numeroCotizacion'):
+            cotizacion['numeroCotizacion'] = numero_cotizacion
+
+        # Asegurar datosGenerales
+        if not cotizacion.get('datosGenerales'):
+            cotizacion['datosGenerales'] = {}
+
+        # Asegurar condiciones
+        if not cotizacion.get('condiciones') or not isinstance(cotizacion.get('condiciones'), dict):
+            dg = cotizacion.get('datosGenerales', {})
+            cond_dg = dg.get('condiciones', {}) if isinstance(dg, dict) else {}
+            if cond_dg and isinstance(cond_dg, dict):
+                cotizacion['condiciones'] = cond_dg
+            else:
+                cotizacion['condiciones'] = {'moneda': 'MXN'}
+
+        # Generar PDF compacto
+        if not REPORTLAB_AVAILABLE:
+            return jsonify({
+                "error": "Generador de PDF no disponible",
+                "solucion": "Ejecuta: pip install reportlab"
+            }), 503
+
+        pdf_data = generar_desglose_pdf_reportlab(cotizacion)
+
+        # Nombre de archivo para descarga
+        safe_numero = numero_cotizacion.replace('/', '-').replace('\\', '-')
+        filename = f"Desglose_{safe_numero}.pdf"
+
+        print(f"[DESGLOSE_PDF] PDF generado: {len(pdf_data)} bytes -> {filename}")
+
+        return send_file(
+            io.BytesIO(pdf_data),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except Exception as e:
+        print(f"[DESGLOSE_PDF] ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Error generando PDF de desglose: {str(e)}"}), 500
+
 
 # ============================================
 # RUTA DE INFORMACIÓN DEL SISTEMA
