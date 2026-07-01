@@ -789,7 +789,7 @@ def procesar_imagen_referencia(datos, numero_cotizacion):
     except Exception as e:
         print(f"[IMAGEN] Error subiendo a Supabase Storage: {e}")
 
-    # Fallback: guardar localmente
+    # Fallback: guardar localmente (Render ephemeral, pero util en local dev)
     if not url:
         try:
             local_images_dir = Path("static/imagenes_referencia")
@@ -800,11 +800,17 @@ def procesar_imagen_referencia(datos, numero_cotizacion):
             print(f"[IMAGEN] Guardada localmente: {local_path}")
         except Exception as e:
             print(f"[IMAGEN] Error en fallback local: {e}")
-            return None
+            url = ""
 
-    print(f"[IMAGEN] Procesada: {url}")
+    # dataUri como respaldo persistente (sobrevive deploys en Render)
+    data_uri = base64_str  # ya viene como "data:image/jpeg;base64,..."
+    if not data_uri.startswith('data:'):
+        data_uri = f"data:{mime_type};base64,{base64_str}"
+
+    print(f"[IMAGEN] Procesada: {url}, dataUri presente: {bool(data_uri)}")
     return {
-        "url": url,
+        "url": url if url else "",
+        "dataUri": data_uri,
         "nombre": img_data.get('nombre', nombre_archivo),
         "tamano_bytes": len(image_bytes),
         "mime_type": mime_type

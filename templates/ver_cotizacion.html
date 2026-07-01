@@ -455,11 +455,13 @@
             {% endif %}
 
             <!-- Imagen de referencia -->
-            {% if cotizacion.datosGenerales.imagenReferencia and cotizacion.datosGenerales.imagenReferencia.url %}
+            {% set img = cotizacion.datosGenerales.imagenReferencia %}
+            {% if img and (img.url or img.dataUri) %}
             <div class="ref-img-box">
                 <div class="img-lbl">📷 Imagen de Referencia</div>
-                <a href="{{ cotizacion.datosGenerales.imagenReferencia.url }}" target="_blank" rel="noopener">
-                    <img src="{{ cotizacion.datosGenerales.imagenReferencia.url }}"
+                <a href="{{ img.url or img.dataUri }}" target="_blank" rel="noopener">
+                    <img src="{{ img.url or img.dataUri }}"
+                         {% if img.url and img.dataUri %}onerror="this.onerror=null;this.src='{{ img.dataUri }}';this.parentNode.href='{{ img.dataUri }}';"{% endif %}
                          alt="Imagen de referencia"
                          title="Click para ver en tamaño completo">
                 </a>

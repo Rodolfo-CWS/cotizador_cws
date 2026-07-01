@@ -3,6 +3,7 @@ Generador de PDF profesional CWS usando ReportLab.
 """
 import io
 import os
+import base64
 import datetime
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -462,7 +463,7 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
 
     # ── IMAGEN DE REFERENCIA ──
     imagen_referencia = datos_cotizacion.get('datosGenerales', {}).get('imagenReferencia', None)
-    if imagen_referencia and imagen_referencia.get('url'):
+    if imagen_referencia and (imagen_referencia.get('url') or imagen_referencia.get('dataUri')):
         img_url = imagen_referencia.get('url', '')
         img_path = None
         _is_temp = False
@@ -475,16 +476,14 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
                     content_type = response.headers.get('Content-Type', '')
                     if response.status != 200:
                         raise Exception(f"HTTP {response.status}")
-                    # Verificar que sea una imagen, no HTML de login/error
                     if 'text/html' in content_type:
-                        raise Exception(f"Recibido HTML en vez de imagen (URL requiere auth?). Content-Type: {content_type}")
+                        raise Exception(f"Recibido HTML en vez de imagen. Content-Type: {content_type}")
                     img_bytes = response.read()
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
                     tmp.write(img_bytes)
                     img_path = tmp.name
                     _is_temp = True
             elif img_url.startswith('/static/') or img_url.startswith('static/'):
-                # Soporta tanto /static/... como static/...
                 clean_url = img_url.lstrip('/')
                 candidate = os.path.join(os.path.dirname(os.path.dirname(__file__)), clean_url)
                 if os.path.exists(candidate):
@@ -492,7 +491,20 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
             elif os.path.exists(img_url):
                 img_path = img_url
 
-            if img_path and os.path.exists(img_path):
+            # Fallback: si no se pudo obtener por URL, usar dataUri (base64)
+            if (not img_path or not os.path.exists(img_path)) and imagen_referencia.get('dataUri'):
+                import tempfile
+                data_uri = imagen_referencia.get('dataUri', '')
+                if ',' in data_uri:
+                    _, encoded = data_uri.split(',', 1)
+                else:
+                    encoded = data_uri
+                img_bytes = base64.b64decode(encoded)
+                img_bytes = io.BytesIO(img_bytes)
+                img_path = img_bytes  # BytesIO, no archivo — se usa directo
+                print(f"[PDF_IMAGEN] Usando dataUri (fallback base64, {img_bytes.getbuffer().nbytes} bytes)")
+
+            if img_path and (hasattr(img_path, 'read') or os.path.exists(img_path)):
                 from reportlab.lib.utils import ImageReader
                 img_reader = ImageReader(img_path)
                 img_w, img_h = img_reader.getSize()
@@ -518,7 +530,7 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
 
                 print(f"[PDF_IMAGEN] Imagen incrustada ({display_w:.0f}x{display_h:.0f}px)")
             else:
-                print(f"[PDF_IMAGEN] No se pudo resolver ruta: {img_url}")
+                print(f"[PDF_IMAGEN] No se pudo resolver imagen (URL: {img_url}, dataUri: {bool(imagen_referencia.get('dataUri'))})")
         except Exception as e:
             print(f"[PDF_IMAGEN] Error incrustando imagen (se omite): {e}")
         finally:
