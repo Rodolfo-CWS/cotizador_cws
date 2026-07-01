@@ -20,7 +20,7 @@ from cotizador.utilities import (
     wrap_description_text, is_json_request,
     handle_error_response, handle_not_found_response
 )
-from cotizador.pdf_generator import generar_pdf_reportlab
+from cotizador.pdf_generator import generar_pdf_reportlab, generar_desglose_pdf_reportlab
 
 
 def configurar_logging(app_instance=None):

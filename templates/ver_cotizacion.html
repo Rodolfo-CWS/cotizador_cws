@@ -152,12 +152,43 @@
             font-size: 15px;
         }
         
+        /* Toast notification */
+        .toast {
+            visibility: hidden;
+            min-width: 280px;
+            background: #1e293b;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 14px 20px;
+            position: fixed;
+            z-index: 9999;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        }
+        .toast.show {
+            visibility: visible;
+            animation: toastFadeIn 0.3s ease, toastFadeOut 0.5s 2.5s ease forwards;
+        }
+        @keyframes toastFadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        @keyframes toastFadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
         @media print {
             .actions {
                 display: none;
             }
         }
-        
+
         @media (max-width: 768px) {
             .grid-4 {
                 grid-template-columns: 1fr;
@@ -668,14 +699,27 @@
                 Editar
             </a>
             {% endif %}
-            <button onclick="window.print()" class="btn btn-outline">
+            {% set numero_descarga = cotizacion.get('numeroCotizacion') or cotizacion.get('numero_cotizacion') %}
+            {% if numero_descarga %}
+            <a href="/desglose/{{ numero_descarga | urlencode }}/pdf" class="btn btn-outline" title="Descargar desglose compacto en PDF - ideal para compartir">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18,3H6V7H18M19,12A1,1 0 0,1 18,11A1,1 0 0,1 19,10A1,1 0 0,1 20,11A1,1 0 0,1 19,12M16,19H8V14H16M19,8H5A3,3 0 0,0 2,11V17H6V21H18V17H22V11A3,3 0 0,0 19,8Z"/>
+                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
                 </svg>
-                Imprimir
+                Descargar Desglose
+            </a>
+            {% endif %}
+            <button onclick="copiarEnlace()" class="btn btn-outline" title="Copiar enlace del desglose para compartir">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10.59 13.41c.41.39.41 1.03 0 1.42-.39.39-1.03.39-1.42 0a5.003 5.003 0 010-7.07l3.54-3.54a5.003 5.003 0 017.07 0 5.003 5.003 0 010 7.07l-1.49 1.49c.01-.82-.12-1.64-.4-2.42l.47-.48a2.982 2.982 0 000-4.24 2.982 2.982 0 00-4.24 0l-3.53 3.53a2.982 2.982 0 000 4.24zm2.82-4.24c.39-.39 1.03-.39 1.42 0a5.003 5.003 0 010 7.07l-3.54 3.54a5.003 5.003 0 01-7.07 0 5.003 5.003 0 010-7.07l1.49-1.49c-.01.82.12 1.64.4 2.43l-.47.47a2.982 2.982 0 000 4.24 2.982 2.982 0 004.24 0l3.53-3.53a2.982 2.982 0 000-4.24.973.973 0 010-1.42z"/>
+                </svg>
+                Copiar enlace
             </button>
         </div>
     </div>
+
+    <!-- Toast notification -->
+    <div id="toast" class="toast">✅ Enlace copiado — compártelo por WhatsApp o email</div>
+
 <script>
 (function() {
     try {
@@ -697,6 +741,49 @@
         if (header) header.appendChild(badge);
     } catch(e) {}
 })();
+
+function copiarEnlace() {
+    const url = window.location.href;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function() {
+            mostrarToast();
+        }).catch(function() {
+            // Fallback para HTTP o permisos denegados
+            copiarFallback(url);
+        });
+    } else {
+        copiarFallback(url);
+    }
+}
+
+function copiarFallback(texto) {
+    const ta = document.createElement('textarea');
+    ta.value = texto;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+        document.execCommand('copy');
+        mostrarToast();
+    } catch(e) {
+        alert('No se pudo copiar el enlace. Copia manualmente:\n' + texto);
+    }
+    document.body.removeChild(ta);
+}
+
+function mostrarToast() {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.classList.remove('show');
+    void toast.offsetWidth; // reflow para reiniciar animación
+    toast.classList.add('show');
+    setTimeout(function() {
+        toast.classList.remove('show');
+    }, 3000);
+}
 </script>
 </body>
 </html>

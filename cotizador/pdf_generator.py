@@ -561,3 +561,376 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
     buffer.seek(0)
 
     return buffer.getvalue()
+
+
+def generar_desglose_pdf_reportlab(datos_cotizacion):
+    """Genera un PDF COMPACTO tipo lista/resumen del desglose — optimizado para compartir.
+
+    A diferencia del PDF formal (generar_pdf_reportlab), este es:
+    - Sin logo ni branding pesado
+    - Sin texto introductorio
+    - Sin imagen de referencia
+    - Sin pie de página extenso
+    - Layout de 1 sola columna tipo "lista de materiales"
+    - Legible en pantalla de celular (ancho A4, texto grande)
+    - Ideal para WhatsApp, email, screenshots
+
+    Args:
+        datos_cotizacion: Dict con datos de la cotización (misma estructura que el PDF formal)
+    """
+    if not REPORTLAB_AVAILABLE:
+        raise ImportError("ReportLab no está disponible")
+
+    buffer = io.BytesIO()
+
+    # Márgenes más amplios para lectura en móvil
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=0.5*inch,
+        leftMargin=0.5*inch,
+        topMargin=0.4*inch,
+        bottomMargin=0.35*inch
+    )
+    story = []
+
+    styles = getSampleStyleSheet()
+
+    # ── ESTILOS COMPACTOS ──
+    title_style = ParagraphStyle(
+        'DesgloseTitle', parent=styles['Normal'],
+        fontSize=13, fontName='Helvetica-Bold',
+        textColor=CORPORATE_INDIGO, alignment=1,
+        spaceAfter=2, leading=16
+    )
+
+    subtitle_style = ParagraphStyle(
+        'DesgloseSubtitle', parent=styles['Normal'],
+        fontSize=9, fontName='Helvetica',
+        textColor=TEXT_GRAY, alignment=1,
+        spaceAfter=10
+    )
+
+    section_style = ParagraphStyle(
+        'DesgloseSection', parent=styles['Normal'],
+        fontSize=10, fontName='Helvetica-Bold',
+        textColor=CORPORATE_INDIGO, spaceAfter=6, spaceBefore=10,
+        leading=13
+    )
+
+    item_name_style = ParagraphStyle(
+        'DesgloseItemName', parent=styles['Normal'],
+        fontSize=10, fontName='Helvetica-Bold',
+        textColor=TEXT_DARK, leading=13
+    )
+
+    cell_style = ParagraphStyle(
+        'DesgloseCell', parent=styles['Normal'],
+        fontSize=9, fontName='Helvetica',
+        textColor=TEXT_BODY, leading=11
+    )
+
+    total_label_style = ParagraphStyle(
+        'DesgloseTotalLabel', parent=styles['Normal'],
+        fontSize=10, fontName='Helvetica-Bold',
+        textColor=TEXT_DARK, alignment=2, leading=13
+    )
+
+    total_value_style = ParagraphStyle(
+        'DesgloseTotalValue', parent=styles['Normal'],
+        fontSize=10, fontName='Helvetica-Bold',
+        textColor=CORPORATE_INDIGO, alignment=2, leading=13
+    )
+
+    grand_total_style = ParagraphStyle(
+        'DesgloseGrandTotal', parent=styles['Normal'],
+        fontSize=12, fontName='Helvetica-Bold',
+        textColor=WHITE, alignment=2, leading=15
+    )
+
+    small_style = ParagraphStyle(
+        'DesgloseSmall', parent=styles['Normal'],
+        fontSize=8, fontName='Helvetica',
+        textColor=TEXT_GRAY, leading=10
+    )
+
+    # ── DATOS ──
+    datos_generales = datos_cotizacion.get('datosGenerales', {})
+    items = datos_cotizacion.get('items', [])
+    condiciones = datos_cotizacion.get('condiciones', {})
+    moneda = condiciones.get('moneda', 'MXN')
+    tipo_cambio_str = condiciones.get('tipoCambio', '1.0')
+
+    try:
+        tipo_cambio = float(tipo_cambio_str) if tipo_cambio_str else 1.0
+        if tipo_cambio <= 0 or tipo_cambio > 1000:
+            tipo_cambio = 1.0
+    except (ValueError, TypeError):
+        tipo_cambio = 1.0
+
+    cliente = datos_generales.get('cliente', '')
+    proyecto = datos_generales.get('proyecto', '')
+    numero = datos_cotizacion.get('numeroCotizacion', datos_generales.get('numeroCotizacion', 'N/A'))
+    revision = datos_generales.get('revision', '1')
+
+    # ── TÍTULO ──
+    story.append(Paragraph("DESGLOSE DE COTIZACIÓN", title_style))
+    story.append(Paragraph(
+        f"No. {numero} &nbsp;|&nbsp; Rev. {revision} &nbsp;|&nbsp; {datetime.datetime.now().strftime('%d/%m/%Y')}",
+        subtitle_style
+    ))
+
+    if cliente or proyecto:
+        info_parts = []
+        if cliente:
+            info_parts.append(f"Cliente: <b>{cliente}</b>")
+        if proyecto:
+            info_parts.append(f"Proyecto: <b>{proyecto}</b>")
+        story.append(Paragraph(" &nbsp;|&nbsp; ".join(info_parts), subtitle_style))
+
+    # Línea separadora
+    story.append(Spacer(1, 4))
+    from reportlab.graphics.shapes import Drawing as RL_Drawing, Line as RL_Line
+    separator = RL_Drawing(480, 1)
+    separator.add(RL_Line(0, 0, 480, 0))
+    separator.setStrokeColor(BORDER_GRAY)
+    separator.setStrokeWidth(0.5)
+    story.append(separator)
+    story.append(Spacer(1, 8))
+
+    # ── ITEMS ──
+    if not items:
+        story.append(Paragraph("No hay items en esta cotización.", cell_style))
+    else:
+        subtotal_general = 0.0
+
+        for idx, item in enumerate(items):
+            if not isinstance(item, dict):
+                continue
+
+            descripcion = item.get('descripcion', f'Item {idx+1}')
+            cantidad = float(item.get('cantidad', 0))
+            uom = item.get('uom', '')
+            total_item = float(item.get('total', item.get('subtotal', 0)))
+            precio_unitario = total_item / cantidad if cantidad > 0 else 0
+
+            subtotal_general += total_item
+
+            # Nombre del item
+            story.append(Paragraph(
+                f"ITEM {idx+1}: {descripcion[:100]}{'...' if len(descripcion) > 100 else ''}",
+                item_name_style
+            ))
+
+            # Datos básicos del item
+            if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
+                total_mostrar = total_item / tipo_cambio
+                pu_mostrar = precio_unitario / tipo_cambio
+                simbolo = 'USD $'
+            else:
+                total_mostrar = total_item
+                pu_mostrar = precio_unitario
+                simbolo = '$'
+
+            item_info = f"Cantidad: <b>{cantidad:,.0f}</b> {uom} &nbsp;|&nbsp; Precio Unitario: <b>{simbolo}{pu_mostrar:,.2f}</b> &nbsp;|&nbsp; Total Item: <b>{simbolo}{total_mostrar:,.2f}</b>"
+            story.append(Paragraph(item_info, cell_style))
+
+            # Transporte / Instalación / % Seguridad / % Descuento si aplican
+            extras = []
+            if float(item.get('transporte', 0)) > 0:
+                extras.append(f"Transp: ${float(item.get('transporte', 0)):,.2f}")
+            if float(item.get('instalacion', 0)) > 0:
+                extras.append(f"Inst: ${float(item.get('instalacion', 0)):,.2f}")
+            if float(item.get('seguridad', 0)) > 0:
+                extras.append(f"Seg: {float(item.get('seguridad', 0))}%")
+            if float(item.get('descuento', 0)) > 0:
+                extras.append(f"Desc: {float(item.get('descuento', 0))}%")
+            if extras:
+                story.append(Paragraph(" &nbsp;|&nbsp; ".join(extras), small_style))
+
+            # Materiales
+            materiales = item.get('materiales', [])
+            otros_materiales = item.get('otrosMateriales', [])
+
+            if materiales or otros_materiales:
+                mat_data = [['Material', 'Detalle', 'Subtotal']]
+                mat_subtotal = 0.0
+
+                for mat in materiales:
+                    nombre_mat = mat.get('material', 'Sin descripción')
+                    if nombre_mat == 'COTIZAR_POR_PESO':
+                        peso = float(mat.get('pesoEstructura', 0))
+                        precio_kg = float(mat.get('precioKg', 0))
+                        sub = peso * precio_kg
+                        detalle = f"{peso:,.1f} KG × ${precio_kg:,.2f}/KG"
+                    else:
+                        peso = float(mat.get('peso', 0))
+                        precio = float(mat.get('precio', 0))
+                        cant = float(mat.get('cantidad', 0))
+                        sub = float(mat.get('subtotal', peso * precio * cant))
+                        detalle = f"{cant:,.0f} × {peso:,.1f}kg × ${precio:,.2f}/kg"
+
+                    mat_subtotal += sub
+                    mat_data.append([
+                        Paragraph(nombre_mat[:60], cell_style),
+                        Paragraph(detalle, cell_style),
+                        Paragraph(f"${sub:,.2f}", cell_style)
+                    ])
+
+                for otro in otros_materiales:
+                    sub = float(otro.get('subtotal', 0))
+                    mat_subtotal += sub
+                    mat_data.append([
+                        Paragraph(str(otro.get('descripcion', 'Sin descripción'))[:60], cell_style),
+                        Paragraph(f"Cant: {otro.get('cantidad', '0')}", cell_style),
+                        Paragraph(f"${sub:,.2f}", cell_style)
+                    ])
+
+                # Tabla de materiales compacta
+                mat_table = Table(mat_data, colWidths=[2.8*inch, 2.2*inch, 1.0*inch])
+                mat_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), CORPORATE_INDIGO),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 8),
+                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                    ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+                    ('ALIGN', (1, 1), (1, -1), 'CENTER'),
+                    ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('TOPPADDING', (0, 0), (-1, -1), 3),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                    ('BOX', (0, 0), (-1, -1), 0.5, BORDER_GRAY),
+                    ('INNERGRID', (0, 0), (-1, -1), 0.25, BORDER_GRAY),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, BG_LIGHT]),
+                ]))
+
+                story.append(Spacer(1, 3))
+                story.append(mat_table)
+
+                # Subtotal materiales
+                mat_total_row = [
+                    Paragraph('<b>Subtotal Materiales</b>', cell_style),
+                    '',
+                    Paragraph(f'<b>${mat_subtotal:,.2f}</b>', cell_style)
+                ]
+                mat_total_table = Table([mat_total_row], colWidths=[2.8*inch, 2.2*inch, 1.0*inch])
+                mat_total_table.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (0, 0), 'RIGHT'),
+                    ('ALIGN', (2, 0), (2, 0), 'RIGHT'),
+                    ('SPAN', (0, 0), (1, 0)),
+                    ('TOPPADDING', (0, 0), (-1, -1), 2),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+                    ('BACKGROUND', (0, 0), (-1, -1), BG_LIGHT),
+                    ('BOX', (0, 0), (-1, -1), 0.5, BORDER_GRAY),
+                ]))
+                story.append(mat_total_table)
+
+            story.append(Spacer(1, 8))
+
+        # ── TOTALES ──
+        iva = subtotal_general * 0.16
+        total = subtotal_general + iva
+
+        if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
+            st_mostrar = subtotal_general / tipo_cambio
+            iva_mostrar = iva / tipo_cambio
+            tot_mostrar = total / tipo_cambio
+            simbolo_tot = 'USD $'
+            conversion_note = f"TC: {tipo_cambio:.2f} MXN/USD"
+        else:
+            st_mostrar = subtotal_general
+            iva_mostrar = iva
+            tot_mostrar = total
+            simbolo_tot = '$'
+            conversion_note = None
+
+        story.append(Spacer(1, 4))
+        story.append(Paragraph("RESUMEN", section_style))
+
+        totales_data = [
+            ['Subtotal:', f"{simbolo_tot}{st_mostrar:,.2f}"],
+            ['IVA (16%):', f"{simbolo_tot}{iva_mostrar:,.2f}"],
+            ['TOTAL:', f"{simbolo_tot}{tot_mostrar:,.2f}"]
+        ]
+
+        totales_table = Table(totales_data, colWidths=[1.5*inch, 1.5*inch])
+        totales_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, -2), 'Helvetica'),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -2), 10),
+            ('FONTSIZE', (0, -1), (-1, -1), 11),
+            ('TEXTCOLOR', (0, 0), (-1, -2), TEXT_DARK),
+            ('TEXTCOLOR', (0, -1), (-1, -1), CORPORATE_INDIGO),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('BACKGROUND', (0, 0), (-1, -2), BG_LIGHT),
+            ('BACKGROUND', (0, -1), (-1, -1), CORPORATE_INDIGO_LIGHT),
+            ('LINEABOVE', (0, -1), (-1, -1), 2, CORPORATE_INDIGO),
+            ('BOX', (0, 0), (-1, -1), 0.75, BORDER_GRAY),
+        ]))
+
+        totales_container = Table([[totales_table]], colWidths=[6.2*inch])
+        totales_container.setStyle(TableStyle([('ALIGN', (0, 0), (0, 0), 'RIGHT')]))
+        story.append(totales_container)
+
+        if conversion_note:
+            story.append(Spacer(1, 3))
+            story.append(Paragraph(f"<i>{conversion_note}</i>", small_style))
+
+    # ── TÉRMINOS (COMPACTOS) ──
+    if condiciones:
+        story.append(Spacer(1, 6))
+        story.append(Paragraph("TÉRMINOS", section_style))
+
+        terminos_items = []
+        tiempo = condiciones.get('tiempoEntrega', '')
+        if tiempo:
+            terminos_items.append(f"Entrega: <b>{tiempo} días hábiles</b>")
+        entrega = condiciones.get('entregaEn', '')
+        if entrega:
+            terminos_items.append(f"Entregar en: <b>{entrega}</b>")
+        pago = condiciones.get('terminos') or condiciones.get('terminosPago', '')
+        if pago:
+            terminos_items.append(f"Pago: <b>{pago}</b>")
+        comentarios = condiciones.get('comentarios', condiciones.get('comentariosAdicionales', ''))
+        if comentarios:
+            terminos_items.append(f"Notas: {comentarios}")
+
+        if terminos_items:
+            for t in terminos_items:
+                story.append(Paragraph(t, cell_style))
+        else:
+            story.append(Paragraph("No se especificaron términos.", cell_style))
+
+    # ── PIE MÍNIMO ──
+    story.append(Spacer(1, 10))
+    separator2 = RL_Drawing(480, 1)
+    separator2.add(RL_Line(0, 0, 480, 0))
+    separator2.setStrokeColor(BORDER_GRAY)
+    separator2.setStrokeWidth(0.5)
+    story.append(separator2)
+    story.append(Spacer(1, 4))
+
+    vendedor = datos_generales.get('vendedor', 'CWS Company')
+    story.append(Paragraph(
+        f"CWS Company SA de CV &nbsp;|&nbsp; {vendedor} &nbsp;|&nbsp; {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        small_style
+    ))
+    story.append(Paragraph(
+        "Este documento es un desglose de referencia. Para el documento oficial consulte el PDF de cotización.",
+        small_style
+    ))
+
+    # Construir PDF
+    doc.build(story)
+    buffer.seek(0)
+
+    return buffer.getvalue()
