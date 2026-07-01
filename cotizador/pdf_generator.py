@@ -736,18 +736,20 @@ def generar_desglose_pdf_reportlab(datos_cotizacion):
             item_info = f"Cantidad: <b>{cantidad:,.0f}</b> {uom} &nbsp;|&nbsp; Precio Unitario: <b>{simbolo}{pu_mostrar:,.2f}</b> &nbsp;|&nbsp; Total Item: <b>{simbolo}{total_mostrar:,.2f}</b>"
             story.append(Paragraph(item_info, cell_style))
 
-            # Transporte / Instalación / % Seguridad / % Descuento si aplican
+            # Transporte (siempre visible) + Instalación / Seguridad / Descuento si aplican
             extras = []
-            if float(item.get('transporte', 0)) > 0:
-                extras.append(f"Transp: ${float(item.get('transporte', 0)):,.2f}")
             if float(item.get('instalacion', 0)) > 0:
                 extras.append(f"Inst: ${float(item.get('instalacion', 0)):,.2f}")
             if float(item.get('seguridad', 0)) > 0:
                 extras.append(f"Seg: {float(item.get('seguridad', 0))}%")
             if float(item.get('descuento', 0)) > 0:
                 extras.append(f"Desc: {float(item.get('descuento', 0))}%")
+            transp_val = float(item.get('transporte', 0))
+            transp_str = f"Transp: ${transp_val:,.2f}"
             if extras:
-                story.append(Paragraph(" &nbsp;|&nbsp; ".join(extras), small_style))
+                story.append(Paragraph(transp_str + " &nbsp;|&nbsp; " + " &nbsp;|&nbsp; ".join(extras), small_style))
+            else:
+                story.append(Paragraph(transp_str, small_style))
 
             # Materiales
             materiales = item.get('materiales', [])
