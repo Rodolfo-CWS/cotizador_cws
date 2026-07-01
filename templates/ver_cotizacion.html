@@ -236,50 +236,54 @@
         }
 
         /* ── TOTALES ── */
-        .totals-box {
-            margin-top: 24px;
-            padding: 0;
+        .totals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
         }
-        .totals-table {
-            width: auto;
-            margin-left: auto;
-            border-collapse: collapse;
-            font-size: 14px;
+        .total-card {
+            background: var(--gray-50);
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            text-align: center;
+            transition: all 0.2s ease;
         }
-        .totals-table td {
-            padding: 5px 12px;
+        .total-card:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
         }
-        .totals-table .lbl {
-            text-align: right;
-            font-weight: 500;
-            color: var(--gray-700);
-        }
-        .totals-table .amt {
-            text-align: right;
+        .total-card .card-lbl {
+            font-size: 11px;
+            color: var(--gray-500);
             font-weight: 600;
-            color: var(--desglose-text);
-            min-width: 120px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
         }
-        .totals-table .grand-lbl {
+        .total-card .card-amt {
+            font-size: 28px;
             font-weight: 700;
             color: var(--desglose-text);
-            font-size: 16px;
         }
-        .totals-table .grand-amt {
-            font-weight: 800;
-            color: var(--primary);
-            font-size: 16px;
+        .total-card.grand-total {
+            background: var(--desglose-text);
+            border-color: var(--desglose-text);
         }
-        .totals-table tr.grand td {
-            padding-top: 8px;
-            border-top: 2px solid var(--desglose-border);
+        .total-card.grand-total .card-lbl {
+            color: #94a3b8;
+        }
+        .total-card.grand-total .card-amt {
+            color: white;
+            font-size: 30px;
         }
         .currency-note {
             text-align: right;
             font-size: 12px;
             color: var(--desglose-muted);
             font-style: italic;
-            margin-top: 4px;
+            margin-top: 12px;
         }
 
         /* ── TÉRMINOS ── */
@@ -384,7 +388,6 @@
             .info-grid { grid-template-columns: 1fr; }
             .actions { flex-direction: column; align-items: stretch; }
             .actions .btn { justify-content: center; }
-            .totals-table { width: 100%; }
             .mat-table { font-size: 11px; }
             .mat-table th, .mat-table td { padding: 5px 6px; }
         }
@@ -524,7 +527,7 @@
                                 {% if material.get('material') == 'COTIZAR_POR_PESO' %}
                                     {{ material.get('pesoEstructura', '0') }} KG × ${{ material.get('precioKg', '0.00') }}/KG
                                 {% else %}
-                                    {{ material.get('cantidad', '0') }} × {{ material.get('peso', '0') }}kg × ${{ material.get('precio', '0.00') }}/kg
+                                    {{ material.get('cantidad', '0') }}{% if material.get('unidad') %} {{ material.get('unidad') }}{% endif %} × {{ material.get('peso', '0') }}kg × ${{ material.get('precio', '0.00') }}/kg
                                 {% endif %}
                             </td>
                             <td class="right"><b>${{ "{:,.2f}".format(sub) }}</b></td>
@@ -626,25 +629,26 @@
             {% set iv = (cotizacion.iva_calculado | float) if cotizacion.iva_calculado else 0 %}
             {% set tot = (cotizacion.total_calculado | float) if cotizacion.total_calculado else 0 %}
 
-            <div class="totals-box">
-                <table class="totals-table">
-                    <tr>
-                        <td class="lbl">Subtotal:</td>
-                        <td class="amt">${{ "{:,.2f}".format(st) }} {{ moneda }}</td>
-                    </tr>
-                    <tr>
-                        <td class="lbl">IVA (16%):</td>
-                        <td class="amt">${{ "{:,.2f}".format(iv) }} {{ moneda }}</td>
-                    </tr>
-                    <tr class="grand">
-                        <td class="grand-lbl">TOTAL:</td>
-                        <td class="grand-amt">${{ "{:,.2f}".format(tot) }} {{ moneda }}</td>
-                    </tr>
-                </table>
-                {% if moneda == 'USD' and tc > 0 and tc != 1.0 %}
-                <p class="currency-note">Tipo de cambio: {{ "%.2f"|format(tc) }} MXN/USD &nbsp;|&nbsp; Total en USD: ${{ "{:,.2f}".format(tot / tc) }}</p>
-                {% endif %}
+            <div class="totals-grid">
+                <div class="total-card">
+                    <div class="card-lbl">Subtotal</div>
+                    <div class="card-amt">${{ "{:,.2f}".format(st) }}</div>
+                    <div style="font-size:12px;color:var(--gray-400);margin-top:4px;">{{ moneda }}</div>
+                </div>
+                <div class="total-card">
+                    <div class="card-lbl">IVA (16%)</div>
+                    <div class="card-amt">${{ "{:,.2f}".format(iv) }}</div>
+                    <div style="font-size:12px;color:var(--gray-400);margin-top:4px;">{{ moneda }}</div>
+                </div>
+                <div class="total-card grand-total">
+                    <div class="card-lbl">Total General</div>
+                    <div class="card-amt">${{ "{:,.2f}".format(tot) }}</div>
+                    <div style="font-size:12px;color:#94a3b8;margin-top:4px;">{{ moneda }}</div>
+                </div>
             </div>
+            {% if moneda == 'USD' and tc > 0 and tc != 1.0 %}
+            <p class="currency-note">Tipo de cambio: {{ "%.2f"|format(tc) }} MXN/USD &nbsp;|&nbsp; Total en USD: ${{ "{:,.2f}".format(tot / tc) }}</p>
+            {% endif %}
             {% endif %}
 
             <!-- ── TÉRMINOS ── -->
@@ -713,7 +717,7 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                 Editar
             </a>
-            <a href="/desglose/{{ numero_cotizacion | urlencode }}/pdf" class="btn btn-success" title="Exportar desglose compacto en PDF">
+            <a href="/desglose/{{ numero_cotizacion | urlencode }}/pdf" class="btn" title="Exportar desglose compacto en PDF">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
                 Exportar Desglose
             </a>
