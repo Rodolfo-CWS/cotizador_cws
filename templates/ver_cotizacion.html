@@ -526,7 +526,7 @@
                                 {% if material.get('material') == 'COTIZAR_POR_PESO' %}
                                     {{ material.get('pesoEstructura', '0') }} KG × ${{ material.get('precioKg', '0.00') }}/KG
                                 {% else %}
-                                    {{ material.get('cantidad', '0') }}{% if material.get('unidad') %} {{ material.get('unidad') }}{% endif %} × {{ material.get('peso', '0') }}kg × ${{ material.get('precio', '0.00') }}/kg
+                                    {{ material.get('cantidad', '0') }} {{ material.get('unidad') or 'm' }} × {{ material.get('peso', '0') }}kg × ${{ material.get('precio', '0.00') }}/kg
                                 {% endif %}
                             </td>
                             <td class="right"><b>${{ "{:,.2f}".format(sub) }}</b></td>
