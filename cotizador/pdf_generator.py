@@ -692,9 +692,10 @@ def generar_desglose_pdf_reportlab(datos_cotizacion):
     story.append(Spacer(1, 4))
     from reportlab.graphics.shapes import Drawing as RL_Drawing, Line as RL_Line
     separator = RL_Drawing(480, 1)
-    separator.add(RL_Line(0, 0, 480, 0))
-    separator.setStrokeColor(BORDER_GRAY)
-    separator.setStrokeWidth(0.5)
+    sep_line = RL_Line(0, 0, 480, 0)
+    sep_line.strokeColor = BORDER_GRAY
+    sep_line.strokeWidth = 0.5
+    separator.add(sep_line)
     story.append(separator)
     story.append(Spacer(1, 8))
 
@@ -913,9 +914,10 @@ def generar_desglose_pdf_reportlab(datos_cotizacion):
     # ── PIE MÍNIMO ──
     story.append(Spacer(1, 10))
     separator2 = RL_Drawing(480, 1)
-    separator2.add(RL_Line(0, 0, 480, 0))
-    separator2.setStrokeColor(BORDER_GRAY)
-    separator2.setStrokeWidth(0.5)
+    sep_line2 = RL_Line(0, 0, 480, 0)
+    sep_line2.strokeColor = BORDER_GRAY
+    sep_line2.strokeWidth = 0.5
+    separator2.add(sep_line2)
     story.append(separator2)
     story.append(Spacer(1, 4))
 
