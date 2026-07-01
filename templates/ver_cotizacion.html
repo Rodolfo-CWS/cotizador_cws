@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
         :root {
-            --desglose-max-w: 780px;
+            --desglose-max-w: 1050px;
             --desglose-text: #1e293b;
             --desglose-muted: #78716c;
             --desglose-border: #d6d3d1;
@@ -181,7 +181,11 @@
             font-size: 15px;
             font-weight: 700;
             color: var(--desglose-text);
-            margin-bottom: 6px;
+            background: #f1f5f9;
+            padding: 10px 14px;
+            border-radius: var(--radius-md);
+            margin-bottom: 10px;
+            border-left: 4px solid var(--primary);
         }
         .item-meta {
             font-size: 13px;
@@ -205,14 +209,16 @@
             overflow: hidden;
         }
         .mat-table thead tr {
-            background: var(--desglose-text);
-            color: white;
+            background: #e2e8f0;
+            color: var(--desglose-text);
         }
         .mat-table th {
             padding: 8px 10px;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 11px;
             text-align: left;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
         }
         .mat-table th.right, .mat-table td.right { text-align: right; }
         .mat-table td {
@@ -485,27 +491,23 @@
                     &nbsp;|&nbsp; Total Item: <b>${{ "{:,.2f}".format(total_i) }} MXN</b>
                 </div>
 
+                <!-- Materiales + Extras (Transporte/Instalación/Seguridad/Descuento) -->
+                {% set tiene_mat = item.get('materiales') and item.get('materiales')|length > 0 %}
+                {% set tiene_otro = item.get('otrosMateriales') and item.get('otrosMateriales')|length > 0 %}
                 {% set tiene_extras = (item.transporte | float) > 0 or (item.instalacion | float) > 0 or (item.seguridad | float) > 0 or (item.descuento | float) > 0 %}
-                {% if tiene_extras %}
-                <div class="item-extras">
-                    {% if (item.transporte | float) > 0 %}Transporte: ${{ "{:,.2f}".format(item.transporte | float) }} MXN &nbsp;{% endif %}
-                    {% if (item.instalacion | float) > 0 %}Instalación: ${{ "{:,.2f}".format(item.instalacion | float) }} MXN &nbsp;{% endif %}
-                    {% if (item.seguridad | float) > 0 %}Seguridad: {{ item.seguridad }}% &nbsp;{% endif %}
-                    {% if (item.descuento | float) > 0 %}Descuento: {{ item.descuento }}%{% endif %}
-                </div>
-                {% endif %}
 
-                <!-- Materiales -->
-                {% if item.get('materiales') %}
+                {% if tiene_mat or tiene_otro or tiene_extras %}
                 <table class="mat-table">
                     <thead>
                         <tr>
-                            <th>Material</th>
-                            <th>Detalle</th>
+                            <th>Concepto</th>
+                            {% if tiene_mat or tiene_otro %}<th>Detalle</th>{% endif %}
                             <th class="right">Subtotal</th>
                         </tr>
                     </thead>
                     <tbody>
+                        <!-- Materiales -->
+                        {% if tiene_mat %}
                         {% set mat_total = namespace(sum=0) %}
                         {% for material in item.get('materiales', []) %}
                         {% set sub = (material.get('subtotal', 0) | float) %}
@@ -532,10 +534,66 @@
                             <td colspan="2" style="text-align:right;">Subtotal Materiales</td>
                             <td class="right">${{ "{:,.2f}".format(mat_total.sum) }}</td>
                         </tr>
+                        {% endif %}
+
+                        <!-- Otros Materiales -->
+                        {% if tiene_otro %}
+                        {% set otro_total = namespace(sum=0) %}
+                        {% for otro in item.get('otrosMateriales', []) %}
+                        {% set osub = (otro.get('subtotal', 0) | float) %}
+                        {% set otro_total.sum = otro_total.sum + osub %}
+                        <tr>
+                            <td><b>{{ otro.get('descripcion', 'Sin descripción') }}</b></td>
+                            <td>${{ otro.get('precio', '0.00') }} × {{ otro.get('cantidad', '0') }}</td>
+                            <td class="right"><b>${{ "{:,.2f}".format(osub) }}</b></td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="subtotal-row">
+                            <td colspan="2" style="text-align:right;">Subtotal Otros Materiales</td>
+                            <td class="right">${{ "{:,.2f}".format(otro_total.sum) }}</td>
+                        </tr>
+                        {% endif %}
+
+                        <!-- Extras (Transporte, Instalación, Seguridad, Descuento) -->
+                        {% if tiene_extras %}
+                        {% if (item.transporte | float) > 0 %}
+                        <tr style="background:#fefce8;">
+                            <td {% if tiene_mat or tiene_otro %}colspan="2"{% endif %}>
+                                <span style="color:#92400e; font-size:11px; font-weight:600;">⚙ Transporte</span>
+                            </td>
+                            <td class="right"><b style="color:#92400e;">${{ "{:,.2f}".format(item.transporte | float) }} MXN</b></td>
+                        </tr>
+                        {% endif %}
+                        {% if (item.instalacion | float) > 0 %}
+                        <tr style="background:#fefce8;">
+                            <td {% if tiene_mat or tiene_otro %}colspan="2"{% endif %}>
+                                <span style="color:#92400e; font-size:11px; font-weight:600;">⚙ Instalación</span>
+                            </td>
+                            <td class="right"><b style="color:#92400e;">${{ "{:,.2f}".format(item.instalacion | float) }} MXN</b></td>
+                        </tr>
+                        {% endif %}
+                        {% if (item.seguridad | float) > 0 %}
+                        <tr style="background:#fefce8;">
+                            <td {% if tiene_mat or tiene_otro %}colspan="2"{% endif %}>
+                                <span style="color:#92400e; font-size:11px; font-weight:600;">⚙ Seguridad</span>
+                            </td>
+                            <td class="right"><b style="color:#92400e;">{{ item.seguridad }}%</b></td>
+                        </tr>
+                        {% endif %}
+                        {% if (item.descuento | float) > 0 %}
+                        <tr style="background:#fefce8;">
+                            <td {% if tiene_mat or tiene_otro %}colspan="2"{% endif %}>
+                                <span style="color:#92400e; font-size:11px; font-weight:600;">⚙ Descuento</span>
+                            </td>
+                            <td class="right"><b style="color:#92400e;">{{ item.descuento }}%</b></td>
+                        </tr>
+                        {% endif %}
+                        {% endif %}
                     </tbody>
                 </table>
 
                 <!-- Peso aproximado -->
+                {% if tiene_mat %}
                 {% set factores = {'metros': 1, 'centimetros': 0.01, 'pulgadas': 0.0254, 'metros_cuadrados': 1, 'centimetros_cuadrados': 0.0001, 'pulgadas_cuadradas': 0.00064516} %}
                 {% set peso_ns = namespace(total=0) %}
                 {% for material in item.get('materiales', []) %}
@@ -552,36 +610,6 @@
                 </p>
                 {% endif %}
                 {% endif %}
-
-                <!-- Otros Materiales -->
-                {% if item.get('otrosMateriales') %}
-                <table class="mat-table" style="margin-top:6px;">
-                    <thead>
-                        <tr>
-                            <th>Otros Materiales</th>
-                            <th>Precio</th>
-                            <th>Cant.</th>
-                            <th class="right">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% set otro_total = namespace(sum=0) %}
-                        {% for otro in item.get('otrosMateriales', []) %}
-                        {% set osub = (otro.get('subtotal', 0) | float) %}
-                        {% set otro_total.sum = otro_total.sum + osub %}
-                        <tr>
-                            <td><b>{{ otro.get('descripcion', 'Sin descripción') }}</b></td>
-                            <td>${{ otro.get('precio', '0.00') }}</td>
-                            <td>{{ otro.get('cantidad', '0') }}</td>
-                            <td class="right"><b>${{ "{:,.2f}".format(osub) }}</b></td>
-                        </tr>
-                        {% endfor %}
-                        <tr class="subtotal-row">
-                            <td colspan="3" style="text-align:right;">Subtotal Otros</td>
-                            <td class="right">${{ "{:,.2f}".format(otro_total.sum) }}</td>
-                        </tr>
-                    </tbody>
-                </table>
                 {% endif %}
 
             </div><!-- /item-block -->
