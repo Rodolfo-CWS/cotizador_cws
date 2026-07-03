@@ -87,13 +87,17 @@
         <div class="header-top">
             <div class="logo-title">
                 <div class="logo">
+                    {% if company and company.logo_url %}
+                    <img src="{{ company.logo_url }}" alt="{{ company.name }}">
+                    {% else %}
                     <img src="/static/logo.png" alt="CWS Company">
+                    {% endif %}
                 </div>
-                <h1>CWS Sistema de Cotizaciones</h1>
+                <h1>{{ company.name if company else 'CWS' }} Sistema de Cotizaciones</h1>
             </div>
             <div class="user-info">
-                <span>Sesión: <strong>{{ vendedor }}</strong></span>
-                <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+                <span>Sesión: <strong>{{ user_name }}</strong></span>
+                <a href="/auth/logout" class="btn-logout" style="text-decoration:none;display:inline-block;padding:8px 16px;background:var(--gray-200);color:var(--gray-700);border-radius:6px;font-size:14px;">Cerrar Sesión</a>
             </div>
         </div>
 
@@ -370,7 +374,7 @@
         async function cerrarSesion() {
             const confirmLogout = await showConfirm('¿Estás seguro de que deseas cerrar sesión?');
             if (confirmLogout) {
-                window.location.href = '/logout';
+                window.location.href = '/auth/logout';
             }
         }
 

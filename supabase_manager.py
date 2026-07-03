@@ -2698,9 +2698,161 @@ class SupabaseManager:
             except:
                 pass
 
+        # ── Métodos Multi-Tenant (SaaS) ──
+
+    def set_company_context(self, company_id: str):
+        """Configura el contexto de compañía en PostgreSQL para RLS."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "SELECT set_config('app.current_company_id', %s, false)",
+                    (company_id,)
+                )
+                cursor.close()
+                return True
+        except Exception as e:
+            print(f"[TENANT] Error configurando company context: {e}")
+        return False
+
+    def get_company_by_id(self, company_id: str) -> Optional[Dict]:
+        """Obtiene datos de una compañía por ID."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """SELECT id, name, slug, tax_id, address, phone, email,
+                              logo_url, primary_color, secondary_color, footer_text,
+                              iva_rate, is_active
+                       FROM public.companies WHERE id = %s""",
+                    (company_id,)
+                )
+                row = cursor.fetchone()
+                cursor.close()
+                if row:
+                    colnames = [desc[0] for desc in cursor.description]
+                    return dict(zip(colnames, row))
+            # Fallback SDK
+            if self.supabase_client:
+                resp = self.supabase_client.table('companies').select('*').eq('id', company_id).execute()
+                if resp.data:
+                    return resp.data[0]
+        except Exception as e:
+            print(f"[TENANT] Error get_company_by_id: {e}")
+        return None
+
+    def get_company_by_slug(self, slug: str) -> Optional[Dict]:
+        """Obtiene datos de una compañía por slug."""
+        try:
+            if self.supabase_client:
+                resp = self.supabase_client.table('companies').select('*').eq('slug', slug).execute()
+                if resp.data:
+                    return resp.data[0]
+        except Exception as e:
+            print(f"[TENANT] Error get_company_by_slug: {e}")
+        return None
+
+    def create_company(self, data: Dict) -> Optional[Dict]:
+        """Crea una nueva compañía usando Supabase SDK (service key bypass RLS)."""
+        try:
+            if self.supabase_client:
+                resp = self.supabase_client.table('companies').insert(data).execute()
+                if resp.data:
+                    return resp.data[0]
+        except Exception as e:
+            print(f"[TENANT] Error create_company: {e}")
+        return None
+
+    def update_company(self, company_id: str, data: Dict) -> Optional[Dict]:
+        """Actualiza datos de una compañía."""
+        try:
+            if self.supabase_client:
+                resp = self.supabase_client.table('companies').update(data).eq('id', company_id).execute()
+                if resp.data:
+                    return resp.data[0]
+        except Exception as e:
+            print(f"[TENANT] Error update_company: {e}")
+        return None
+
+    def get_user_profile(self, user_id: str) -> Optional[Dict]:
+        """Obtiene el perfil de usuario con datos de su compañía."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """SELECT p.id as user_id, p.company_id, p.full_name, p.role,
+                              c.name as company_name, c.slug as company_slug,
+                              c.logo_url, c.primary_color, c.secondary_color,
+                              c.footer_text, c.iva_rate
+                       FROM public.profiles p
+                       JOIN public.companies c ON c.id = p.company_id
+                       WHERE p.id = %s AND p.is_active = true AND c.is_active = true""",
+                    (user_id,)
+                )
+                row = cursor.fetchone()
+                cursor.close()
+                if row:
+                    colnames = [desc[0] for desc in cursor.description]
+                    return dict(zip(colnames, row))
+            # Fallback SDK
+            if self.supabase_client:
+                resp = self.supabase_client.rpc('get_user_profile', {'user_uuid': user_id}).execute()
+                if resp.data:
+                    return resp.data[0]
+        except Exception as e:
+            print(f"[TENANT] Error get_user_profile: {e}")
+        return None
+
+    def create_profile(self, user_id: str, company_id: str,
+                       full_name: str, role: str = 'seller') -> Optional[Dict]:
+        """Crea un perfil de usuario vinculado a una compañía."""
+        try:
+            if self.supabase_client:
+                resp = self.supabase_client.table('profiles').insert({
+                    "id": user_id,
+                    "company_id": company_id,
+                    "full_name": full_name,
+                    "role": role,
+                }).execute()
+                if resp.data:
+                    return resp.data[0]
+        except Exception as e:
+            print(f"[TENANT] Error create_profile: {e}")
+        return None
+
+    def get_profiles_by_company(self, company_id: str) -> List[Dict]:
+        """Lista perfiles de usuarios de una compañía."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """SELECT id, company_id, full_name, role, is_active, created_at
+                       FROM public.profiles WHERE company_id = %s ORDER BY full_name""",
+                    (company_id,)
+                )
+                rows = cursor.fetchall()
+                cursor.close()
+                colnames = [desc[0] for desc in cursor.description]
+                return [dict(zip(colnames, row)) for row in rows]
+            if self.supabase_client:
+                resp = self.supabase_client.table('profiles').select('*').eq('company_id', company_id).execute()
+                return resp.data or []
+        except Exception as e:
+            print(f"[TENANT] Error get_profiles_by_company: {e}")
+        return []
+
+    def close(self):
+        """Cierra conexiones del manager."""
+        if self.pg_connection:
+            try:
+                self.pg_connection.close()
+                print("[SUPABASE] Conexión PostgreSQL cerrada")
+            except:
+                pass
+
         # El cliente Supabase no necesita cierre explícito
         print("[SUPABASE] SupabaseManager cerrado")
-    
+
     def cerrar_conexion(self):
         """Alias para close() - compatibilidad con código existente"""
         self.close()

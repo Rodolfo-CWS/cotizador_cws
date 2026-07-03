@@ -3,137 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CWS - Iniciar Sesión</title>
+    <title>CWS Cotizador - Iniciar Sesión</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        /* Estilos específicos de la página de login */
         body {
-            background: #ffffff;
+            background: #f5f4f1;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 12px;
+            padding: 48px 40px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        .login-container .logo {
+            margin-bottom: 32px;
+        }
+
+        .login-container .logo img {
+            max-height: 80px;
+            max-width: 220px;
+            object-fit: contain;
+        }
+
+        .login-container h1 {
+            font-size: 22px;
+            color: #1e293b;
+            margin: 0 0 8px 0;
+            font-weight: 600;
+        }
+
+        .login-container .subtitle {
+            color: #78716c;
+            font-size: 14px;
+            margin-bottom: 32px;
         }
 
         .form-group {
             text-align: left;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
-        label {
-            margin-bottom: 12px;
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e293b;
+            margin-bottom: 6px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid #d6d3d1;
+            border-radius: 8px;
+            font-size: 15px;
+            color: #1e293b;
+            background: #faf9f7;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            background: white;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 8px;
             font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 8px;
         }
 
-        @media (max-width: 600px) {
-            .login-container {
-                padding: 32px 24px;
-            }
+        .btn-login:hover {
+            background: #4338ca;
+        }
 
-            .login-container .logo {
-                margin-bottom: 32px;
-            }
+        .btn-login:disabled {
+            background: #a8a29e;
+            cursor: not-allowed;
+        }
 
-            .login-container .logo img {
-                max-height: 90px;
-                max-width: 230px;
-            }
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .success-message {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #16a34a;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .register-link {
+            margin-top: 24px;
+            font-size: 14px;
+            color: #78716c;
+        }
+
+        .register-link a {
+            color: #4f46e5;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+
+        .back-link {
+            display: block;
+            margin-top: 16px;
+            font-size: 13px;
+            color: #78716c;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            color: #4f46e5;
         }
     </style>
 </head>
 <body>
     <div class="login-container">
         <div class="logo">
-            <img src="/static/logo.png" alt="CWS Company">
+            <img src="/static/logo.png" alt="CWS Cotizador">
         </div>
-        <h1>CWS Sistema de Cotizaciones</h1>
+        <h1>Iniciar Sesión</h1>
+        <p class="subtitle">Ingresa con tu email y contraseña</p>
 
-        <form id="loginForm" method="POST" action="/login">
+        {% if error %}
+        <div class="error-message">{{ error }}</div>
+        {% endif %}
+
+        <form id="loginForm" method="POST" action="/auth/login">
             <div class="form-group">
-                <label for="vendedor">¿Quién eres?</label>
-                <select name="vendedor" id="vendedor" class="login-select" required>
-                    <option value="" disabled selected>Selecciona tu nombre...</option>
-                    <option value="Rodolfo Moreno">Rodolfo Moreno</option>
-                    <option value="Francisco Moreno">Francisco Moreno</option>
-                    <option value="Anuar Bazan">Anuar Bazan</option>
-                    <option value="Armando Castillo">Armando Castillo</option>
-                    <option value="Santiago Vazquez">Santiago Vazquez</option>
-                </select>
+                <label for="email">Email</label>
+                <input
+                    type="email"
+                    name="email"
+                    id="email"
+                    placeholder="tu@email.com"
+                    required
+                    autofocus
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input
+                    type="password"
+                    name="password"
+                    id="password"
+                    placeholder="Tu contraseña"
+                    required
+                    minlength="8"
+                >
             </div>
 
             <button type="submit" class="btn-login" id="btnLogin">
                 Iniciar Sesión
             </button>
-
-            <div id="mensaje" class="message"></div>
         </form>
+
+        <p class="register-link">
+            ¿No tienes cuenta?
+            <a href="/auth/register">Crear una cuenta</a>
+        </p>
     </div>
 
     <script>
         const form = document.getElementById('loginForm');
-        const selectVendedor = document.getElementById('vendedor');
         const btnLogin = document.getElementById('btnLogin');
-        const mensaje = document.getElementById('mensaje');
 
-        // Auto-submit cuando se selecciona un vendedor
-        selectVendedor.addEventListener('change', function() {
-            if (this.value) {
-                btnLogin.disabled = false;
-            }
-        });
-
-        // Manejar el envío del formulario
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const vendedor = selectVendedor.value;
-
-            if (!vendedor) {
-                mostrarMensaje('Por favor selecciona tu nombre', 'error');
-                return;
-            }
-
-            // Deshabilitar botón y select durante el proceso
+        form.addEventListener('submit', function() {
             btnLogin.disabled = true;
-            selectVendedor.disabled = true;
             btnLogin.textContent = 'Iniciando sesión...';
-
-            // Enviar formulario
-            fetch('/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `vendedor=${encodeURIComponent(vendedor)}`
-            })
-            .then(response => {
-                if (response.ok) {
-                    mostrarMensaje('¡Bienvenido! Redirigiendo...', 'success');
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 500);
-                } else {
-                    throw new Error('Error al iniciar sesión');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                mostrarMensaje('Error al iniciar sesión. Intenta de nuevo.', 'error');
-                btnLogin.disabled = false;
-                selectVendedor.disabled = false;
-                btnLogin.textContent = 'Iniciar Sesión';
-            });
-        });
-
-        function mostrarMensaje(texto, tipo) {
-            mensaje.textContent = texto;
-            mensaje.className = 'message ' + tipo;
-        }
-
-        // Auto-focus en el select al cargar
-        document.addEventListener('DOMContentLoaded', function() {
-            selectVendedor.focus();
         });
     </script>
 </body>

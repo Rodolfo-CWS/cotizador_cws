@@ -81,6 +81,15 @@ class SupabaseStorageManager:
                 print("   - SUPABASE_SERVICE_KEY (requerida para Storage)")
                 print("   - SUPABASE_ANON_KEY (fallback solo lectura)")
 
+    def get_public_url(self, storage_path: str) -> str:
+        """Obtiene la URL pública de un archivo en Supabase Storage."""
+        try:
+            if self.storage_available:
+                return self.supabase.storage.from_(self.bucket_name).get_public_url(storage_path)
+        except Exception as e:
+            print(f"[STORAGE] Error get_public_url: {e}")
+        return ""
+
     def _verificar_bucket(self):
         """Verificar que el bucket existe o crearlo"""
         try:

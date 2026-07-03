@@ -840,41 +840,19 @@ def timestamp_to_date(timestamp):
 # ============================================
 
 from functools import wraps
+from cotizador.middleware import login_required
 
-def login_required(f):
-    """Decorator to require login for routes"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'vendedor' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login")
 def login():
-    """Página de login"""
-    if request.method == "POST":
-        vendedor = request.form.get('vendedor')
-        if vendedor:
-            session['vendedor'] = vendedor
-            print(f"Usuario autenticado: {vendedor}")
-            return redirect(url_for('home'))
-        else:
-            return render_template("login.html", error="Por favor selecciona tu nombre")
-
-    # Si ya está autenticado, redirigir al home
-    if 'vendedor' in session:
+    """Redirige al blueprint de autenticación."""
+    if 'user_id' in session:
         return redirect(url_for('home'))
-
-    return render_template("login.html")
+    return redirect(url_for('auth.login'))
 
 @app.route("/logout")
 def logout():
-    """Cerrar sesión"""
-    vendedor = session.get('vendedor', 'Usuario')
-    session.pop('vendedor', None)
-    print(f"Usuario cerró sesión: {vendedor}")
-    return redirect(url_for('login'))
+    """Redirige al blueprint de autenticación."""
+    return redirect(url_for('auth.logout'))
 
 # ============================================
 # HEALTH CHECK ENDPOINT (para Render Keepalive)
@@ -1186,7 +1164,7 @@ def home():
         return render_template(
             "home.html",
             cotizaciones=cotizaciones_pagina,
-            vendedor=session.get('vendedor'),
+            user_name=session.get('user_name', ''),
             page=page,
             total_pages=total_pages,
             total_cotizaciones=total_cotizaciones,
@@ -1208,7 +1186,7 @@ def home():
         import traceback
         traceback.print_exc()
         return render_template("home.html",
-                             vendedor=session.get('vendedor', ''),
+                             user_name=session.get('user_name', ''),
                              cotizaciones=[],
                              page=1,
                              total_pages=0,
@@ -1576,7 +1554,7 @@ def formulario():
                          materiales=LISTA_MATERIALES,
                          datos_precargados=datos_precargados,
                          info_bloqueo_revision=info_bloqueo_revision,
-                         vendedor_sesion=session.get('vendedor', ''),
+                         user_name=session.get('user_name', ''),
                          modo_edicion_menor=modo_edicion_menor,
                          datos_edicion_menor=datos_edicion_menor)
 
@@ -2012,7 +1990,7 @@ def edicion_menor(numero_cotizacion):
                 # img_raw es None → el usuario eliminó la imagen explícitamente
                 parche['imagenReferenciaProcesada'] = None
 
-        usuario = session.get('vendedor', 'desconocido')
+        usuario = session.get('user_name', 'desconocido')
         resultado = db_manager.edicion_menor_cotizacion(numero_cotizacion, parche, usuario)
 
         if resultado.get('success'):
@@ -2261,10 +2239,9 @@ def buscar():
         return jsonify({"error": "Error en búsqueda unificada"}), 500
 
 @app.route("/todas-cotizaciones")
+@login_required
 def todas_cotizaciones():
     """Vista de tabla Excel-style con todas las cotizaciones"""
-    if 'vendedor' not in session:
-        return redirect(url_for('login'))
 
     # MODO DEBUG: Devolver JSON crudo si se accede con ?debug=1
     debug_mode = request.args.get('debug') == '1'
@@ -2667,7 +2644,7 @@ def todas_cotizaciones():
         return render_template(
             "todas_cotizaciones.html",
             cotizaciones=cotizaciones_pagina,
-            vendedor=session.get('vendedor'),
+            user_name=session.get('user_name', ''),
             # Información de paginación
             page=page,
             total_pages=total_pages,
@@ -2750,10 +2727,9 @@ def diagnostico_tabla_datos():
         }), 500
 
 @app.route("/debug-tabla-cotizaciones")
+@login_required
 def debug_tabla_cotizaciones():
     """Página de diagnóstico para ver estructura de datos - Accesible desde móvil"""
-    if 'vendedor' not in session:
-        return redirect(url_for('login'))
 
     import traceback
 

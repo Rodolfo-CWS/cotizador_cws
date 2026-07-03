@@ -101,9 +101,9 @@
     <div class="header">
         <div>
             <h1>Todas las Cotizaciones</h1>
-            <div class="user-info">Sesión: <strong>{{ vendedor }}</strong></div>
+            <div class="user-info">Sesión: <strong>{{ user_name }}</strong></div>
         </div>
-        <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+        <a href="/auth/logout" class="btn-logout" style="text-decoration:none;display:inline-block;padding:8px 16px;background:var(--gray-200);color:var(--gray-700);border-radius:6px;font-size:14px;">Cerrar Sesión</a>
     </div>
 
     <div class="actions">
