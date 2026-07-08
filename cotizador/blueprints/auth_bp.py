@@ -146,7 +146,7 @@ def forgot_password():
             try:
                 supabase = get_supabase_auth_client()
                 supabase.auth.reset_password_for_email(email, {
-                    "redirect_to": request.host_url.rstrip('/') + '/auth/login'
+                    "redirect_to": request.host_url.rstrip('/') + '/auth/reset-password'
                 })
                 message = (
                     f"Si el email {email} está registrado, recibirás un enlace "
@@ -156,6 +156,12 @@ def forgot_password():
                 error = f"Error: {e}"
 
     return render_template('forgot_password.html', message=message, error=error)
+
+
+@auth_bp.route('/reset-password')
+def reset_password():
+    """Página para establecer nueva contraseña (recibe token de Supabase en URL)."""
+    return render_template('reset_password.html')
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])

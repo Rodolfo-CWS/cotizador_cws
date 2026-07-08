@@ -26,6 +26,8 @@ def init_middleware(app, supabase_manager):
             '/auth/login',
             '/auth/register',
             '/auth/logout',
+            '/auth/forgot-password',
+            '/auth/reset-password',
             '/auth/callback',
             '/health',
             '/static/',
