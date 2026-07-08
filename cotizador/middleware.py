@@ -54,6 +54,11 @@ def init_middleware(app, supabase_manager):
                 try:
                     connection = supabase_manager.pg_connection
                     if connection and not connection.closed:
+                        # Rollback cualquier transacción fallida antes de seguir
+                        try:
+                            connection.rollback()
+                        except:
+                            pass
                         cursor = connection.cursor()
                         cursor.execute(
                             "SELECT set_config('app.current_company_id', %s, false)",
@@ -64,6 +69,11 @@ def init_middleware(app, supabase_manager):
                     app.logger.warning(
                         f"[MIDDLEWARE] No se pudo configurar RLS: {e}"
                     )
+                    # Intentar reconectar si la conexión está muerta
+                    try:
+                        supabase_manager._inicializar_conexion()
+                    except:
+                        pass
 
                 # Cargar datos de la compañía para templates
                 try:
