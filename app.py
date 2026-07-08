@@ -1961,11 +1961,13 @@ def obtener_cotizacion_api(numero_cotizacion):
 @app.route("/api/cotizacion/<path:numero_cotizacion>/edicion-menor", methods=["PATCH"])
 def edicion_menor(numero_cotizacion):
     """
-    Corrige campos de texto (typos, ortografía) sin generar nueva revisión.
-    Solo acepta: datosGenerales.atencionA/contacto,
-                 condiciones.tiempoEntrega/entregaEn/comentarios,
-                 items[].descripcion/notas,
-                 imagenReferencia (opcional, para agregar/quitar/actualizar imagen)
+    Corrige una cotización sin generar nueva revisión.
+    Soporta:
+    - Corrección de texto (typos, ortografía)
+    - Cambio de proyecto (regenera número de cotización)
+    - Cambio de precios, materiales, items completos
+    - Cambio de condiciones financieras (moneda, tipoCambio, terminos)
+    - Actualización de imagen de referencia
     """
     try:
         parche = request.get_json()
@@ -1994,10 +1996,15 @@ def edicion_menor(numero_cotizacion):
         resultado = db_manager.edicion_menor_cotizacion(numero_cotizacion, parche, usuario)
 
         if resultado.get('success'):
-            print(f"[EDICION_MENOR] Corrección guardada: {numero_cotizacion}")
+            nuevo_numero = resultado.get('numero_cotizacion', numero_cotizacion)
+            proyecto_cambiado = resultado.get('proyecto_cambiado', False)
+            print(f"[EDICION_MENOR] Corrección guardada: {nuevo_numero}" +
+                  (f" (proyecto cambiado, era: {resultado.get('numero_anterior', '')})" if proyecto_cambiado else ""))
             return jsonify({
                 "success": True,
-                "numero_cotizacion": numero_cotizacion,
+                "numero_cotizacion": nuevo_numero,
+                "proyecto_cambiado": proyecto_cambiado,
+                "numero_anterior": resultado.get('numero_anterior'),
                 "mensaje": "Corrección guardada correctamente"
             }), 200
         else:
