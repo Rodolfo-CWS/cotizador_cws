@@ -2149,7 +2149,7 @@ class SupabaseManager:
     # Campos permitidos cuando el frontend envía items COMPLETOS (con materiales, precios, etc.)
     CAMPOS_ITEM_COMPLETO = {
         'descripcion', 'notas', 'materiales', 'otrosMateriales',
-        'transporte', 'instalacion', 'seguridad', 'descuento',
+        'cantidad', 'uom', 'transporte', 'instalacion', 'seguridad', 'descuento',
         'subtotalMateriales', 'subtotalOtros', 'costoUnidad', 'total'
     }
 
