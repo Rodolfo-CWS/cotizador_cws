@@ -2287,30 +2287,25 @@ class SupabaseManager:
 
     def _recalcular_totales_items(self, items: list) -> list:
         """
-        Recalcula los totales de cada ítem basado en sus materiales y costos adicionales.
-        Retorna la lista de items con totales recalculados.
+        Recalcula los totales de cada ítem sumando los subtotales de materiales
+        que el frontend ya calculó correctamente (normales y por peso).
+        NO recalcula subtotales individuales — confía en el frontend.
         """
         for item in items:
-            # Recalcular subtotal de materiales
+            # Sumar subtotales de materiales (frontend ya los calculó)
             subtotal_mat = 0.0
             for mat in item.get('materiales', []):
                 try:
-                    cantidad = float(mat.get('cantidad', 0))
-                    precio = float(mat.get('precio', mat.get('precioUnitario', 0)))
-                    mat['subtotal'] = round(cantidad * precio, 2)
-                    subtotal_mat += mat['subtotal']
+                    subtotal_mat += float(mat.get('subtotal', 0))
                 except (ValueError, TypeError):
                     pass
             item['subtotalMateriales'] = round(subtotal_mat, 2)
 
-            # Recalcular subtotal de otros materiales
+            # Sumar subtotales de otros materiales (frontend ya los calculó)
             subtotal_otros = 0.0
             for otro in item.get('otrosMateriales', []):
                 try:
-                    cantidad = float(otro.get('cantidad', 0))
-                    precio = float(otro.get('precio', otro.get('precioUnitario', 0)))
-                    otro['subtotal'] = round(cantidad * precio, 2)
-                    subtotal_otros += otro['subtotal']
+                    subtotal_otros += float(otro.get('subtotal', 0))
                 except (ValueError, TypeError):
                     pass
             item['subtotalOtros'] = round(subtotal_otros, 2)
