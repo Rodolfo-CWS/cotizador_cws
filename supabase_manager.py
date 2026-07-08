@@ -2138,17 +2138,29 @@ class SupabaseManager:
 
     # Campos que se pueden corregir sin generar revisión
     CAMPOS_EDICION_MENOR = {
-        'datosGenerales': {'atencionA', 'contacto', 'comentariosInternos'},
-        'condiciones': {'tiempoEntrega', 'entregaEn', 'comentarios'},
+        'datosGenerales': {'atencionA', 'contacto', 'comentariosInternos', 'proyecto'},
+        'condiciones': {'tiempoEntrega', 'entregaEn', 'comentarios', 'moneda', 'tipoCambio', 'terminos'},
         'items': {'descripcion', 'notas'},
         # textoIntroductorio se permite a nivel raíz (no anidado en datosGenerales)
         # para preservar el texto IA entre ediciones menores
+        # proyecto, moneda, tipoCambio, terminos: añadidos para edición completa sin nueva revisión
+    }
+
+    # Campos permitidos cuando el frontend envía items COMPLETOS (con materiales, precios, etc.)
+    CAMPOS_ITEM_COMPLETO = {
+        'descripcion', 'notas', 'materiales', 'otrosMateriales',
+        'transporte', 'instalacion', 'seguridad', 'descuento',
+        'subtotalMateriales', 'subtotalOtros', 'costoUnidad', 'total'
     }
 
     def validar_campos_edicion_menor(self, parche: dict) -> tuple:
         """
         Verifica que el parche solo contenga campos de la whitelist.
         Retorna (True, '') si es válido, (False, mensaje) si no.
+
+        Soporta dos modos de items:
+        - Modo texto: solo descripcion/notas (corrección de typos)
+        - Modo completo: materiales, precios, subtotales, etc. (corrección de precios/materiales)
         """
         dg = parche.get('datosGenerales', {})
         prohibidos_dg = set(dg.keys()) - self.CAMPOS_EDICION_MENOR['datosGenerales']
@@ -2161,16 +2173,184 @@ class SupabaseManager:
             return False, f"Campos no permitidos en condiciones: {prohibidos_cond}"
 
         for i, item in enumerate(parche.get('items', [])):
-            prohibidos_item = set(item.keys()) - self.CAMPOS_EDICION_MENOR['items']
-            if prohibidos_item:
-                return False, f"Campos no permitidos en ítem {i}: {prohibidos_item}"
+            # Detectar si es modo texto (solo descripcion/notas) o modo completo
+            item_keys = set(item.keys())
+            es_modo_texto = item_keys.issubset(self.CAMPOS_EDICION_MENOR['items'])
+            es_modo_completo = item_keys.issubset(self.CAMPOS_ITEM_COMPLETO)
+
+            if not es_modo_texto and not es_modo_completo:
+                prohibidos = item_keys - self.CAMPOS_EDICION_MENOR['items'] - self.CAMPOS_ITEM_COMPLETO
+                if prohibidos:
+                    return False, f"Campos no permitidos en ítem {i}: {prohibidos}"
 
         return True, ''
 
+    def _regenerar_numero_por_proyecto(self, numero_actual: str, nuevo_proyecto: str) -> str:
+        """
+        Regenera el número de cotización reemplazando el segmento del proyecto.
+        Formato: CLIENTE-CWS-VENDOR-###-R#-PROYECTO
+        El proyecto es el último segmento después de -R#-.
+        """
+        import re as _re
+        # Normalizar el nuevo proyecto (misma lógica que generar_numero_automatico)
+        proyecto_norm = safe_str(nuevo_proyecto)
+        proyecto_norm = unicodedata.normalize('NFKD', proyecto_norm).encode('ASCII', 'ignore').decode('ASCII').upper()
+        proyecto_norm = _re.sub(r'[^A-Z0-9 ]', '', proyecto_norm)
+        proyecto_norm = ' '.join(proyecto_norm.split())[:50]
+
+        # Reemplazar el último segmento (proyecto) en el número
+        # El formato es: PREFIJO-R#-PROYECTO
+        # Buscar el último -R#- y reemplazar todo lo que sigue
+        nuevo_numero = _re.sub(r'^(.*-R\d+-).*$', rf'\1{proyecto_norm}', numero_actual)
+
+        print(f"[EDICION_MENOR] Número regenerado: {numero_actual} → {nuevo_numero}")
+        return nuevo_numero
+
+    def _eliminar_cotizacion_por_numero(self, numero_cotizacion: str) -> bool:
+        """
+        Elimina una cotización por su número en las 3 capas.
+        Usado cuando el proyecto cambia y el número viejo queda huérfano.
+        """
+        eliminado = False
+        try:
+            # Capa 1: SDK REST
+            if self.supabase_client:
+                try:
+                    result = self.supabase_client.table('cotizaciones').delete().eq('numero_cotizacion', numero_cotizacion).execute()
+                    if hasattr(result, 'data') and result.data:
+                        print(f"[ELIMINAR] SDK REST: {numero_cotizacion} eliminada")
+                        eliminado = True
+                except Exception as e:
+                    print(f"[ELIMINAR] SDK REST falló: {safe_str(e)}")
+
+            # Capa 2: PostgreSQL directo
+            if not eliminado and self.postgresql_disponible:
+                try:
+                    cursor = self.pg_connection.cursor()
+                    cursor.execute("DELETE FROM cotizaciones WHERE numero_cotizacion = %s", (numero_cotizacion,))
+                    self.pg_connection.commit()
+                    cursor.close()
+                    print(f"[ELIMINAR] PostgreSQL: {numero_cotizacion} eliminada")
+                    eliminado = True
+                except Exception as e:
+                    print(f"[ELIMINAR] PostgreSQL falló: {safe_str(e)}")
+
+            # Capa 3: JSON offline
+            try:
+                data = self._cargar_datos_offline()
+                cotizaciones = data.get('cotizaciones', [])
+                data['cotizaciones'] = [c for c in cotizaciones if c.get('numeroCotizacion') != numero_cotizacion]
+                self._guardar_datos_offline(data)
+                print(f"[ELIMINAR] JSON: {numero_cotizacion} eliminada")
+                eliminado = True
+            except Exception as e:
+                print(f"[ELIMINAR] JSON falló: {safe_str(e)}")
+
+        except Exception as e:
+            print(f"[ELIMINAR] Error general: {safe_str(e)}")
+
+        return eliminado
+
+    def _clasificar_tipo_edicion(self, campos_modificados: list, items_patch: list) -> str:
+        """
+        Clasifica el tipo de edición según los campos modificados.
+        Retorna: 'texto', 'precios', 'materiales', 'proyecto', 'condiciones', 'mixta'
+        """
+        tipos = set()
+        for campo in campos_modificados:
+            if 'proyecto' in campo.lower():
+                tipos.add('proyecto')
+            elif 'precio' in campo.lower() or 'subtotal' in campo.lower() or 'total' in campo.lower():
+                tipos.add('precios')
+            elif 'material' in campo.lower():
+                tipos.add('materiales')
+            elif 'condiciones.' in campo.lower():
+                tipos.add('condiciones')
+            elif 'imagen' in campo.lower():
+                tipos.add('imagen')
+            else:
+                tipos.add('texto')
+
+        # Detectar cambios en materiales por diferencia de cantidad
+        if items_patch:
+            for item in items_patch:
+                mats = item.get('materiales', [])
+                otros = item.get('otrosMateriales', [])
+                if len(mats) > 0 or len(otros) > 0:
+                    # Viene con estructura de materiales → posible cambio de precios/materiales
+                    if 'precios' not in tipos and 'materiales' not in tipos:
+                        tipos.add('precios')  # asumir que si mandan materiales es por cambio en ellos
+
+        if len(tipos) >= 3:
+            return 'mixta'
+        return tipos.pop() if len(tipos) == 1 else 'mixta'
+
+    def _recalcular_totales_items(self, items: list) -> list:
+        """
+        Recalcula los totales de cada ítem basado en sus materiales y costos adicionales.
+        Retorna la lista de items con totales recalculados.
+        """
+        for item in items:
+            # Recalcular subtotal de materiales
+            subtotal_mat = 0.0
+            for mat in item.get('materiales', []):
+                try:
+                    cantidad = float(mat.get('cantidad', 0))
+                    precio = float(mat.get('precioUnitario', 0))
+                    mat['subtotal'] = round(cantidad * precio, 2)
+                    subtotal_mat += mat['subtotal']
+                except (ValueError, TypeError):
+                    pass
+            item['subtotalMateriales'] = round(subtotal_mat, 2)
+
+            # Recalcular subtotal de otros materiales
+            subtotal_otros = 0.0
+            for otro in item.get('otrosMateriales', []):
+                try:
+                    cantidad = float(otro.get('cantidad', 0))
+                    precio = float(otro.get('precioUnitario', 0))
+                    otro['subtotal'] = round(cantidad * precio, 2)
+                    subtotal_otros += otro['subtotal']
+                except (ValueError, TypeError):
+                    pass
+            item['subtotalOtros'] = round(subtotal_otros, 2)
+
+            # Calcular total del ítem
+            subtotal_base = subtotal_mat + subtotal_otros
+            try:
+                transporte = float(item.get('transporte', 0))
+            except (ValueError, TypeError):
+                transporte = 0.0
+            try:
+                instalacion = float(item.get('instalacion', 0))
+            except (ValueError, TypeError):
+                instalacion = 0.0
+            try:
+                seguridad = float(item.get('seguridad', 0))
+            except (ValueError, TypeError):
+                seguridad = 0.0
+            try:
+                descuento = float(item.get('descuento', 0))
+            except (ValueError, TypeError):
+                descuento = 0.0
+
+            total_antes_descuento = subtotal_base + transporte + instalacion + seguridad
+            item['total'] = round(total_antes_descuento - descuento, 2)
+
+            # Mantener costoUnidad si existe
+            if 'costoUnidad' not in item or not item.get('costoUnidad'):
+                item['costoUnidad'] = item['total']
+
+        return items
+
     def edicion_menor_cotizacion(self, numero_cotizacion: str, parche: dict, usuario: str = '') -> dict:
         """
-        Aplica correcciones de texto (typos, ortografía) sin generar nueva revisión.
-        Solo modifica los campos de CAMPOS_EDICION_MENOR; todo lo demás permanece intacto.
+        Aplica correcciones a una cotización sin generar nueva revisión.
+        Soporta:
+        - Corrección de texto (typos, ortografía) — modo original
+        - Cambio de proyecto (regenera número de cotización)
+        - Cambio de precios, materiales, items completos
+        - Cambio de condiciones financieras (moneda, tipoCambio, terminos)
         """
         try:
             # 1. Validar whitelist
@@ -2184,13 +2364,12 @@ class SupabaseManager:
                 return {'success': False, 'error': f'Cotización no encontrada: {numero_cotizacion}'}
 
             cotizacion = resultado['item']
-
-            # 3. Aplicar parche solo en campos blanqueados
             campos_modificados = []
+            proyecto_cambiado = False
+            viejo_numero = numero_cotizacion
+            items_reemplazo_completo = False
 
-            # SALVAGUARDA: asegurar que condiciones tenga todos los campos originales.
-            # Si la cotización tiene condiciones en datosGenerales (formato histórico),
-            # mergearlas con las del nivel raíz para no perder moneda, tipoCambio, terminos, etc.
+            # SALVAGUARDA: merge de condiciones históricas
             dg_cond = cotizacion.get('datosGenerales', {})
             if isinstance(dg_cond, dict) and 'condiciones' in dg_cond:
                 cond_embebidas = dg_cond.get('condiciones', {}) or {}
@@ -2199,12 +2378,27 @@ class SupabaseManager:
                         if k not in cotizacion.get('condiciones', {}) or not cotizacion['condiciones'].get(k):
                             cotizacion.setdefault('condiciones', {})[k] = v
 
+            # 3. Aplicar parche en datosGenerales
             dg_patch = parche.get('datosGenerales', {})
             for campo in self.CAMPOS_EDICION_MENOR['datosGenerales']:
                 if campo in dg_patch:
+                    valor_anterior = cotizacion['datosGenerales'].get(campo)
                     cotizacion['datosGenerales'][campo] = dg_patch[campo]
                     campos_modificados.append(f'datosGenerales.{campo}')
 
+            # 3a. Detectar cambio de proyecto → regenerar número
+            if 'proyecto' in dg_patch:
+                nuevo_proyecto = dg_patch['proyecto']
+                proyecto_actual = cotizacion['datosGenerales'].get('proyecto', '')
+                if safe_str(nuevo_proyecto).strip() != safe_str(proyecto_actual).strip():
+                    proyecto_cambiado = True
+                    nuevo_numero = self._regenerar_numero_por_proyecto(viejo_numero, safe_str(nuevo_proyecto))
+                    cotizacion['numeroCotizacion'] = nuevo_numero
+                    cotizacion['datosGenerales']['numeroCotizacion'] = nuevo_numero
+                    campos_modificados.append(f'numero_cotizacion: {viejo_numero} → {nuevo_numero}')
+                    print(f"[EDICION_MENOR] Proyecto cambiado. Número: {viejo_numero} → {nuevo_numero}")
+
+            # 4. Aplicar parche en condiciones (ahora incluye moneda, tipoCambio, terminos)
             cond_patch = parche.get('condiciones', {})
             if 'condiciones' not in cotizacion or not isinstance(cotizacion.get('condiciones'), dict):
                 cotizacion['condiciones'] = {}
@@ -2213,19 +2407,9 @@ class SupabaseManager:
                     cotizacion['condiciones'][campo] = cond_patch[campo]
                     campos_modificados.append(f'condiciones.{campo}')
 
-            items_patch = parche.get('items', [])
-            for i, item_patch in enumerate(items_patch):
-                if i < len(cotizacion.get('items', [])):
-                    for campo in self.CAMPOS_EDICION_MENOR['items']:
-                        if campo in item_patch:
-                            cotizacion['items'][i][campo] = item_patch[campo]
-                            campos_modificados.append(f'items[{i}].{campo}')
-
-            # Sincronizar aliases de condiciones para evitar divergencia entre
-            # claves históricas y normalizadas (comentarios <-> comentariosAdicionales)
+            # Sincronizar aliases de condiciones
             condiciones_actualizadas = cotizacion.get('condiciones') or {}
             if isinstance(condiciones_actualizadas, dict):
-                # Valor real manda: si una key tiene contenido y la otra no, copiar
                 if condiciones_actualizadas.get('terminos') and not condiciones_actualizadas.get('condicionesPago'):
                     condiciones_actualizadas['condicionesPago'] = condiciones_actualizadas['terminos']
                 if condiciones_actualizadas.get('condicionesPago') and not condiciones_actualizadas.get('terminos'):
@@ -2235,7 +2419,43 @@ class SupabaseManager:
                 if condiciones_actualizadas.get('comentariosAdicionales') and not condiciones_actualizadas.get('comentarios'):
                     condiciones_actualizadas['comentarios'] = condiciones_actualizadas['comentariosAdicionales']
 
-            # Preservar texto introductorio IA si viene en el parche
+            # 5. Aplicar parche en items — soporte dual (texto o completo)
+            items_patch = parche.get('items', [])
+            if items_patch:
+                # Detectar si es modo texto o modo completo
+                primer_item = items_patch[0] if items_patch else {}
+                es_modo_completo = bool(
+                    set(primer_item.keys()) - self.CAMPOS_EDICION_MENOR['items']
+                )
+
+                if es_modo_completo:
+                    # Modo completo: reemplazar items y recalcular
+                    items_reemplazo_completo = True
+                    # Preservar campos que no vienen en el parche pero existen en el original
+                    items_procesados = []
+                    for i, item_patch in enumerate(items_patch):
+                        if i < len(cotizacion.get('items', [])):
+                            # Merge: mantener campos del original que no vienen en el parche
+                            item_original = dict(cotizacion['items'][i])
+                            item_original.update(item_patch)
+                            items_procesados.append(item_original)
+                        else:
+                            # Nuevo ítem (agregado en la edición)
+                            items_procesados.append(dict(item_patch))
+
+                    cotizacion['items'] = self._recalcular_totales_items(items_procesados)
+                    campos_modificados.append(f'items (completos, {len(items_procesados)} ítems)')
+                    print(f"[EDICION_MENOR] Items reemplazados completamente ({len(items_procesados)} ítems), totales recalculados")
+                else:
+                    # Modo texto: solo descripcion/notas (comportamiento original)
+                    for i, item_patch in enumerate(items_patch):
+                        if i < len(cotizacion.get('items', [])):
+                            for campo in self.CAMPOS_EDICION_MENOR['items']:
+                                if campo in item_patch:
+                                    cotizacion['items'][i][campo] = item_patch[campo]
+                                    campos_modificados.append(f'items[{i}].{campo}')
+
+            # 6. Preservar texto introductorio IA
             if 'textoIntroductorio' in parche and parche['textoIntroductorio']:
                 cotizacion['textoIntroductorio'] = parche['textoIntroductorio']
                 if 'datosGenerales' not in cotizacion:
@@ -2243,25 +2463,23 @@ class SupabaseManager:
                 cotizacion['datosGenerales']['textoIntroductorio'] = parche['textoIntroductorio']
                 campos_modificados.append('textoIntroductorio')
 
-            # Manejar imagen de referencia procesada (agregar, actualizar o eliminar)
+            # 7. Manejar imagen de referencia
             if 'imagenReferenciaProcesada' in parche:
                 if 'datosGenerales' not in cotizacion:
                     cotizacion['datosGenerales'] = {}
                 if parche['imagenReferenciaProcesada'] is not None:
-                    # Agregar o actualizar imagen
                     cotizacion['datosGenerales']['imagenReferencia'] = parche['imagenReferenciaProcesada']
                     campos_modificados.append('imagenReferencia')
-                    print(f"[EDICION_MENOR] Imagen actualizada: {parche['imagenReferenciaProcesada'].get('url', 'sin URL')}")
                 else:
-                    # Eliminar imagen (el usuario la quitó explícitamente)
                     cotizacion['datosGenerales'].pop('imagenReferencia', None)
                     campos_modificados.append('imagenReferencia (eliminada)')
-                    print(f"[EDICION_MENOR] Imagen eliminada por el usuario")
 
             if not campos_modificados:
                 return {'success': False, 'error': 'No se enviaron campos editables'}
 
-            # 4. Registrar auditoría en observaciones
+            # 8. Clasificar tipo de edición y registrar auditoría
+            tipo_edicion = self._clasificar_tipo_edicion(campos_modificados, items_patch)
+
             import json as _json
             obs_raw = cotizacion.get('observaciones') or '{}'
             try:
@@ -2271,17 +2489,52 @@ class SupabaseManager:
             if not isinstance(obs, dict):
                 obs = {}
             historial = obs.get('ediciones_menores', [])
-            historial.append({
+
+            entrada_auditoria = {
                 'timestamp': datetime.now().isoformat(),
                 'usuario': usuario,
+                'tipo': tipo_edicion,
                 'campos_modificados': campos_modificados,
-            })
+            }
+
+            # Agregar detalle legible para humanos
+            detalle = []
+            if proyecto_cambiado:
+                detalle.append(f'Proyecto cambiado a "{dg_patch.get("proyecto", "")}"')
+            if 'condiciones.moneda' in campos_modificados:
+                detalle.append(f'Moneda cambiada a {cond_patch.get("moneda", "")}')
+            if 'condiciones.tipoCambio' in campos_modificados:
+                detalle.append(f'Tipo de cambio actualizado a {cond_patch.get("tipoCambio", "")}')
+            if 'condiciones.terminos' in campos_modificados:
+                detalle.append('Términos de pago actualizados')
+            if items_reemplazo_completo:
+                detalle.append(f'{len(items_patch)} ítems modificados (precios/materiales)')
+            elif any('items[' in c for c in campos_modificados):
+                detalle.append('Texto de ítems corregido')
+            if tipo_edicion == 'imagen':
+                detalle.append('Imagen de referencia actualizada')
+            if tipo_edicion == 'texto':
+                detalle.append('Corrección de texto/typos')
+
+            entrada_auditoria['detalle'] = detalle
+            historial.append(entrada_auditoria)
             obs['ediciones_menores'] = historial
             cotizacion['observaciones'] = _json.dumps(obs, ensure_ascii=False)
 
-            # 5. Guardar (reutiliza toda la lógica de fallback existente)
-            print(f"[EDICION_MENOR] Guardando correcciones en: {numero_cotizacion} | campos: {campos_modificados}")
-            return self.guardar_cotizacion(cotizacion)
+            # 9. Guardar cotización actualizada
+            numero_para_guardar = cotizacion.get('numeroCotizacion', viejo_numero)
+            print(f"[EDICION_MENOR] Guardando en: {numero_para_guardar} | tipo: {tipo_edicion} | campos: {campos_modificados}")
+            resultado_guardado = self.guardar_cotizacion(cotizacion)
+
+            # 10. Si proyecto cambió y el guardado fue exitoso, eliminar el registro viejo
+            if proyecto_cambiado and resultado_guardado.get('success'):
+                print(f"[EDICION_MENOR] Eliminando registro viejo: {viejo_numero}")
+                self._eliminar_cotizacion_por_numero(viejo_numero)
+                resultado_guardado['proyecto_cambiado'] = True
+                resultado_guardado['numero_cotizacion'] = numero_para_guardar
+                resultado_guardado['numero_anterior'] = viejo_numero
+
+            return resultado_guardado
 
         except Exception as e:
             error_msg = safe_str(e)

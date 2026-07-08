@@ -720,10 +720,9 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17,13H13V17H11V13H7V11H11V7H13V11H17M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/></svg>
                 Nueva Revisión
             </a>
-            <a href="/formulario?edicion_menor={{ numero_cotizacion | urlencode }}" class="btn btn-warning" title="Corregir sin nueva revisión">
+            <a href="/formulario?edicion_menor={{ numero_cotizacion | urlencode }}" class="btn btn-warning" title="Corregir proyecto, precios, materiales o texto sin generar nueva revisión">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                 Editar
-            </a>
             <a href="/desglose/{{ numero_cotizacion | urlencode }}/pdf" class="btn" title="Exportar desglose compacto en PDF">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
                 Exportar Desglose
@@ -731,29 +730,129 @@
             {% endif %}
         </div>
 
+
     </div><!-- /page -->
 
-    <script>
-    (function() {
+<script>
+(function() {
+    try {
+        const obsRaw = {{ cotizacion.get('observaciones', '') | tojson }};
+        if (!obsRaw) return;
+        let obs;
         try {
-            const obsRaw = {{ cotizacion.get('observaciones', '') | tojson }};
-            if (!obsRaw) return;
-            const obs = JSON.parse(obsRaw);
-            const ediciones = obs && obs.ediciones_menores;
-            if (!ediciones || ediciones.length === 0) return;
+            obs = typeof obsRaw === 'string' ? JSON.parse(obsRaw) : obsRaw;
+        } catch(e) {
+            obs = obsRaw;
+        }
+        const ediciones = obs && obs.ediciones_menores;
+        if (!ediciones || ediciones.length === 0) return;
 
-            const ultima = ediciones[ediciones.length - 1];
-            const fecha = ultima.timestamp ? new Date(ultima.timestamp).toLocaleString('es-MX') : '';
-            const usuario = ultima.usuario || '';
+        // ── Crear sección de Historial de Ediciones ──
+        const section = document.createElement('div');
+        section.className = 'section';
+        section.style.cssText = 'margin-top:20px;';
 
-            const badge = document.createElement('div');
-            badge.style.cssText = 'background:#fef3c7; border:1px solid #f59e0b; border-radius:6px; padding:6px 12px; margin-top:8px; font-size:13px; color:#92400e; display:inline-flex; align-items:center; gap:6px;';
-            badge.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Editado el ' + fecha + (usuario ? ' por ' + usuario : '') + ' (' + ediciones.length + ' corrección' + (ediciones.length > 1 ? 'es' : '') + ')';
+        const title = document.createElement('h3');
+        title.style.cssText = 'display:flex; align-items:center; gap:8px; color:#374151; border-color:#e5e7eb;';
+        title.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="#374151"><path d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/></svg> Historial de Ediciones <span style="font-weight:400;font-size:14px;color:#6b7280;">(${ediciones.length} correcci${ediciones.length > 1 ? 'ones' : 'ón'} sin nueva revisión)</span>`;
+        section.appendChild(title);
 
-            const header = document.querySelector('.pg-header');
-            if (header) header.appendChild(badge);
-        } catch(e) {}
-    })();
-    </script>
+        // Colores por tipo de edición
+        const colores = {
+            'texto':       { bg: '#eff6ff', border: '#3b82f6', icon: '#3b82f6', label: 'Corrección de texto' },
+            'precios':     { bg: '#fef2f2', border: '#ef4444', icon: '#ef4444', label: 'Cambio de precios' },
+            'materiales':  { bg: '#f0fdf4', border: '#22c55e', icon: '#22c55e', label: 'Materiales modificados' },
+            'proyecto':    { bg: '#faf5ff', border: '#a855f7', icon: '#a855f7', label: 'Proyecto cambiado' },
+            'condiciones': { bg: '#fff7ed', border: '#f97316', icon: '#f97316', label: 'Condiciones actualizadas' },
+            'imagen':      { bg: '#fefce8', border: '#eab308', icon: '#eab308', label: 'Imagen actualizada' },
+            'mixta':       { bg: '#f8fafc', border: '#64748b', icon: '#64748b', label: 'Múltiples cambios' }
+        };
+
+        const lista = document.createElement('div');
+        lista.style.cssText = 'display:flex; flex-direction:column; gap:10px; margin-top:12px;';
+
+        // Mostrar desde el más reciente al más antiguo
+        const edicionesReversa = [...ediciones].reverse();
+
+        edicionesReversa.forEach((ed, idx) => {
+            const tipo = ed.tipo || 'texto';
+            const color = colores[tipo] || colores['texto'];
+            const fecha = ed.timestamp ? new Date(ed.timestamp).toLocaleString('es-MX', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            }) : '';
+            const usuario = ed.usuario || '';
+            const detalle = ed.detalle || [];
+            const campos = ed.campos_modificados || [];
+
+            const entry = document.createElement('div');
+            entry.style.cssText = `background:${color.bg}; border-left:4px solid ${color.border}; border-radius:6px; padding:10px 14px; font-size:13px;`;
+
+            // Header de la entrada
+            let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">`;
+            html += `<span style="font-weight:600; color:${color.icon}; display:flex; align-items:center; gap:6px;">`;
+            html += `<svg width="14" height="14" viewBox="0 0 24 24" fill="${color.icon}"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`;
+            html += `${color.label}</span>`;
+            html += `<span style="color:#6b7280; font-size:12px;">${fecha}${usuario ? ' — ' + usuario : ''}</span>`;
+            html += `</div>`;
+
+            // Detalles legibles
+            if (detalle.length > 0) {
+                html += `<ul style="margin:4px 0 0 20px; color:#374151; list-style:disc;">`;
+                detalle.forEach(d => {
+                    html += `<li style="margin-bottom:2px;">${d}</li>`;
+                });
+                html += `</ul>`;
+            } else if (campos.length > 0) {
+                // Fallback: mostrar campos técnicos si no hay detalle
+                html += `<div style="color:#6b7280; font-size:12px; margin-top:4px;">`;
+                html += campos.slice(0, 5).map(c => {
+                    const legible = c
+                        .replace('datosGenerales.', '')
+                        .replace('condiciones.', '')
+                        .replace('items[', 'Ítem ')
+                        .replace(']', '')
+                        .replace('.descripcion', ': descripción')
+                        .replace('.notas', ': notas')
+                        .replace('proyecto', 'Proyecto')
+                        .replace('moneda', 'Moneda')
+                        .replace('tipoCambio', 'Tipo de cambio')
+                        .replace('terminos', 'Términos de pago')
+                        .replace('textoIntroductorio', 'Texto introductorio')
+                        .replace('imagenReferencia', 'Imagen de referencia');
+                    return legible;
+                }).join(', ');
+                if (campos.length > 5) {
+                    html += ` + ${campos.length - 5} más`;
+                }
+                html += `</div>`;
+            }
+
+            entry.innerHTML = html;
+            lista.appendChild(entry);
+        });
+
+        section.appendChild(lista);
+
+        // Insertar la sección después de la información de cotización
+        const primeraSection = document.querySelector('.section');
+        if (primeraSection) {
+            primeraSection.parentNode.insertBefore(section, primeraSection.nextSibling);
+        }
+
+        // También mantener el badge compacto en el header como resumen rápido
+        const ultima = ediciones[ediciones.length - 1];
+        const fechaUltima = ultima.timestamp ? new Date(ultima.timestamp).toLocaleDateString('es-MX') : '';
+        const badge = document.createElement('div');
+        badge.style.cssText = 'background:#fef3c7; border:1px solid #f59e0b; border-radius:6px; padding:5px 10px; margin-top:6px; font-size:12px; color:#92400e; display:inline-flex; align-items:center; gap:4px;';
+        badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Última edición: ${fechaUltima} (${ediciones.length} total)`;
+        const header = document.querySelector('.pg-header');
+        if (header) header.appendChild(badge);
+
+    } catch(e) {
+        console.error('[HISTORIAL_EDICIONES] Error:', e);
+    }
+})();
+</script>
 </body>
 </html>
