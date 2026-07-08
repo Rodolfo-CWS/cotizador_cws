@@ -2296,7 +2296,7 @@ class SupabaseManager:
             for mat in item.get('materiales', []):
                 try:
                     cantidad = float(mat.get('cantidad', 0))
-                    precio = float(mat.get('precioUnitario', 0))
+                    precio = float(mat.get('precio', mat.get('precioUnitario', 0)))
                     mat['subtotal'] = round(cantidad * precio, 2)
                     subtotal_mat += mat['subtotal']
                 except (ValueError, TypeError):
@@ -2308,7 +2308,7 @@ class SupabaseManager:
             for otro in item.get('otrosMateriales', []):
                 try:
                     cantidad = float(otro.get('cantidad', 0))
-                    precio = float(otro.get('precioUnitario', 0))
+                    precio = float(otro.get('precio', otro.get('precioUnitario', 0)))
                     otro['subtotal'] = round(cantidad * precio, 2)
                     subtotal_otros += otro['subtotal']
                 except (ValueError, TypeError):
