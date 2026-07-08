@@ -134,6 +134,30 @@ def login():
     return render_template('login.html', error=error)
 
 
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """Solicitar recuperación de contraseña via Supabase Auth."""
+    message = None
+    error = None
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        if email:
+            try:
+                supabase = get_supabase_auth_client()
+                supabase.auth.reset_password_for_email(email, {
+                    "redirect_to": request.host_url.rstrip('/') + '/auth/login'
+                })
+                message = (
+                    f"Si el email {email} está registrado, recibirás un enlace "
+                    "para restablecer tu contraseña. Revisa tu bandeja de entrada."
+                )
+            except Exception as e:
+                error = f"Error: {e}"
+
+    return render_template('forgot_password.html', message=message, error=error)
+
+
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     """Registro de nuevo usuario + compañía."""
