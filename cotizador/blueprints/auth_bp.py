@@ -287,37 +287,33 @@ def me():
 #
 
 def _get_profile(user_id: str):
-    """Obtiene el perfil del usuario desde la base de datos."""
-    from flask import current_app
-
+    """Obtiene el perfil del usuario. Usa service key para bypassear RLS."""
     try:
-        db_manager = current_app.extensions.get('db_manager')
-        if not db_manager or not db_manager.pg_connection:
+        admin_client = get_supabase_admin_client()
+
+        # 1. Obtener perfil
+        resp = admin_client.table('profiles').select('*').eq('id', user_id).eq('is_active', True).execute()
+        if not resp.data or len(resp.data) == 0:
             return None
 
-        connection = db_manager.pg_connection
-        if connection.closed:
-            return None
+        profile = resp.data[0]
 
-        cursor = connection.cursor()
-        try:
-            cursor.execute(
-                """
-                SELECT p.id, p.company_id, p.full_name, p.role,
-                       c.name as company_name, c.slug as company_slug
-                FROM public.profiles p
-                JOIN public.companies c ON c.id = p.company_id
-                WHERE p.id = %s AND p.is_active = true AND c.is_active = true
-                """,
-                (user_id,)
-            )
-            row = cursor.fetchone()
-            if row:
-                colnames = [desc[0] for desc in cursor.description]
-                return dict(zip(colnames, row))
-            return None
-        finally:
-            cursor.close()
+        # 2. Obtener datos de la compañía
+        company_id = profile.get('company_id')
+        company = {}
+        if company_id:
+            cresp = admin_client.table('companies').select('name, slug').eq('id', company_id).eq('is_active', True).execute()
+            if cresp.data and len(cresp.data) > 0:
+                company = cresp.data[0]
+
+        return {
+            'id': profile['id'],
+            'company_id': company_id,
+            'full_name': profile.get('full_name', ''),
+            'role': profile.get('role', 'seller'),
+            'company_name': company.get('name', ''),
+            'company_slug': company.get('slug', ''),
+        }
     except Exception as e:
         logger.error(f"[AUTH] Error al obtener perfil: {e}")
         return None
