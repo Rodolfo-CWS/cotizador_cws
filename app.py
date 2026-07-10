@@ -2950,6 +2950,15 @@ def generar_texto_ia():
             except Exception as e:
                 print(f"[IA] Error buscando texto guardado: {e}")
 
+        # Si ya existe texto guardado, devolverlo sin llamar a Claude
+        if texto_guardado:
+            return jsonify({
+                "success": True,
+                "texto": texto_guardado,
+                "fuente": "guardado",
+                "textoGuardado": texto_guardado
+            })
+
         # Intentar usar Claude si está configurado
         api_key = os.getenv('ANTHROPIC_API_KEY', '').strip()
         # Solo usar IA si la API key está configurada y no es placeholder
