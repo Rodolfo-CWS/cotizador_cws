@@ -282,6 +282,18 @@ def me():
     })
 
 
+@auth_bp.route('/profile')
+def profile():
+    """Página de perfil del usuario."""
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+
+    # Redirigir admin al panel de compañía
+    if session.get('user_role') == 'admin':
+        return redirect(url_for('company.profile'))
+    return redirect(url_for('home'))
+
+
 #
 # Funciones auxiliares
 #

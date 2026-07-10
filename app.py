@@ -931,7 +931,7 @@ def home():
             print("Nueva cotizacion recibida")
 
             # Guardar TODOS los datos usando el DatabaseManager
-            resultado = db_manager.guardar_cotizacion(datos)
+            resultado = db_manager.guardar_cotizacion(datos, company_id=session.get("company_id"))
 
             if resultado["success"]:
                 return jsonify({
@@ -1300,7 +1300,7 @@ def formulario():
 
             # Guardar usando DatabaseManager con manejo robusto de errores
             print("[FORM] FORMULARIO: Llamando a guardar_cotizacion...")
-            resultado = db_manager.guardar_cotizacion(datos)
+            resultado = db_manager.guardar_cotizacion(datos, company_id=session.get("company_id"))
             print(f"[FORM] FORMULARIO: Resultado guardado = {json.dumps(resultado, indent=2, ensure_ascii=False)}")
             
             # Análisis detallado del resultado
@@ -1369,7 +1369,7 @@ def formulario():
                                 cotizacion_busqueda = db_manager.obtener_cotizacion(numero_cotizacion)
                                 if cotizacion_busqueda["encontrado"]:
                                     cotizacion = cotizacion_busqueda["item"]
-                                    pdf_data = generar_pdf_reportlab(cotizacion)
+                                    pdf_data = generar_pdf_reportlab(cotizacion, company_branding=g.company)
                                     resultado_almacenamiento = pdf_manager.almacenar_pdf_nuevo(pdf_data, cotizacion)
                                     print(f"[PDF] ✅ PDF generado exitosamente en segundo plano: {numero_cotizacion}")
                                     return resultado_almacenamiento
@@ -3154,7 +3154,7 @@ def generar_pdf():
         # Intentar con ReportLab primero (más estable)
         if REPORTLAB_AVAILABLE:
             print("Generando PDF con ReportLab")
-            pdf_data = generar_pdf_reportlab(cotizacion, texto_personalizado=texto_personalizado)
+            pdf_data = generar_pdf_reportlab(cotizacion, company_branding=g.company, texto_personalizado=texto_personalizado)
             pdf_buffer = io.BytesIO(pdf_data)
             
         elif WEASYPRINT_AVAILABLE:
@@ -3207,7 +3207,7 @@ def generar_pdf():
                     cotizacion['datosGenerales'] = {}
                 cotizacion['datosGenerales']['textoIntroductorio'] = texto_personalizado
                 cotizacion['textoIntroductorio'] = texto_personalizado
-                resultado_texto = db_manager.guardar_cotizacion(cotizacion)
+                resultado_texto = db_manager.guardar_cotizacion(cotizacion, company_id=session.get("company_id"))
                 if resultado_texto.get('success'):
                     print(f"Texto introductorio guardado en cotización ({len(texto_personalizado)} chars)")
                 else:
@@ -3309,7 +3309,7 @@ def servir_pdf(numero_cotizacion):
 
             cotizacion = cot_resultado["item"]
             try:
-                pdf_data = generar_pdf_reportlab(cotizacion) if REPORTLAB_AVAILABLE else None
+                pdf_data = generar_pdf_reportlab(cotizacion, company_branding=g.company) if REPORTLAB_AVAILABLE else None
                 if pdf_data is None:
                     return jsonify({"error": "Error generando PDF al vuelo"}), 500
 
@@ -4846,7 +4846,7 @@ def regenerar_pdfs_faltantes():
                     continue
 
                 cotizacion_data = cot_completa["item"]
-                pdf_data = generar_pdf_reportlab(cotizacion_data) if REPORTLAB_AVAILABLE else None
+                pdf_data = generar_pdf_reportlab(cotizacion_data, company_branding=g.company) if REPORTLAB_AVAILABLE else None
                 if not pdf_data:
                     fallidos.append({"numero": numero, "razon": "generación de PDF falló"})
                     continue
@@ -6520,7 +6520,7 @@ def test_revision_form():
         
         # Si pasa la validación, intentar guardado simulado (sin commitear)
         try:
-            resultado_guardado = db_manager.guardar_cotizacion(datos_test)
+            resultado_guardado = db_manager.guardar_cotizacion(datos_test, company_id=session.get("company_id"))
             resultado_test["guardado_simulado"] = {
                 "exitoso": resultado_guardado.get("success", False),
                 "error": resultado_guardado.get("error"),

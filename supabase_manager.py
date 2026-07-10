@@ -504,15 +504,18 @@ class SupabaseManager:
             print(f"[SDK_REST] Error obteniendo estadísticas: {error_msg}")
             raise e
     
-    def guardar_cotizacion(self, datos: Dict) -> Dict:
+    def guardar_cotizacion(self, datos: Dict, company_id: str = None) -> Dict:
         """
         Guardar cotización en Supabase (online) o JSON (offline)
-        Mantiene API compatible con DatabaseManager
         """
         try:
+            # Guardar company_id en los datos para la BD
+            if company_id:
+                datos['company_id'] = company_id
+
             # FIX ISSUE #1: SIEMPRE priorizar número en datosGenerales.numeroCotizacion
             numero_cotizacion = None
-            
+
             print(f"[DEBUG_ISSUE1] === INICIO DEBUG GUARDAR_COTIZACION ===")
             print(f"[DEBUG_ISSUE1] datos['numeroCotizacion']: '{datos.get('numeroCotizacion', 'VACIO')}'")
             print(f"[DEBUG_ISSUE1] datos['numeroCotizacionHidden']: '{datos.get('numeroCotizacionHidden', 'VACIO')}'")
