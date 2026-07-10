@@ -374,7 +374,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         story.append(Spacer(1, 10))
 
         # ── TOTALES EN BOX DESTACADO ──
-        iva = subtotal * (branding.get('iva_rate', 16.00) / 100.0)
+        iva = subtotal * (float(branding.get('iva_rate', 16.00)) / 100.0)
         total = subtotal + iva
 
         if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
@@ -940,7 +940,7 @@ def generar_desglose_pdf_reportlab(datos_cotizacion, company_branding=None):
             story.append(Paragraph(f"<i>Nota interna general: {comentarios_globales.strip()}</i>", note_style))
 
         # ── TOTALES ──
-        iva = subtotal_general * (branding.get('iva_rate', 16.00) / 100.0)
+        iva = subtotal_general * (float(branding.get('iva_rate', 16.00)) / 100.0)
         total = subtotal_general + iva
 
         if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
