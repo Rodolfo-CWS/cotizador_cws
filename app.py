@@ -436,7 +436,7 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
 
         # Buscar todas las cotizaciones relacionadas usando el patrón de búsqueda
         print(f"[VERIFICAR_REVISION] Buscando cotizaciones con patrón: '{patron_busqueda}'")
-        resultado = db_manager.buscar_cotizaciones(patron_busqueda, page=1, per_page=100)
+        resultado = db_manager.buscar_cotizaciones(patron_busqueda, page=1, per_page=100, company_id=session.get("company_id"))
 
         # IMPORTANTE: La API puede retornar 'items' o 'resultados' dependiendo del manager
         items_encontrados = resultado.get('items') or resultado.get('resultados') or []
@@ -981,7 +981,7 @@ def home():
             print(f"[HOME] Búsqueda rápida: '{query_general}'")
 
         # Obtener todas las cotizaciones de la base de datos
-        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)  # Query vacía = todas
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000, company_id=session.get("company_id"))  # Query vacía = todas
 
         # Obtener todos los PDFs (incluye Google Drive antiguas)
         resultado_pdfs = pdf_manager.buscar_pdfs("", 1, 10000) if pdf_manager else {"resultados": []}
@@ -2110,7 +2110,7 @@ def buscar():
         resultados_cotizaciones = []
         try:
             print(f"[DB] Iniciando búsqueda en {'Supabase' if not db_manager.modo_offline else 'JSON local'}...")
-            resultado_db = db_manager.buscar_cotizaciones(query, 1, 1000)  # Obtener todas
+            resultado_db = db_manager.buscar_cotizaciones(query, 1, 1000, company_id=session.get("company_id"))  # Obtener todas
             print(f"[DB] Resultado de búsqueda: {type(resultado_db)} - {list(resultado_db.keys()) if isinstance(resultado_db, dict) else 'No es dict'}")
             
             if not resultado_db.get("error"):
@@ -2287,7 +2287,7 @@ def todas_cotizaciones():
         print(f"[TODAS-COTIZACIONES] Obteniendo todas las cotizaciones (página {page})...")
 
         # Obtener todas las cotizaciones de la base de datos
-        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)  # Query vacía = todas
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000, company_id=session.get("company_id"))  # Query vacía = todas
 
         # Obtener todos los PDFs (incluye Google Drive antiguas)
         resultado_pdfs = pdf_manager.buscar_pdfs("", 1, 10000) if pdf_manager else {"resultados": []}
@@ -2673,7 +2673,7 @@ def diagnostico_tabla_datos():
 
     try:
         # Obtener cotizaciones
-        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000, company_id=session.get("company_id"))
 
         if resultado_db.get("error"):
             return jsonify({
@@ -2742,7 +2742,7 @@ def debug_tabla_cotizaciones():
 
     try:
         # Obtener cotizaciones
-        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000, company_id=session.get("company_id"))
 
         debug_info = {
             "total_encontradas": 0,
@@ -4815,7 +4815,7 @@ def regenerar_pdfs_faltantes():
             return jsonify({"error": "No hay generador de PDF disponible (ReportLab/WeasyPrint)"}), 500
 
         # Obtener todas las cotizaciones de la base de datos
-        resultado_busqueda = db_manager.buscar_cotizaciones("", pagina=1, por_pagina=500)
+        resultado_busqueda = db_manager.buscar_cotizaciones("", pagina=1, por_pagina=500, company_id=session.get("company_id"))
         cotizaciones = resultado_busqueda.get("items", [])
 
         total = len(cotizaciones)

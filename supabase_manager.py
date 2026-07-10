@@ -947,50 +947,53 @@ class SupabaseManager:
             print(f"[OFFLINE] Error guardando: {error_msg}")
             return {"success": False, "error": error_msg}
     
-    def buscar_cotizaciones(self, query: str, page: int = 1, per_page: int = 20) -> Dict:
+    def buscar_cotizaciones(self, query: str, page: int = 1, per_page: int = 20,
+                            company_id: str = None) -> Dict:
         """
-        Buscar cotizaciones con paginación
-        API compatible con DatabaseManager
+        Buscar cotizaciones con paginación y filtro por compañía.
         """
         try:
             # SISTEMA HÍBRIDO TRIPLE LAYER:
             # 1. Intentar PostgreSQL directo (más rápido)
             if not self.modo_offline:
                 try:
-                    return self._buscar_cotizaciones_supabase(query, page, per_page)
+                    return self._buscar_cotizaciones_supabase(query, page, per_page, company_id)
                 except Exception as pg_error:
                     print(f"[POSTGRES] Error en búsqueda: {safe_str(pg_error)}")
                     print("[POSTGRES] Intentando fallback a SDK REST...")
-            
+
             # 2. Fallback a SDK REST (estable)
             if self.supabase_client:
                 try:
-                    return self._buscar_cotizaciones_sdk(query, page, per_page)
+                    return self._buscar_cotizaciones_sdk(query, page, per_page, company_id)
                 except Exception as sdk_error:
                     print(f"[SDK_REST] Error en búsqueda: {safe_str(sdk_error)}")
                     print("[SDK_REST] Fallback a modo offline")
-            
+
             # 3. Último recurso: JSON offline
-            return self._buscar_cotizaciones_offline(query, page, per_page)
-                    
+            return self._buscar_cotizaciones_offline(query, page, per_page, company_id)
+
         except Exception as e:
             error_msg = safe_str(e)
             print(f"[BUSCAR] Error general: {error_msg}")
             return {"error": error_msg}
     
-    def _buscar_cotizaciones_sdk(self, query: str, page: int, per_page: int) -> Dict:
+    def _buscar_cotizaciones_sdk(self, query: str, page: int, per_page: int,
+                                  company_id: str = None) -> Dict:
         """Buscar cotizaciones usando Supabase SDK REST"""
         try:
             if not self.supabase_client:
                 raise Exception("SDK de Supabase no disponible")
-            
+
             # Construir query base
             base_query = self.supabase_client.table('cotizaciones').select('*')
-            
+
+            # Filtrar por compañía (siempre que se provea)
+            if company_id:
+                base_query = base_query.eq('company_id', company_id)
+
             # Aplicar filtros si hay query
             if query and query.strip():
-                # SDK REST usa filtros separados, no ILIKE múltiple como PostgreSQL
-                # Buscar por los campos más comunes primero
                 filtered_query = base_query.or_(f'numero_cotizacion.ilike.%{query}%,datos_generales->>cliente.ilike.%{query}%,datos_generales->>vendedor.ilike.%{query}%,datos_generales->>proyecto.ilike.%{query}%')
             else:
                 filtered_query = base_query
@@ -1048,53 +1051,56 @@ class SupabaseManager:
             print(f"[SDK_REST] Error en búsqueda: {error_msg}")
             raise e
 
-    def _buscar_cotizaciones_supabase(self, query: str, page: int, per_page: int) -> Dict:
-        """Buscar cotizaciones en Supabase PostgreSQL"""
+    def _buscar_cotizaciones_supabase(self, query: str, page: int, per_page: int,
+                                       company_id: str = None) -> Dict:
+        """Buscar cotizaciones en Supabase PostgreSQL con filtro de compañía."""
         try:
             cursor = self.pg_connection.cursor()
-            
+
+            # Filtro base de compañía (siempre que se provea)
+            company_filter = ""
+            company_params = ()
+            if company_id:
+                company_filter = " AND company_id = %s"
+                company_params = (company_id,)
+
             # Construir query de búsqueda
             if not query:
-                # Sin filtro - obtener todas
-                count_query = "SELECT COUNT(*) as total FROM cotizaciones;"
-                search_query = """
-                    SELECT id, numero_cotizacion, datos_generales, items, 
+                count_query = f"SELECT COUNT(*) as total FROM cotizaciones WHERE 1=1{company_filter};"
+                search_query = f"""
+                    SELECT id, numero_cotizacion, datos_generales, items,
                            revision, fecha_creacion, timestamp, usuario, observaciones
-                    FROM cotizaciones 
-                    ORDER BY fecha_creacion DESC 
+                    FROM cotizaciones WHERE 1=1{company_filter}
+                    ORDER BY fecha_creacion DESC
                     LIMIT %s OFFSET %s;
                 """
-                count_params = ()
-                search_params = (per_page, (page - 1) * per_page)
+                count_params = company_params
+                search_params = company_params + (per_page, (page - 1) * per_page)
             else:
-                # Con filtro - buscar en múltiples campos
-                search_conditions = """
-                    numero_cotizacion ILIKE %s OR
+                search_conditions = f"""
+                    (numero_cotizacion ILIKE %s OR
                     datos_generales->>'cliente' ILIKE %s OR
                     datos_generales->>'vendedor' ILIKE %s OR
                     datos_generales->>'proyecto' ILIKE %s OR
                     datos_generales->>'atencionA' ILIKE %s OR
-                    datos_generales->>'contacto' ILIKE %s
+                    datos_generales->>'contacto' ILIKE %s)
                 """
-                
+
                 query_pattern = f"%{query}%"
-                
                 count_query = f"""
-                    SELECT COUNT(*) as total FROM cotizaciones 
-                    WHERE {search_conditions};
+                    SELECT COUNT(*) as total FROM cotizaciones
+                    WHERE {search_conditions}{company_filter};
                 """
-                
                 search_query = f"""
-                    SELECT id, numero_cotizacion, datos_generales, items, 
+                    SELECT id, numero_cotizacion, datos_generales, items,
                            revision, fecha_creacion, timestamp, usuario, observaciones
-                    FROM cotizaciones 
-                    WHERE {search_conditions}
-                    ORDER BY fecha_creacion DESC 
+                    FROM cotizaciones
+                    WHERE {search_conditions}{company_filter}
+                    ORDER BY fecha_creacion DESC
                     LIMIT %s OFFSET %s;
                 """
-                
-                count_params = tuple([query_pattern] * 6)
-                search_params = tuple([query_pattern] * 6) + (per_page, (page - 1) * per_page)
+                count_params = tuple([query_pattern] * 6) + company_params
+                search_params = tuple([query_pattern] * 6) + company_params + (per_page, (page - 1) * per_page)
             
             # Ejecutar conteo
             cursor.execute(count_query, count_params)
@@ -1140,7 +1146,8 @@ class SupabaseManager:
             print(f"[SUPABASE] Error en búsqueda: {error_msg}")
             raise e
     
-    def _buscar_cotizaciones_offline(self, query: str, page: int, per_page: int) -> Dict:
+    def _buscar_cotizaciones_offline(self, query: str, page: int, per_page: int,
+                                      company_id: str = None) -> Dict:
         """Buscar cotizaciones en JSON offline"""
         try:
             print(f"[OFFLINE] Iniciando busqueda offline con query: '{query}'")

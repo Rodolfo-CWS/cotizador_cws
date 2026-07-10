@@ -66,8 +66,7 @@ def profile():
         result = db.update_company(company_id, data)
         if result:
             flash("Perfil actualizado correctamente", "success")
-            # Recargar datos
-            company = db.get_company_by_id(company_id)
+            return redirect(url_for('company.branding'))
         else:
             flash("Error al actualizar el perfil", "error")
 
@@ -132,27 +131,35 @@ def upload_logo():
         return redirect(url_for('company.branding'))
 
     try:
-        # Subir a Supabase Storage
-        from supabase_storage_manager import SupabaseStorageManager
-        storage = SupabaseStorageManager()
+        # Usar cliente Supabase con service key para bypass RLS
+        from supabase import create_client
+        import os
+        supabase_url = os.getenv('SUPABASE_URL')
+        service_key = os.getenv('SUPABASE_SERVICE_KEY')
 
-        # Usar el bucket de PDFs con carpeta de company-assets
+        if not supabase_url or not service_key:
+            flash("Error: Configuración de Supabase incompleta", "error")
+            return redirect(url_for('company.branding'))
+
+        admin_client = create_client(supabase_url, service_key)
+
         file_data = file.read()
         file_path = f"company-assets/{company_id}/logo.png"
 
-        # Guardar en Supabase Storage
-        # subir_archivo(file_bytes, storage_path, content_type)
-        result = storage.subir_archivo(file_data, file_path, 'image/png')
+        # Subir a bucket company-assets (debe existir en Supabase Storage)
+        bucket = admin_client.storage.from_('company-assets')
+        bucket.upload(
+            path=file_path,
+            file=file_data,
+            file_options={"content-type": "image/png", "upsert": "true"}
+        )
 
-        if result and 'error' not in result:
-            # Construir URL pública
-            logo_url = storage.get_public_url(file_path)
+        # Obtener URL pública
+        logo_url = bucket.get_public_url(file_path)
 
-            # Actualizar company con la URL
-            db.update_company(company_id, {"logo_url": logo_url})
-            flash("Logo subido correctamente", "success")
-        else:
-            flash("Error al subir el logo a Supabase Storage", "error")
+        # Actualizar company con la URL
+        db.update_company(company_id, {"logo_url": logo_url})
+        flash("Logo subido correctamente", "success")
     except Exception as e:
         logger.error(f"[COMPANY] Error subiendo logo: {e}")
         flash(f"Error al subir el logo: {e}", "error")
