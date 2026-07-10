@@ -1364,12 +1364,13 @@ def formulario():
                     
                     if pdf_manager and (WEASYPRINT_AVAILABLE or REPORTLAB_AVAILABLE):
                         # Intentar generar PDF de manera no bloqueante
+                        company_branding = g.get('company')  # capturar antes del async
                         def generar_pdf_asincrono():
                             try:
                                 cotizacion_busqueda = db_manager.obtener_cotizacion(numero_cotizacion)
                                 if cotizacion_busqueda["encontrado"]:
                                     cotizacion = cotizacion_busqueda["item"]
-                                    pdf_data = generar_pdf_reportlab(cotizacion, company_branding=g.company)
+                                    pdf_data = generar_pdf_reportlab(cotizacion, company_branding=company_branding)
                                     resultado_almacenamiento = pdf_manager.almacenar_pdf_nuevo(pdf_data, cotizacion)
                                     print(f"[PDF] ✅ PDF generado exitosamente en segundo plano: {numero_cotizacion}")
                                     return resultado_almacenamiento
@@ -3154,7 +3155,7 @@ def generar_pdf():
         # Intentar con ReportLab primero (más estable)
         if REPORTLAB_AVAILABLE:
             print("Generando PDF con ReportLab")
-            pdf_data = generar_pdf_reportlab(cotizacion, company_branding=g.company, texto_personalizado=texto_personalizado)
+            pdf_data = generar_pdf_reportlab(cotizacion, company_branding=g.get("company"), texto_personalizado=texto_personalizado)
             pdf_buffer = io.BytesIO(pdf_data)
             
         elif WEASYPRINT_AVAILABLE:
@@ -3309,7 +3310,7 @@ def servir_pdf(numero_cotizacion):
 
             cotizacion = cot_resultado["item"]
             try:
-                pdf_data = generar_pdf_reportlab(cotizacion, company_branding=g.company) if REPORTLAB_AVAILABLE else None
+                pdf_data = generar_pdf_reportlab(cotizacion, company_branding=g.get("company")) if REPORTLAB_AVAILABLE else None
                 if pdf_data is None:
                     return jsonify({"error": "Error generando PDF al vuelo"}), 500
 
@@ -4846,7 +4847,7 @@ def regenerar_pdfs_faltantes():
                     continue
 
                 cotizacion_data = cot_completa["item"]
-                pdf_data = generar_pdf_reportlab(cotizacion_data, company_branding=g.company) if REPORTLAB_AVAILABLE else None
+                pdf_data = generar_pdf_reportlab(cotizacion_data, company_branding=g.get("company")) if REPORTLAB_AVAILABLE else None
                 if not pdf_data:
                     fallidos.append({"numero": numero, "razon": "generación de PDF falló"})
                     continue
