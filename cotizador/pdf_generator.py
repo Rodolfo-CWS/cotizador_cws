@@ -66,13 +66,20 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
 
     # ── Colores dinámicos desde branding ──
     try:
-        primary_color = colors.HexColor(branding['primary_color'])
+        primary_color = colors.HexColor(str(branding.get('primary_color', '#1e293b')))
     except:
         primary_color = CORPORATE_INDIGO
     try:
-        secondary_color = colors.HexColor(branding['secondary_color'])
+        secondary_color = colors.HexColor(str(branding.get('secondary_color', '#0f172a')))
     except:
         secondary_color = CORPORATE_INDIGO_DARK
+
+    # ── Sanitizar IVA rate (puede venir como Decimal, str, o float de la BD) ──
+    try:
+        iva_rate = float(branding.get('iva_rate', 16.00))
+    except (ValueError, TypeError):
+        iva_rate = 16.00
+    branding['iva_rate'] = iva_rate
 
     # Crear buffer en memoria
     buffer = io.BytesIO()
@@ -374,7 +381,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         story.append(Spacer(1, 10))
 
         # ── TOTALES EN BOX DESTACADO ──
-        iva = subtotal * (float(branding.get('iva_rate', 16.00)) / 100.0)
+        iva = subtotal * (branding.get('iva_rate', 16.00) / 100.0)
         total = subtotal + iva
 
         if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
@@ -940,7 +947,7 @@ def generar_desglose_pdf_reportlab(datos_cotizacion, company_branding=None):
             story.append(Paragraph(f"<i>Nota interna general: {comentarios_globales.strip()}</i>", note_style))
 
         # ── TOTALES ──
-        iva = subtotal_general * (float(branding.get('iva_rate', 16.00)) / 100.0)
+        iva = subtotal_general * (branding.get('iva_rate', 16.00) / 100.0)
         total = subtotal_general + iva
 
         if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
