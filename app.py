@@ -11,7 +11,7 @@ from cotizador import (
 )
 
 # ── Imports estándar usados por las rutas ──
-from flask import Flask, render_template, render_template_string, request, jsonify, send_file, session, redirect, url_for
+from flask import Flask, render_template, render_template_string, request, jsonify, send_file, session, redirect, url_for, g
 import io
 import datetime
 import atexit
