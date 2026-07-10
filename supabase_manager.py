@@ -1165,16 +1165,25 @@ class SupabaseManager:
                 else:
                     print(f"[OFFLINE] No hay datosGenerales en primera cotizacion")
             
+            # Filtrar por company_id primero
+            if company_id:
+                antes = len(cotizaciones)
+                cotizaciones = [
+                    c for c in cotizaciones
+                    if c.get("company_id") == company_id
+                ]
+                print(f"[OFFLINE] Filtro company_id: {antes} → {len(cotizaciones)}")
+
             if not query:
                 resultados = cotizaciones
             else:
                 # Filtrar por query
                 resultados = []
                 query_lower = query.lower()
-                
+
                 for cot in cotizaciones:
                     datos_generales = cot.get("datosGenerales", {})
-                    
+
                     # Buscar en múltiples campos
                     if (query_lower in safe_str(cot.get("numeroCotizacion", "")).lower() or
                         query_lower in safe_str(datos_generales.get("cliente", "")).lower() or

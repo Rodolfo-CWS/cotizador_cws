@@ -1067,8 +1067,9 @@ def home():
         else:
             print(f"[HOME] Error: {resultado_db.get('error')}")
 
-        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (que no están en BD)
-        if not resultado_pdfs.get("error"):
+        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (solo para CWS Company legacy)
+        cws_company_id = '5f6b07c9-3b9f-42ac-8ea0-e3ad9a4fe56b'
+        if session.get('company_id') == cws_company_id and not resultado_pdfs.get("error"):
             pdfs_antiguos = resultado_pdfs.get("resultados", [])
             print(f"[HOME] Encontrados {len(pdfs_antiguos)} PDFs totales")
 
@@ -2151,10 +2152,11 @@ def buscar():
                 resultado_pdfs = pdf_manager.buscar_pdfs(query, 1, 1000)  # Obtener todos
                 print(f"[PDF] Resultado PDFs: {type(resultado_pdfs)} - {list(resultado_pdfs.keys()) if isinstance(resultado_pdfs, dict) else 'No es dict'}")
                 
-                if not resultado_pdfs.get("error"):
+                cws_id = '5f6b07c9-3b9f-42ac-8ea0-e3ad9a4fe56b'
+                if session.get('company_id') == cws_id and not resultado_pdfs.get("error"):
                     pdfs = resultado_pdfs.get("resultados", [])
                     print(f"[PDF] Encontrados {len(pdfs)} PDFs")
-                    
+
                     for pdf in pdfs:
                         resultados_pdfs.append({
                             "numero_cotizacion": pdf.get('numero_cotizacion', 'N/A'),
@@ -2481,8 +2483,9 @@ def todas_cotizaciones():
         else:
             print(f"[TODAS-COTIZACIONES] Error: {resultado_db.get('error')}")
 
-        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (que no están en BD)
-        if not resultado_pdfs.get("error"):
+        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (solo CWS Company)
+        cws_company_id = '5f6b07c9-3b9f-42ac-8ea0-e3ad9a4fe56b'
+        if session.get('company_id') == cws_company_id and not resultado_pdfs.get("error"):
             pdfs_antiguos = resultado_pdfs.get("resultados", [])
             print(f"[TODAS-COTIZACIONES] Encontrados {len(pdfs_antiguos)} PDFs totales")
 
