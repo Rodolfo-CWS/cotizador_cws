@@ -50,7 +50,6 @@ def profile():
 
     if request.method == 'POST':
         data = {
-            "name": request.form.get('name', '').strip(),
             "tax_id": request.form.get('tax_id', '').strip(),
             "address": request.form.get('address', '').strip(),
             "phone": request.form.get('phone', '').strip(),
@@ -58,10 +57,6 @@ def profile():
             "iva_rate": float(request.form.get('iva_rate', 16.00)),
             "footer_text": request.form.get('footer_text', '').strip(),
         }
-
-        if not data['name']:
-            flash("El nombre de la empresa es requerido", "error")
-            return render_template('admin/company_profile.html', company=company)
 
         result = db.update_company(company_id, data)
         if result:
