@@ -99,32 +99,42 @@ def init_middleware(app, supabase_manager):
 
 
 def _load_company_from_db(supabase_manager, company_id):
-    """Carga los datos de la compañía desde la base de datos."""
-    connection = supabase_manager.pg_connection
-    if not connection or connection.closed:
-        return None
-
-    cursor = connection.cursor()
+    """Carga los datos de la compañía desde la base de datos.
+    Intenta PostgreSQL directo primero, luego SDK como fallback."""
+    # Intento 1: PostgreSQL directo
     try:
-        cursor.execute(
-            """
-            SELECT id, name, slug, tax_id, address, phone, email,
+        connection = supabase_manager.pg_connection
+        if connection and not connection.closed:
+            try:
+                connection.rollback()
+            except:
+                pass
+            cursor = connection.cursor()
+            cursor.execute(
+                """SELECT id, name, slug, tax_id, address, phone, email,
                    logo_url, primary_color, secondary_color, footer_text,
                    iva_rate, is_active
-            FROM public.companies
-            WHERE id = %s AND is_active = true
-            """,
-            (company_id,)
-        )
-        row = cursor.fetchone()
-        if row:
-            colnames = [desc[0] for desc in cursor.description]
-            return dict(zip(colnames, row))
-        return None
+                FROM public.companies WHERE id = %s AND is_active = true""",
+                (company_id,)
+            )
+            row = cursor.fetchone()
+            cursor.close()
+            if row:
+                colnames = [desc[0] for desc in cursor.description]
+                return dict(zip(colnames, row))
     except Exception:
-        return None
-    finally:
-        cursor.close()
+        pass
+
+    # Intento 2: SDK (bypass RLS)
+    try:
+        if supabase_manager.supabase_client:
+            resp = supabase_manager.supabase_client.table('companies').select('*').eq('id', company_id).eq('is_active', True).execute()
+            if resp.data:
+                return resp.data[0]
+    except Exception:
+        pass
+
+    return None
 
 
 def login_required(f):

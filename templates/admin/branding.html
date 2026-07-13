@@ -99,17 +99,6 @@
             </form>
         </div>
 
-        <!-- Footer text -->
-        <div class="card" style="margin-top:20px;">
-            <h1>Footer del PDF</h1>
-            <p class="subtitle">Este texto aparece al final de cada cotización en PDF</p>
-            <form method="POST" action="/admin/company/profile">
-                <div class="form-group">
-                    <textarea name="footer_text" rows="3" style="width:100%;padding:10px;border:1.5px solid #d6d3d1;border-radius:8px;font-size:14px;box-sizing:border-box;">{{ company.footer_text if company else '' }}</textarea>
-                </div>
-                <button type="submit" class="btn btn-primary">Guardar Footer</button>
-            </form>
-        </div>
     </div>
 </body>
 </html>
