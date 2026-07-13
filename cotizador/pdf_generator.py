@@ -17,29 +17,69 @@ from cotizador._compat import REPORTLAB_AVAILABLE
 from cotizador.utilities import wrap_description_text
 
 
-# ── Constantes de color corporativo (matices discretos azul + naranja) ──
-CORPORATE_INDIGO = colors.HexColor('#1e293b')       # slate-800, sutil azul
-CORPORATE_INDIGO_DARK = colors.HexColor('#0f172a')  # slate-900
-CORPORATE_INDIGO_LIGHT = colors.HexColor('#f5f4f1') # sutil naranja (warm stone)
+# ── Constantes de color corporativo (fallback si no hay branding de compañía) ──
+CORPORATE_INDIGO = colors.HexColor('#1e293b')
+CORPORATE_INDIGO_DARK = colors.HexColor('#0f172a')
+CORPORATE_INDIGO_LIGHT = colors.HexColor('#f5f4f1')
 TEXT_DARK = colors.HexColor('#1e293b')
-TEXT_GRAY = colors.HexColor('#78716c')              # stone-500, sutil naranja
-TEXT_BODY = colors.HexColor('#44403c')              # stone-700
-BORDER_GRAY = colors.HexColor('#d6d3d1')            # stone-300, sutil naranja
-BG_LIGHT = colors.HexColor('#faf9f7')              # casi blanco, matiz cálido
-BG_STRIPE = colors.HexColor('#f5f4f1')             # rayas suaves cálidas
+TEXT_GRAY = colors.HexColor('#78716c')
+TEXT_BODY = colors.HexColor('#44403c')
+BORDER_GRAY = colors.HexColor('#d6d3d1')
+BG_LIGHT = colors.HexColor('#faf9f7')
+BG_STRIPE = colors.HexColor('#f5f4f1')
 WHITE = colors.white
 
+# Branding por defecto (se usa si no hay company_branding de la BD)
+DEFAULT_BRANDING = {
+    'name': 'CWS COMPANY SA DE CV',
+    'address': 'Puerta de los monos 250, 78421 Villa de Pozos, SLP',
+    'logo_url': None,
+    'primary_color': '#1e293b',
+    'secondary_color': '#0f172a',
+    'footer_text': (
+        '<b>CWS Company SA de CV</b> &nbsp;|&nbsp; '
+        'Puerta de los monos 250, 78421 Villa de Pozos, SLP, México<br/>'
+        'Esta cotización es válida por 30 días a partir de la fecha de emisión '
+        '&nbsp;|&nbsp; <b>¡Gracias por confiar en CWS Company!</b>'
+    ),
+    'iva_rate': 16.00,
+}
 
-def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
-    """Genera PDF usando ReportLab con formato profesional CWS
+
+def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_personalizado=None):
+    """Genera PDF usando ReportLab con formato profesional.
 
     Args:
         datos_cotizacion: Dict con datos de la cotización
+        company_branding: Dict con datos de branding de la compañía (opcional).
+                         Si es None, se usa DEFAULT_BRANDING.
         texto_personalizado: Texto introductorio personalizado (opcional).
-                            Si es None, se usa el texto genérico.
     """
     if not REPORTLAB_AVAILABLE:
         raise ImportError("ReportLab no está disponible")
+
+    # Usar branding de la compañía o fallback
+    if company_branding is None:
+        company_branding = DEFAULT_BRANDING
+    # Mezclar con defaults para valores faltantes
+    branding = {**DEFAULT_BRANDING, **company_branding}
+
+    # ── Colores dinámicos desde branding ──
+    try:
+        primary_color = colors.HexColor(str(branding.get('primary_color', '#1e293b')))
+    except:
+        primary_color = CORPORATE_INDIGO
+    try:
+        secondary_color = colors.HexColor(str(branding.get('secondary_color', '#0f172a')))
+    except:
+        secondary_color = CORPORATE_INDIGO_DARK
+
+    # ── Sanitizar IVA rate (puede venir como Decimal, str, o float de la BD) ──
+    try:
+        iva_rate = float(branding.get('iva_rate', 16.00))
+    except (ValueError, TypeError):
+        iva_rate = 16.00
+    branding['iva_rate'] = iva_rate
 
     # Crear buffer en memoria
     buffer = io.BytesIO()
@@ -88,21 +128,40 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
     items = datos_cotizacion.get('items', [])
 
     # ── ENCABEZADO REDISEÑADO ──
+    # Logo: usar URL de la compañía, o archivo local como fallback
+    logo = None
+    logo_url = branding.get('logo_url')
     logo_path = "static/logo.png"
 
-    # Logo
-    try:
-        if os.path.exists(logo_path):
-            logo = Image(logo_path, width=1.0*inch, height=0.65*inch)
-        else:
-            logo = Paragraph("CWS<br/>COMPANY", header_style)
-    except:
-        logo = Paragraph("CWS<br/>COMPANY", header_style)
+    if logo_url:
+        # Intentar descargar logo desde URL (Supabase Storage)
+        try:
+            import urllib.request
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                urllib.request.urlretrieve(logo_url, tmp.name)
+                if os.path.exists(tmp.name) and os.path.getsize(tmp.name) > 0:
+                    logo = Image(tmp.name, width=1.0*inch, height=0.65*inch)
+        except Exception:
+            logo = None
+
+    # Fallback: logo local
+    if not logo:
+        try:
+            if os.path.exists(logo_path):
+                logo = Image(logo_path, width=1.0*inch, height=0.65*inch)
+        except:
+            pass
+
+    # Fallback último: texto con nombre de empresa
+    if not logo:
+        company_name_html = branding['name'].replace('\n', '<br/>')
+        logo = Paragraph(company_name_html, header_style)
 
     # Empresa al lado del logo, dirección en font pequeño
-    empresa_info = Paragraph("""
-        <b>CWS COMPANY SA DE CV</b><br/>
-        <font size="7">Puerta de los monos 250, 78421 Villa de Pozos, SLP</font>
+    empresa_info = Paragraph(f"""
+        <b>{branding['name']}</b><br/>
+        <font size="7">{branding.get('address', '')}</font>
     """, ParagraphStyle(
         'EmpresaInfo', parent=styles['Normal'],
         fontSize=9, fontName='Helvetica',
@@ -151,7 +210,7 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         proyecto_style = ParagraphStyle(
             'ProyectoDestacado', parent=styles['Normal'],
             fontSize=10, fontName='Helvetica-Bold',
-            textColor=WHITE, backColor=CORPORATE_INDIGO,
+            textColor=WHITE, backColor=primary_color,
             borderPadding=6, alignment=1
         )
         story.append(Paragraph(f"PROYECTO: {datos_generales.get('proyecto', '')}", proyecto_style))
@@ -285,7 +344,7 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         items_table = Table(items_data, colWidths=[0.4*inch, 3.3*inch, 0.55*inch, 0.5*inch, 1.1*inch, 1.45*inch])
         items_table.setStyle(TableStyle([
             # Header
-            ('BACKGROUND', (0, 0), (-1, 0), CORPORATE_INDIGO),
+            ('BACKGROUND', (0, 0), (-1, 0), primary_color),
             ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
@@ -322,7 +381,7 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         story.append(Spacer(1, 10))
 
         # ── TOTALES EN BOX DESTACADO ──
-        iva = subtotal * 0.16
+        iva = subtotal * (branding.get('iva_rate', 16.00) / 100.0)
         total = subtotal + iva
 
         if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:
@@ -550,7 +609,9 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         fontSize=9, fontName='Helvetica',
         textColor=TEXT_DARK, alignment=0
     )
-    story.append(Paragraph(f"Atentamente,<br/><b>{vendedor}</b> — CWS Company SA de CV", closing_style))
+    story.append(Paragraph(
+        f"Atentamente,<br/><b>{vendedor}</b> — {branding['name']}", closing_style
+    ))
     story.append(Spacer(1, 10))
 
     footer_style = ParagraphStyle(
@@ -561,10 +622,8 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
         borderColor=BORDER_GRAY, borderWidth=0.5
     )
 
-    footer_text = """
-    <b>CWS Company SA de CV</b> &nbsp;|&nbsp; Puerta de los monos 250, 78421 Villa de Pozos, SLP, México<br/>
-    Esta cotización es válida por 30 días a partir de la fecha de emisión &nbsp;|&nbsp; <b>¡Gracias por confiar en CWS Company!</b>
-    """
+    # Usar footer_text de la compañía o fallback
+    footer_text = branding.get('footer_text', DEFAULT_BRANDING['footer_text'])
 
     story.append(Paragraph(footer_text, footer_style))
 
@@ -575,21 +634,17 @@ def generar_pdf_reportlab(datos_cotizacion, texto_personalizado=None):
     return buffer.getvalue()
 
 
-def generar_desglose_pdf_reportlab(datos_cotizacion):
+def generar_desglose_pdf_reportlab(datos_cotizacion, company_branding=None):
     """Genera un PDF COMPACTO tipo lista/resumen del desglose — optimizado para compartir.
 
-    A diferencia del PDF formal (generar_pdf_reportlab), este es:
-    - Sin logo ni branding pesado
-    - Sin texto introductorio
-    - Sin imagen de referencia
-    - Sin pie de página extenso
-    - Layout de 1 sola columna tipo "lista de materiales"
-    - Legible en pantalla de celular (ancho A4, texto grande)
-    - Ideal para WhatsApp, email, screenshots
-
     Args:
-        datos_cotizacion: Dict con datos de la cotización (misma estructura que el PDF formal)
+        datos_cotizacion: Dict con datos de la cotización
+        company_branding: Dict con branding de compañía (opcional, solo para IVA rate)
     """
+    # Mezclar branding con defaults
+    if company_branding is None:
+        company_branding = DEFAULT_BRANDING
+    branding = {**DEFAULT_BRANDING, **company_branding}
     if not REPORTLAB_AVAILABLE:
         raise ImportError("ReportLab no está disponible")
 
@@ -892,7 +947,7 @@ def generar_desglose_pdf_reportlab(datos_cotizacion):
             story.append(Paragraph(f"<i>Nota interna general: {comentarios_globales.strip()}</i>", note_style))
 
         # ── TOTALES ──
-        iva = subtotal_general * 0.16
+        iva = subtotal_general * (branding.get('iva_rate', 16.00) / 100.0)
         total = subtotal_general + iva
 
         if moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0:

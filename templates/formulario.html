@@ -289,9 +289,13 @@
     <div class="container mx-auto px-4 py-6">
         <div class="flex justify-between items-center">
             <div class="flex items-center gap-4">
-                <img src="/static/logo.png" alt="CWS Company" style="max-height: 50px; max-width: 120px; object-fit: contain;">
+                {% if company and company.logo_url %}
+                <img src="{{ company.logo_url }}" alt="{{ company.name }}" style="max-height: 50px; max-width: 120px; object-fit: contain;">
+                {% else %}
+                <img src="/static/logo.png" alt="Cotizador" style="max-height: 50px; max-width: 120px; object-fit: contain;">
+                {% endif %}
                 <div>
-                    <h1 class="text-3xl font-bold">Cotizador CWS</h1>
+                    <h1 class="text-3xl font-bold">{{ company.name if company else 'Cotizador' }}</h1>
                     <p class="text-indigo-200 mt-1">Sistema de Cotizaciones - Nuevo Formulario</p>
                 </div>
             </div>
@@ -318,7 +322,7 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Vendedor:</label>
                         <input type="text" name="vendedor" required
-                               value="{{ vendedor_sesion }}"
+                               value="{{ user_name }}"
                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                     </div>
                     
@@ -4566,15 +4570,23 @@ async function abrirModalVistaPrevia(numeroCotizacion) {
             // Guardar para usar como fallback en futuras aperturas
             if (resultado.fuente === 'ia') {
                 textoIntroductorioGuardado = resultado.texto;
+            } else if (resultado.fuente === 'guardado') {
+                // Texto recuperado de BD — ya es el correcto
+                textoIntroductorioGuardado = resultado.texto;
             } else if (resultado.textoGuardado) {
                 // Si cayó en genérico pero hay texto guardado en BD, usarlo
                 textoIntroductorioGuardado = resultado.textoGuardado;
             }
 
-            // Mostrar fuente (IA o generico)
-            const fuente = resultado.fuente === 'ia' ?
-                'Generado por IA' :
-                'Texto generico (configura ANTHROPIC_API_KEY para personalizar)';
+            // Mostrar fuente (IA, guardado, o generico)
+            let fuente;
+            if (resultado.fuente === 'ia') {
+                fuente = 'Generado por IA';
+            } else if (resultado.fuente === 'guardado') {
+                fuente = 'Texto guardado';
+            } else {
+                fuente = 'Texto generico (configura ANTHROPIC_API_KEY para personalizar)';
+            }
             document.getElementById('preview-fuente').textContent = fuente;
         } else {
             throw new Error(resultado.error || 'Error desconocido');

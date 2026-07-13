@@ -11,7 +11,7 @@ from cotizador import (
 )
 
 # ── Imports estándar usados por las rutas ──
-from flask import Flask, render_template, render_template_string, request, jsonify, send_file, session, redirect, url_for
+from flask import Flask, render_template, render_template_string, request, jsonify, send_file, session, redirect, url_for, g
 import io
 import datetime
 import atexit
@@ -436,7 +436,7 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
 
         # Buscar todas las cotizaciones relacionadas usando el patrón de búsqueda
         print(f"[VERIFICAR_REVISION] Buscando cotizaciones con patrón: '{patron_busqueda}'")
-        resultado = db_manager.buscar_cotizaciones(patron_busqueda, page=1, per_page=100)
+        resultado = db_manager.buscar_cotizaciones(patron_busqueda, page=1, per_page=100, company_id=session.get("company_id"))
 
         # IMPORTANTE: La API puede retornar 'items' o 'resultados' dependiendo del manager
         items_encontrados = resultado.get('items') or resultado.get('resultados') or []
@@ -840,41 +840,19 @@ def timestamp_to_date(timestamp):
 # ============================================
 
 from functools import wraps
+from cotizador.middleware import login_required
 
-def login_required(f):
-    """Decorator to require login for routes"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'vendedor' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login")
 def login():
-    """Página de login"""
-    if request.method == "POST":
-        vendedor = request.form.get('vendedor')
-        if vendedor:
-            session['vendedor'] = vendedor
-            print(f"Usuario autenticado: {vendedor}")
-            return redirect(url_for('home'))
-        else:
-            return render_template("login.html", error="Por favor selecciona tu nombre")
-
-    # Si ya está autenticado, redirigir al home
-    if 'vendedor' in session:
+    """Redirige al blueprint de autenticación."""
+    if 'user_id' in session:
         return redirect(url_for('home'))
-
-    return render_template("login.html")
+    return redirect(url_for('auth.login'))
 
 @app.route("/logout")
 def logout():
-    """Cerrar sesión"""
-    vendedor = session.get('vendedor', 'Usuario')
-    session.pop('vendedor', None)
-    print(f"Usuario cerró sesión: {vendedor}")
-    return redirect(url_for('login'))
+    """Redirige al blueprint de autenticación."""
+    return redirect(url_for('auth.logout'))
 
 # ============================================
 # HEALTH CHECK ENDPOINT (para Render Keepalive)
@@ -953,7 +931,7 @@ def home():
             print("Nueva cotizacion recibida")
 
             # Guardar TODOS los datos usando el DatabaseManager
-            resultado = db_manager.guardar_cotizacion(datos)
+            resultado = db_manager.guardar_cotizacion(datos, company_id=session.get("company_id"))
 
             if resultado["success"]:
                 return jsonify({
@@ -1003,7 +981,7 @@ def home():
             print(f"[HOME] Búsqueda rápida: '{query_general}'")
 
         # Obtener todas las cotizaciones de la base de datos
-        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)  # Query vacía = todas
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000, company_id=session.get("company_id"))  # Query vacía = todas
 
         # Obtener todos los PDFs (incluye Google Drive antiguas)
         resultado_pdfs = pdf_manager.buscar_pdfs("", 1, 10000) if pdf_manager else {"resultados": []}
@@ -1089,8 +1067,9 @@ def home():
         else:
             print(f"[HOME] Error: {resultado_db.get('error')}")
 
-        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (que no están en BD)
-        if not resultado_pdfs.get("error"):
+        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (solo para CWS Company legacy)
+        cws_company_id = '5f6b07c9-3b9f-42ac-8ea0-e3ad9a4fe56b'
+        if session.get('company_id') == cws_company_id and not resultado_pdfs.get("error"):
             pdfs_antiguos = resultado_pdfs.get("resultados", [])
             print(f"[HOME] Encontrados {len(pdfs_antiguos)} PDFs totales")
 
@@ -1186,7 +1165,7 @@ def home():
         return render_template(
             "home.html",
             cotizaciones=cotizaciones_pagina,
-            vendedor=session.get('vendedor'),
+            user_name=session.get('user_name', ''),
             page=page,
             total_pages=total_pages,
             total_cotizaciones=total_cotizaciones,
@@ -1208,7 +1187,7 @@ def home():
         import traceback
         traceback.print_exc()
         return render_template("home.html",
-                             vendedor=session.get('vendedor', ''),
+                             user_name=session.get('user_name', ''),
                              cotizaciones=[],
                              page=1,
                              total_pages=0,
@@ -1321,7 +1300,7 @@ def formulario():
 
             # Guardar usando DatabaseManager con manejo robusto de errores
             print("[FORM] FORMULARIO: Llamando a guardar_cotizacion...")
-            resultado = db_manager.guardar_cotizacion(datos)
+            resultado = db_manager.guardar_cotizacion(datos, company_id=session.get("company_id"))
             print(f"[FORM] FORMULARIO: Resultado guardado = {json.dumps(resultado, indent=2, ensure_ascii=False)}")
             
             # Análisis detallado del resultado
@@ -1385,12 +1364,13 @@ def formulario():
                     
                     if pdf_manager and (WEASYPRINT_AVAILABLE or REPORTLAB_AVAILABLE):
                         # Intentar generar PDF de manera no bloqueante
+                        company_branding = g.get('company')  # capturar antes del async
                         def generar_pdf_asincrono():
                             try:
                                 cotizacion_busqueda = db_manager.obtener_cotizacion(numero_cotizacion)
                                 if cotizacion_busqueda["encontrado"]:
                                     cotizacion = cotizacion_busqueda["item"]
-                                    pdf_data = generar_pdf_reportlab(cotizacion)
+                                    pdf_data = generar_pdf_reportlab(cotizacion, company_branding=company_branding)
                                     resultado_almacenamiento = pdf_manager.almacenar_pdf_nuevo(pdf_data, cotizacion)
                                     print(f"[PDF] ✅ PDF generado exitosamente en segundo plano: {numero_cotizacion}")
                                     return resultado_almacenamiento
@@ -1576,7 +1556,7 @@ def formulario():
                          materiales=LISTA_MATERIALES,
                          datos_precargados=datos_precargados,
                          info_bloqueo_revision=info_bloqueo_revision,
-                         vendedor_sesion=session.get('vendedor', ''),
+                         user_name=session.get('user_name', ''),
                          modo_edicion_menor=modo_edicion_menor,
                          datos_edicion_menor=datos_edicion_menor)
 
@@ -2014,7 +1994,7 @@ def edicion_menor(numero_cotizacion):
                 # img_raw es None → el usuario eliminó la imagen explícitamente
                 parche['imagenReferenciaProcesada'] = None
 
-        usuario = session.get('vendedor', 'desconocido')
+        usuario = session.get('user_name', 'desconocido')
         resultado = db_manager.edicion_menor_cotizacion(numero_cotizacion, parche, usuario)
 
         if resultado.get('success'):
@@ -2132,7 +2112,7 @@ def buscar():
         resultados_cotizaciones = []
         try:
             print(f"[DB] Iniciando búsqueda en {'Supabase' if not db_manager.modo_offline else 'JSON local'}...")
-            resultado_db = db_manager.buscar_cotizaciones(query, 1, 1000)  # Obtener todas
+            resultado_db = db_manager.buscar_cotizaciones(query, 1, 1000, company_id=session.get("company_id"))  # Obtener todas
             print(f"[DB] Resultado de búsqueda: {type(resultado_db)} - {list(resultado_db.keys()) if isinstance(resultado_db, dict) else 'No es dict'}")
             
             if not resultado_db.get("error"):
@@ -2173,10 +2153,11 @@ def buscar():
                 resultado_pdfs = pdf_manager.buscar_pdfs(query, 1, 1000)  # Obtener todos
                 print(f"[PDF] Resultado PDFs: {type(resultado_pdfs)} - {list(resultado_pdfs.keys()) if isinstance(resultado_pdfs, dict) else 'No es dict'}")
                 
-                if not resultado_pdfs.get("error"):
+                cws_id = '5f6b07c9-3b9f-42ac-8ea0-e3ad9a4fe56b'
+                if session.get('company_id') == cws_id and not resultado_pdfs.get("error"):
                     pdfs = resultado_pdfs.get("resultados", [])
                     print(f"[PDF] Encontrados {len(pdfs)} PDFs")
-                    
+
                     for pdf in pdfs:
                         resultados_pdfs.append({
                             "numero_cotizacion": pdf.get('numero_cotizacion', 'N/A'),
@@ -2268,10 +2249,9 @@ def buscar():
         return jsonify({"error": "Error en búsqueda unificada"}), 500
 
 @app.route("/todas-cotizaciones")
+@login_required
 def todas_cotizaciones():
     """Vista de tabla Excel-style con todas las cotizaciones"""
-    if 'vendedor' not in session:
-        return redirect(url_for('login'))
 
     # MODO DEBUG: Devolver JSON crudo si se accede con ?debug=1
     debug_mode = request.args.get('debug') == '1'
@@ -2310,7 +2290,7 @@ def todas_cotizaciones():
         print(f"[TODAS-COTIZACIONES] Obteniendo todas las cotizaciones (página {page})...")
 
         # Obtener todas las cotizaciones de la base de datos
-        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)  # Query vacía = todas
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000, company_id=session.get("company_id"))  # Query vacía = todas
 
         # Obtener todos los PDFs (incluye Google Drive antiguas)
         resultado_pdfs = pdf_manager.buscar_pdfs("", 1, 10000) if pdf_manager else {"resultados": []}
@@ -2504,8 +2484,9 @@ def todas_cotizaciones():
         else:
             print(f"[TODAS-COTIZACIONES] Error: {resultado_db.get('error')}")
 
-        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (que no están en BD)
-        if not resultado_pdfs.get("error"):
+        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (solo CWS Company)
+        cws_company_id = '5f6b07c9-3b9f-42ac-8ea0-e3ad9a4fe56b'
+        if session.get('company_id') == cws_company_id and not resultado_pdfs.get("error"):
             pdfs_antiguos = resultado_pdfs.get("resultados", [])
             print(f"[TODAS-COTIZACIONES] Encontrados {len(pdfs_antiguos)} PDFs totales")
 
@@ -2674,7 +2655,7 @@ def todas_cotizaciones():
         return render_template(
             "todas_cotizaciones.html",
             cotizaciones=cotizaciones_pagina,
-            vendedor=session.get('vendedor'),
+            user_name=session.get('user_name', ''),
             # Información de paginación
             page=page,
             total_pages=total_pages,
@@ -2696,7 +2677,7 @@ def diagnostico_tabla_datos():
 
     try:
         # Obtener cotizaciones
-        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000, company_id=session.get("company_id"))
 
         if resultado_db.get("error"):
             return jsonify({
@@ -2757,16 +2738,15 @@ def diagnostico_tabla_datos():
         }), 500
 
 @app.route("/debug-tabla-cotizaciones")
+@login_required
 def debug_tabla_cotizaciones():
     """Página de diagnóstico para ver estructura de datos - Accesible desde móvil"""
-    if 'vendedor' not in session:
-        return redirect(url_for('login'))
 
     import traceback
 
     try:
         # Obtener cotizaciones
-        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000)
+        resultado_db = db_manager.buscar_cotizaciones("", 1, 10000, company_id=session.get("company_id"))
 
         debug_info = {
             "total_encontradas": 0,
@@ -2974,6 +2954,15 @@ def generar_texto_ia():
             except Exception as e:
                 print(f"[IA] Error buscando texto guardado: {e}")
 
+        # Si ya existe texto guardado, devolverlo sin llamar a Claude
+        if texto_guardado:
+            return jsonify({
+                "success": True,
+                "texto": texto_guardado,
+                "fuente": "guardado",
+                "textoGuardado": texto_guardado
+            })
+
         # Intentar usar Claude si está configurado
         api_key = os.getenv('ANTHROPIC_API_KEY', '').strip()
         # Solo usar IA si la API key está configurada y no es placeholder
@@ -3166,7 +3155,7 @@ def generar_pdf():
         # Intentar con ReportLab primero (más estable)
         if REPORTLAB_AVAILABLE:
             print("Generando PDF con ReportLab")
-            pdf_data = generar_pdf_reportlab(cotizacion, texto_personalizado=texto_personalizado)
+            pdf_data = generar_pdf_reportlab(cotizacion, company_branding=g.get("company"), texto_personalizado=texto_personalizado)
             pdf_buffer = io.BytesIO(pdf_data)
             
         elif WEASYPRINT_AVAILABLE:
@@ -3219,7 +3208,7 @@ def generar_pdf():
                     cotizacion['datosGenerales'] = {}
                 cotizacion['datosGenerales']['textoIntroductorio'] = texto_personalizado
                 cotizacion['textoIntroductorio'] = texto_personalizado
-                resultado_texto = db_manager.guardar_cotizacion(cotizacion)
+                resultado_texto = db_manager.guardar_cotizacion(cotizacion, company_id=session.get("company_id"))
                 if resultado_texto.get('success'):
                     print(f"Texto introductorio guardado en cotización ({len(texto_personalizado)} chars)")
                 else:
@@ -3321,7 +3310,7 @@ def servir_pdf(numero_cotizacion):
 
             cotizacion = cot_resultado["item"]
             try:
-                pdf_data = generar_pdf_reportlab(cotizacion) if REPORTLAB_AVAILABLE else None
+                pdf_data = generar_pdf_reportlab(cotizacion, company_branding=g.get("company")) if REPORTLAB_AVAILABLE else None
                 if pdf_data is None:
                     return jsonify({"error": "Error generando PDF al vuelo"}), 500
 
@@ -4830,7 +4819,7 @@ def regenerar_pdfs_faltantes():
             return jsonify({"error": "No hay generador de PDF disponible (ReportLab/WeasyPrint)"}), 500
 
         # Obtener todas las cotizaciones de la base de datos
-        resultado_busqueda = db_manager.buscar_cotizaciones("", pagina=1, por_pagina=500)
+        resultado_busqueda = db_manager.buscar_cotizaciones("", pagina=1, por_pagina=500, company_id=session.get("company_id"))
         cotizaciones = resultado_busqueda.get("items", [])
 
         total = len(cotizaciones)
@@ -4858,7 +4847,7 @@ def regenerar_pdfs_faltantes():
                     continue
 
                 cotizacion_data = cot_completa["item"]
-                pdf_data = generar_pdf_reportlab(cotizacion_data) if REPORTLAB_AVAILABLE else None
+                pdf_data = generar_pdf_reportlab(cotizacion_data, company_branding=g.get("company")) if REPORTLAB_AVAILABLE else None
                 if not pdf_data:
                     fallidos.append({"numero": numero, "razon": "generación de PDF falló"})
                     continue
@@ -6532,7 +6521,7 @@ def test_revision_form():
         
         # Si pasa la validación, intentar guardado simulado (sin commitear)
         try:
-            resultado_guardado = db_manager.guardar_cotizacion(datos_test)
+            resultado_guardado = db_manager.guardar_cotizacion(datos_test, company_id=session.get("company_id"))
             resultado_test["guardado_simulado"] = {
                 "exitoso": resultado_guardado.get("success", False),
                 "error": resultado_guardado.get("error"),

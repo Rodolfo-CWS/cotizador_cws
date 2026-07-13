@@ -504,15 +504,18 @@ class SupabaseManager:
             print(f"[SDK_REST] Error obteniendo estadísticas: {error_msg}")
             raise e
     
-    def guardar_cotizacion(self, datos: Dict) -> Dict:
+    def guardar_cotizacion(self, datos: Dict, company_id: str = None) -> Dict:
         """
         Guardar cotización en Supabase (online) o JSON (offline)
-        Mantiene API compatible con DatabaseManager
         """
         try:
+            # Guardar company_id en los datos para la BD
+            if company_id:
+                datos['company_id'] = company_id
+
             # FIX ISSUE #1: SIEMPRE priorizar número en datosGenerales.numeroCotizacion
             numero_cotizacion = None
-            
+
             print(f"[DEBUG_ISSUE1] === INICIO DEBUG GUARDAR_COTIZACION ===")
             print(f"[DEBUG_ISSUE1] datos['numeroCotizacion']: '{datos.get('numeroCotizacion', 'VACIO')}'")
             print(f"[DEBUG_ISSUE1] datos['numeroCotizacionHidden']: '{datos.get('numeroCotizacionHidden', 'VACIO')}'")
@@ -947,50 +950,53 @@ class SupabaseManager:
             print(f"[OFFLINE] Error guardando: {error_msg}")
             return {"success": False, "error": error_msg}
     
-    def buscar_cotizaciones(self, query: str, page: int = 1, per_page: int = 20) -> Dict:
+    def buscar_cotizaciones(self, query: str, page: int = 1, per_page: int = 20,
+                            company_id: str = None) -> Dict:
         """
-        Buscar cotizaciones con paginación
-        API compatible con DatabaseManager
+        Buscar cotizaciones con paginación y filtro por compañía.
         """
         try:
             # SISTEMA HÍBRIDO TRIPLE LAYER:
             # 1. Intentar PostgreSQL directo (más rápido)
             if not self.modo_offline:
                 try:
-                    return self._buscar_cotizaciones_supabase(query, page, per_page)
+                    return self._buscar_cotizaciones_supabase(query, page, per_page, company_id)
                 except Exception as pg_error:
                     print(f"[POSTGRES] Error en búsqueda: {safe_str(pg_error)}")
                     print("[POSTGRES] Intentando fallback a SDK REST...")
-            
+
             # 2. Fallback a SDK REST (estable)
             if self.supabase_client:
                 try:
-                    return self._buscar_cotizaciones_sdk(query, page, per_page)
+                    return self._buscar_cotizaciones_sdk(query, page, per_page, company_id)
                 except Exception as sdk_error:
                     print(f"[SDK_REST] Error en búsqueda: {safe_str(sdk_error)}")
                     print("[SDK_REST] Fallback a modo offline")
-            
+
             # 3. Último recurso: JSON offline
-            return self._buscar_cotizaciones_offline(query, page, per_page)
-                    
+            return self._buscar_cotizaciones_offline(query, page, per_page, company_id)
+
         except Exception as e:
             error_msg = safe_str(e)
             print(f"[BUSCAR] Error general: {error_msg}")
             return {"error": error_msg}
     
-    def _buscar_cotizaciones_sdk(self, query: str, page: int, per_page: int) -> Dict:
+    def _buscar_cotizaciones_sdk(self, query: str, page: int, per_page: int,
+                                  company_id: str = None) -> Dict:
         """Buscar cotizaciones usando Supabase SDK REST"""
         try:
             if not self.supabase_client:
                 raise Exception("SDK de Supabase no disponible")
-            
+
             # Construir query base
             base_query = self.supabase_client.table('cotizaciones').select('*')
-            
+
+            # Filtrar por compañía (siempre que se provea)
+            if company_id:
+                base_query = base_query.eq('company_id', company_id)
+
             # Aplicar filtros si hay query
             if query and query.strip():
-                # SDK REST usa filtros separados, no ILIKE múltiple como PostgreSQL
-                # Buscar por los campos más comunes primero
                 filtered_query = base_query.or_(f'numero_cotizacion.ilike.%{query}%,datos_generales->>cliente.ilike.%{query}%,datos_generales->>vendedor.ilike.%{query}%,datos_generales->>proyecto.ilike.%{query}%')
             else:
                 filtered_query = base_query
@@ -1048,53 +1054,56 @@ class SupabaseManager:
             print(f"[SDK_REST] Error en búsqueda: {error_msg}")
             raise e
 
-    def _buscar_cotizaciones_supabase(self, query: str, page: int, per_page: int) -> Dict:
-        """Buscar cotizaciones en Supabase PostgreSQL"""
+    def _buscar_cotizaciones_supabase(self, query: str, page: int, per_page: int,
+                                       company_id: str = None) -> Dict:
+        """Buscar cotizaciones en Supabase PostgreSQL con filtro de compañía."""
         try:
             cursor = self.pg_connection.cursor()
-            
+
+            # Filtro base de compañía (siempre que se provea)
+            company_filter = ""
+            company_params = ()
+            if company_id:
+                company_filter = " AND company_id = %s"
+                company_params = (company_id,)
+
             # Construir query de búsqueda
             if not query:
-                # Sin filtro - obtener todas
-                count_query = "SELECT COUNT(*) as total FROM cotizaciones;"
-                search_query = """
-                    SELECT id, numero_cotizacion, datos_generales, items, 
+                count_query = f"SELECT COUNT(*) as total FROM cotizaciones WHERE 1=1{company_filter};"
+                search_query = f"""
+                    SELECT id, numero_cotizacion, datos_generales, items,
                            revision, fecha_creacion, timestamp, usuario, observaciones
-                    FROM cotizaciones 
-                    ORDER BY fecha_creacion DESC 
+                    FROM cotizaciones WHERE 1=1{company_filter}
+                    ORDER BY fecha_creacion DESC
                     LIMIT %s OFFSET %s;
                 """
-                count_params = ()
-                search_params = (per_page, (page - 1) * per_page)
+                count_params = company_params
+                search_params = company_params + (per_page, (page - 1) * per_page)
             else:
-                # Con filtro - buscar en múltiples campos
-                search_conditions = """
-                    numero_cotizacion ILIKE %s OR
+                search_conditions = f"""
+                    (numero_cotizacion ILIKE %s OR
                     datos_generales->>'cliente' ILIKE %s OR
                     datos_generales->>'vendedor' ILIKE %s OR
                     datos_generales->>'proyecto' ILIKE %s OR
                     datos_generales->>'atencionA' ILIKE %s OR
-                    datos_generales->>'contacto' ILIKE %s
+                    datos_generales->>'contacto' ILIKE %s)
                 """
-                
+
                 query_pattern = f"%{query}%"
-                
                 count_query = f"""
-                    SELECT COUNT(*) as total FROM cotizaciones 
-                    WHERE {search_conditions};
+                    SELECT COUNT(*) as total FROM cotizaciones
+                    WHERE {search_conditions}{company_filter};
                 """
-                
                 search_query = f"""
-                    SELECT id, numero_cotizacion, datos_generales, items, 
+                    SELECT id, numero_cotizacion, datos_generales, items,
                            revision, fecha_creacion, timestamp, usuario, observaciones
-                    FROM cotizaciones 
-                    WHERE {search_conditions}
-                    ORDER BY fecha_creacion DESC 
+                    FROM cotizaciones
+                    WHERE {search_conditions}{company_filter}
+                    ORDER BY fecha_creacion DESC
                     LIMIT %s OFFSET %s;
                 """
-                
-                count_params = tuple([query_pattern] * 6)
-                search_params = tuple([query_pattern] * 6) + (per_page, (page - 1) * per_page)
+                count_params = tuple([query_pattern] * 6) + company_params
+                search_params = tuple([query_pattern] * 6) + company_params + (per_page, (page - 1) * per_page)
             
             # Ejecutar conteo
             cursor.execute(count_query, count_params)
@@ -1140,7 +1149,8 @@ class SupabaseManager:
             print(f"[SUPABASE] Error en búsqueda: {error_msg}")
             raise e
     
-    def _buscar_cotizaciones_offline(self, query: str, page: int, per_page: int) -> Dict:
+    def _buscar_cotizaciones_offline(self, query: str, page: int, per_page: int,
+                                      company_id: str = None) -> Dict:
         """Buscar cotizaciones en JSON offline"""
         try:
             print(f"[OFFLINE] Iniciando busqueda offline con query: '{query}'")
@@ -1158,16 +1168,25 @@ class SupabaseManager:
                 else:
                     print(f"[OFFLINE] No hay datosGenerales en primera cotizacion")
             
+            # Filtrar por company_id primero
+            if company_id:
+                antes = len(cotizaciones)
+                cotizaciones = [
+                    c for c in cotizaciones
+                    if c.get("company_id") == company_id
+                ]
+                print(f"[OFFLINE] Filtro company_id: {antes} → {len(cotizaciones)}")
+
             if not query:
                 resultados = cotizaciones
             else:
                 # Filtrar por query
                 resultados = []
                 query_lower = query.lower()
-                
+
                 for cot in cotizaciones:
                     datos_generales = cot.get("datosGenerales", {})
-                    
+
                     # Buscar en múltiples campos
                     if (query_lower in safe_str(cot.get("numeroCotizacion", "")).lower() or
                         query_lower in safe_str(datos_generales.get("cliente", "")).lower() or
@@ -2946,9 +2965,239 @@ class SupabaseManager:
             except:
                 pass
 
+        # ── Métodos Multi-Tenant (SaaS) ──
+
+    def set_company_context(self, company_id: str):
+        """Configura el contexto de compañía en PostgreSQL para RLS."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "SELECT set_config('app.current_company_id', %s, false)",
+                    (company_id,)
+                )
+                cursor.close()
+                return True
+        except Exception as e:
+            print(f"[TENANT] Error configurando company context: {e}")
+        return False
+
+    def get_company_by_id(self, company_id: str) -> Optional[Dict]:
+        """Obtiene datos de una compañía por ID. SDK service key primero."""
+        # Intento 1: SDK con service key (bypass RLS)
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                resp = client.table('companies').select('*').eq('id', company_id).execute()
+                if resp.data:
+                    return resp.data[0]
+        except Exception as e:
+            print(f"[TENANT] SDK fallback: {e}")
+
+        # Intento 2: PostgreSQL directo
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """SELECT id, name, slug, tax_id, address, phone, email,
+                              logo_url, primary_color, secondary_color, footer_text,
+                              iva_rate, is_active
+                       FROM public.companies WHERE id = %s""",
+                    (company_id,)
+                )
+                row = cursor.fetchone()
+                cursor.close()
+                if row:
+                    colnames = [desc[0] for desc in cursor.description]
+                    return dict(zip(colnames, row))
+        except Exception as e:
+            print(f"[TENANT] Error get_company_by_id: {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+        return None
+
+    def get_company_by_slug(self, slug: str) -> Optional[Dict]:
+        """Obtiene datos de una compañía por slug usando PostgreSQL."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                self.pg_connection.rollback()
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "SELECT * FROM public.companies WHERE slug = %s", (slug,)
+                )
+                row = cursor.fetchone()
+                cursor.close()
+                if row:
+                    colnames = [desc[0] for desc in cursor.description]
+                    return dict(zip(colnames, row))
+        except Exception as e:
+            print(f"[TENANT] Error get_company_by_slug: {e}")
+        return None
+
+    def create_company(self, data: Dict) -> Optional[Dict]:
+        """Crea una nueva compañía usando PostgreSQL directo."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                self.pg_connection.rollback()
+                cursor = self.pg_connection.cursor()
+                columns = ', '.join(data.keys())
+                values = ', '.join(['%s'] * len(data))
+                cursor.execute(
+                    f"INSERT INTO public.companies ({columns}) VALUES ({values}) RETURNING *",
+                    list(data.values())
+                )
+                row = cursor.fetchone()
+                self.pg_connection.commit()
+                cursor.close()
+                if row:
+                    colnames = [desc[0] for desc in cursor.description]
+                    return dict(zip(colnames, row))
+        except Exception as e:
+            print(f"[TENANT] Error create_company: {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+        return None
+
+    def update_company(self, company_id: str, data: Dict) -> Optional[Dict]:
+        """Actualiza datos de una compañía usando PostgreSQL directo."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                self.pg_connection.rollback()
+                cursor = self.pg_connection.cursor()
+                set_clause = ', '.join([f"{k} = %s" for k in data.keys()])
+                values = list(data.values()) + [company_id]
+                cursor.execute(
+                    f"UPDATE public.companies SET {set_clause} WHERE id = %s RETURNING *",
+                    values
+                )
+                row = cursor.fetchone()
+                self.pg_connection.commit()
+                cursor.close()
+                if row:
+                    colnames = [desc[0] for desc in cursor.description]
+                    return dict(zip(colnames, row))
+        except Exception as e:
+            print(f"[TENANT] Error update_company: {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+        return None
+
+    def get_user_profile(self, user_id: str) -> Optional[Dict]:
+        """Obtiene el perfil de usuario con datos de su compañía."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """SELECT p.id as user_id, p.company_id, p.full_name, p.role,
+                              c.name as company_name, c.slug as company_slug,
+                              c.logo_url, c.primary_color, c.secondary_color,
+                              c.footer_text, c.iva_rate
+                       FROM public.profiles p
+                       JOIN public.companies c ON c.id = p.company_id
+                       WHERE p.id = %s AND p.is_active = true AND c.is_active = true""",
+                    (user_id,)
+                )
+                row = cursor.fetchone()
+                cursor.close()
+                if row:
+                    colnames = [desc[0] for desc in cursor.description]
+                    return dict(zip(colnames, row))
+            # Fallback SDK
+            if self.supabase_client:
+                resp = self.supabase_client.rpc('get_user_profile', {'user_uuid': user_id}).execute()
+                if resp.data:
+                    return resp.data[0]
+        except Exception as e:
+            print(f"[TENANT] Error get_user_profile: {e}")
+        return None
+
+    def create_profile(self, user_id: str, company_id: str,
+                       full_name: str, role: str = 'seller') -> Optional[Dict]:
+        """Crea un perfil de usuario vinculado a una compañía (PostgreSQL directo)."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                self.pg_connection.rollback()
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """INSERT INTO public.profiles (id, company_id, full_name, role)
+                       VALUES (%s, %s, %s, %s) RETURNING *""",
+                    (user_id, company_id, full_name, role)
+                )
+                row = cursor.fetchone()
+                self.pg_connection.commit()
+                cursor.close()
+                if row:
+                    colnames = [desc[0] for desc in cursor.description]
+                    return dict(zip(colnames, row))
+        except Exception as e:
+            print(f"[TENANT] Error create_profile: {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+        return None
+
+    def get_profiles_by_company(self, company_id: str) -> List[Dict]:
+        """Lista perfiles de usuarios de una compañía. SDK service key primero."""
+        # Intento 1: SDK con service key
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                resp = client.table('profiles').select('*').eq('company_id', company_id).order('full_name').execute()
+                if resp.data:
+                    return resp.data
+        except Exception as e:
+            print(f"[TENANT] SDK profiles: {e}")
+
+        # Intento 2: PostgreSQL directo
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """SELECT id, company_id, full_name, role, is_active, created_at
+                       FROM public.profiles WHERE company_id = %s ORDER BY full_name""",
+                    (company_id,)
+                )
+                rows = cursor.fetchall()
+                cursor.close()
+                colnames = [desc[0] for desc in cursor.description]
+                return [dict(zip(colnames, row)) for row in rows]
+        except Exception as e:
+            print(f"[TENANT] Error get_profiles_by_company: {e}")
+        return []
+
+    def close(self):
+        """Cierra conexiones del manager."""
+        if self.pg_connection:
+            try:
+                self.pg_connection.close()
+                print("[SUPABASE] Conexión PostgreSQL cerrada")
+            except:
+                pass
+
         # El cliente Supabase no necesita cierre explícito
         print("[SUPABASE] SupabaseManager cerrado")
-    
+
     def cerrar_conexion(self):
         """Alias para close() - compatibilidad con código existente"""
         self.close()

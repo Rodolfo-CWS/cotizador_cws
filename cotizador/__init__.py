@@ -241,9 +241,16 @@ def create_app():
         except Exception:
             return 'N/A'
 
-    # ── Registrar blueprints (vacío por ahora; se poblará incrementalmente) ──
-    # from cotizador.blueprints.admin_bp import admin_bp
-    # app.register_blueprint(admin_bp)
+    # ── Registrar blueprints ──
+    from cotizador.blueprints.auth_bp import auth_bp
+    app.register_blueprint(auth_bp)
+
+    from cotizador.blueprints.company_bp import company_bp
+    app.register_blueprint(company_bp)
+
+    # ── Inicializar middleware multi-tenant ──
+    from cotizador.middleware import init_middleware
+    init_middleware(app, db_manager)
 
     # ── Error handlers ──
     @app.errorhandler(404)

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ company.name if company else 'CWS' }} - Cotizador{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        :root {
+            --primary: {{ company.primary_color if company else '#4f46e5' }};
+            --primary-dark: {{ company.secondary_color if company else '#4338ca' }};
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Navbar SaaS -->
+    <nav style="background: white; border-bottom: 1px solid #e7e5e4; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; height: 52px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            {% if company and company.logo_url %}
+            <img src="{{ company.logo_url }}" alt="{{ company.name }}" style="height: 28px; max-width: 120px; object-fit: contain;">
+            {% else %}
+            <img src="/static/logo.png" alt="CWS" style="height: 28px;">
+            {% endif %}
+            <span style="font-size: 14px; font-weight: 600; color: var(--primary);">{{ company.name if company else 'CWS Cotizador' }}</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 16px;">
+            {% if user %}
+            <span style="font-size: 13px; color: #78716c;">{{ user.name }}</span>
+            {% if user.role == 'admin' %}
+            <a href="/admin/company/profile" style="font-size: 13px; color: var(--primary); text-decoration: none;">Admin</a>
+            {% endif %}
+            <a href="/auth/logout" style="font-size: 13px; color: #78716c; text-decoration: none; padding: 4px 10px; border: 1px solid #d6d3d1; border-radius: 6px;">Salir</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    {% block content %}{% endblock %}
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
