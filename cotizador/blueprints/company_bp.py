@@ -185,3 +185,34 @@ def users():
         users=profiles,
         company=db.get_company_by_id(company_id)
     )
+
+
+@company_bp.route('/users/<user_id>/deactivate', methods=['POST'])
+@login_required
+@admin_required
+def deactivate_user(user_id):
+    """Desactivar un usuario (no eliminar)."""
+    db = _get_db()
+    company_id = _get_company_id()
+
+    # Solo desactivar usuarios de tu misma compañía
+    try:
+        from supabase import create_client
+        import os
+        url = os.getenv('SUPABASE_URL')
+        key = os.getenv('SUPABASE_SERVICE_KEY')
+        client = create_client(url, key)
+
+        # Verificar que el usuario pertenece a la misma compañía
+        resp = client.table('profiles').select('company_id').eq('id', user_id).execute()
+        if not resp.data or resp.data[0]['company_id'] != company_id:
+            flash("No tienes permiso para modificar este usuario", "error")
+            return redirect(url_for('company.users'))
+
+        # Desactivar
+        client.table('profiles').update({'is_active': False}).eq('id', user_id).execute()
+        flash("Usuario desactivado", "success")
+    except Exception as e:
+        flash(f"Error: {e}", "error")
+
+    return redirect(url_for('company.users'))
