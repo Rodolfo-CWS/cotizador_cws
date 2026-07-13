@@ -65,25 +65,26 @@
                 </thead>
                 <tbody>
                     {% for user in users %}
+                    <!-- DEBUG: {{ user }} -->
                     <tr>
-                        <td>{{ user.full_name }}</td>
+                        <td>{{ user['full_name'] }}</td>
                         <td>
-                            {% if user.role == 'admin' %}
+                            {% if user['role'] == 'admin' %}
                             <span class="badge badge-admin">Admin</span>
-                            {% elif user.role == 'manager' %}
+                            {% elif user['role'] == 'manager' %}
                             <span class="badge badge-manager">Manager</span>
                             {% else %}
                             <span class="badge badge-seller">Vendedor</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if user.is_active %}
+                            {% if user['is_active'] %}
                             <span class="badge badge-seller">Activo</span>
                             {% else %}
                             <span class="badge badge-inactive">Inactivo</span>
                             {% endif %}
                         </td>
-                        <td>{{ user.created_at[:10] if user.created_at else 'N/A' }}</td>
+                        <td>{{ user['created_at'][:10] if user['created_at'] else 'N/A' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
