@@ -2983,7 +2983,21 @@ class SupabaseManager:
         return False
 
     def get_company_by_id(self, company_id: str) -> Optional[Dict]:
-        """Obtiene datos de una compañía por ID."""
+        """Obtiene datos de una compañía por ID. SDK service key primero."""
+        # Intento 1: SDK con service key (bypass RLS)
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                resp = client.table('companies').select('*').eq('id', company_id).execute()
+                if resp.data:
+                    return resp.data[0]
+        except Exception as e:
+            print(f"[TENANT] SDK fallback: {e}")
+
+        # Intento 2: PostgreSQL directo
         try:
             if self.pg_connection and not self.pg_connection.closed:
                 try:
