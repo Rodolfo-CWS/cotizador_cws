@@ -344,7 +344,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         items_table = Table(items_data, colWidths=[0.4*inch, 3.3*inch, 0.55*inch, 0.5*inch, 1.1*inch, 1.45*inch])
         items_table.setStyle(TableStyle([
             # Header
-            ('BACKGROUND', (0, 0), (-1, 0), CORPORATE_INDIGO),
+            ('BACKGROUND', (0, 0), (-1, 0), primary_color),
             ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
