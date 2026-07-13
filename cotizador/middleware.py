@@ -99,9 +99,22 @@ def init_middleware(app, supabase_manager):
 
 
 def _load_company_from_db(supabase_manager, company_id):
-    """Carga los datos de la compañía desde la base de datos.
-    Intenta PostgreSQL directo primero, luego SDK como fallback."""
-    # Intento 1: PostgreSQL directo
+    """Carga los datos de la compañía usando SDK con service key (bypass RLS)."""
+    import os
+    from supabase import create_client
+
+    try:
+        url = os.getenv('SUPABASE_URL')
+        key = os.getenv('SUPABASE_SERVICE_KEY')
+        if url and key:
+            client = create_client(url, key)
+            resp = client.table('companies').select('*').eq('id', company_id).eq('is_active', True).execute()
+            if resp.data:
+                return resp.data[0]
+    except Exception as e:
+        pass
+
+    # Fallback: PostgreSQL directo
     try:
         connection = supabase_manager.pg_connection
         if connection and not connection.closed:
@@ -122,15 +135,6 @@ def _load_company_from_db(supabase_manager, company_id):
             if row:
                 colnames = [desc[0] for desc in cursor.description]
                 return dict(zip(colnames, row))
-    except Exception:
-        pass
-
-    # Intento 2: SDK (bypass RLS)
-    try:
-        if supabase_manager.supabase_client:
-            resp = supabase_manager.supabase_client.table('companies').select('*').eq('id', company_id).eq('is_active', True).execute()
-            if resp.data:
-                return resp.data[0]
     except Exception:
         pass
 
