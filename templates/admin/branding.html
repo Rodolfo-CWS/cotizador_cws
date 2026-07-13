@@ -59,7 +59,8 @@
                 {% if company and company.logo_url %}
                 <img src="{{ company.logo_url }}" alt="{{ company.name }}">
                 {% else %}
-                <div class="no-logo">Sin logo personalizado — se usa el logo por defecto</div>
+                <img src="/static/logo.png" alt="Logo por defecto" style="max-height:60px;opacity:0.6;">
+                <p style="font-size:13px;color:#78716c;margin-top:8px;">Usando logo por defecto. Sube uno personalizado para reemplazarlo.</p>
                 {% endif %}
             </div>
 

@@ -3151,7 +3151,21 @@ class SupabaseManager:
         return None
 
     def get_profiles_by_company(self, company_id: str) -> List[Dict]:
-        """Lista perfiles de usuarios de una compañía."""
+        """Lista perfiles de usuarios de una compañía. SDK service key primero."""
+        # Intento 1: SDK con service key
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                resp = client.table('profiles').select('*').eq('company_id', company_id).order('full_name').execute()
+                if resp.data:
+                    return resp.data
+        except Exception as e:
+            print(f"[TENANT] SDK profiles: {e}")
+
+        # Intento 2: PostgreSQL directo
         try:
             if self.pg_connection and not self.pg_connection.closed:
                 try:
@@ -3168,9 +3182,6 @@ class SupabaseManager:
                 cursor.close()
                 colnames = [desc[0] for desc in cursor.description]
                 return [dict(zip(colnames, row)) for row in rows]
-            if self.supabase_client:
-                resp = self.supabase_client.table('profiles').select('*').eq('company_id', company_id).execute()
-                return resp.data or []
         except Exception as e:
             print(f"[TENANT] Error get_profiles_by_company: {e}")
         return []
