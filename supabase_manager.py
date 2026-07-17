@@ -2707,15 +2707,10 @@ class SupabaseManager:
             print(f"[DRAFT] Error guardando draft: {error_msg}")
             return {"success": False, "error": error_msg}
 
-    def listar_drafts(self, vendedor: Optional[str] = None) -> List[Dict]:
+    def listar_drafts(self, vendedor: Optional[str] = None,
+                      company_id: Optional[str] = None) -> List[Dict]:
         """
-        Lista todos los drafts, opcionalmente filtrados por vendedor
-
-        Args:
-            vendedor: (opcional) Iniciales del vendedor para filtrar
-
-        Returns:
-            Lista de drafts con id, vendedor, nombre, timestamp
+        Lista todos los drafts, filtrados por vendedor y/o compañía.
         """
         try:
             drafts = []
@@ -2728,6 +2723,8 @@ class SupabaseManager:
 
                     if vendedor:
                         query = query.eq('vendedor', vendedor)
+                    if company_id:
+                        query = query.eq('company_id', company_id)
 
                     response = query.order('ultima_modificacion', desc=True).execute()
 
