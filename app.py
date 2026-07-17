@@ -1666,6 +1666,7 @@ def guardar_draft():
             return jsonify({"success": False, "error": "Campo 'datos' requerido"}), 400
 
         # Guardar draft
+        datos["company_id"] = session.get("company_id")
         resultado = db_manager.guardar_draft(datos)
 
         if resultado.get('success'):
@@ -1708,7 +1709,7 @@ def listar_drafts():
     try:
         vendedor = request.args.get('vendedor')
 
-        drafts = db_manager.listar_drafts(vendedor)
+        drafts = db_manager.listar_drafts(vendedor, company_id=session.get("company_id"))
 
         print(f"[API] Listando drafts - Vendedor: {vendedor or 'Todos'} - Total: {len(drafts)}")
 

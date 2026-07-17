@@ -718,7 +718,8 @@ class SupabaseManager:
                 'fecha_creacion': fecha_creacion,
                 'timestamp': timestamp,
                 'usuario': usuario,
-                'observaciones': observaciones
+                'observaciones': observaciones,
+                'company_id': datos.get('company_id')
             }
             
             print(f"[SDK_REST] Datos SDK preparados, verificando si cotización existe...")
@@ -732,7 +733,9 @@ class SupabaseManager:
                 raise Exception(f"Error verificando cotización existente: {safe_str(check_error)}")
             
             if existing.data:
-                # UPDATE existente
+                # UPDATE existente: preservar company_id si no viene en los datos
+                if not sdk_data.get('company_id'):
+                    sdk_data.pop('company_id', None)  # no sobreescribir con NULL
                 cotizacion_id = existing.data[0]['id']
                 print(f"[SDK_REST] Ejecutando UPDATE para ID {cotizacion_id}...")
                 try:
@@ -835,10 +838,10 @@ class SupabaseManager:
                 # Query de inserción/actualización
                 query = """
                     INSERT INTO cotizaciones (
-                        numero_cotizacion, datos_generales, items, revision, 
-                        version, fecha_creacion, timestamp, usuario, observaciones
+                        numero_cotizacion, datos_generales, items, revision,
+                        version, fecha_creacion, timestamp, usuario, observaciones, company_id
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     ) ON CONFLICT (numero_cotizacion) DO UPDATE SET
                         datos_generales = EXCLUDED.datos_generales,
                         items = EXCLUDED.items,
@@ -846,20 +849,22 @@ class SupabaseManager:
                         version = EXCLUDED.version,
                         usuario = EXCLUDED.usuario,
                         observaciones = EXCLUDED.observaciones,
+                        company_id = COALESCE(EXCLUDED.company_id, cotizaciones.company_id),
                         updated_at = NOW()
                     RETURNING id, numero_cotizacion;
                 """
-                
+
                 cursor.execute(query, (
                     numero_cotizacion,
-                    Json(datos_generales),  # JSONB (ahora incluye condiciones)
-                    Json(items),  # JSONB
+                    Json(datos_generales),
+                    Json(items),
                     revision,
                     version,
                     fecha_dt,
                     timestamp,
                     usuario,
-                    observaciones
+                    observaciones,
+                    datos.get('company_id')
                 ))
                 
                 resultado = cursor.fetchone()
@@ -2702,15 +2707,10 @@ class SupabaseManager:
             print(f"[DRAFT] Error guardando draft: {error_msg}")
             return {"success": False, "error": error_msg}
 
-    def listar_drafts(self, vendedor: Optional[str] = None) -> List[Dict]:
+    def listar_drafts(self, vendedor: Optional[str] = None,
+                      company_id: Optional[str] = None) -> List[Dict]:
         """
-        Lista todos los drafts, opcionalmente filtrados por vendedor
-
-        Args:
-            vendedor: (opcional) Iniciales del vendedor para filtrar
-
-        Returns:
-            Lista de drafts con id, vendedor, nombre, timestamp
+        Lista todos los drafts, filtrados por vendedor y/o compañía.
         """
         try:
             drafts = []
@@ -2723,6 +2723,8 @@ class SupabaseManager:
 
                     if vendedor:
                         query = query.eq('vendedor', vendedor)
+                    if company_id:
+                        query = query.eq('company_id', company_id)
 
                     response = query.order('ultima_modificacion', desc=True).execute()
 

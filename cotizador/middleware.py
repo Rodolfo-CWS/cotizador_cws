@@ -39,6 +39,27 @@ def init_middleware(app, supabase_manager):
             if path.startswith(public.rstrip('/')):
                 return
 
+        # Health check de la conexión PostgreSQL (se muere tras inactividad larga)
+        try:
+            conn = supabase_manager.pg_connection
+            if conn and not conn.closed:
+                try:
+                    conn.rollback()
+                except:
+                    pass
+                cur = conn.cursor()
+                cur.execute("SELECT 1")
+                cur.close()
+            else:
+                app.logger.warning("[MIDDLEWARE] Conexion PG cerrada, reconectando...")
+                supabase_manager._inicializar_conexion()
+        except Exception as e:
+            app.logger.warning(f"[MIDDLEWARE] Reconectando PG: {e}")
+            try:
+                supabase_manager._inicializar_conexion()
+            except:
+                pass
+
         # Verificar sesión de usuario (Supabase Auth)
         if 'user_id' in session and 'company_id' in session:
             g.user = {
