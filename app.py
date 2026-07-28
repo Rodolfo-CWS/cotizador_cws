@@ -3083,34 +3083,15 @@ def fast_quote_page():
     )
 
 
-def _build_criteria_context(criteria_list: list) -> str:
-    """Convierte la lista de criterios en texto contextual para el prompt de IA."""
-    if not criteria_list:
-        return "No hay criterios de precios configurados. Usa tarifas estándar del mercado mexicano."
-
-    lines = []
-    for c in criteria_list:
-        name = c.get('name', '')
-        category = c.get('category', '')
-        unit = c.get('unit', '')
-        price = c.get('unit_price', 0)
-        desc = c.get('description', '')
-
-        cat_label = {
-            'material': 'Material',
-            'mano_de_obra': 'Mano de obra',
-            'margen': 'Margen',
-            'transporte': 'Transporte',
-            'instalacion': 'Instalación',
-            'otro': 'Otro'
-        }.get(category, category)
-
-        line = f"- [{cat_label}] {name}: ${price:,.2f} MXN / {unit}"
-        if desc:
-            line += f" — {desc}"
-        lines.append(line)
-
-    return "\n".join(lines)
+def _build_criteria_context(prompt_text: str) -> str:
+    """Devuelve el prompt de criterios tal cual lo escribió el admin, o un fallback genérico."""
+    if prompt_text and prompt_text.strip():
+        return prompt_text.strip()
+    return (
+        "No hay criterios de precios configurados para esta empresa. "
+        "Usa tarifas estándar del mercado mexicano para materiales, "
+        "mano de obra, transporte e instalación."
+    )
 
 
 @app.route("/api/fast-quote/estimate", methods=["POST"])
@@ -3152,15 +3133,15 @@ def fast_quote_estimate():
                          "Incluye dimensiones, materiales, capacidad de carga, cantidades, etc."
             }), 400
 
-        # 1. Obtener criterios de precios de la compañía
+        # 1. Obtener prompt de criterios de la compañía
         company_id = session.get("company_id")
-        criteria = []
+        prompt_text = ""
         if company_id:
             try:
-                criteria = db_manager.get_fast_quote_criteria(company_id)
-                print(f"[FAST_QUOTE] {len(criteria)} criterios cargados para company_id={company_id}")
+                prompt_text = db_manager.get_fast_quote_prompt(company_id)
+                print(f"[FAST_QUOTE] Prompt cargado: {len(prompt_text)} chars para company_id={company_id}")
             except Exception as e:
-                print(f"[FAST_QUOTE] Error cargando criterios: {e}")
+                print(f"[FAST_QUOTE] Error cargando prompt: {e}")
 
         # 2. Verificar disponibilidad de Claude
         api_key = os.getenv('ANTHROPIC_API_KEY', '').strip()
@@ -3171,7 +3152,7 @@ def fast_quote_estimate():
             }), 503
 
         # 3. Construir contexto de criterios
-        criteria_context = _build_criteria_context(criteria)
+        criteria_context = _build_criteria_context(prompt_text)
 
         # 4. Llamar a Claude
         import anthropic
@@ -3185,12 +3166,14 @@ def fast_quote_estimate():
             "1. Analiza la descripción y desglosa los componentes del producto.\n"
             "2. Si la descripción es vaga o incompleta, identifica qué información falta.\n"
             "3. Calcula: materiales, mano de obra, transporte, instalación.\n"
-            "4. Usa los precios de los criterios de la empresa cuando apliquen.\n"
-            "5. Si no hay criterio para algo, usa tu conocimiento del mercado mexicano.\n"
-            "6. Aplica el margen de utilidad de los criterios (si existe).\n"
-            "7. El total es ANTES de IVA.\n"
-            "8. Sé conservador en las estimaciones — mejor pecar de precio alto que bajo.\n"
-            "9. Devuelve SOLO un objeto JSON válido. Sin markdown, sin etiquetas de código, "
+            "4. USA LOS CRITERIOS DE LA EMPRESA como referencia principal de precios. "
+            "Interprétalos de forma inteligente aunque estén en formato libre.\n"
+            "5. Si un material o servicio no aparece en los criterios, usa tu conocimiento del mercado mexicano.\n"
+            "6. Aplica el margen de utilidad indicado en los criterios (si existe).\n"
+            "7. Si los criterios mencionan reglas especiales (desperdicio, acabados, cargas), APLÍCALAS.\n"
+            "8. El total es ANTES de IVA.\n"
+            "9. Sé conservador en las estimaciones — mejor pecar de precio alto que bajo.\n"
+            "10. Devuelve SOLO un objeto JSON válido. Sin markdown, sin etiquetas de código, "
             "sin texto antes o después del JSON."
         )
 

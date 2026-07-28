@@ -3189,12 +3189,11 @@ class SupabaseManager:
         return []
 
     # ================================================================
-    # FAST QUOTE — CRITERIOS DE PRECIOS (v3)
+    # FAST QUOTE — PROMPT DE CRITERIOS (v3)
     # ================================================================
 
-    def get_fast_quote_criteria(self, company_id: str) -> List[Dict]:
-        """Obtiene todos los criterios de precios de una compañía."""
-        criteria = []
+    def get_fast_quote_prompt(self, company_id: str) -> str:
+        """Obtiene el prompt de criterios de la compañía. Devuelve string vacío si no hay."""
         # Intento 1: PostgreSQL directo
         try:
             if self.pg_connection and not self.pg_connection.closed:
@@ -3204,48 +3203,42 @@ class SupabaseManager:
                     pass
                 cursor = self.pg_connection.cursor()
                 cursor.execute(
-                    """SELECT id, company_id, name, category, unit, unit_price,
-                              description, is_active, created_at, updated_at
-                       FROM public.fast_quote_criteria
-                       WHERE company_id = %s AND is_active = true
-                       ORDER BY category, name""",
+                    """SELECT prompt_text
+                       FROM public.fast_quote_prompt
+                       WHERE company_id = %s""",
                     (company_id,)
                 )
-                rows = cursor.fetchall()
-                colnames = [desc[0] for desc in cursor.description]
+                row = cursor.fetchone()
                 cursor.close()
-                if rows:
-                    return [dict(zip(colnames, row)) for row in rows]
+                if row:
+                    return row[0] or ''
         except Exception as e:
-            print(f"[FAST_QUOTE] Error PG get_fast_quote_criteria: {e}")
+            print(f"[FAST_QUOTE] Error PG get_fast_quote_prompt: {e}")
             try:
                 self.pg_connection.rollback()
             except:
                 pass
 
-        # Intento 2: SDK con service key (bypass RLS para admin)
+        # Intento 2: SDK con service key
         try:
             from supabase import create_client
             url = os.getenv('SUPABASE_URL')
             key = os.getenv('SUPABASE_SERVICE_KEY')
             if url and key:
                 client = create_client(url, key)
-                resp = client.table('fast_quote_criteria') \
-                    .select('*') \
+                resp = client.table('fast_quote_prompt') \
+                    .select('prompt_text') \
                     .eq('company_id', company_id) \
-                    .eq('is_active', True) \
-                    .order('category') \
-                    .order('name') \
                     .execute()
-                if resp.data:
-                    return resp.data
+                if resp.data and len(resp.data) > 0:
+                    return resp.data[0].get('prompt_text', '') or ''
         except Exception as e:
-            print(f"[FAST_QUOTE] Error SDK get_fast_quote_criteria: {e}")
+            print(f"[FAST_QUOTE] Error SDK get_fast_quote_prompt: {e}")
 
-        return criteria
+        return ''
 
-    def _get_all_fast_quote_criteria_admin(self, company_id: str) -> List[Dict]:
-        """Obtiene TODOS los criterios (activos e inactivos) — solo para admin."""
+    def save_fast_quote_prompt(self, company_id: str, prompt_text: str) -> bool:
+        """Guarda o actualiza el prompt de criterios (UPSERT vía PostgreSQL directo)."""
         try:
             if self.pg_connection and not self.pg_connection.closed:
                 try:
@@ -3254,132 +3247,20 @@ class SupabaseManager:
                     pass
                 cursor = self.pg_connection.cursor()
                 cursor.execute(
-                    """SELECT id, company_id, name, category, unit, unit_price,
-                              description, is_active, created_at, updated_at
-                       FROM public.fast_quote_criteria
-                       WHERE company_id = %s
-                       ORDER BY is_active DESC, category, name""",
-                    (company_id,)
-                )
-                rows = cursor.fetchall()
-                colnames = [desc[0] for desc in cursor.description]
-                cursor.close()
-                if rows:
-                    return [dict(zip(colnames, row)) for row in rows]
-        except Exception as e:
-            print(f"[FAST_QUOTE] Error PG _get_all: {e}")
-            try:
-                self.pg_connection.rollback()
-            except:
-                pass
-
-        # Fallback SDK
-        try:
-            from supabase import create_client
-            url = os.getenv('SUPABASE_URL')
-            key = os.getenv('SUPABASE_SERVICE_KEY')
-            if url and key:
-                client = create_client(url, key)
-                resp = client.table('fast_quote_criteria') \
-                    .select('*') \
-                    .eq('company_id', company_id) \
-                    .order('is_active', desc=True) \
-                    .order('category') \
-                    .execute()
-                if resp.data:
-                    return resp.data
-        except Exception as e:
-            print(f"[FAST_QUOTE] Error SDK _get_all: {e}")
-
-        return []
-
-    def add_fast_quote_criteria(self, company_id: str, data: Dict) -> Optional[Dict]:
-        """Agrega un nuevo criterio de precio (PostgreSQL directo)."""
-        try:
-            if self.pg_connection and not self.pg_connection.closed:
-                try:
-                    self.pg_connection.rollback()
-                except:
-                    pass
-                import uuid
-                criteria_id = str(uuid.uuid4())
-                cursor = self.pg_connection.cursor()
-                cursor.execute(
-                    """INSERT INTO public.fast_quote_criteria
-                       (id, company_id, name, category, unit, unit_price, description)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *""",
-                    (
-                        criteria_id,
-                        company_id,
-                        data.get('name', ''),
-                        data.get('category', 'material'),
-                        data.get('unit', ''),
-                        float(data.get('unit_price', 0)),
-                        data.get('description', '')
-                    )
+                    """INSERT INTO public.fast_quote_prompt (company_id, prompt_text)
+                       VALUES (%s, %s)
+                       ON CONFLICT (company_id)
+                       DO UPDATE SET prompt_text = EXCLUDED.prompt_text,
+                                     updated_at = NOW()
+                       RETURNING prompt_text""",
+                    (company_id, prompt_text)
                 )
                 row = cursor.fetchone()
                 self.pg_connection.commit()
-                colnames = [desc[0] for desc in cursor.description]
                 cursor.close()
-                if row:
-                    return dict(zip(colnames, row))
+                return row is not None
         except Exception as e:
-            print(f"[FAST_QUOTE] Error add_fast_quote_criteria: {e}")
-            try:
-                self.pg_connection.rollback()
-            except:
-                pass
-        return None
-
-    def update_fast_quote_criteria(self, criteria_id: str, data: Dict) -> Optional[Dict]:
-        """Actualiza un criterio existente (PostgreSQL directo)."""
-        try:
-            if self.pg_connection and not self.pg_connection.closed:
-                try:
-                    self.pg_connection.rollback()
-                except:
-                    pass
-                cursor = self.pg_connection.cursor()
-                set_clause = ', '.join([f"{k} = %s" for k in data.keys()])
-                values = list(data.values()) + [criteria_id]
-                cursor.execute(
-                    f"UPDATE public.fast_quote_criteria SET {set_clause} WHERE id = %s RETURNING *",
-                    values
-                )
-                row = cursor.fetchone()
-                self.pg_connection.commit()
-                colnames = [desc[0] for desc in cursor.description]
-                cursor.close()
-                if row:
-                    return dict(zip(colnames, row))
-        except Exception as e:
-            print(f"[FAST_QUOTE] Error update_fast_quote_criteria: {e}")
-            try:
-                self.pg_connection.rollback()
-            except:
-                pass
-        return None
-
-    def delete_fast_quote_criteria(self, criteria_id: str) -> bool:
-        """Elimina un criterio (PostgreSQL directo)."""
-        try:
-            if self.pg_connection and not self.pg_connection.closed:
-                try:
-                    self.pg_connection.rollback()
-                except:
-                    pass
-                cursor = self.pg_connection.cursor()
-                cursor.execute(
-                    "DELETE FROM public.fast_quote_criteria WHERE id = %s",
-                    (criteria_id,)
-                )
-                self.pg_connection.commit()
-                affected = cursor.rowcount
-                cursor.close()
-                return affected > 0
-        except Exception as e:
-            print(f"[FAST_QUOTE] Error delete_fast_quote_criteria: {e}")
+            print(f"[FAST_QUOTE] Error save_fast_quote_prompt: {e}")
             try:
                 self.pg_connection.rollback()
             except:

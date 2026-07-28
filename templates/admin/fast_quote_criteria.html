@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ company.name }} - Criterios Fast Quote</title>
+    <title>{{ company.name }} - Prompt Fast Quote</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
         body { background: #f5f4f1; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
@@ -11,20 +11,12 @@
         .card { background: white; border-radius: 12px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 20px; }
         .card h1 { font-size: 20px; color: #1e293b; margin: 0 0 4px 0; }
         .card .subtitle { color: #78716c; font-size: 14px; margin: 0 0 24px 0; }
-        .form-group { margin-bottom: 14px; }
+        .form-group { margin-bottom: 16px; }
         .form-group label { display: block; font-size: 14px; font-weight: 500; color: #1e293b; margin-bottom: 6px; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 14px; border: 1.5px solid #d6d3d1; border-radius: 8px; font-size: 14px; color: #1e293b; box-sizing: border-box; }
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); background: white; }
-        .form-group textarea { resize: vertical; min-height: 60px; }
-        .form-row { display: flex; gap: 12px; }
-        .form-row .form-group { flex: 1; }
+        .form-group textarea { width: 100%; padding: 14px 16px; border: 1.5px solid #d6d3d1; border-radius: 8px; font-size: 14px; line-height: 1.7; color: #1e293b; font-family: 'Courier New', monospace; resize: vertical; min-height: 350px; box-sizing: border-box; }
+        .form-group textarea:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); background: white; }
         .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
         .btn-primary { background: #4f46e5; color: white; } .btn-primary:hover { background: #4338ca; }
-        .btn-danger { background: #ef4444; color: white; } .btn-danger:hover { background: #dc2626; }
-        .btn-sm { padding: 6px 12px; font-size: 13px; }
-        .btn-outline { background: white; border: 1.5px solid #d6d3d1; color: #44403c; }
-        .btn-outline:hover { background: #f5f4f1; }
-        .btn-success { background: #16a34a; color: white; } .btn-success:hover { background: #15803d; }
         .nav { display: flex; gap: 4px; margin-bottom: 20px; background: white; border-radius: 12px; padding: 6px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); flex-wrap: wrap; }
         .nav a { padding: 10px 16px; border-radius: 8px; font-size: 14px; color: #44403c; text-decoration: none; }
         .nav a.active { background: #4f46e5; color: white; }
@@ -32,33 +24,19 @@
         .flash { padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
         .flash-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
         .flash-error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
-        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        th { text-align: left; font-size: 13px; color: #78716c; padding: 10px 12px; border-bottom: 1.5px solid #e7e5e4; font-weight: 500; }
-        td { padding: 10px 12px; font-size: 14px; color: #1e293b; border-bottom: 1px solid #f5f4f1; }
-        .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
-        .badge-active { background: #f0fdf4; color: #16a34a; }
-        .badge-inactive { background: #fef2f2; color: #dc2626; }
-        .badge-category { background: #eff6ff; color: #2563eb; font-size: 11px; }
-        .empty-state { text-align: center; padding: 40px 20px; color: #78716c; }
-        .empty-state p { margin-bottom: 20px; }
-        .section-title { font-size: 16px; color: #1e293b; margin: 24px 0 4px 0; }
-        .info-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px 16px; margin: 16px 0; font-size: 13px; color: #92400e; }
-        .info-box strong { color: #78350f; }
-        .actions { display: flex; gap: 6px; }
-        .inline-edit-form { display: none; }
-        .inline-edit-form.active { display: contents; }
-        .view-mode.active { display: contents; }
-        .text-muted { color: #78716c; font-size: 12px; }
+        .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; font-size: 13px; color: #1e40af; line-height: 1.7; }
+        .info-box strong { color: #1e3a8a; }
+        .hint { font-size: 12px; color: #78716c; margin-top: 6px; }
+        .saved-at { font-size: 12px; color: #78716c; margin-top: 4px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Navegación -->
         <div class="nav">
             <a href="/admin/company/profile">Perfil</a>
             <a href="/admin/company/branding">Branding</a>
             <a href="/admin/company/users">Usuarios</a>
-            <a href="/admin/company/fast-quote-criteria" class="active">Criterios Fast Quote</a>
+            <a href="/admin/company/fast-quote-criteria" class="active">Prompt Fast Quote</a>
             <a href="/">← Volver</a>
         </div>
 
@@ -70,131 +48,31 @@
         {% endif %}
         {% endwith %}
 
-        <!-- Info -->
         <div class="info-box">
-            <strong>⚡ ¿Qué son los criterios Fast Quote?</strong><br>
-            Estos precios de referencia los usa la IA para estimar cotizaciones rápidas.
-            Mientras más completos y precisos estén tus criterios, mejores serán las estimaciones.
-            Los criterios son privados de {{ company.name }} — ninguna otra empresa los ve.
+            <strong>⚡ ¿Cómo funciona?</strong><br>
+            Escribe en texto libre tus criterios de precios. Este prompt se envía a la IA
+            cada vez que un usuario pide una Cotización Rápida. La IA usará esta información
+            como referencia para estimar precios.<br><br>
+            <strong>Sé específico:</strong> precios por kg, por hora de mano de obra, márgenes,
+            costos de transporte, etc. Mientras más detallado, mejores serán las estimaciones.
         </div>
 
-        <!-- Lista de criterios -->
         <div class="card">
-            <h1>Criterios de Precios</h1>
-            <p class="subtitle">{{ criteria|length }} criterio(s) configurado(s) para {{ company.name }}</p>
-
-            {% if criteria %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nombre</th>
-                        <th>Categoría</th>
-                        <th>Precio Unitario</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for c in criteria %}
-                    <tr>
-                        <td>
-                            <strong>{{ c.name }}</strong>
-                            {% if c.description %}
-                            <br><span class="text-muted">{{ c.description[:60] }}{% if c.description|length > 60 %}...{% endif %}</span>
-                            {% endif %}
-                        </td>
-                        <td><span class="badge badge-category">{{ c.category }}</span></td>
-                        <td>${{ "%.2f"|format(c.unit_price) }} <span class="text-muted">/ {{ c.unit }}</span></td>
-                        <td>
-                            {% if c.is_active %}
-                            <span class="badge badge-active">Activo</span>
-                            {% else %}
-                            <span class="badge badge-inactive">Inactivo</span>
-                            {% endif %}
-                        </td>
-                        <td class="actions">
-                            <!-- Toggle activo/inactivo -->
-                            <form method="POST" style="display:inline">
-                                <input type="hidden" name="action" value="toggle">
-                                <input type="hidden" name="criteria_id" value="{{ c.id }}">
-                                <button type="submit" class="btn btn-sm {% if c.is_active %}btn-outline{% else %}btn-success{% endif %}" title="{% if c.is_active %}Desactivar{% else %}Activar{% endif %}">
-                                    {% if c.is_active %}Pausar{% else %}Activar{% endif %}
-                                </button>
-                            </form>
-                            <!-- Eliminar -->
-                            <form method="POST" style="display:inline" onsubmit="return confirm('¿Eliminar «{{ c.name }}»? Esta acción no se puede deshacer.')">
-                                <input type="hidden" name="action" value="delete">
-                                <input type="hidden" name="criteria_id" value="{{ c.id }}">
-                                <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="empty-state">
-                <h3>Sin criterios configurados</h3>
-                <p>Agrega tu primer criterio de precio para que la IA pueda hacer estimaciones.</p>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- Agregar nuevo criterio -->
-        <div class="card">
-            <h1>Agregar Criterio</h1>
-            <p class="subtitle">Define un nuevo precio de referencia para las estimaciones con IA</p>
+            <h1>Prompt de Criterios</h1>
+            <p class="subtitle">Este texto guía a la IA al estimar cotizaciones para {{ company.name }}</p>
 
             <form method="POST">
-                <input type="hidden" name="action" value="add">
-
-                <div class="form-row">
-                    <div class="form-group" style="flex:2">
-                        <label for="name">Nombre del criterio *</label>
-                        <input type="text" id="name" name="name" required
-                               placeholder="Ej: Acero estructural A-36">
-                    </div>
-                    <div class="form-group" style="flex:1">
-                        <label for="category">Categoría *</label>
-                        <select id="category" name="category" required>
-                            <option value="material">Material</option>
-                            <option value="mano_de_obra" selected>Mano de obra</option>
-                            <option value="margen">Margen</option>
-                            <option value="transporte">Transporte</option>
-                            <option value="instalacion">Instalación</option>
-                            <option value="otro">Otro</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="unit_price">Precio unitario (MXN) *</label>
-                        <input type="number" id="unit_price" name="unit_price" required
-                               step="0.01" min="0" placeholder="Ej: 35.00">
-                    </div>
-                    <div class="form-group">
-                        <label for="unit">Unidad *</label>
-                        <select id="unit" name="unit" required>
-                            <option value="kg">kg</option>
-                            <option value="m²">m²</option>
-                            <option value="ml">ml</option>
-                            <option value="hora" selected>hora</option>
-                            <option value="lote">lote</option>
-                            <option value="global">global</option>
-                            <option value="%">%</option>
-                            <option value="pieza">pieza</option>
-                        </select>
-                    </div>
-                </div>
-
                 <div class="form-group">
-                    <label for="description">Nota interna (opcional)</label>
-                    <textarea id="description" name="description"
-                              placeholder="Ej: Costo de acero al carbón estándar, incluye desperdicio"></textarea>
+                    <label for="prompt_text">Escribe tus criterios de precios y reglas para la IA:</label>
+                    <textarea id="prompt_text" name="prompt_text"
+                        placeholder="Ejemplo:&#10;&#10;Precios de materiales:&#10;- Acero estructural A-36: $35 MXN por kg&#10;- Acero inoxidable 304: $85 MXN por kg&#10;- Aluminio 6061: $120 MXN por kg&#10;- Lámina galvanizada calibre 18: $28 MXN por kg&#10;&#10;Mano de obra:&#10;- Soldadura certificada: $250 MXN por hora&#10;- Fabricación general: $180 MXN por hora&#10;- Pintura y acabado: $80 MXN por m²&#10;&#10;Costos adicionales:&#10;- Transporte local dentro de la ciudad: $2,500 MXN por lote&#10;- Instalación en sitio: $350 MXN por hora&#10;&#10;Márgenes:&#10;- Margen de utilidad: 20% sobre costo total&#10;- En proyectos pequeños (menos de $50k): margen mínimo 25%&#10;&#10;Reglas:&#10;- Siempre considera un 5% extra por desperdicio de material&#10;- Si el producto requiere acabado especial, suma 15% al costo de fabricación&#10;- Para estructuras que soportan carga, usa acero A-36 como default">{% if prompt_text %}{{ prompt_text }}{% endif %}</textarea>
+                    <p class="hint">💡 Escribe en formato libre. La IA interpretará este texto como guía para sus estimaciones.</p>
                 </div>
 
-                <button type="submit" class="btn btn-primary">Agregar Criterio</button>
+                <button type="submit" class="btn btn-primary">💾 Guardar Prompt</button>
+                {% if updated_at %}
+                <p class="saved-at">Última actualización: {{ updated_at }}</p>
+                {% endif %}
             </form>
         </div>
     </div>
