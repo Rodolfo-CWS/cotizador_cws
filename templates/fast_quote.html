@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotización Rápida ⚡ — CWS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        :root {
+            --amber-50: #fffbeb;
+            --amber-100: #fef3c7;
+            --amber-200: #fde68a;
+            --amber-400: #fbbf24;
+            --amber-500: #f59e0b;
+            --amber-600: #d97706;
+            --amber-700: #b45309;
+            --amber-800: #92400e;
+            --green-50: #f0fdf4;
+            --green-600: #16a34a;
+            --green-700: #15803d;
+            --red-50: #fef2f2;
+            --red-600: #dc2626;
+            --blue-50: #eff6ff;
+            --blue-600: #2563eb;
+            --gray-50: #faf9f7;
+            --gray-100: #f5f4f1;
+            --gray-200: #e7e5e4;
+            --gray-300: #d6d3d1;
+            --gray-500: #78716c;
+            --gray-600: #57534e;
+            --gray-700: #44403c;
+            --gray-800: #292524;
+            --gray-900: #1e293b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #fffbeb;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: var(--gray-900);
+            min-height: 100vh;
+        }
+
+        .top-bar {
+            background: white;
+            border-bottom: 1px solid var(--gray-200);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .top-bar .brand { font-weight: 600; font-size: 18px; color: var(--gray-900); }
+        .top-bar .brand span { color: var(--amber-500); }
+        .top-bar a { color: var(--gray-600); text-decoration: none; font-size: 14px; }
+        .top-bar a:hover { color: var(--gray-900); }
+
+        .container { max-width: 780px; margin: 0 auto; padding: 24px 20px 60px; }
+
+        /* Header */
+        .page-header { text-align: center; margin-bottom: 28px; }
+        .page-header h1 { font-size: 28px; color: var(--gray-900); margin-bottom: 8px; }
+        .page-header h1 span { color: var(--amber-500); }
+        .disclaimer-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--amber-100);
+            border: 1.5px solid var(--amber-400);
+            color: var(--amber-800);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+        }
+
+        /* Input section */
+        .input-section label {
+            display: block;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 8px;
+        }
+        .input-section textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--gray-300);
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--gray-900);
+            font-family: inherit;
+            resize: vertical;
+            min-height: 140px;
+            transition: border-color 0.2s;
+        }
+        .input-section textarea:focus {
+            outline: none;
+            border-color: var(--amber-400);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+        }
+        .input-section .hint {
+            font-size: 12px;
+            color: var(--gray-500);
+            margin-top: 8px;
+        }
+        .input-section .hint strong { color: var(--amber-700); }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .btn-estimate {
+            background: var(--amber-500);
+            color: white;
+            width: 100%;
+            justify-content: center;
+            margin-top: 12px;
+        }
+        .btn-estimate:hover { background: var(--amber-600); }
+        .btn-estimate:disabled {
+            background: var(--gray-300);
+            cursor: not-allowed;
+        }
+        .btn-outline {
+            background: white;
+            border: 2px solid var(--gray-300);
+            color: var(--gray-700);
+        }
+        .btn-outline:hover { background: var(--gray-50); }
+        .btn-primary {
+            background: var(--gray-900);
+            color: white;
+        }
+        .btn-primary:hover { background: var(--gray-800); }
+
+        .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+        /* Spinner */
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2.5px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading .spinner { display: inline-block; }
+        .loading .btn-text { display: none; }
+
+        /* Results */
+        #results { display: none; }
+
+        .total-display {
+            text-align: center;
+            padding: 24px;
+            background: linear-gradient(135deg, var(--amber-50), #fefce8);
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .total-display .label {
+            font-size: 14px;
+            color: var(--gray-600);
+            margin-bottom: 4px;
+        }
+        .total-display .amount {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+        .total-display .amount small { font-size: 18px; color: var(--gray-500); }
+
+        .confidence {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-top: 8px;
+        }
+        .confidence-high { background: var(--green-50); color: var(--green-600); }
+        .confidence-medium { background: var(--amber-50); color: var(--amber-700); }
+        .confidence-low { background: var(--red-50); color: var(--red-600); }
+
+        .analysis-text {
+            padding: 16px;
+            background: var(--blue-50);
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--gray-700);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        /* Breakdown table */
+        .breakdown-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        .breakdown-table th {
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--gray-500);
+            padding: 10px 12px;
+            border-bottom: 2px solid var(--gray-200);
+            font-weight: 500;
+        }
+        .breakdown-table td {
+            padding: 10px 12px;
+            font-size: 14px;
+            color: var(--gray-800);
+            border-bottom: 1px solid var(--gray-100);
+        }
+        .breakdown-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .breakdown-table .total-row { font-weight: 700; background: var(--gray-50); }
+        .breakdown-table .total-row td { border-top: 2px solid var(--gray-300); }
+
+        /* Missing info */
+        .missing-info {
+            background: var(--red-50);
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-top: 16px;
+        }
+        .missing-info h4 { font-size: 14px; color: var(--red-600); margin-bottom: 8px; }
+        .missing-info ul { padding-left: 20px; font-size: 13px; color: var(--gray-700); line-height: 1.8; }
+
+        /* Notes */
+        .notes-box {
+            background: var(--gray-50);
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--gray-600);
+            line-height: 1.6;
+        }
+        .notes-box strong { color: var(--gray-800); }
+
+        /* Disclaimer footer */
+        .disclaimer-footer {
+            background: var(--amber-100);
+            border: 1.5px solid var(--amber-400);
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--amber-800);
+            line-height: 1.6;
+        }
+        .disclaimer-footer strong { display: block; margin-bottom: 4px; }
+
+        /* Error */
+        .error-box {
+            background: var(--red-50);
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 14px 16px;
+            color: var(--red-600);
+            font-size: 14px;
+            margin-top: 12px;
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .container { padding: 16px 12px 40px; }
+            .card { padding: 20px; }
+            .total-display .amount { font-size: 28px; }
+            .page-header h1 { font-size: 22px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top bar -->
+    <div class="top-bar">
+        <div class="brand">⚡ CWS <span>Fast Quote</span></div>
+        <div>
+            <a href="/">← Inicio</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <h1>Cotización <span>Rápida</span> ⚡</h1>
+            <div class="disclaimer-badge">
+                ⚠️ ESTIMACIÓN — No es un presupuesto formal
+            </div>
+        </div>
+
+        <!-- Input card -->
+        <div class="card input-section">
+            <label for="description">Describe el producto que quieres cotizar</label>
+            <textarea id="description"
+                placeholder="Describe el producto con el mayor detalle posible. Ejemplo:&#10;&#10;Base para montacargas de 3 toneladas, fabricada en acero estructural A-36 con recubrimiento anticorrosivo. Dimensiones: 1.20m x 1.50m x 0.15m de espesor. Incluye 4 orejas de izaje con placa de refuerzo. Cantidad: 2 piezas. Acabado: pintura esmalte color amarillo seguridad.&#10;&#10;—&nbsp;&nbsp;Dimensiones y materiales&#10;—&nbsp;&nbsp;Capacidad de carga&#10;—&nbsp;&nbsp;Cantidad de piezas&#10;—&nbsp;&nbsp;Acabados o recubrimientos&#10;—&nbsp;&nbsp;Accesorios o componentes especiales"></textarea>
+            <p class="hint">💡 <strong>Sé lo más específico posible:</strong> incluye dimensiones, materiales, capacidades, cantidades, acabados y cualquier detalle relevante. Mientras más información proporciones, mejor será la estimación.</p>
+
+            <button id="btnEstimate" class="btn btn-estimate" onclick="estimarPrecio()">
+                <span class="btn-text">⚡ Estimar Precio</span>
+                <div class="spinner"></div>
+            </button>
+
+            <div id="errorBox" class="error-box"></div>
+        </div>
+
+        <!-- Results card -->
+        <div id="results">
+            <div class="card">
+                <div class="total-display">
+                    <div class="label">Precio Estimado (antes de IVA)</div>
+                    <div class="amount">$<span id="resultTotal">—</span> <small id="resultCurrency">MXN</small></div>
+                    <div id="resultConfidence"></div>
+                </div>
+
+                <div class="analysis-text" id="resultAnalysis"></div>
+
+                <h3 style="font-size:16px;color:var(--gray-800);margin-bottom:4px;">Desglose</h3>
+                <div style="overflow-x:auto;">
+                    <table class="breakdown-table">
+                        <thead>
+                            <tr>
+                                <th>Concepto</th>
+                                <th class="num">Cantidad</th>
+                                <th>Unidad</th>
+                                <th class="num">Precio Unit.</th>
+                                <th class="num">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultBreakdown"></tbody>
+                        <tbody>
+                            <tr class="total-row">
+                                <td>Subtotal</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td class="num">$<span id="resultSubtotal">0</span></td>
+                            </tr>
+                            <tr>
+                                <td>Margen (<span id="resultMarginPct">15</span>%)</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td class="num">$<span id="resultMarginAmt">0</span></td>
+                            </tr>
+                            <tr class="total-row">
+                                <td><strong>Total Estimado</strong></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td class="num"><strong>$<span id="resultTotalBottom">0</span></strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="missing-info" id="resultMissingInfo" style="display:none;">
+                    <h4>📋 Información faltante para un presupuesto formal</h4>
+                    <ul id="resultMissingList"></ul>
+                </div>
+
+                <div class="notes-box" id="resultNotes" style="display:none;">
+                    <strong>📝 Notas</strong>
+                    <div id="resultNotesText"></div>
+                </div>
+
+                <div class="btn-row">
+                    <a href="/formulario" class="btn btn-primary">📄 Ir a Cotización Formal</a>
+                    <button class="btn btn-outline" onclick="location.reload()">🔄 Nueva Estimación</button>
+                </div>
+            </div>
+
+            <!-- Disclaimer -->
+            <div class="disclaimer-footer">
+                <strong>⚠️ Esta NO es una cotización formal</strong>
+                Los precios mostrados son referenciales y generados por inteligencia artificial.
+                Pueden variar según condiciones reales de fabricación, disponibilidad de materiales
+                y alcance final del proyecto. Para un presupuesto formal vinculante, utiliza el
+                formulario completo de cotización o contacta a tu ejecutivo de ventas.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const btnEstimate = document.getElementById('btnEstimate');
+        const errorBox = document.getElementById('errorBox');
+        const resultsDiv = document.getElementById('results');
+        const descriptionInput = document.getElementById('description');
+
+        // Allow Ctrl+Enter to submit
+        descriptionInput.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                estimarPrecio();
+            }
+        });
+
+        function formatMoney(amount) {
+            return Number(amount).toLocaleString('es-MX', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function getConfidenceClass(level) {
+            if (level === 'alta') return 'confidence-high';
+            if (level === 'baja') return 'confidence-low';
+            return 'confidence-medium';
+        }
+
+        function getConfidenceLabel(level) {
+            if (level === 'alta') return '🟢 Confianza Alta';
+            if (level === 'baja') return '🔴 Confianza Baja';
+            return '🟡 Confianza Media';
+        }
+
+        async function estimarPrecio() {
+            const description = descriptionInput.value.trim();
+
+            // Reset
+            errorBox.style.display = 'none';
+            resultsDiv.style.display = 'none';
+
+            // Validate
+            if (!description || description.length < 20) {
+                showError('Por favor, describe el producto con más detalle (mínimo 20 caracteres). Incluye dimensiones, materiales, capacidades, cantidades, etc.');
+                descriptionInput.focus();
+                return;
+            }
+
+            // Loading state
+            btnEstimate.classList.add('loading');
+            btnEstimate.disabled = true;
+
+            try {
+                const response = await fetch('/api/fast-quote/estimate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ description: description })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    showError(data.error || 'Error al generar la estimación. Intenta de nuevo.');
+                    return;
+                }
+
+                // Render results
+                renderResults(data);
+
+                // Scroll to results
+                resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            } catch (err) {
+                console.error('[FAST_QUOTE]', err);
+                showError('Error de conexión. Verifica tu internet e intenta de nuevo. Si el problema persiste, contacta al administrador.');
+            } finally {
+                btnEstimate.classList.remove('loading');
+                btnEstimate.disabled = false;
+            }
+        }
+
+        function showError(msg) {
+            errorBox.textContent = msg;
+            errorBox.style.display = 'block';
+            errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function renderResults(data) {
+            // Show results
+            resultsDiv.style.display = 'block';
+
+            // Total
+            document.getElementById('resultTotal').textContent = formatMoney(data.estimated_total);
+            document.getElementById('resultCurrency').textContent = data.currency || 'MXN';
+
+            // Confidence
+            const confEl = document.getElementById('resultConfidence');
+            confEl.innerHTML = `<span class="confidence ${getConfidenceClass(data.confidence)}">${getConfidenceLabel(data.confidence)}</span>`;
+
+            // Analysis
+            document.getElementById('resultAnalysis').textContent = data.analysis || '';
+
+            // Breakdown table
+            const breakdownBody = document.getElementById('resultBreakdown');
+            breakdownBody.innerHTML = '';
+            if (data.breakdown && data.breakdown.length > 0) {
+                data.breakdown.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${escapeHtml(item.concepto || '—')}</td>
+                        <td class="num">${item.cantidad != null ? item.cantidad : '—'}</td>
+                        <td>${item.unidad || '—'}</td>
+                        <td class="num">$${formatMoney(item.precio_unitario || 0)}</td>
+                        <td class="num">$${formatMoney(item.subtotal || 0)}</td>
+                    `;
+                    breakdownBody.appendChild(row);
+                });
+            } else {
+                breakdownBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#78716c;padding:20px;">Sin desglose disponible</td></tr>';
+            }
+
+            // Subtotals
+            document.getElementById('resultSubtotal').textContent = formatMoney(data.subtotal || 0);
+            document.getElementById('resultMarginPct').textContent = data.margin || 0;
+            document.getElementById('resultMarginAmt').textContent = formatMoney(data.margin_amount || 0);
+            document.getElementById('resultTotalBottom').textContent = formatMoney(data.estimated_total);
+
+            // Missing info
+            const missingDiv = document.getElementById('resultMissingInfo');
+            const missingList = document.getElementById('resultMissingList');
+            if (data.missing_info && data.missing_info.length > 0) {
+                missingList.innerHTML = data.missing_info.map(i => `<li>${escapeHtml(i)}</li>`).join('');
+                missingDiv.style.display = 'block';
+            } else {
+                missingDiv.style.display = 'none';
+            }
+
+            // Notes
+            const notesDiv = document.getElementById('resultNotes');
+            if (data.notes && data.notes.trim()) {
+                document.getElementById('resultNotesText').textContent = data.notes;
+                notesDiv.style.display = 'block';
+            } else {
+                notesDiv.style.display = 'none';
+            }
+
+            // Disclaimer already visible
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

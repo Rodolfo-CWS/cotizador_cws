@@ -3070,6 +3070,234 @@ Resumen de ítems cotizados:
 
 
 # ============================================
+# FAST QUOTE — COTIZACIÓN RÁPIDA CON IA
+# ============================================
+
+@app.route("/fast-quote", methods=["GET"])
+@login_required
+def fast_quote_page():
+    """Renderiza la página de Cotización Rápida."""
+    return render_template(
+        "fast_quote.html",
+        user_name=session.get('user_name', session.get('user_id', '')[:8])
+    )
+
+
+def _build_criteria_context(criteria_list: list) -> str:
+    """Convierte la lista de criterios en texto contextual para el prompt de IA."""
+    if not criteria_list:
+        return "No hay criterios de precios configurados. Usa tarifas estándar del mercado mexicano."
+
+    lines = []
+    for c in criteria_list:
+        name = c.get('name', '')
+        category = c.get('category', '')
+        unit = c.get('unit', '')
+        price = c.get('unit_price', 0)
+        desc = c.get('description', '')
+
+        cat_label = {
+            'material': 'Material',
+            'mano_de_obra': 'Mano de obra',
+            'margen': 'Margen',
+            'transporte': 'Transporte',
+            'instalacion': 'Instalación',
+            'otro': 'Otro'
+        }.get(category, category)
+
+        line = f"- [{cat_label}] {name}: ${price:,.2f} MXN / {unit}"
+        if desc:
+            line += f" — {desc}"
+        lines.append(line)
+
+    return "\n".join(lines)
+
+
+@app.route("/api/fast-quote/estimate", methods=["POST"])
+@login_required
+def fast_quote_estimate():
+    """
+    Estima un precio usando IA basado en la descripción del producto.
+
+    Body JSON:
+        { "description": "descripción detallada del producto a cotizar" }
+
+    Returns:
+        {
+            "success": true,
+            "estimated_total": 12345.67,
+            "currency": "MXN",
+            "breakdown": [...],
+            "subtotal": ...,
+            "margin": ...,
+            "margin_amount": ...,
+            "analysis": "...",
+            "confidence": "alta|media|baja",
+            "missing_info": [...],
+            "notes": "...",
+            "disclaimer": "..."
+        }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "error": "No se recibieron datos"}), 400
+
+        description = (data.get('description') or '').strip()
+
+        if not description or len(description) < 20:
+            return jsonify({
+                "success": False,
+                "error": "Describe el producto con más detalle (mínimo 20 caracteres). "
+                         "Incluye dimensiones, materiales, capacidad de carga, cantidades, etc."
+            }), 400
+
+        # 1. Obtener criterios de precios de la compañía
+        company_id = session.get("company_id")
+        criteria = []
+        if company_id:
+            try:
+                criteria = db_manager.get_fast_quote_criteria(company_id)
+                print(f"[FAST_QUOTE] {len(criteria)} criterios cargados para company_id={company_id}")
+            except Exception as e:
+                print(f"[FAST_QUOTE] Error cargando criterios: {e}")
+
+        # 2. Verificar disponibilidad de Claude
+        api_key = os.getenv('ANTHROPIC_API_KEY', '').strip()
+        if not api_key or not api_key.startswith('sk-ant-'):
+            return jsonify({
+                "success": False,
+                "error": "La inteligencia artificial no está configurada. Contacta al administrador."
+            }), 503
+
+        # 3. Construir contexto de criterios
+        criteria_context = _build_criteria_context(criteria)
+
+        # 4. Llamar a Claude
+        import anthropic
+
+        system_prompt = (
+            "Eres un ingeniero de costos y cotizador profesional mexicano con amplia experiencia "
+            "en fabricación industrial, estructuras metálicas, y manufactura. "
+            "Tu tarea es estimar el precio de productos industriales basándote "
+            "en la descripción que el usuario proporciona y los criterios de precios de la empresa.\n\n"
+            "REGLAS IMPORTANTES:\n"
+            "1. Analiza la descripción y desglosa los componentes del producto.\n"
+            "2. Si la descripción es vaga o incompleta, identifica qué información falta.\n"
+            "3. Calcula: materiales, mano de obra, transporte, instalación.\n"
+            "4. Usa los precios de los criterios de la empresa cuando apliquen.\n"
+            "5. Si no hay criterio para algo, usa tu conocimiento del mercado mexicano.\n"
+            "6. Aplica el margen de utilidad de los criterios (si existe).\n"
+            "7. El total es ANTES de IVA.\n"
+            "8. Sé conservador en las estimaciones — mejor pecar de precio alto que bajo.\n"
+            "9. Devuelve SOLO un objeto JSON válido. Sin markdown, sin etiquetas de código, "
+            "sin texto antes o después del JSON."
+        )
+
+        user_prompt = f"""CRITERIOS DE PRECIOS DE LA EMPRESA:
+{criteria_context}
+
+DESCRIPCIÓN DEL PRODUCTO A COTIZAR:
+{description}
+
+Analiza la descripción y genera un estimado de precio detallado.
+Devuelve SOLO un objeto JSON con esta estructura exacta (sin markdown, sin comillas alrededor del JSON):
+
+{{
+  "analisis": "breve análisis del producto entendido (2-3 líneas en español)",
+  "desglose": [
+    {{"concepto": "nombre del concepto", "cantidad": 150.0, "unidad": "kg", "precio_unitario": 35.00, "subtotal": 5250.00}}
+  ],
+  "subtotal": 0.00,
+  "margen_aplicado": 15.0,
+  "margen_monto": 0.00,
+  "total_estimado": 0.00,
+  "moneda": "MXN",
+  "confianza": "media",
+  "falta_informacion": ["dato que falta para un presupuesto formal"],
+  "notas": "recomendaciones o aclaraciones relevantes"
+}}
+
+REGLAS DE CÁLCULO:
+- desglose: cada línea debe tener concepto, cantidad, unidad, precio_unitario y subtotal.
+- subtotal = suma de todos los subtotals del desglose.
+- margen_aplicado = porcentaje de margen usado (usa el de los criterios, o 15% por defecto).
+- margen_monto = subtotal * margen_aplicado / 100.
+- total_estimado = subtotal + margen_monto.
+- confianza: "alta" si hay dimensiones, materiales y cantidades claras. "media" si faltan algunos datos. "baja" si la descripción es muy vaga.
+- falta_informacion: lista de datos que faltan para hacer un presupuesto formal.
+- Todos los valores numéricos con 2 decimales máximo."""
+
+        client = anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1500,
+            temperature=0.3,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}]
+        )
+
+        raw_text = message.content[0].text
+        print(f"[FAST_QUOTE] Claude response: {len(raw_text)} chars")
+
+        # 5. Extraer JSON de la respuesta
+        import re
+        # Intentar encontrar el objeto JSON más grande en la respuesta
+        json_match = re.search(r'\{[^{}]*"analisis"[^{}]*\}', raw_text, re.DOTALL)
+        if not json_match:
+            # Fallback: buscar cualquier objeto JSON
+            json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+
+        if not json_match:
+            print(f"[FAST_QUOTE] No se pudo extraer JSON. Raw: {raw_text[:500]}")
+            raise ValueError("La IA no devolvió un formato válido. Intenta de nuevo.")
+
+        estimate = json.loads(json_match.group())
+
+        # 6. Validar campos mínimos
+        estimated_total = estimate.get('total_estimado', 0)
+        if not estimated_total or estimated_total <= 0:
+            # Intentar calcular del subtotal + margen
+            subtotal = float(estimate.get('subtotal', 0))
+            margin_pct = float(estimate.get('margen_aplicado', 15))
+            estimated_total = subtotal * (1 + margin_pct / 100)
+
+        return jsonify({
+            "success": True,
+            "estimated_total": estimated_total,
+            "currency": estimate.get('moneda', 'MXN'),
+            "breakdown": estimate.get('desglose', []),
+            "subtotal": estimate.get('subtotal', 0),
+            "margin": estimate.get('margen_aplicado', 0),
+            "margin_amount": estimate.get('margen_monto', 0),
+            "analysis": estimate.get('analisis', ''),
+            "confidence": estimate.get('confianza', 'media'),
+            "missing_info": estimate.get('falta_informacion', []),
+            "notes": estimate.get('notas', ''),
+            "disclaimer": (
+                "⚠️ ESTIMACIÓN RÁPIDA — Este NO es un presupuesto formal. "
+                "Los precios mostrados son referenciales y pueden variar según "
+                "condiciones reales de fabricación, disponibilidad de materiales "
+                "y alcance final del proyecto. Para un presupuesto formal, "
+                "contacta a tu ejecutivo de ventas."
+            )
+        }), 200
+
+    except json.JSONDecodeError as e:
+        print(f"[FAST_QUOTE] Error decodificando JSON de IA: {e}")
+        return jsonify({
+            "success": False,
+            "error": "Error procesando la respuesta de la IA. Intenta de nuevo con una descripción más estructurada."
+        }), 500
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[FAST_QUOTE] Error en estimación: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": f"Error al generar estimación: {error_msg}"}), 500
+
+
+# ============================================
 # GENERACIÓN DE PDF
 # ============================================
 

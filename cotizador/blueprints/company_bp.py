@@ -216,3 +216,83 @@ def deactivate_user(user_id):
         flash(f"Error: {e}", "error")
 
     return redirect(url_for('company.users'))
+
+
+#
+# Criterios Fast Quote
+#
+
+@company_bp.route('/fast-quote-criteria', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def fast_quote_criteria():
+    """Configurar criterios de precios para estimaciones con IA."""
+    db = _get_db()
+    company_id = _get_company_id()
+
+    if not company_id:
+        flash("No se encontró tu compañía", "error")
+        return redirect(url_for('home'))
+
+    if request.method == 'POST':
+        action = request.form.get('action', '').strip()
+        criteria_id = request.form.get('criteria_id', '').strip()
+
+        try:
+            if action == 'add':
+                data = {
+                    "name": request.form.get('name', '').strip(),
+                    "category": request.form.get('category', 'material').strip(),
+                    "unit": request.form.get('unit', '').strip(),
+                    "unit_price": float(request.form.get('unit_price', 0)),
+                    "description": request.form.get('description', '').strip(),
+                }
+
+                if not data['name']:
+                    flash("El nombre del criterio es obligatorio", "error")
+                elif data['unit_price'] <= 0:
+                    flash("El precio unitario debe ser mayor a 0", "error")
+                else:
+                    result = db.add_fast_quote_criteria(company_id, data)
+                    if result:
+                        flash(f"Criterio «{data['name']}» agregado correctamente", "success")
+                    else:
+                        flash("Error al agregar el criterio. Verifica la conexión a la base de datos.", "error")
+
+            elif action == 'delete' and criteria_id:
+                result = db.delete_fast_quote_criteria(criteria_id)
+                if result:
+                    flash("Criterio eliminado correctamente", "success")
+                else:
+                    flash("Error al eliminar el criterio", "error")
+
+            elif action == 'toggle' and criteria_id:
+                # Obtener estado actual
+                all_criteria = db._get_all_fast_quote_criteria_admin(company_id)
+                current = next((c for c in all_criteria if c['id'] == criteria_id), None)
+                if current:
+                    new_state = not current.get('is_active', True)
+                    result = db.update_fast_quote_criteria(criteria_id, {"is_active": new_state})
+                    if result:
+                        estado = "activado" if new_state else "desactivado"
+                        flash(f"Criterio {estado} correctamente", "success")
+                    else:
+                        flash("Error al cambiar el estado del criterio", "error")
+
+        except ValueError as e:
+            flash(f"Datos inválidos: {e}", "error")
+        except Exception as e:
+            logger.error(f"[FAST_QUOTE_CRITERIA] Error: {e}")
+            flash(f"Error inesperado: {e}", "error")
+
+        return redirect(url_for('company.fast_quote_criteria'))
+
+    # GET: mostrar criterios
+    company = db.get_company_by_id(company_id)
+    criteria = db._get_all_fast_quote_criteria_admin(company_id)
+
+    return render_template(
+        'admin/fast_quote_criteria.html',
+        company=company,
+        criteria=criteria
+    )
