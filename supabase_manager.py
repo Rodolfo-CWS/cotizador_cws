@@ -3188,6 +3188,85 @@ class SupabaseManager:
             print(f"[TENANT] Error get_profiles_by_company: {e}")
         return []
 
+    # ================================================================
+    # FAST QUOTE — PROMPT DE CRITERIOS (v3)
+    # ================================================================
+
+    def get_fast_quote_prompt(self, company_id: str) -> str:
+        """Obtiene el prompt de criterios de la compañía. Devuelve string vacío si no hay."""
+        # Intento 1: PostgreSQL directo
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """SELECT prompt_text
+                       FROM public.fast_quote_prompt
+                       WHERE company_id = %s""",
+                    (company_id,)
+                )
+                row = cursor.fetchone()
+                cursor.close()
+                if row:
+                    return row[0] or ''
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error PG get_fast_quote_prompt: {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+
+        # Intento 2: SDK con service key
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                resp = client.table('fast_quote_prompt') \
+                    .select('prompt_text') \
+                    .eq('company_id', company_id) \
+                    .execute()
+                if resp.data and len(resp.data) > 0:
+                    return resp.data[0].get('prompt_text', '') or ''
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error SDK get_fast_quote_prompt: {e}")
+
+        return ''
+
+    def save_fast_quote_prompt(self, company_id: str, prompt_text: str) -> bool:
+        """Guarda o actualiza el prompt de criterios (UPSERT vía PostgreSQL directo)."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """INSERT INTO public.fast_quote_prompt (company_id, prompt_text)
+                       VALUES (%s, %s)
+                       ON CONFLICT (company_id)
+                       DO UPDATE SET prompt_text = EXCLUDED.prompt_text,
+                                     updated_at = NOW()
+                       RETURNING prompt_text""",
+                    (company_id, prompt_text)
+                )
+                row = cursor.fetchone()
+                self.pg_connection.commit()
+                cursor.close()
+                return row is not None
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error save_fast_quote_prompt: {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+        return False
+
     def close(self):
         """Cierra conexiones del manager."""
         if self.pg_connection:

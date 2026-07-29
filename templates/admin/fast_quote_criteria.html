@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ company.name }} - Prompt Fast Quote</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { background: #f5f4f1; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: white; border-radius: 12px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 20px; }
+        .card h1 { font-size: 20px; color: #1e293b; margin: 0 0 4px 0; }
+        .card .subtitle { color: #78716c; font-size: 14px; margin: 0 0 24px 0; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 500; color: #1e293b; margin-bottom: 6px; }
+        .form-group textarea { width: 100%; padding: 14px 16px; border: 1.5px solid #d6d3d1; border-radius: 8px; font-size: 14px; line-height: 1.7; color: #1e293b; font-family: 'Courier New', monospace; resize: vertical; min-height: 350px; box-sizing: border-box; }
+        .form-group textarea:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); background: white; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
+        .btn-primary { background: #4f46e5; color: white; } .btn-primary:hover { background: #4338ca; }
+        .nav { display: flex; gap: 4px; margin-bottom: 20px; background: white; border-radius: 12px; padding: 6px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); flex-wrap: wrap; }
+        .nav a { padding: 10px 16px; border-radius: 8px; font-size: 14px; color: #44403c; text-decoration: none; }
+        .nav a.active { background: #4f46e5; color: white; }
+        .nav a:hover:not(.active) { background: #f5f4f1; }
+        .flash { padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+        .flash-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
+        .flash-error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+        .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; font-size: 13px; color: #1e40af; line-height: 1.7; }
+        .info-box strong { color: #1e3a8a; }
+        .hint { font-size: 12px; color: #78716c; margin-top: 6px; }
+        .saved-at { font-size: 12px; color: #78716c; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="/admin/company/profile">Perfil</a>
+            <a href="/admin/company/branding">Branding</a>
+            <a href="/admin/company/users">Usuarios</a>
+            <a href="/admin/company/fast-quote-criteria" class="active">Prompt Fast Quote</a>
+            <a href="/">← Volver</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="info-box">
+            <strong>⚡ ¿Cómo funciona?</strong><br>
+            Escribe en texto libre tus criterios de precios. Este prompt se envía a la IA
+            cada vez que un usuario pide una Cotización Rápida. La IA usará esta información
+            como referencia para estimar precios.<br><br>
+            <strong>Sé específico:</strong> precios por kg, por hora de mano de obra, márgenes,
+            costos de transporte, etc. Mientras más detallado, mejores serán las estimaciones.
+        </div>
+
+        <div class="card">
+            <h1>Prompt de Criterios</h1>
+            <p class="subtitle">Este texto guía a la IA al estimar cotizaciones para {{ company.name }}</p>
+
+            <form method="POST">
+                <div class="form-group">
+                    <label for="prompt_text">Escribe tus criterios de precios y reglas para la IA:</label>
+                    <textarea id="prompt_text" name="prompt_text"
+                        placeholder="Ejemplo:&#10;&#10;Precios de materiales:&#10;- Acero estructural A-36: $35 MXN por kg&#10;- Acero inoxidable 304: $85 MXN por kg&#10;- Aluminio 6061: $120 MXN por kg&#10;- Lámina galvanizada calibre 18: $28 MXN por kg&#10;&#10;Mano de obra:&#10;- Soldadura certificada: $250 MXN por hora&#10;- Fabricación general: $180 MXN por hora&#10;- Pintura y acabado: $80 MXN por m²&#10;&#10;Costos adicionales:&#10;- Transporte local dentro de la ciudad: $2,500 MXN por lote&#10;- Instalación en sitio: $350 MXN por hora&#10;&#10;Márgenes:&#10;- Margen de utilidad: 20% sobre costo total&#10;- En proyectos pequeños (menos de $50k): margen mínimo 25%&#10;&#10;Reglas:&#10;- Siempre considera un 5% extra por desperdicio de material&#10;- Si el producto requiere acabado especial, suma 15% al costo de fabricación&#10;- Para estructuras que soportan carga, usa acero A-36 como default">{% if prompt_text %}{{ prompt_text }}{% endif %}</textarea>
+                    <p class="hint">💡 Escribe en formato libre. La IA interpretará este texto como guía para sus estimaciones.</p>
+                </div>
+
+                <button type="submit" class="btn btn-primary">💾 Guardar Prompt</button>
+                {% if updated_at %}
+                <p class="saved-at">Última actualización: {{ updated_at }}</p>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</body>
+</html>

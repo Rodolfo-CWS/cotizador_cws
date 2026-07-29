@@ -216,3 +216,46 @@ def deactivate_user(user_id):
         flash(f"Error: {e}", "error")
 
     return redirect(url_for('company.users'))
+
+
+#
+# Criterios Fast Quote
+#
+
+@company_bp.route('/fast-quote-criteria', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def fast_quote_criteria():
+    """Configurar el prompt de criterios para estimaciones con IA."""
+    db = _get_db()
+    company_id = _get_company_id()
+
+    if not company_id:
+        flash("No se encontró tu compañía", "error")
+        return redirect(url_for('home'))
+
+    if request.method == 'POST':
+        prompt_text = request.form.get('prompt_text', '').strip()
+
+        try:
+            result = db.save_fast_quote_prompt(company_id, prompt_text)
+            if result:
+                flash("Prompt guardado correctamente ✅", "success")
+            else:
+                flash("Error al guardar. Verifica la conexión a la base de datos.", "error")
+        except Exception as e:
+            logger.error(f"[FAST_QUOTE_PROMPT] Error: {e}")
+            flash(f"Error inesperado: {e}", "error")
+
+        return redirect(url_for('company.fast_quote_criteria'))
+
+    # GET: mostrar prompt actual
+    company = db.get_company_by_id(company_id)
+    prompt_text = db.get_fast_quote_prompt(company_id)
+
+    return render_template(
+        'admin/fast_quote_criteria.html',
+        company=company,
+        prompt_text=prompt_text,
+        updated_at=None  # Se podría obtener de la DB si se necesita
+    )
