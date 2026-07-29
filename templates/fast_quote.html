@@ -396,7 +396,7 @@
 
                 <div class="btn-row">
                     <a href="/" class="btn btn-outline">🏠 Inicio</a>
-                    <a href="/formulario" class="btn btn-primary">📄 Ir a Cotización Formal</a>
+                    <a href="/formulario" class="btn btn-primary" onclick="precargarCotizacionFormal(event)">📄 Ir a Cotización Formal</a>
                     <button class="btn btn-outline" onclick="location.reload()">🔄 Nueva Estimación</button>
                 </div>
             </div>
@@ -417,6 +417,9 @@
         const errorBox = document.getElementById('errorBox');
         const resultsDiv = document.getElementById('results');
         const descriptionInput = document.getElementById('description');
+
+        // Guardar el último resultado para precarga
+        let lastResult = null;
 
         // Allow Ctrl+Enter to submit
         descriptionInput.addEventListener('keydown', function(e) {
@@ -499,6 +502,9 @@
         }
 
         function renderResults(data) {
+            // Guardar para posible precarga en cotización formal
+            lastResult = data;
+
             // Show results
             resultsDiv.style.display = 'block';
 
@@ -565,6 +571,26 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function precargarCotizacionFormal(event) {
+            if (!lastResult) return; // sin resultado, navegar normal
+
+            event.preventDefault();
+
+            // Guardar datos en sessionStorage para que formulario.html los lea
+            const precarga = {
+                descripcion: descriptionInput.value.trim(),
+                analysis: lastResult.analysis || '',
+                breakdown: lastResult.breakdown || [],
+                estimated_total: lastResult.estimated_total || 0,
+                currency: lastResult.currency || 'MXN',
+                notes: lastResult.notes || ''
+            };
+            sessionStorage.setItem('fastQuotePrecarga', JSON.stringify(precarga));
+
+            // Navegar al formulario
+            window.location.href = '/formulario?fastquote=1';
         }
     </script>
 </body>
