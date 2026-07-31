@@ -464,9 +464,26 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
             print(f"[VERIFICAR_REVISION] Analizando cotización: {num_cotiz}")
 
             # Verificar que pertenezca a la misma familia (mismo patrón base)
-            # Debe contener las partes principales
-            if patron_busqueda not in num_cotiz:
-                print(f"[VERIFICAR_REVISION]   → Descartada (patrón no coincide)")
+            # Comparar el número base (sin R#) en lugar del prefijo de 4 partes
+            # para evitar confundir cotizaciones de diferentes proyectos
+            partes_item_temp = num_cotiz.split('-')
+            indice_r_item = -1
+            for j, p in enumerate(partes_item_temp):
+                if p.startswith('R') and len(p) > 1:
+                    try:
+                        int(p[1:])
+                        indice_r_item = j
+                        break
+                    except ValueError:
+                        continue
+
+            if indice_r_item != -1:
+                patron_base_item = "-".join(partes_item_temp[:indice_r_item] + partes_item_temp[indice_r_item+1:])
+            else:
+                patron_base_item = num_cotiz  # sin R#, usar el número tal cual
+
+            if patron_base_item != patron_base:
+                print(f"[VERIFICAR_REVISION]   → Descartada (patrón base diferente: {patron_base_item!r} vs {patron_base!r})")
                 continue
 
             # Extraer revisión de esta cotización
