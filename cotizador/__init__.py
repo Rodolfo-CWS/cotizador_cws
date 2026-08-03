@@ -167,6 +167,7 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.config['PERMANENT_SESSION_LIFETIME'] = int(os.getenv('SESSION_LIFETIME_MINUTES', '120')) * 60
 
     # ── Inicializar DatabaseManager ──
     print("Inicializando DatabaseManager (SupabaseManager)...")

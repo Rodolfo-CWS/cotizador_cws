@@ -20,6 +20,7 @@ from flask import (
     url_for, session, jsonify, flash
 )
 from supabase import create_client, Client
+from urllib.parse import urlparse, urljoin
 import os
 import logging
 
@@ -54,6 +55,16 @@ def get_supabase_admin_client() -> Client:
 
     return create_client(url, key)
 
+
+# ── Helper de seguridad para redirects ──
+
+def _is_safe_redirect_url(target):
+    """Valida que una URL de redirect sea segura (mismo host, ruta interna)."""
+    if not target:
+        return False
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 #
 # Rutas de autenticación
@@ -105,6 +116,7 @@ def login():
             session['user_name'] = profile.get('full_name', email)
             session['user_role'] = profile.get('role', 'seller')
             session['company_id'] = profile.get('company_id')
+            session.permanent = True  # sesión duradera (PERMANENT_SESSION_LIFETIME)
 
             logger.info(
                 f"[AUTH] Login exitoso: {user.email} "
@@ -113,7 +125,7 @@ def login():
 
             # 4. Redirigir a la página que intentaba visitar, o al home
             next_url = session.pop('next_url', None)
-            if next_url:
+            if next_url and _is_safe_redirect_url(next_url):
                 return redirect(next_url)
             return redirect(url_for('home'))
 
