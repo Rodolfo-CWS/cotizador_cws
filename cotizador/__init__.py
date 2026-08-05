@@ -9,7 +9,7 @@ import atexit
 import logging
 from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, render_template
 
 # Compatibilidad de librerías PDF
 from cotizador._compat import REPORTLAB_AVAILABLE, WEASYPRINT_AVAILABLE
@@ -256,7 +256,9 @@ def create_app():
     # ── Error handlers ──
     @app.errorhandler(404)
     def not_found(e):
-        return jsonify({"error": "Ruta no encontrada"}), 404
+        if request.path.startswith('/api/') or request.path.startswith('/auth/me'):
+            return jsonify({"error": "Ruta no encontrada"}), 404
+        return render_template('error.html', error="Página no encontrada"), 404
 
     @app.errorhandler(500)
     def server_error(e):

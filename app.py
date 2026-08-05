@@ -3111,6 +3111,20 @@ def _build_criteria_context(prompt_text: str) -> str:
     )
 
 
+def _build_materials_context() -> str:
+    """Formatea la lista de materiales del CSV como referencia de pesos para la IA."""
+    if not LISTA_MATERIALES:
+        return ""
+    lines = ["LISTA DE MATERIALES DISPONIBLES (con peso por metro lineal):"]
+    for m in LISTA_MATERIALES:
+        lines.append(f"  • {m['descripcion']} — {m['peso']} kg/m")
+    lines.append("")
+    lines.append("IMPORTANTE: Para perfiles de acero, el cálculo correcto es:")
+    lines.append("  metros_lineales × kg/m (de esta lista) × precio_por_kg = subtotal")
+    lines.append("Ej: 5.8m de PTR 2\" Cal.14 → 5.8 × 3.0 kg/m × $80 = $1,392 (NO 5.8 kg × $80)")
+    return "\n".join(lines)
+
+
 @app.route("/api/fast-quote/estimate", methods=["POST"])
 @login_required
 def fast_quote_estimate():
@@ -3143,7 +3157,9 @@ def fast_quote_estimate():
             return jsonify({"success": False, "error": "No se recibieron datos"}), 400
 
         description = (data.get('description') or '').strip()
-        answers = data.get('answers', None)  # Segunda llamada: respuestas a preguntas
+        answers = data.get('answers', None)      # Segunda llamada: respuestas a preguntas
+        feedback = data.get('feedback', None)     # Retroalimentación sobre estimación previa
+        previous_estimate = data.get('previous_estimate', None)  # Estimación previa a revisar
 
         if not description or len(description) < 20:
             return jsonify({
@@ -3170,8 +3186,9 @@ def fast_quote_estimate():
                 "error": "La inteligencia artificial no está configurada. Contacta al administrador."
             }), 503
 
-        # 3. Construir contexto de criterios
+        # 3. Construir contexto de criterios y materiales
         criteria_context = _build_criteria_context(prompt_text)
+        materials_context = _build_materials_context()
 
         # 4. Llamar a Claude
         import anthropic
@@ -3185,10 +3202,17 @@ def fast_quote_estimate():
             "1. Analiza la descripción y desglosa los componentes del producto.\n"
             "2. Calcula: materiales, mano de obra, transporte, instalación.\n"
             "3. USA LOS CRITERIOS DE LA EMPRESA como referencia principal de precios.\n"
-            "4. Si un material o servicio no aparece en los criterios, usa tu conocimiento del mercado mexicano.\n"
-            "5. Aplica el margen de utilidad indicado en los criterios.\n"
-            "6. El total es ANTES de IVA.\n"
-            "7. Sé conservador en las estimaciones — mejor pecar de precio alto que bajo.\n\n"
+            "4. USA LA LISTA DE MATERIALES para conocer el peso por metro de cada perfil.\n"
+            "5. Para perfiles de acero: metros_lineales × kg/m (de la lista) × precio_por_kg = subtotal.\n"
+            "6. Si un material no aparece, usa tu conocimiento del mercado mexicano.\n"
+            "7. Aplica el margen de utilidad indicado en los criterios.\n"
+            "8. El total es ANTES de IVA.\n"
+            "9. Sé conservador en las estimaciones — mejor pecar de precio alto que bajo.\n\n"
+            "CAMPOS material_csv, peso_kg y calculo EN CADA LÍNEA DEL DESGLOSE:\n"
+            "- material_csv: nombre EXACTO del material de la LISTA DE MATERIALES que usaste, "
+            "o null si no es material del catálogo (ej: mano de obra, transporte).\n"
+            "- peso_kg: peso total en kg (cantidad × kg/m del material). Solo si aplica.\n"
+            "- calculo: fórmula usada (ej: '5.8m × 3.0 kg/m × $80/kg'). Solo si aplica.\n\n"
             "MODO CLARIFICACIÓN (muy importante):\n"
             "Si la descripción del usuario es demasiado vaga o le faltan datos ESENCIALES "
             "para hacer una estimación digna (no sabes el material principal, no hay dimensiones, "
@@ -3201,14 +3225,62 @@ def fast_quote_estimate():
             "FORMATO DE RESPUESTA: Devuelve SOLO un objeto JSON válido. Sin markdown, sin etiquetas."
         )
 
+        # Modo retroalimentación
+        if feedback and previous_estimate:
+            prev_json = json.dumps(previous_estimate, ensure_ascii=False, indent=2)
+            user_prompt = f"""CRITERIOS DE PRECIOS DE LA EMPRESA:
+{criteria_context}
+
+{materials_context}
+
+DESCRIPCIÓN ORIGINAL DEL PRODUCTO:
+{description}
+
+ESTIMACIÓN ANTERIOR:
+{prev_json}
+
+RETROALIMENTACIÓN DEL USUARIO:
+{feedback}
+
+El usuario vio tu estimación anterior y te da retroalimentación.
+Revisa la estimación según lo que pide el usuario.
+Mantén lo que NO te pidió cambiar. Solo ajusta lo que te indicó.
+
+Devuelve SOLO un JSON con la estimación revisada:
+
+{{
+  "needs_clarification": false,
+  "analisis": "qué cambiaste y por qué (1-2 líneas)",
+  "desglose": [
+    {{"concepto": "nombre", "cantidad": 5.8, "unidad": "m", "precio_unitario": 80.00, "subtotal": 1392.00, "material_csv": "PTR 2\\" x 2\\" CAL 14", "peso_kg": 17.4, "calculo": "5.8m × 3.0 kg/m × $80/kg"}}
+  ],
+  "subtotal": 0.00,
+  "margen_aplicado": 15.0,
+  "margen_monto": 0.00,
+  "total_estimado": 0.00,
+  "moneda": "MXN",
+  "confianza": "media",
+  "falta_informacion": [],
+  "notas": "qué cambió respecto a la estimación anterior"
+}}
+
+REGLAS:
+- subtotal = suma de subtotals del desglose.
+- margen_monto = subtotal * margen_aplicado / 100.
+- total_estimado = subtotal + margen_monto.
+- Para perfiles de acero: metros_lineales × kg/m (de la LISTA DE MATERIALES) × precio_kg.
+- material_csv DEBE ser el nombre exacto de la LISTA DE MATERIALES, o null si no aplica."""
+
         # Si es una segunda llamada con respuestas, incluirlas
-        if answers and isinstance(answers, list) and len(answers) > 0:
+        elif answers and isinstance(answers, list) and len(answers) > 0:
             qa_text = "\n".join([
                 f"P: {a.get('pregunta', '')}\nR: {a.get('respuesta', '')}"
                 for a in answers
             ])
             user_prompt = f"""CRITERIOS DE PRECIOS DE LA EMPRESA:
 {criteria_context}
+
+{materials_context}
 
 DESCRIPCIÓN ORIGINAL DEL PRODUCTO:
 {description}
@@ -3223,7 +3295,7 @@ Devuelve SOLO un JSON con esta estructura:
   "needs_clarification": false,
   "analisis": "breve análisis del producto (2-3 líneas)",
   "desglose": [
-    {{"concepto": "nombre", "cantidad": 150.0, "unidad": "kg", "precio_unitario": 35.00, "subtotal": 5250.00}}
+    {{"concepto": "nombre", "cantidad": 5.8, "unidad": "m", "precio_unitario": 80.00, "subtotal": 1392.00, "material_csv": "PTR 2\\" x 2\\" CAL 14", "peso_kg": 17.4, "calculo": "5.8m × 3.0 kg/m × $80/kg"}}
   ],
   "subtotal": 0.00,
   "margen_aplicado": 15.0,
@@ -3239,11 +3311,13 @@ REGLAS DE CÁLCULO:
 - subtotal = suma de subtotals del desglose.
 - margen_monto = subtotal * margen_aplicado / 100.
 - total_estimado = subtotal + margen_monto.
-- confianza: "alta" si hay datos suficientes, "media" si la info vino de preguntas.
-- Todos los valores numéricos con 2 decimales máximo."""
+- Para perfiles: metros_lineales × kg/m (LISTA DE MATERIALES) × precio_kg.
+- material_csv = nombre exacto de la LISTA DE MATERIALES, o null si no es material del catálogo."""
         else:
             user_prompt = f"""CRITERIOS DE PRECIOS DE LA EMPRESA:
 {criteria_context}
+
+{materials_context}
 
 DESCRIPCIÓN DEL PRODUCTO A COTIZAR:
 {description}
@@ -3256,7 +3330,7 @@ Devuelve:
   "needs_clarification": false,
   "analisis": "breve análisis del producto (2-3 líneas)",
   "desglose": [
-    {{"concepto": "nombre del concepto", "cantidad": 150.0, "unidad": "kg", "precio_unitario": 35.00, "subtotal": 5250.00}}
+    {{"concepto": "nombre del concepto", "cantidad": 5.8, "unidad": "m", "precio_unitario": 80.00, "subtotal": 1392.00, "material_csv": "PTR 2\\" x 2\\" CAL 14", "peso_kg": 17.4, "calculo": "5.8m × 3.0 kg/m × $80/kg"}}
   ],
   "subtotal": 0.00,
   "margen_aplicado": 15.0,
@@ -3279,11 +3353,12 @@ OPCIÓN B — Si la descripción es muy vaga y NO puedes estimar dignamente (no 
 }}
 
 REGLAS:
-- Solo usa la opción B si realmente no puedes estimar. Si tienes aunque sea info mínima, estima con confianza='baja'.
+- Solo usa la opción B si realmente no puedes estimar.
 - Máximo 4 preguntas. Solo pregunta lo indispensable.
-- Las preguntas deben ser en español, claras y directas.
-- En opción A: subtotal = suma de subtotals, margen_monto = subtotal * margen_aplicado / 100, total = subtotal + margen_monto.
-- Todos los valores numéricos con 2 decimales máximo."""
+- Para perfiles de acero: metros_lineales × kg/m (LISTA DE MATERIALES) × precio_kg.
+- material_csv DEBE ser el nombre exacto de la LISTA DE MATERIALES, o null si no es material del catálogo.
+- peso_kg = cantidad × kg/m del material (solo si aplica).
+- calculo = fórmula usada (solo si aplica)."""
 
         client = anthropic.Anthropic(api_key=api_key)
         message = client.messages.create(
@@ -6067,19 +6142,26 @@ def render_cotizacion_html(cotizacion):
 
 @app.errorhandler(404)
 def not_found(error):
-    return jsonify({
-        "error": True,
-        "codigo": 404,
-        "mensaje": "Página no encontrada"
-    }), 404
+    """404 amigable: HTML para navegador, JSON para API."""
+    if request.path.startswith('/api/') or request.path.startswith('/auth/me'):
+        return jsonify({
+            "error": True,
+            "codigo": 404,
+            "mensaje": "Página no encontrada"
+        }), 404
+    return render_template('error.html', error="Página no encontrada"), 404
+
 
 @app.errorhandler(500)
 def internal_error(error):
-    return jsonify({
-        "error": True,
-        "codigo": 500,
-        "mensaje": "Error interno del servidor"
-    }), 500
+    """500 amigable: HTML para navegador, JSON para API."""
+    if request.path.startswith('/api/') or request.path.startswith('/auth/me'):
+        return jsonify({
+            "error": True,
+            "codigo": 500,
+            "mensaje": "Error interno del servidor"
+        }), 500
+    return render_template('error.html', error="Error interno del servidor. Intenta recargar la página."), 500
 
 @app.route("/admin/actualizar-timestamps")
 def actualizar_timestamps():
@@ -6386,17 +6468,6 @@ def ver_json_cotizacion(item_id):
         return jsonify({"error": str(e)}), 500
 
 # ============================================
-# MANEJO DE ERRORES
-# ============================================
-
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({
-        "error": True,
-        "codigo": 404,
-        "mensaje": "Página no encontrada"
-    }), 404
-
 @app.route("/debug/sistema")
 def debug_sistema():
     """Diagnóstico del sistema para debugging"""
