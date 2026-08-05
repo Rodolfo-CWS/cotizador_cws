@@ -2172,7 +2172,8 @@ function cargarDatosFastQuote() {
     // 1. Poner la descripción del producto como descripción del item
     var descDiv = primerItem.querySelector('.descripcion-item');
     if (descDiv && precarga.descripcion) {
-        descDiv.textContent = 'Fast Quote: ' + precarga.descripcion;
+        descDiv.innerHTML = '<strong>Fast Quote:</strong> ' +
+            precarga.descripcion.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g, '<br>');
     }
 
     // 2. Si hay análisis de la IA, agregarlo como nota
@@ -2183,46 +2184,157 @@ function cargarDatosFastQuote() {
         }
     }
 
-    // 3. Poblar "Otros Materiales" con el desglose
+    // 3. Separar el desglose: con material_csv → Materiales, sin → Otros Materiales
     if (precarga.breakdown && precarga.breakdown.length > 0) {
-        var otrosContainer = primerItem.querySelector('.otros-materiales-container');
-        if (otrosContainer) {
-            // Limpiar la fila vacía por defecto
-            otrosContainer.innerHTML = '';
+        var materialesItems = [];
+        var otrosItems = [];
 
-            precarga.breakdown.forEach(function(row, idx) {
-                var concepto = (row.concepto || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-                var precio = row.precio_unitario || 0;
-                var cantidad = row.cantidad || 1;
-                var subtotal = row.subtotal || (precio * cantidad) || 0;
+        precarga.breakdown.forEach(function(row) {
+            if (row.material_csv) {
+                // Intentar matchear con LISTA_MATERIALES
+                var match = encontrarMaterialEnLista(row.material_csv);
+                if (match) {
+                    row._materialMatch = match;
+                    materialesItems.push(row);
+                    return;
+                }
+            }
+            otrosItems.push(row);
+        });
 
-                var html = '<div class="otro-material-row grid grid-cols-12 gap-2 items-end">' +
-                    '<div class="col-span-5">' +
-                        (idx === 0 ? '<label class="block text-xs mb-1">Descripción:</label>' : '') +
-                        '<input type="text" class="descripcion-otro w-full p-2 border rounded text-sm" value="' + concepto + '">' +
-                    '</div>' +
-                    '<div class="col-span-2">' +
-                        (idx === 0 ? '<label class="block text-xs mb-1">Precio ($):</label>' : '') +
-                        '<input type="number" step="0.01" class="precio-otro w-full p-2 border rounded text-sm" value="' + precio + '">' +
-                    '</div>' +
-                    '<div class="col-span-2">' +
-                        (idx === 0 ? '<label class="block text-xs mb-1">Cantidad:</label>' : '') +
-                        '<input type="number" step="0.01" class="cantidad-otro w-full p-2 border rounded text-sm" value="' + cantidad + '">' +
-                    '</div>' +
-                    '<div class="col-span-2">' +
-                        (idx === 0 ? '<label class="block text-xs mb-1">Subtotal ($):</label>' : '') +
-                        '<input type="number" step="0.01" class="subtotal-otro w-full p-2 border rounded text-sm bg-gray-100" readonly value="' + subtotal + '">' +
-                    '</div>' +
-                    '<div class="col-span-1 flex justify-center">' +
-                        '<button type="button" onclick="eliminarFila(this, \'otro\')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>' +
-                    '</div>' +
-                '</div>';
-                otrosContainer.insertAdjacentHTML('beforeend', html);
-            });
+        console.log('[FASTQUOTE] Materiales:', materialesItems.length, 'Otros:', otrosItems.length);
+
+        // --- Poblar MATERIALES (catálogo) ---
+        if (materialesItems.length > 0) {
+            var materialesContainer = primerItem.querySelector('.materiales-container');
+            var btnAddMaterial = primerItem.querySelector('button[onclick*="agregarFila(this, \'material\')"]');
+
+            if (materialesContainer && btnAddMaterial) {
+                // Limpiar fila vacía por defecto
+                materialesContainer.innerHTML = '';
+
+                materialesItems.forEach(function(row, idx) {
+                    // Usar agregarFila para crear la fila con selects correctos
+                    // Le pasamos el botón (que ya no está en el DOM, pero la función usa closest)
+                    // Mejor: construir el HTML manualmente como hace agregarFila
+                    var mat = row._materialMatch;
+                    var pesoUnitario = parseFloat(mat.peso) || 1.0;
+                    var cantidad = parseFloat(row.cantidad) || 1;
+                    var precioKg = parseFloat(row.precio_unitario) || 0;
+                    var subtotalCalculado = parseFloat(row.subtotal) || (cantidad * pesoUnitario * precioKg) || 0;
+
+                    // Generar opciones del select
+                    var opciones = '<option value="" data-peso="0" data-uom="">Seleccione Material</option>';
+                    opciones += '<option value="COTIZAR_POR_PESO" data-peso="0" data-uom="KG">Cotizar por peso</option>';
+                    if (typeof LISTA_MATERIALES !== 'undefined') {
+                        LISTA_MATERIALES.forEach(function(m) {
+                            var sel = m.descripcion === mat.descripcion ? ' selected' : '';
+                            opciones += '<option value="' + m.descripcion.replace(/"/g, '&quot;') + '" data-peso="' + m.peso + '" data-uom="' + (m.uom || '') + '"' + sel + '>' + m.descripcion + '</option>';
+                        });
+                    }
+
+                    var html = '<div class="material-row flex gap-2 items-end" style="margin-top:8px;">' +
+                        '<div class="w-1/4">' +
+                            (idx === 0 ? '<label class="block text-xs mb-1">Material:</label>' : '') +
+                            '<select class="material-select w-full p-2 border rounded text-sm">' + opciones + '</select>' +
+                        '</div>' +
+                        '<div class="material-campos-normales flex-1 grid grid-cols-5 gap-2">' +
+                            '<div>' +
+                                (idx === 0 ? '<label class="block text-xs mb-1">Peso/Kg:</label>' : '') +
+                                '<input type="number" step="0.01" class="peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly value="' + pesoUnitario.toFixed(2) + '">' +
+                            '</div>' +
+                            '<div>' +
+                                (idx === 0 ? '<label class="block text-xs mb-1">Cantidad:</label>' : '') +
+                                '<input type="number" step="0.01" class="cantidad-input w-full p-2 border rounded text-sm" value="' + cantidad + '">' +
+                            '</div>' +
+                            '<div>' +
+                                (idx === 0 ? '<label class="block text-xs mb-1">Unidad:</label>' : '') +
+                                '<select class="unidad-select w-full p-2 border rounded text-sm">' +
+                                    '<option value="metros" selected>Metros</option>' +
+                                    '<option value="centimetros">Centímetros</option>' +
+                                    '<option value="pulgadas">Pulgadas</option>' +
+                                    '<option value="metros_cuadrados">Metros²</option>' +
+                                    '<option value="centimetros_cuadrados">Centímetros²</option>' +
+                                    '<option value="pulgadas_cuadradas">Pulgadas²</option>' +
+                                '</select>' +
+                            '</div>' +
+                            '<div>' +
+                                (idx === 0 ? '<label class="block text-xs mb-1">$/Kg:</label>' : '') +
+                                '<input type="number" step="0.01" class="precio-input w-full p-2 border rounded text-sm" value="' + precioKg.toFixed(2) + '">' +
+                            '</div>' +
+                            '<div>' +
+                                (idx === 0 ? '<label class="block text-xs mb-1">Subtotal ($):</label>' : '') +
+                                '<input type="number" step="0.01" class="subtotal-input w-full p-2 border rounded text-sm bg-gray-100" readonly value="' + subtotalCalculado.toFixed(2) + '">' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="material-campos-peso flex-1 grid grid-cols-3 gap-2" style="display:none;">' +
+                            '<div><label class="block text-xs mb-1">Peso total (kg):</label><input type="number" step="0.01" class="peso-estructura-input w-full p-2 border rounded text-sm"></div>' +
+                            '<div><label class="block text-xs mb-1">$/Kg:</label><input type="number" step="0.01" class="precio-kg-input w-full p-2 border rounded text-sm"></div>' +
+                            '<div><label class="block text-xs mb-1">Subtotal:</label><input type="number" step="0.01" class="subtotal-peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly></div>' +
+                        '</div>' +
+                        '<div class="w-10 flex justify-center">' +
+                            '<button type="button" onclick="eliminarFila(this, \'material\')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>' +
+                        '</div>' +
+                    '</div>';
+
+                    materialesContainer.insertAdjacentHTML('beforeend', html);
+                });
+
+                // Re-agregar el botón de "+" al final
+                var btnHtml = '<button type="button" onclick="agregarFila(this, \'material\')" class="icon-btn success mt-2 text-sm">' +
+                    '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>' +
+                    '</button>';
+                materialesContainer.insertAdjacentHTML('beforeend', btnHtml);
+            }
+        }
+
+        // --- Poblar OTROS MATERIALES (texto libre) ---
+        if (otrosItems.length > 0) {
+            var otrosContainer = primerItem.querySelector('.otros-materiales-container');
+            if (otrosContainer) {
+                // Limpiar la fila vacía por defecto
+                otrosContainer.innerHTML = '';
+
+                otrosItems.forEach(function(row, idx) {
+                    var concepto = (row.concepto || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                    var precio = row.precio_unitario || 0;
+                    var cantidad = row.cantidad || 1;
+                    var subtotal = row.subtotal || (precio * cantidad) || 0;
+
+                    var html = '<div class="otro-material-row grid grid-cols-12 gap-2 items-end">' +
+                        '<div class="col-span-5">' +
+                            (idx === 0 ? '<label class="block text-xs mb-1">Descripción:</label>' : '') +
+                            '<input type="text" class="descripcion-otro w-full p-2 border rounded text-sm" value="' + concepto + '">' +
+                        '</div>' +
+                        '<div class="col-span-2">' +
+                            (idx === 0 ? '<label class="block text-xs mb-1">Precio ($):</label>' : '') +
+                            '<input type="number" step="0.01" class="precio-otro w-full p-2 border rounded text-sm" value="' + precio + '">' +
+                        '</div>' +
+                        '<div class="col-span-2">' +
+                            (idx === 0 ? '<label class="block text-xs mb-1">Cantidad:</label>' : '') +
+                            '<input type="number" step="0.01" class="cantidad-otro w-full p-2 border rounded text-sm" value="' + cantidad + '">' +
+                        '</div>' +
+                        '<div class="col-span-2">' +
+                            (idx === 0 ? '<label class="block text-xs mb-1">Subtotal ($):</label>' : '') +
+                            '<input type="number" step="0.01" class="subtotal-otro w-full p-2 border rounded text-sm bg-gray-100" readonly value="' + subtotal + '">' +
+                        '</div>' +
+                        '<div class="col-span-1 flex justify-center">' +
+                            '<button type="button" onclick="eliminarFila(this, \'otro\')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>' +
+                        '</div>' +
+                    '</div>';
+                    otrosContainer.insertAdjacentHTML('beforeend', html);
+                });
+
+                // Re-agregar botón de "+"
+                var btnOtrosHtml = '<button type="button" onclick="agregarFila(this, \'otro\')" class="icon-btn success mt-2 text-sm">' +
+                    '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>' +
+                    '</button>';
+                otrosContainer.insertAdjacentHTML('beforeend', btnOtrosHtml);
+            }
         }
     }
 
-    // 4. Poner la cantidad del item = 1 (el total ya viene en el desglose)
+    // 4. Poner la cantidad del item = 1
     var cantidadInput = primerItem.querySelector('.cantidad-item');
     if (cantidadInput) {
         cantidadInput.value = 1;
@@ -2237,8 +2349,37 @@ function cargarDatosFastQuote() {
 
     // 6. Mostrar toast informativo
     if (typeof showToast === 'function') {
-        showToast('⚡ Materiales precargados desde Fast Quote. Revisa y ajusta los valores antes de guardar.', 'info');
+        var msg = '⚡ Materiales precargados desde Fast Quote. Revisa y ajusta antes de guardar.';
+        showToast(msg, 'info');
     }
+}
+
+// Helper: buscar un material del CSV por nombre
+function encontrarMaterialEnLista(csvName) {
+    if (!csvName || typeof LISTA_MATERIALES === 'undefined') return null;
+
+    // Búsqueda exacta
+    var found = null;
+    LISTA_MATERIALES.forEach(function(m) {
+        if (m.descripcion === csvName) found = m;
+    });
+    if (found) return found;
+
+    // Búsqueda normalizada (trim, lowercase, espacios colapsados)
+    var norm = csvName.trim().toLowerCase().replace(/\s+/g, ' ');
+    LISTA_MATERIALES.forEach(function(m) {
+        if (m.descripcion.trim().toLowerCase().replace(/\s+/g, ' ') === norm) found = m;
+    });
+    if (found) return found;
+
+    // Substring: el nombre del CSV contiene el material_csv o viceversa
+    LISTA_MATERIALES.forEach(function(m) {
+        var mNorm = m.descripcion.trim().toLowerCase().replace(/\s+/g, ' ');
+        if (mNorm.indexOf(norm) !== -1 || norm.indexOf(mNorm) !== -1) {
+            if (!found) found = m;  // primer match parcial
+        }
+    });
+    return found || null;
 }
 
 function cargarDatosPrecargados() {
