@@ -276,6 +276,13 @@
         }
         .disclaimer-footer strong { display: block; margin-bottom: 4px; }
 
+        /* Clarification card */
+        .clarify-answer:focus {
+            outline: none;
+            border-color: #f59e0b !important;
+            box-shadow: 0 0 0 3px rgba(245,158,11,0.12);
+        }
+
         /* Error */
         .error-box {
             background: var(--red-50);
@@ -332,6 +339,22 @@
             </div>
 
             <div id="errorBox" class="error-box"></div>
+        </div>
+
+        <!-- Clarification card (preguntas de la IA) -->
+        <div class="card" id="clarificationCard" style="display:none;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                <span style="font-size:24px;">🤔</span>
+                <div>
+                    <h3 style="font-size:16px;color:var(--gray-800);margin:0;">La IA necesita más detalles</h3>
+                    <p style="font-size:13px;color:var(--gray-500);margin:4px 0 0 0;" id="clarifyAnalysis"></p>
+                </div>
+            </div>
+            <div id="clarifyQuestions" style="margin-bottom:16px;"></div>
+            <button id="btnClarify" class="btn btn-estimate" onclick="enviarRespuestas()">
+                <span class="btn-text">📨 Enviar Respuestas</span>
+                <div class="spinner"></div>
+            </button>
         </div>
 
         <!-- Results card -->
@@ -448,29 +471,37 @@
             return '🟡 Confianza Media';
         }
 
-        async function estimarPrecio() {
+        async function estimarPrecio(answersData) {
+            // Si no se pasan respuestas, es el primer intento
+            const isFollowUp = !!answersData;
             const description = descriptionInput.value.trim();
 
             // Reset
             errorBox.style.display = 'none';
             resultsDiv.style.display = 'none';
+            document.getElementById('clarificationCard').style.display = 'none';
 
-            // Validate
-            if (!description || description.length < 20) {
+            // Validar
+            if (!isFollowUp && (!description || description.length < 20)) {
                 showError('Por favor, describe el producto con más detalle (mínimo 20 caracteres). Incluye dimensiones, materiales, capacidades, cantidades, etc.');
                 descriptionInput.focus();
                 return;
             }
 
             // Loading state
-            btnEstimate.classList.add('loading');
-            btnEstimate.disabled = true;
+            const btn = isFollowUp ? document.getElementById('btnClarify') : btnEstimate;
+            btn.classList.add('loading');
+            btn.disabled = true;
 
             try {
+                const body = isFollowUp
+                    ? { description: description, answers: answersData }
+                    : { description: description };
+
                 const response = await fetch('/api/fast-quote/estimate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ description: description })
+                    body: JSON.stringify(body)
                 });
 
                 const data = await response.json();
@@ -480,19 +511,65 @@
                     return;
                 }
 
-                // Render results
-                renderResults(data);
-
-                // Scroll to results
-                resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // ¿La IA necesita clarificación?
+                if (data.needs_clarification) {
+                    showClarification(data);
+                } else {
+                    renderResults(data);
+                    resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
 
             } catch (err) {
                 console.error('[FAST_QUOTE]', err);
-                showError('Error de conexión. Verifica tu internet e intenta de nuevo. Si el problema persiste, contacta al administrador.');
+                showError('Error de conexión. Verifica tu internet e intenta de nuevo.');
             } finally {
-                btnEstimate.classList.remove('loading');
-                btnEstimate.disabled = false;
+                btn.classList.remove('loading');
+                btn.disabled = false;
             }
+        }
+
+        function showClarification(data) {
+            const card = document.getElementById('clarificationCard');
+            document.getElementById('clarifyAnalysis').textContent = data.analysis || '';
+            const questionsDiv = document.getElementById('clarifyQuestions');
+
+            questionsDiv.innerHTML = '';
+            (data.preguntas || []).forEach(function(q, idx) {
+                var div = document.createElement('div');
+                div.style.cssText = 'margin-bottom:12px;';
+                div.innerHTML =
+                    '<label style="display:block;font-size:14px;font-weight:500;color:var(--gray-800);margin-bottom:6px;">' +
+                    (idx + 1) + '. ' + escapeHtml(q) +
+                    '</label>' +
+                    '<textarea class="clarify-answer" data-pregunta="' + escapeHtml(q) +
+                    '" placeholder="Escribe tu respuesta aquí..." ' +
+                    'style="width:100%;padding:10px 12px;border:1.5px solid #d6d3d1;border-radius:8px;font-size:14px;' +
+                    'color:var(--gray-900);font-family:inherit;resize:vertical;min-height:50px;box-sizing:border-box;"></textarea>';
+                questionsDiv.appendChild(div);
+            });
+
+            card.style.display = 'block';
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function enviarRespuestas() {
+            var answers = [];
+            var answerEls = document.querySelectorAll('.clarify-answer');
+            answerEls.forEach(function(el) {
+                answers.push({
+                    pregunta: el.getAttribute('data-pregunta'),
+                    respuesta: el.value.trim()
+                });
+            });
+
+            // Validar que todas tengan respuesta
+            var empty = answers.filter(function(a) { return !a.respuesta; });
+            if (empty.length > 0) {
+                showError('Por favor responde todas las preguntas antes de enviar.');
+                return;
+            }
+
+            estimarPrecio(answers);
         }
 
         function showError(msg) {

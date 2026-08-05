@@ -3117,24 +3117,25 @@ def fast_quote_estimate():
     """
     Estima un precio usando IA basado en la descripción del producto.
 
-    Body JSON:
+    Body JSON (primer intento):
         { "description": "descripción detallada del producto a cotizar" }
 
-    Returns:
+    Body JSON (con respuestas a preguntas de la IA):
         {
-            "success": true,
-            "estimated_total": 12345.67,
-            "currency": "MXN",
-            "breakdown": [...],
-            "subtotal": ...,
-            "margin": ...,
-            "margin_amount": ...,
-            "analysis": "...",
-            "confidence": "alta|media|baja",
-            "missing_info": [...],
-            "notes": "...",
-            "disclaimer": "..."
+            "description": "descripción original",
+            "answers": [
+                {"pregunta": "¿Qué material...?", "respuesta": "Acero A-36"},
+                ...
+            ]
         }
+
+    Returns:
+        - Si necesita clarificar:
+            { "success": true, "needs_clarification": true,
+              "preguntas": [...], "analysis": "..." }
+        - Si tiene estimación:
+            { "success": true, "needs_clarification": false,
+              "estimated_total": ..., "breakdown": [...], ... }
     """
     try:
         data = request.get_json()
@@ -3142,6 +3143,7 @@ def fast_quote_estimate():
             return jsonify({"success": False, "error": "No se recibieron datos"}), 400
 
         description = (data.get('description') or '').strip()
+        answers = data.get('answers', None)  # Segunda llamada: respuestas a preguntas
 
         if not description or len(description) < 20:
             return jsonify({
@@ -3181,30 +3183,78 @@ def fast_quote_estimate():
             "en la descripción que el usuario proporciona y los criterios de precios de la empresa.\n\n"
             "REGLAS IMPORTANTES:\n"
             "1. Analiza la descripción y desglosa los componentes del producto.\n"
-            "2. Si la descripción es vaga o incompleta, identifica qué información falta.\n"
-            "3. Calcula: materiales, mano de obra, transporte, instalación.\n"
-            "4. USA LOS CRITERIOS DE LA EMPRESA como referencia principal de precios. "
-            "Interprétalos de forma inteligente aunque estén en formato libre.\n"
-            "5. Si un material o servicio no aparece en los criterios, usa tu conocimiento del mercado mexicano.\n"
-            "6. Aplica el margen de utilidad indicado en los criterios (si existe).\n"
-            "7. Si los criterios mencionan reglas especiales (desperdicio, acabados, cargas), APLÍCALAS.\n"
-            "8. El total es ANTES de IVA.\n"
-            "9. Sé conservador en las estimaciones — mejor pecar de precio alto que bajo.\n"
-            "10. Devuelve SOLO un objeto JSON válido. Sin markdown, sin etiquetas de código, "
-            "sin texto antes o después del JSON."
+            "2. Calcula: materiales, mano de obra, transporte, instalación.\n"
+            "3. USA LOS CRITERIOS DE LA EMPRESA como referencia principal de precios.\n"
+            "4. Si un material o servicio no aparece en los criterios, usa tu conocimiento del mercado mexicano.\n"
+            "5. Aplica el margen de utilidad indicado en los criterios.\n"
+            "6. El total es ANTES de IVA.\n"
+            "7. Sé conservador en las estimaciones — mejor pecar de precio alto que bajo.\n\n"
+            "MODO CLARIFICACIÓN (muy importante):\n"
+            "Si la descripción del usuario es demasiado vaga o le faltan datos ESENCIALES "
+            "para hacer una estimación digna (no sabes el material principal, no hay dimensiones, "
+            "no sabes qué hace el producto, la descripción es genérica), NO inventes una estimación. "
+            "En vez de eso, devuelve needs_clarification=true y genera de 2 a 4 preguntas concretas "
+            "y específicas para que el usuario aclare lo que necesitas saber. "
+            "Solo pide información que sea realmente indispensable para estimar.\n"
+            "Si tienes suficiente información aunque falten algunos detalles menores, "
+            "da la estimación pero márcala con confianza='media' o 'baja'.\n\n"
+            "FORMATO DE RESPUESTA: Devuelve SOLO un objeto JSON válido. Sin markdown, sin etiquetas."
         )
 
-        user_prompt = f"""CRITERIOS DE PRECIOS DE LA EMPRESA:
+        # Si es una segunda llamada con respuestas, incluirlas
+        if answers and isinstance(answers, list) and len(answers) > 0:
+            qa_text = "\n".join([
+                f"P: {a.get('pregunta', '')}\nR: {a.get('respuesta', '')}"
+                for a in answers
+            ])
+            user_prompt = f"""CRITERIOS DE PRECIOS DE LA EMPRESA:
+{criteria_context}
+
+DESCRIPCIÓN ORIGINAL DEL PRODUCTO:
+{description}
+
+EL USUARIO RESPONDIÓ LAS SIGUIENTES PREGUNTAS:
+{qa_text}
+
+AHORA SÍ tienes suficiente información. Genera la estimación completa.
+Devuelve SOLO un JSON con esta estructura:
+
+{{
+  "needs_clarification": false,
+  "analisis": "breve análisis del producto (2-3 líneas)",
+  "desglose": [
+    {{"concepto": "nombre", "cantidad": 150.0, "unidad": "kg", "precio_unitario": 35.00, "subtotal": 5250.00}}
+  ],
+  "subtotal": 0.00,
+  "margen_aplicado": 15.0,
+  "margen_monto": 0.00,
+  "total_estimado": 0.00,
+  "moneda": "MXN",
+  "confianza": "media",
+  "falta_informacion": [],
+  "notas": ""
+}}
+
+REGLAS DE CÁLCULO:
+- subtotal = suma de subtotals del desglose.
+- margen_monto = subtotal * margen_aplicado / 100.
+- total_estimado = subtotal + margen_monto.
+- confianza: "alta" si hay datos suficientes, "media" si la info vino de preguntas.
+- Todos los valores numéricos con 2 decimales máximo."""
+        else:
+            user_prompt = f"""CRITERIOS DE PRECIOS DE LA EMPRESA:
 {criteria_context}
 
 DESCRIPCIÓN DEL PRODUCTO A COTIZAR:
 {description}
 
-Analiza la descripción y genera un estimado de precio detallado.
-Devuelve SOLO un objeto JSON con esta estructura exacta (sin markdown, sin comillas alrededor del JSON):
+Analiza la descripción. Tienes dos opciones:
 
+OPCIÓN A — Si tienes suficiente información para estimar (materiales claros, dimensiones, función del producto):
+Devuelve:
 {{
-  "analisis": "breve análisis del producto entendido (2-3 líneas en español)",
+  "needs_clarification": false,
+  "analisis": "breve análisis del producto (2-3 líneas)",
   "desglose": [
     {{"concepto": "nombre del concepto", "cantidad": 150.0, "unidad": "kg", "precio_unitario": 35.00, "subtotal": 5250.00}}
   ],
@@ -3214,18 +3264,25 @@ Devuelve SOLO un objeto JSON con esta estructura exacta (sin markdown, sin comil
   "total_estimado": 0.00,
   "moneda": "MXN",
   "confianza": "media",
-  "falta_informacion": ["dato que falta para un presupuesto formal"],
-  "notas": "recomendaciones o aclaraciones relevantes"
+  "falta_informacion": [],
+  "notas": ""
 }}
 
-REGLAS DE CÁLCULO:
-- desglose: cada línea debe tener concepto, cantidad, unidad, precio_unitario y subtotal.
-- subtotal = suma de todos los subtotals del desglose.
-- margen_aplicado = porcentaje de margen usado (usa el de los criterios, o 15% por defecto).
-- margen_monto = subtotal * margen_aplicado / 100.
-- total_estimado = subtotal + margen_monto.
-- confianza: "alta" si hay dimensiones, materiales y cantidades claras. "media" si faltan algunos datos. "baja" si la descripción es muy vaga.
-- falta_informacion: lista de datos que faltan para hacer un presupuesto formal.
+OPCIÓN B — Si la descripción es muy vaga y NO puedes estimar dignamente (no sabes el material principal, no hay dimensiones, la descripción es genérica como \"un rack\" o \"una mesa\"), NO inventes. Devuelve:
+{{
+  "needs_clarification": true,
+  "analisis": "lo poco que entendiste del producto (1-2 líneas)",
+  "preguntas": [
+    "¿Pregunta 1 específica?",
+    "¿Pregunta 2 específica?"
+  ]
+}}
+
+REGLAS:
+- Solo usa la opción B si realmente no puedes estimar. Si tienes aunque sea info mínima, estima con confianza='baja'.
+- Máximo 4 preguntas. Solo pregunta lo indispensable.
+- Las preguntas deben ser en español, claras y directas.
+- En opción A: subtotal = suma de subtotals, margen_monto = subtotal * margen_aplicado / 100, total = subtotal + margen_monto.
 - Todos los valores numéricos con 2 decimales máximo."""
 
         client = anthropic.Anthropic(api_key=api_key)
@@ -3242,38 +3299,43 @@ REGLAS DE CÁLCULO:
 
         # 5. Extraer JSON de la respuesta
         import re
-        # Intentar encontrar el objeto JSON más grande en la respuesta
-        json_match = re.search(r'\{[^{}]*"analisis"[^{}]*\}', raw_text, re.DOTALL)
-        if not json_match:
-            # Fallback: buscar cualquier objeto JSON
-            json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+        json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
 
         if not json_match:
             print(f"[FAST_QUOTE] No se pudo extraer JSON. Raw: {raw_text[:500]}")
             raise ValueError("La IA no devolvió un formato válido. Intenta de nuevo.")
 
-        estimate = json.loads(json_match.group())
+        result = json.loads(json_match.group())
 
-        # 6. Validar campos mínimos
-        estimated_total = estimate.get('total_estimado', 0)
+        # 6. ¿La IA necesita clarificación?
+        if result.get('needs_clarification'):
+            return jsonify({
+                "success": True,
+                "needs_clarification": True,
+                "analysis": result.get('analisis', ''),
+                "preguntas": result.get('preguntas', [])
+            }), 200
+
+        # 7. Es una estimación — validar campos
+        estimated_total = result.get('total_estimado', 0)
         if not estimated_total or estimated_total <= 0:
-            # Intentar calcular del subtotal + margen
-            subtotal = float(estimate.get('subtotal', 0))
-            margin_pct = float(estimate.get('margen_aplicado', 15))
+            subtotal = float(result.get('subtotal', 0))
+            margin_pct = float(result.get('margen_aplicado', 15))
             estimated_total = subtotal * (1 + margin_pct / 100)
 
         return jsonify({
             "success": True,
+            "needs_clarification": False,
             "estimated_total": estimated_total,
-            "currency": estimate.get('moneda', 'MXN'),
-            "breakdown": estimate.get('desglose', []),
-            "subtotal": estimate.get('subtotal', 0),
-            "margin": estimate.get('margen_aplicado', 0),
-            "margin_amount": estimate.get('margen_monto', 0),
-            "analysis": estimate.get('analisis', ''),
-            "confidence": estimate.get('confianza', 'media'),
-            "missing_info": estimate.get('falta_informacion', []),
-            "notes": estimate.get('notas', ''),
+            "currency": result.get('moneda', 'MXN'),
+            "breakdown": result.get('desglose', []),
+            "subtotal": result.get('subtotal', 0),
+            "margin": result.get('margen_aplicado', 0),
+            "margin_amount": result.get('margen_monto', 0),
+            "analysis": result.get('analisis', ''),
+            "confidence": result.get('confianza', 'media'),
+            "missing_info": result.get('falta_informacion', []),
+            "notes": result.get('notas', ''),
             "disclaimer": (
                 "⚠️ ESTIMACIÓN RÁPIDA — Este NO es un presupuesto formal. "
                 "Los precios mostrados son referenciales y pueden variar según "
