@@ -417,6 +417,23 @@
                     <div id="resultNotesText"></div>
                 </div>
 
+                <!-- Retroalimentación -->
+                <div style="border-top: 2px dashed #e7e5e4; margin-top: 20px; padding-top: 20px;">
+                    <label style="display:block;font-size:14px;font-weight:600;color:var(--gray-800);margin-bottom:8px;">
+                        💬 ¿Ajustar la estimación?
+                    </label>
+                    <textarea id="feedbackInput"
+                        placeholder="Ej: Cambia el material a acero inoxidable 304, son 5 piezas no 2, súmale instalación en sitio, está muy caro baja el margen al 10%..."
+                        style="width:100%;padding:10px 12px;border:1.5px solid #d6d3d1;border-radius:8px;font-size:14px;
+                        color:var(--gray-900);font-family:inherit;resize:vertical;min-height:60px;box-sizing:border-box;"></textarea>
+                    <button id="btnFeedback" class="btn btn-outline" onclick="recalcularConFeedback()"
+                        style="margin-top:10px;width:100%;justify-content:center;">
+                        <span class="btn-text">🔄 Recalcular con Retroalimentación</span>
+                        <div class="spinner"></div>
+                    </button>
+                    <p style="font-size:11px;color:var(--gray-500);margin-top:6px;">La IA revisará tu estimación según tus indicaciones y mantendrá lo que no cambiaste.</p>
+                </div>
+
                 <div class="btn-row">
                     <a href="/" class="btn btn-outline">🏠 Inicio</a>
                     <a href="/formulario" class="btn btn-primary" onclick="precargarCotizacionFormal(event)">📄 Ir a Cotización Formal</a>
@@ -648,6 +665,64 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        async function recalcularConFeedback() {
+            var feedbackText = document.getElementById('feedbackInput').value.trim();
+            if (!feedbackText) {
+                showError('Escribe tu retroalimentación para recalcular la estimación.');
+                return;
+            }
+            if (!lastResult) return;
+
+            var btn = document.getElementById('btnFeedback');
+            btn.classList.add('loading');
+            btn.disabled = true;
+            errorBox.style.display = 'none';
+
+            try {
+                var response = await fetch('/api/fast-quote/estimate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        description: descriptionInput.value.trim(),
+                        feedback: feedbackText,
+                        previous_estimate: {
+                            estimated_total: lastResult.estimated_total,
+                            breakdown: lastResult.breakdown,
+                            subtotal: lastResult.subtotal,
+                            margin: lastResult.margin,
+                            margin_amount: lastResult.margin_amount,
+                            analysis: lastResult.analysis,
+                            confidence: lastResult.confidence,
+                            notes: lastResult.notes
+                        }
+                    })
+                });
+
+                var data = await response.json();
+
+                if (!data.success) {
+                    showError(data.error || 'Error al recalcular.');
+                    return;
+                }
+
+                // Reemplazar resultados con la nueva estimación
+                renderResults(data);
+                document.getElementById('feedbackInput').value = '';
+
+                // Mostrar toast
+                if (typeof showToast === 'function') {
+                    showToast('✅ Estimación recalculada según tu retroalimentación', 'success');
+                }
+
+            } catch (err) {
+                console.error('[FEEDBACK]', err);
+                showError('Error de conexión al recalcular.');
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
         }
 
         function precargarCotizacionFormal(event) {

@@ -3126,7 +3126,9 @@ def fast_quote_estimate():
             return jsonify({"success": False, "error": "No se recibieron datos"}), 400
 
         description = (data.get('description') or '').strip()
-        answers = data.get('answers', None)  # Segunda llamada: respuestas a preguntas
+        answers = data.get('answers', None)      # Segunda llamada: respuestas a preguntas
+        feedback = data.get('feedback', None)     # Retroalimentación sobre estimación previa
+        previous_estimate = data.get('previous_estimate', None)  # Estimación previa a revisar
 
         if not description or len(description) < 20:
             return jsonify({
@@ -3184,8 +3186,51 @@ def fast_quote_estimate():
             "FORMATO DE RESPUESTA: Devuelve SOLO un objeto JSON válido. Sin markdown, sin etiquetas."
         )
 
+        # Modo retroalimentación: el usuario corrige/ajusta una estimación previa
+        if feedback and previous_estimate:
+            prev_json = json.dumps(previous_estimate, ensure_ascii=False, indent=2)
+            user_prompt = f"""CRITERIOS DE PRECIOS DE LA EMPRESA:
+{criteria_context}
+
+DESCRIPCIÓN ORIGINAL DEL PRODUCTO:
+{description}
+
+ESTIMACIÓN ANTERIOR:
+{prev_json}
+
+RETROALIMENTACIÓN DEL USUARIO:
+{feedback}
+
+El usuario vio tu estimación anterior y te da retroalimentación.
+Revisa la estimación según lo que pide el usuario.
+Mantén lo que NO te pidió cambiar. Solo ajusta lo que te indicó.
+
+Devuelve SOLO un JSON con la estimación revisada:
+
+{{
+  "needs_clarification": false,
+  "analisis": "qué cambiaste y por qué (1-2 líneas)",
+  "desglose": [
+    {{"concepto": "nombre", "cantidad": 150.0, "unidad": "kg", "precio_unitario": 35.00, "subtotal": 5250.00}}
+  ],
+  "subtotal": 0.00,
+  "margen_aplicado": 15.0,
+  "margen_monto": 0.00,
+  "total_estimado": 0.00,
+  "moneda": "MXN",
+  "confianza": "media",
+  "falta_informacion": [],
+  "notas": "qué cambió respecto a la estimación anterior"
+}}
+
+REGLAS:
+- subtotal = suma de subtotals del desglose.
+- margen_monto = subtotal * margen_aplicado / 100.
+- total_estimado = subtotal + margen_monto.
+- En 'notas' explica claramente qué cambiaste y por qué."""
+
         # Si es una segunda llamada con respuestas, incluirlas
-        if answers and isinstance(answers, list) and len(answers) > 0:
+        elif answers and isinstance(answers, list) and len(answers) > 0:
             qa_text = "\n".join([
                 f"P: {a.get('pregunta', '')}\nR: {a.get('respuesta', '')}"
                 for a in answers
