@@ -6050,19 +6050,26 @@ def render_cotizacion_html(cotizacion):
 
 @app.errorhandler(404)
 def not_found(error):
-    return jsonify({
-        "error": True,
-        "codigo": 404,
-        "mensaje": "Página no encontrada"
-    }), 404
+    """404 amigable: HTML para navegador, JSON para API."""
+    if request.path.startswith('/api/') or request.path.startswith('/auth/me'):
+        return jsonify({
+            "error": True,
+            "codigo": 404,
+            "mensaje": "Página no encontrada"
+        }), 404
+    return render_template('error.html', error="Página no encontrada"), 404
+
 
 @app.errorhandler(500)
 def internal_error(error):
-    return jsonify({
-        "error": True,
-        "codigo": 500,
-        "mensaje": "Error interno del servidor"
-    }), 500
+    """500 amigable: HTML para navegador, JSON para API."""
+    if request.path.startswith('/api/') or request.path.startswith('/auth/me'):
+        return jsonify({
+            "error": True,
+            "codigo": 500,
+            "mensaje": "Error interno del servidor"
+        }), 500
+    return render_template('error.html', error="Error interno del servidor. Intenta recargar la página."), 500
 
 @app.route("/admin/actualizar-timestamps")
 def actualizar_timestamps():
@@ -6369,17 +6376,6 @@ def ver_json_cotizacion(item_id):
         return jsonify({"error": str(e)}), 500
 
 # ============================================
-# MANEJO DE ERRORES
-# ============================================
-
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({
-        "error": True,
-        "codigo": 404,
-        "mensaje": "Página no encontrada"
-    }), 404
-
 @app.route("/debug/sistema")
 def debug_sistema():
     """Diagnóstico del sistema para debugging"""
