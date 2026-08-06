@@ -180,7 +180,15 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     ]))
 
     # Cotización alineada a la derecha
-    fecha_actual = datetime.datetime.now().strftime('%d/%m/%Y')
+    fecha_guardada = datos_generales.get('fecha', '')
+    if fecha_guardada:
+        try:
+            fecha_dt = datetime.datetime.strptime(fecha_guardada[:10], '%Y-%m-%d')
+            fecha_actual = fecha_dt.strftime('%d/%m/%Y')
+        except (ValueError, TypeError):
+            fecha_actual = datetime.datetime.now().strftime('%d/%m/%Y')
+    else:
+        fecha_actual = datetime.datetime.now().strftime('%d/%m/%Y')
     cotizacion_info = Paragraph(f"""
         <b>COTIZACIÓN</b><br/>
         <b>No. {datos_generales.get('numeroCotizacion', 'N/A')}</b><br/>
@@ -743,7 +751,7 @@ def generar_desglose_pdf_reportlab(datos_cotizacion, company_branding=None):
     # ── TÍTULO ──
     story.append(Paragraph("DESGLOSE DE COTIZACIÓN", title_style))
     story.append(Paragraph(
-        f"No. {numero} &nbsp;|&nbsp; Rev. {revision} &nbsp;|&nbsp; {datetime.datetime.now().strftime('%d/%m/%Y')}",
+        f"No. {numero} &nbsp;|&nbsp; Rev. {revision} &nbsp;|&nbsp; {fecha_actual}",
         subtitle_style
     ))
 
