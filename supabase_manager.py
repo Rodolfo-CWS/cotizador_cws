@@ -138,7 +138,19 @@ class SupabaseManager:
                     self._notificar_cambio_estado("offline", "online")
                 
                 self.estado_anterior = "online"
-                
+
+                # Asegurar que la tabla de contadores atómicos existe (Fix #1 - Race Condition)
+                try:
+                    self._ensure_counter_table()
+                except Exception as counter_error:
+                    print(f"[SUPABASE] Advertencia - No se pudo crear/verificar cotizacion_counters: {counter_error}")
+
+                # Sincronizar contadores con cotizaciones existentes (Fix #4 - Counter Drift)
+                try:
+                    self._sincronizar_contadores()
+                except Exception as sync_error:
+                    print(f"[SUPABASE] Advertencia - No se pudo sincronizar contadores: {sync_error}")
+
                 # Test adicional: verificar si existen las tablas
                 try:
                     cursor = self.pg_connection.cursor()
@@ -541,14 +553,14 @@ class SupabaseManager:
                 # Extraer datos para análisis
                 datos_generales = datos.get('datosGenerales', {})
                 revision = datos_generales.get('revision', 1)
-                
+
                 # FIX ISSUE #1: NUNCA generar nuevo número secuencial para revisiones (R2+)
                 if isinstance(revision, str):
                     try:
                         revision = int(revision)
                     except (ValueError, TypeError):
                         revision = 1
-                
+
                 if revision > 1:
                     # ES UNA REVISIÓN - ERROR CRÍTICO: no debería llegar aquí sin número
                     error_msg = f"[CRÍTICO] Revisión R{revision} sin número de cotización base. Esto NO debe ocurrir."
@@ -557,21 +569,30 @@ class SupabaseManager:
                 else:
                     # Es una nueva cotización (R1) - generar número consecutivo
                     print("[GUARDAR] Nueva cotización (R1), generando número consecutivo...")
-                    
+
                     # Extraer datos necesarios para generación consecutiva
                     cliente = datos_generales.get('cliente', 'CLIENTE')
-                    vendedor = datos_generales.get('vendedor', 'VENDEDOR')  
+                    vendedor = datos_generales.get('vendedor', 'VENDEDOR')
                     proyecto = datos_generales.get('proyecto', 'PROYECTO')
-                    
+
                     print(f"[GUARDAR] Generando consecutivo para: Cliente='{cliente}', Vendedor='{vendedor}', Proyecto='{proyecto}', Rev={revision}")
-                    
+
                     # Usar el método consecutivo irrepetible solo para NUEVAS cotizaciones
                     numero_cotizacion = self.generar_numero_cotizacion(cliente, vendedor, proyecto, revision)
                     datos['numeroCotizacion'] = numero_cotizacion
-                    
+
                     # Actualizar también en datosGenerales para consistencia
                     datos['datosGenerales']['numeroCotizacion'] = numero_cotizacion
                     print(f"[GUARDAR] Número consecutivo generado: {numero_cotizacion}")
+
+                    # Fix #3: Marcar como nueva R1 para reintento en caso de colisión UNIQUE
+                    es_nueva_r1 = True
+                    cliente_r1 = cliente
+                    vendedor_r1 = vendedor
+                    proyecto_r1 = proyecto
+                    revision_r1 = revision
+            else:
+                es_nueva_r1 = False
             
             print(f"[GUARDAR] Procesando cotización: {numero_cotizacion}")
 
@@ -618,41 +639,84 @@ class SupabaseManager:
                         except Exception as calc_err:
                             print(f"[GUARDAR] Error recalculando total de item: {calc_err}")
 
-            # SISTEMA HÍBRIDO TRIPLE LAYER (REORDENADO PARA ESTABILIDAD):
-            # 1. PRIORIDAD: SDK REST de Supabase (funciona independiente de PostgreSQL)
-            if self.supabase_client:
-                print("[HIBRIDO] PRIORIDAD 1: Intentando SDK REST de Supabase...")
-                resultado_sdk = self._guardar_cotizacion_sdk(datos)
-                
-                # Verificar si SDK REST realmente funcionó
-                if resultado_sdk.get('success'):
-                    print("[HIBRIDO] SDK REST exitoso - operación completada")
-                    # También guardar en JSON como backup
-                    self._guardar_cotizacion_offline(datos)
-                    return resultado_sdk
-                else:
-                    print(f"[HIBRIDO] SDK REST falló: {resultado_sdk.get('error', 'unknown')}")
-                    print(f"[HIBRIDO] SDK REST resultado completo: {json.dumps(resultado_sdk, default=str, indent=2)}")
-                    print("[HIBRIDO] Intentando fallback a PostgreSQL directo...")
-            
-            # 2. FALLBACK: PostgreSQL directo (solo si está disponible)  
-            if self.postgresql_disponible:
-                try:
-                    print("[HIBRIDO] FALLBACK: Intentando PostgreSQL directo...")
-                    resultado_online = self._guardar_cotizacion_supabase(datos)
-                    
-                    # También guardar en JSON como backup
-                    self._guardar_cotizacion_offline(datos)
-                    
-                    return resultado_online
-                    
-                except Exception as pg_error:
-                    print(f"[POSTGRES] Error guardando: {safe_str(pg_error)}")
-                    print("[POSTGRES] Activando modo offline...")
-                    self.modo_offline = True
-            
-            # Guardar en JSON (modo offline o fallback)
-            return self._guardar_cotizacion_offline(datos)
+            # Fix #3: Reintento con regeneración de número en caso de colisión UNIQUE
+            MAX_RETRIES = 3
+            for intento in range(MAX_RETRIES):
+                if intento > 0:
+                    print(f"[GUARDAR] REINTENTO {intento}/{MAX_RETRIES-1} tras colisión de número...")
+                    # Solo regenerar número para nuevas R1 (no para revisiones)
+                    if es_nueva_r1:
+                        numero_cotizacion = self.generar_numero_cotizacion(cliente_r1, vendedor_r1, proyecto_r1, revision_r1)
+                        datos['numeroCotizacion'] = numero_cotizacion
+                        datos['datosGenerales']['numeroCotizacion'] = numero_cotizacion
+                        print(f"[GUARDAR] Número regenerado en reintento: {numero_cotizacion}")
+                    else:
+                        # Para revisiones, no podemos regenerar — fallar inmediatamente
+                        print("[GUARDAR] Colisión en revisión, no se puede regenerar número")
+                        break
+
+                # SISTEMA HÍBRIDO TRIPLE LAYER (REORDENADO PARA ESTABILIDAD):
+                # 1. PRIORIDAD: SDK REST de Supabase (funciona independiente de PostgreSQL)
+                if self.supabase_client:
+                    print(f"[HIBRIDO] PRIORIDAD 1 (intento {intento+1}/{MAX_RETRIES}): Intentando SDK REST de Supabase...")
+                    resultado_sdk = self._guardar_cotizacion_sdk(datos)
+
+                    # Verificar si SDK REST realmente funcionó
+                    if resultado_sdk.get('success'):
+                        print("[HIBRIDO] SDK REST exitoso - operación completada")
+                        # También guardar en JSON como backup
+                        self._guardar_cotizacion_offline(datos)
+                        return resultado_sdk
+                    else:
+                        error_str = str(resultado_sdk.get('error', 'unknown'))
+                        print(f"[HIBRIDO] SDK REST falló: {error_str}")
+                        print(f"[HIBRIDO] SDK REST resultado completo: {json.dumps(resultado_sdk, default=str, indent=2)}")
+
+                        # Fix #3: Si es colisión de número duplicado y quedan reintentos, regenerar y reintentar
+                        es_colision = any(kw in error_str.lower() for kw in ['duplicate', 'unique', 'violation', 'already exists', '23505'])
+                        if es_colision and intento < MAX_RETRIES - 1:
+                            print(f"[GUARDAR] Colisión UNIQUE detectada en SDK REST, reintentando...")
+                            continue
+
+                        print("[HIBRIDO] Intentando fallback a PostgreSQL directo...")
+
+                # 2. FALLBACK: PostgreSQL directo (solo si está disponible)
+                if self.postgresql_disponible:
+                    try:
+                        print(f"[HIBRIDO] FALLBACK (intento {intento+1}/{MAX_RETRIES}): Intentando PostgreSQL directo...")
+                        resultado_online = self._guardar_cotizacion_supabase(datos)
+
+                        # También guardar en JSON como backup
+                        self._guardar_cotizacion_offline(datos)
+
+                        return resultado_online
+
+                    except Exception as pg_error:
+                        error_str = safe_str(pg_error)
+                        print(f"[POSTGRES] Error guardando: {error_str}")
+
+                        # Fix #3: Si es colisión y quedan reintentos, reintentar
+                        es_colision = any(kw in error_str.lower() for kw in ['duplicate', 'unique', 'violation', 'already exists', '23505'])
+                        if es_colision and intento < MAX_RETRIES - 1:
+                            print(f"[GUARDAR] Colisión UNIQUE detectada en PG, reintentando...")
+                            continue
+
+                        print("[POSTGRES] Activando modo offline...")
+                        self.modo_offline = True
+
+                # 3. Guardar en JSON (modo offline o fallback)
+                resultado_offline = self._guardar_cotizacion_offline(datos)
+                if resultado_offline.get('success'):
+                    return resultado_offline
+
+                # Si el fallback offline también falló, reintentar si quedan intentos
+                if intento < MAX_RETRIES - 1:
+                    continue
+
+                return resultado_offline
+
+            # Si llegamos aquí, se agotaron los reintentos
+            return {"success": False, "error": "No se pudo guardar la cotización después de múltiples intentos"}
             
         except Exception as e:
             error_msg = safe_str(e)
@@ -1431,16 +1495,18 @@ class SupabaseManager:
         """
         Generar número automático de cotización
         Formato: CLIENTE-CWS-VENDEDOR-###-R#-PROYECTO
+
+        Fix #5: Redirigido a generar_numero_cotizacion() que usa el contador
+        atómico de PostgreSQL. La implementación anterior usaba COUNT(*) por
+        vendedor (no atómico, ignoraba el cliente, y producía números incorrectos).
         """
         try:
-            print(f"[NUMERO] Datos generales recibidos: {datos_generales}")
-            
-            # Obtener valores con fallbacks robustos
+            print(f"[NUMERO] Datos generales recibidos (redirigiendo a contador atómico): {datos_generales}")
+
             cliente = safe_str(datos_generales.get('cliente', 'CLIENTE'))
             vendedor = safe_str(datos_generales.get('vendedor', 'VEND'))
             proyecto = safe_str(datos_generales.get('proyecto', 'PROYECTO'))
 
-            # Validar que no estén vacíos después de safe_str
             if not cliente or cliente.strip() == '':
                 cliente = 'CLIENTE'
             if not vendedor or vendedor.strip() == '':
@@ -1448,57 +1514,12 @@ class SupabaseManager:
             if not proyecto or proyecto.strip() == '':
                 proyecto = 'PROYECTO'
 
-            # Normalizar caracteres con acentos y convertir a mayúsculas
-            cliente = unicodedata.normalize('NFKD', cliente).encode('ASCII', 'ignore').decode('ASCII').upper()
-            vendedor = unicodedata.normalize('NFKD', vendedor).encode('ASCII', 'ignore').decode('ASCII').upper()
-            proyecto = unicodedata.normalize('NFKD', proyecto).encode('ASCII', 'ignore').decode('ASCII').upper()
+            # Delegar al método con contador atómico (Fix #5)
+            return self.generar_numero_cotizacion(cliente, vendedor, proyecto, revision=1)
 
-            print(f"[NUMERO] Valores procesados - Cliente: '{cliente}', Vendedor: '{vendedor}', Proyecto: '{proyecto}'")
-
-            # Limpiar caracteres especiales
-            cliente = re.sub(r'[^A-Z0-9]', '-', cliente)[:10]
-            # Extraer primeras letras de cada nombre (máximo 2 letras)
-            palabras_vendedor = vendedor.split()
-            vendedor = ''.join([palabra[0] for palabra in palabras_vendedor if palabra])[:2]
-            # Permitir espacios en el nombre del proyecto, eliminar otros caracteres especiales
-            proyecto = re.sub(r'[^A-Z0-9 ]', '', proyecto)
-            # Limpiar espacios múltiples y recortar
-            proyecto = ' '.join(proyecto.split())[:50]
-            
-            print(f"[NUMERO] Valores limpiados - Cliente: '{cliente}', Vendedor: '{vendedor}', Proyecto: '{proyecto}'")
-            
-            # Contar cotizaciones existentes para este vendedor
-            if self.modo_offline:
-                print(f"[NUMERO] Modo offline - generando número para vendedor: {vendedor}")
-                data = self._cargar_datos_offline()
-                cotizaciones = data.get("cotizaciones", [])
-                print(f"[NUMERO] Cotizaciones cargadas: {len(cotizaciones)}")
-                count = len([c for c in cotizaciones 
-                           if c.get('datosGenerales', {}).get('vendedor', '').upper() == vendedor])
-                print(f"[NUMERO] Count para vendedor {vendedor}: {count}")
-            else:
-                try:
-                    cursor = self.pg_connection.cursor()
-                    cursor.execute("""
-                        SELECT COUNT(*) as total FROM cotizaciones 
-                        WHERE datos_generales->>'vendedor' ILIKE %s;
-                    """, (f"%{vendedor}%",))
-                    count = cursor.fetchone()['total']
-                    cursor.close()
-                except:
-                    count = 0
-            
-            # Generar número
-            numero = count + 1
-            numero_cotizacion = f"{cliente}-CWS-{vendedor}-{numero:03d}-R1-{proyecto}"
-            
-            print(f"[NUMERO] Generado: {numero_cotizacion}")
-            return numero_cotizacion
-            
         except Exception as e:
             error_msg = safe_str(e)
             print(f"[NUMERO] Error generando: {error_msg}")
-            # Fallback simple
             timestamp = int(time.time())
             return f"CWS-AUTO-{timestamp}-R1"
     
@@ -1610,21 +1631,99 @@ class SupabaseManager:
             print(f"[NUMERO_REVISION] Error generando: {error_msg}")
             return f"{numero_cotizacion_original}-R{nueva_revision}"
     
+    def _ensure_counter_table(self):
+        """
+        Asegura que la tabla cotizacion_counters existe en la base de datos.
+        Fix #1 - Race Condition: Esta tabla es esencial para la numeración atómica.
+        """
+        try:
+            cursor = self.pg_connection.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS cotizacion_counters (
+                    patron VARCHAR(100) PRIMARY KEY,
+                    ultimo_numero INTEGER DEFAULT 0,
+                    descripcion TEXT,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
+            """)
+            self.pg_connection.commit()
+            cursor.close()
+            print("[SUPABASE] Tabla cotizacion_counters verificada/creada exitosamente")
+        except Exception as e:
+            print(f"[SUPABASE] Error creando cotizacion_counters: {safe_str(e)}")
+            raise
+
+    def _sincronizar_contadores(self):
+        """
+        Sincroniza la tabla cotizacion_counters con las cotizaciones existentes.
+        Fix #4 - Counter Drift: Asegura que los contadores atómicos partan del
+        máximo real de cada patrón, evitando colisiones con números ya usados.
+        """
+        try:
+            cursor = self.pg_connection.cursor()
+
+            # Insertar/actualizar contadores basados en cotizaciones existentes
+            # Usa regex PostgreSQL para extraer patrón base y número consecutivo
+            cursor.execute("""
+                INSERT INTO cotizacion_counters (patron, ultimo_numero, descripcion)
+                SELECT
+                    SUBSTRING(numero_cotizacion FROM '^(.*)-\\d{3}-R\\d+-.*$') as patron,
+                    MAX(CAST(SUBSTRING(numero_cotizacion FROM '-(\\d{3})-R\\d+-') AS INTEGER)) as max_num,
+                    'Sincronizado desde cotizaciones existentes'
+                FROM cotizaciones
+                WHERE numero_cotizacion ~ '-\\d{3}-R\\d+-'
+                GROUP BY patron
+                ON CONFLICT (patron)
+                DO UPDATE SET
+                    ultimo_numero = GREATEST(cotizacion_counters.ultimo_numero, EXCLUDED.ultimo_numero),
+                    updated_at = NOW()
+            """)
+            rows_affected = cursor.rowcount
+            self.pg_connection.commit()
+            cursor.close()
+
+            if rows_affected > 0:
+                print(f"[SUPABASE] Contadores sincronizados: {rows_affected} patrones actualizados")
+            else:
+                print("[SUPABASE] Contadores ya estaban sincronizados")
+
+        except Exception as e:
+            print(f"[SUPABASE] Error sincronizando contadores: {safe_str(e)}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+            # No relanzar — el sistema puede funcionar sin sincronización
+
     def _obtener_siguiente_consecutivo(self, patron_base):
         """
         Obtiene el siguiente número consecutivo para un patrón base dado
         Implementa lógica atómica para evitar números duplicados
+
+        PRIORIDAD CORREGIDA (Fix #1 - Race Condition):
+        - Priority 1: Contador atómico PostgreSQL (cotizacion_counters) — 100% irrepetible
+        - Priority 2: SDK REST (fallback si PG no está disponible)
+        - Priority 3: JSON local (modo offline)
+
+        La prioridad anterior (SDK primero) causaba race conditions porque
+        el SELECT max()+1 del SDK NO es atómico y permitía duplicados
+        bajo carga concurrente para el mismo patrón base.
         """
         try:
             print(f"[CONSECUTIVO] Buscando siguiente para patrón: '{patron_base}'")
 
-            # Prioridad 1: SDK REST de Supabase (no depende de conexión PostgreSQL directa)
+            # Prioridad 1: PostgreSQL directo (contador atómico - 100% irrepetible)
+            if self.postgresql_disponible:
+                try:
+                    return self._obtener_consecutivo_supabase(patron_base)
+                except Exception as pg_error:
+                    print(f"[CONSECUTIVO] Contador atómico PG falló: {safe_str(pg_error)}, degradando a SDK REST...")
+                    # Caer gracefulmente a Priority 2
+
+            # Prioridad 2: SDK REST de Supabase (fallback si PG no disponible)
             if self.supabase_client:
                 return self._obtener_consecutivo_sdk(patron_base)
-
-            # Prioridad 2: PostgreSQL directo (contador atómico)
-            if not self.modo_offline:
-                return self._obtener_consecutivo_supabase(patron_base)
 
             # Prioridad 3: JSON local (modo offline)
             return self._obtener_consecutivo_offline(patron_base)
@@ -1633,6 +1732,20 @@ class SupabaseManager:
             error_msg = safe_str(e)
             print(f"[CONSECUTIVO] Error obteniendo: {error_msg}")
             return 1
+
+    def _extraer_consecutivo(self, numero_cotizacion):
+        """
+        Extrae el número consecutivo de un número de cotización usando regex.
+        Fix #2: Reemplaza el parsing frágil por índice de segmento (que fallaba
+        con nombres de cliente que contienen guiones).
+
+        Formato esperado: CLIENTE-CWS-INICIALES-###-R#-PROYECTO
+        Busca 3 dígitos justo antes de -R<digitos>-
+        """
+        match = re.search(r'-(\d{3})-R\d+-', numero_cotizacion)
+        if match:
+            return int(match.group(1))
+        return None
 
     def _obtener_consecutivo_sdk(self, patron_base):
         """
@@ -1647,23 +1760,15 @@ class SupabaseManager:
             patron_sql = f"{patron_base}-%"
             result = self.supabase_client.table('cotizaciones').select('numero_cotizacion').like('numero_cotizacion', patron_sql).execute()
 
-            # El índice del consecutivo depende de cuántas partes tiene el patrón base
-            # Ej: "BMW-CWS-VE" → 3 partes → consecutivo en índice 3
-            # Ej: "BMW-MOTORS-CWS-VE" → 4 partes → consecutivo en índice 4
-            patron_parts_count = len(patron_base.split('-'))
+            # Fix #2: Usar regex para extraer el consecutivo en vez de índice por segmento
             numeros_existentes = []
 
             for row in result.data or []:
                 numero_cot = row.get('numero_cotizacion', '')
                 if numero_cot.startswith(patron_base):
-                    try:
-                        partes = numero_cot.split('-')
-                        if len(partes) > patron_parts_count:
-                            num_parte = partes[patron_parts_count]
-                            if num_parte.isdigit():
-                                numeros_existentes.append(int(num_parte))
-                    except (ValueError, IndexError):
-                        continue
+                    consecutivo = self._extraer_consecutivo(numero_cot)
+                    if consecutivo is not None:
+                        numeros_existentes.append(consecutivo)
 
             siguiente = max(numeros_existentes) + 1 if numeros_existentes else 1
             print(f"[CONTADOR_SDK] Siguiente={siguiente} para patrón '{patron_base}', existentes: {sorted(numeros_existentes)}")
@@ -1739,25 +1844,14 @@ class SupabaseManager:
             cursor.execute(query, (patron_sql,))
             resultados = cursor.fetchall()
             
-            # Extraer números consecutivos existentes
-            # El índice del consecutivo depende de cuántas partes tiene el patrón base
-            # Ej: "BMW-CWS-VE" → 3 partes → consecutivo en índice 3
-            # Ej: "BMW-MOTORS-CWS-VE" → 4 partes → consecutivo en índice 4
-            patron_parts_count = len(patron_base.split('-'))
+            # Fix #2: Usar regex para extraer el consecutivo en vez de índice por segmento
             numeros_existentes = []
             for resultado in resultados:
                 numero_cot = resultado['numero_cotizacion']
                 if numero_cot.startswith(patron_base):
-                    try:
-                        # Extraer el número consecutivo del formato: CLIENTE-CWS-INICIALES-###-R#-PROYECTO
-                        partes = numero_cot.split('-')
-                        if len(partes) > patron_parts_count:
-                            num_parte = partes[patron_parts_count]
-                            if num_parte.isdigit():
-                                num_consecutivo = int(num_parte)
-                                numeros_existentes.append(num_consecutivo)
-                    except (ValueError, IndexError):
-                        continue
+                    consecutivo = self._extraer_consecutivo(numero_cot)
+                    if consecutivo is not None:
+                        numeros_existentes.append(consecutivo)
             
             cursor.close()
             
@@ -1802,25 +1896,15 @@ class SupabaseManager:
                 print(f"[CONTADOR_OFFLINE] Nuevo patrón, analizando cotizaciones existentes...")
                 
                 cotizaciones = data.get("cotizaciones", [])
-                # El índice del consecutivo depende de cuántas partes tiene el patrón base
-                # Ej: "BMW-CWS-VE" → 3 partes → consecutivo en índice 3
-                # Ej: "BMW-MOTORS-CWS-VE" → 4 partes → consecutivo en índice 4
-                patron_parts_count = len(patron_base.split('-'))
+                # Fix #2: Usar regex para extraer el consecutivo en vez de índice por segmento
                 numeros_existentes = []
 
                 for cotizacion in cotizaciones:
                     numero_cot = cotizacion.get("numeroCotizacion", "")
                     if numero_cot.startswith(patron_base):
-                        try:
-                            # Extraer el número consecutivo del formato: CLIENTE-CWS-INICIALES-###-R#-PROYECTO
-                            partes = numero_cot.split('-')
-                            if len(partes) > patron_parts_count:
-                                num_parte = partes[patron_parts_count]
-                                if num_parte.isdigit():
-                                    num_consecutivo = int(num_parte)
-                                    numeros_existentes.append(num_consecutivo)
-                        except (ValueError, IndexError):
-                            continue
+                        consecutivo = self._extraer_consecutivo(numero_cot)
+                        if consecutivo is not None:
+                            numeros_existentes.append(consecutivo)
                 
                 # Establecer contador basado en máximo existente
                 if numeros_existentes:
