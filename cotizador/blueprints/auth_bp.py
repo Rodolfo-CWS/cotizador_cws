@@ -24,6 +24,8 @@ from urllib.parse import urlparse, urljoin
 import os
 import logging
 
+from cotizador.plans import is_valid_plan
+
 logger = logging.getLogger(__name__)
 
 # Crear blueprint sin url_prefix — las rutas se registran con /auth/
@@ -189,6 +191,9 @@ def register():
         full_name = request.form.get('full_name', '').strip()
         company_name = request.form.get('company_name', '').strip()
         company_slug = request.form.get('company_slug', '').strip().lower()
+        plan = request.form.get('plan', 'full').strip()
+        if not is_valid_plan(plan):
+            plan = 'full'
 
         # Validaciones
         if not all([email, password, full_name, company_name, company_slug]):
@@ -221,7 +226,7 @@ def register():
             # 2. Crear compañía
             admin_client = get_supabase_admin_client()
             company_data = _create_company(
-                admin_client, company_name, company_slug
+                admin_client, company_name, company_slug, plan
             )
             company_id = company_data['id']
 
@@ -343,11 +348,12 @@ def _get_profile(user_id: str):
         return None
 
 
-def _create_company(supabase_client: Client, name: str, slug: str) -> dict:
+def _create_company(supabase_client: Client, name: str, slug: str, plan: str = 'full') -> dict:
     """Crea una nueva compañía usando el cliente admin (bypass RLS)."""
     response = supabase_client.table('companies').insert({
         "name": name,
         "slug": slug,
+        "plan": plan,
         "footer_text": f"{name} | Esta cotización es válida por 30 días",
     }).execute()
 
