@@ -525,6 +525,20 @@ class SupabaseManager:
             if company_id:
                 datos['company_id'] = company_id
 
+            # Límite de plan (defensa en profundidad; la ruta ya pre-chequea).
+            # Solo aplica a cotizaciones simples y si la ruta pasó 'plan'.
+            if datos.get('tipo') == 'simple' and datos.get('plan'):
+                from cotizador.plans import get_limit
+                max_pdfs = get_limit(datos.get('plan'), 'max_pdfs')
+                if max_pdfs is not None:
+                    usados = self.contar_cotizaciones_company(company_id)
+                    if usados >= max_pdfs:
+                        return {
+                            "success": False,
+                            "tipo_error": "plan_limit",
+                            "error": f"Alcanzaste el límite de {max_pdfs} PDFs de tu plan.",
+                        }
+
             # FIX ISSUE #1: SIEMPRE priorizar número en datosGenerales.numeroCotizacion
             numero_cotizacion = None
 
@@ -601,8 +615,13 @@ class SupabaseManager:
 
             # RECALCULAR totales de items desde componentes para garantizar consistencia
             # (misma fórmula que preparar_datos_nueva_revision() y JS calcularCostosItem())
+            # Las cotizaciones simples ya traen total = cantidad × precio_unitario.
             items = datos.get('items', [])
-            if isinstance(items, list):
+            es_simple = (
+                datos.get('tipo') == 'simple'
+                or datos.get('datosGenerales', {}).get('tipo') == 'simple'
+            )
+            if isinstance(items, list) and not es_simple:
                 for item in items:
                     if isinstance(item, dict):
                         try:
@@ -725,7 +744,34 @@ class SupabaseManager:
             error_msg = safe_str(e)
             print(f"[GUARDAR] Error general: {error_msg}")
             return {"success": False, "error": error_msg}
-    
+
+    def contar_cotizaciones_company(self, company_id: str = None) -> int:
+        """Cuenta las cotizaciones de una compañía (para límites de plan)."""
+        if not company_id:
+            return 0
+        # 1. PostgreSQL directo (conteo exacto)
+        try:
+            if self.postgresql_disponible and self.pg_connection and not self.pg_connection.closed:
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "SELECT COUNT(*) FROM public.cotizaciones WHERE company_id = %s",
+                    (company_id,)
+                )
+                count = cursor.fetchone()[0]
+                cursor.close()
+                return int(count)
+        except Exception as e:
+            print(f"[LIMITE] Error contando (PG): {safe_str(e)}")
+        # 2. SDK REST (fallback)
+        try:
+            if self.supabase_client:
+                resp = self.supabase_client.table('cotizaciones') \
+                    .select('id').eq('company_id', company_id).execute()
+                return len(resp.data or [])
+        except Exception as e:
+            print(f"[LIMITE] Error contando (SDK): {safe_str(e)}")
+        return 0
+
     def _guardar_cotizacion_sdk(self, datos: Dict) -> Dict:
         """Guardar cotización usando Supabase SDK REST (fallback estable)"""
         try:
@@ -1392,7 +1438,8 @@ class SupabaseManager:
                 "fechaCreacion": str(row['fecha_creacion']) if row['fecha_creacion'] else None,
                 "timestamp": row['timestamp'],
                 "usuario": row['usuario'],
-                "observaciones": row['observaciones']
+                "observaciones": row['observaciones'],
+                "company_id": row.get('company_id')
             }
 
             print(f"[SDK_REST] Cotización obtenida: {numero_cotizacion}")
@@ -1416,7 +1463,8 @@ class SupabaseManager:
             valor_busqueda = int(numero_cotizacion) if columna == 'id' else numero_cotizacion
             query = f"""
                 SELECT id, numero_cotizacion, datos_generales, items,
-                       revision, fecha_creacion, timestamp, usuario, observaciones
+                       revision, fecha_creacion, timestamp, usuario, observaciones,
+                       company_id
                 FROM cotizaciones
                 WHERE {columna} = %s;
             """
@@ -1459,7 +1507,8 @@ class SupabaseManager:
                 "fechaCreacion": row['fecha_creacion'].isoformat() if row['fecha_creacion'] else None,
                 "timestamp": row['timestamp'],
                 "usuario": row['usuario'],
-                "observaciones": row['observaciones']
+                "observaciones": row['observaciones'],
+                "company_id": row['company_id']
             }
 
             return {"encontrado": True, "item": cotizacion}
@@ -1654,7 +1703,29 @@ class SupabaseManager:
             error_msg = safe_str(e)
             print(f"[NUMERO_REVISION] Error generando: {error_msg}")
             return f"{numero_cotizacion_original}-R{nueva_revision}"
-    
+
+    def generar_numero_simple(self, company_id: str = None) -> str:
+        """
+        Genera un número para una cotización simple (plan 'pdf').
+
+        Formato: PDF-{8 chars de company_id}-###  (ej. PDF-3F2A9B7C-001).
+        Incluye el prefijo de compañía para evitar colisiones entre tenants.
+        Reutiliza la numeración atómica de _obtener_siguiente_consecutivo.
+        """
+        try:
+            if company_id:
+                sufijo = re.sub(r'[^A-Za-z0-9]', '', str(company_id))[:8].upper()
+            else:
+                sufijo = "GENERAL"
+            patron_base = f"PDF-{sufijo}"
+            consecutivo = self._obtener_siguiente_consecutivo(patron_base)
+            numero = f"{patron_base}-{consecutivo:03d}"
+            print(f"[NUMERO_SIMPLE] Generado: {numero}")
+            return numero
+        except Exception as e:
+            print(f"[NUMERO_SIMPLE] Error generando: {safe_str(e)}")
+            return f"PDF-{int(time.time())}"
+
     def _ensure_counter_table(self):
         """
         Asegura que la tabla cotizacion_counters existe en la base de datos.

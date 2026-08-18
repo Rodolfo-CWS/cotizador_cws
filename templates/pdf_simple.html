@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotización PDF - {{ company.name if company else 'CWS' }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { padding: 20px; }
+        .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card h2 { font-size: 16px; color: #1e293b; margin: 0 0 16px 0; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+        label { display: block; font-size: 13px; font-weight: 500; color: #1e293b; margin-bottom: 6px; }
+        input { width: 100%; padding: 10px 12px; border: 1.5px solid #d6d3d1; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+        input:focus { outline: none; border-color: #4f46e5; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f5f4f1; text-align: left; font-size: 12px; color: #44403c; padding: 8px; }
+        td { padding: 6px 8px; border-bottom: 1px solid #e7e5e4; }
+        .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 500; cursor: pointer; }
+        .btn-primary { background: #4f46e5; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
+        .totals { margin-top: 16px; max-width: 320px; margin-left: auto; }
+        .totals .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+        .totals .row.total { font-weight: 700; font-size: 16px; border-top: 2px solid #4f46e5; margin-top: 4px; padding-top: 10px; }
+        .error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; display: none; }
+        .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .hint { font-size: 12px; color: #78716c; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-top">
+            <div class="logo-title">
+                <h1>{{ company.name if company else 'CWS' }} - Cotización en PDF</h1>
+            </div>
+            <div class="user-info">
+                <a href="/" style="text-decoration:none;color:#4f46e5;">← Volver al inicio</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="errorBox" class="error"></div>
+
+    <form id="pdfForm" onsubmit="return false;">
+        <!-- Datos generales -->
+        <div class="card">
+            <h2>Datos de la cotización</h2>
+            <div class="grid">
+                <div>
+                    <label>Cliente *</label>
+                    <input type="text" name="cliente" id="cliente" required>
+                </div>
+                <div>
+                    <label>Proyecto</label>
+                    <input type="text" name="proyecto" id="proyecto">
+                </div>
+                <div>
+                    <label>Vendedor</label>
+                    <input type="text" name="vendedor" id="vendedor">
+                </div>
+                <div>
+                    <label>Fecha</label>
+                    <input type="date" name="fecha" id="fecha">
+                </div>
+                <div>
+                    <label>Atención A</label>
+                    <input type="text" name="atencionA" id="atencionA">
+                </div>
+                <div>
+                    <label>Contacto</label>
+                    <input type="text" name="contacto" id="contacto">
+                </div>
+            </div>
+        </div>
+
+        <!-- Líneas -->
+        <div class="card">
+            <h2>Conceptos <span class="hint">(cantidad × precio unitario)</span></h2>
+            <table id="itemsTable">
+                <thead>
+                    <tr>
+                        <th style="width:50%;">Descripción</th>
+                        <th style="width:15%;">Cantidad</th>
+                        <th style="width:20%;">Precio unitario ($)</th>
+                        <th style="width:15%;"></th>
+                    </tr>
+                </thead>
+                <tbody id="itemsBody"></tbody>
+            </table>
+            <div style="margin-top:12px;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="agregarFila()">+ Agregar concepto</button>
+            </div>
+
+            <div class="totals">
+                <div class="row"><span>Subtotal</span><span id="subtotalTxt">$0.00</span></div>
+                <div class="row"><span>IVA ({{ (company.iva_rate|default(16)) }}%)</span><span id="ivaTxt">$0.00</span></div>
+                <div class="row total"><span>TOTAL</span><span id="totalTxt">$0.00</span></div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button type="button" class="btn" style="background:#f1f5f9;color:#334155;" onclick="window.location.href='/';">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btnGenerar" onclick="generarPDF()">Generar PDF</button>
+        </div>
+    </form>
+
+    <script>
+        const IVA_RATE = parseFloat("{{ (company.iva_rate|default(16)) }}") || 16;
+        const filas = [];
+        let filaId = 0;
+
+        function agregarFila(desc = '', cant = '', precio = '') {
+            filaId++;
+            const tbody = document.getElementById('itemsBody');
+            const tr = document.createElement('tr');
+            tr.id = 'fila-' + filaId;
+            tr.innerHTML = `
+                <td><input type="text" class="item-desc" value="${esc(desc)}" placeholder="Descripción del concepto"></td>
+                <td><input type="number" class="item-cant" min="0" step="any" value="${cant}" placeholder="0" oninput="recalcular()"></td>
+                <td><input type="number" class="item-precio" min="0" step="any" value="${precio}" placeholder="0.00" oninput="recalcular()"></td>
+                <td><button type="button" class="btn btn-danger btn-sm" onclick="eliminarFila(${filaId})">✕</button></td>
+            `;
+            tbody.appendChild(tr);
+            recalcular();
+        }
+
+        function eliminarFila(id) {
+            const tr = document.getElementById('fila-' + id);
+            if (tr) tr.remove();
+            recalcular();
+        }
+
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+                return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+            });
+        }
+
+        function recolectarItems() {
+            const items = [];
+            document.querySelectorAll('#itemsBody tr').forEach(function(tr){
+                const desc = tr.querySelector('.item-desc').value.trim();
+                const cant = tr.querySelector('.item-cant').value;
+                const precio = tr.querySelector('.item-precio').value;
+                if (desc || cant || precio) {
+                    items.push({
+                        descripcion: desc,
+                        cantidad: parseFloat(cant) || 0,
+                        precio_unitario: parseFloat(precio) || 0
+                    });
+                }
+            });
+            return items;
+        }
+
+        function recalcular() {
+            const items = recolectarItems();
+            let subtotal = 0;
+            items.forEach(function(it){ subtotal += (it.cantidad * it.precio_unitario); });
+            const iva = subtotal * (IVA_RATE / 100);
+            const total = subtotal + iva;
+            document.getElementById('subtotalTxt').textContent = '$' + subtotal.toFixed(2);
+            document.getElementById('ivaTxt').textContent = '$' + iva.toFixed(2);
+            document.getElementById('totalTxt').textContent = '$' + total.toFixed(2);
+        }
+
+        function mostrarError(msg) {
+            const box = document.getElementById('errorBox');
+            box.textContent = msg;
+            box.style.display = 'block';
+        }
+
+        async function generarPDF() {
+            const errorBox = document.getElementById('errorBox');
+            errorBox.style.display = 'none';
+
+            const cliente = document.getElementById('cliente').value.trim();
+            if (!cliente) { mostrarError('El campo "Cliente" es obligatorio.'); return; }
+            const items = recolectarItems();
+            if (items.length === 0) { mostrarError('Agrega al menos un concepto.'); return; }
+
+            const datosGenerales = {
+                cliente: cliente,
+                proyecto: document.getElementById('proyecto').value.trim(),
+                vendedor: document.getElementById('vendedor').value.trim(),
+                atencionA: document.getElementById('atencionA').value.trim(),
+                contacto: document.getElementById('contacto').value.trim(),
+                fecha: document.getElementById('fecha').value
+            };
+
+            const btn = document.getElementById('btnGenerar');
+            btn.disabled = true;
+            btn.textContent = 'Generando...';
+
+            try {
+                const resp = await fetch('/cotizacion-pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ datosGenerales: datosGenerales, items: items })
+                });
+                const data = await resp.json();
+                if (data.success && data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    mostrarError(data.error || 'Error al generar el PDF.');
+                }
+            } catch (e) {
+                mostrarError('Error de conexión: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generar PDF';
+            }
+        }
+
+        // Fecha por defecto hoy + 3 filas iniciales
+        document.addEventListener('DOMContentLoaded', function(){
+            const hoy = new Date().toISOString().slice(0, 10);
+            document.getElementById('fecha').value = hoy;
+            agregarFila();
+            agregarFila();
+            agregarFila();
+        });
+    </script>
+</body>
+</html>

@@ -14,7 +14,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.graphics.shapes import Drawing, Line as GraphicsLine
 from cotizador._compat import REPORTLAB_AVAILABLE
-from cotizador.utilities import wrap_description_text
+from cotizador.utilities import wrap_description_text, safe_float
 
 
 # ── Constantes de color corporativo (fallback si no hay branding de compañía) ──
@@ -639,6 +639,228 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     doc.build(story)
     buffer.seek(0)
 
+    return buffer.getvalue()
+
+
+def generar_pdf_simple_reportlab(datos, company_branding=None):
+    """Genera un PDF SIMPLE (formulario ligero) para el plan 'pdf'.
+
+    Las líneas solo hacen matemática simple: cantidad × precio unitario,
+    suma de subtotal, IVA y total. Sin secciones de materiales/pesos.
+
+    Args:
+        datos: Dict con 'datosGenerales' (cliente, proyecto, vendedor,
+               numeroCotizacion, fecha, atencionA, contacto) e
+               'items' (lista de {descripcion, cantidad, precio_unitario, uom}).
+        company_branding: Dict con branding de la compañía (opcional).
+    """
+    if not REPORTLAB_AVAILABLE:
+        raise ImportError("ReportLab no está disponible")
+
+    if company_branding is None:
+        company_branding = DEFAULT_BRANDING
+    branding = {**DEFAULT_BRANDING, **company_branding}
+
+    try:
+        primary_color = colors.HexColor(str(branding.get('primary_color', '#1e293b')))
+    except Exception:
+        primary_color = CORPORATE_INDIGO
+    try:
+        secondary_color = colors.HexColor(str(branding.get('secondary_color', '#0f172a')))
+    except Exception:
+        secondary_color = CORPORATE_INDIGO_DARK
+    try:
+        iva_rate = float(branding.get('iva_rate', 16.00))
+    except (ValueError, TypeError):
+        iva_rate = 16.00
+
+    datos_generales = datos.get('datosGenerales', {})
+    items = datos.get('items', [])
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=letter,
+        rightMargin=0.6 * inch, leftMargin=0.6 * inch,
+        topMargin=0.55 * inch, bottomMargin=0.45 * inch
+    )
+    story = []
+    styles = getSampleStyleSheet()
+
+    header_style = ParagraphStyle(
+        'SimpleHeader', parent=styles['Normal'],
+        fontSize=14, spaceAfter=6, alignment=1,
+        textColor=CORPORATE_INDIGO, fontName='Helvetica-Bold'
+    )
+    description_style = ParagraphStyle(
+        'SimpleDescription', parent=styles['Normal'],
+        fontSize=9, fontName='Helvetica', leading=11, alignment=0
+    )
+
+    # ── Logo ──
+    logo = None
+    logo_url = branding.get('logo_url')
+    if logo_url:
+        try:
+            import urllib.request
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                urllib.request.urlretrieve(logo_url, tmp.name)
+                if os.path.exists(tmp.name) and os.path.getsize(tmp.name) > 0:
+                    logo = Image(tmp.name, width=1.0 * inch, height=0.65 * inch)
+        except Exception:
+            logo = None
+    if not logo:
+        try:
+            if os.path.exists("static/logo.png"):
+                logo = Image("static/logo.png", width=1.0 * inch, height=0.65 * inch)
+        except Exception:
+            pass
+    if not logo:
+        logo = Paragraph(branding['name'].replace('\n', '<br/>'), header_style)
+
+    empresa_info = Paragraph(
+        f"<b>{branding['name']}</b><br/><font size='7'>{branding.get('address', '')}</font>",
+        ParagraphStyle('Empresa', parent=styles['Normal'], fontSize=9,
+                       fontName='Helvetica', textColor=TEXT_DARK, leading=12)
+    )
+
+    fecha_guardada = datos_generales.get('fecha', '')
+    try:
+        fecha_dt = datetime.datetime.strptime(fecha_guardada[:10], '%Y-%m-%d')
+        fecha_actual = fecha_dt.strftime('%d/%m/%Y')
+    except (ValueError, TypeError):
+        fecha_actual = datetime.datetime.now().strftime('%d/%m/%Y')
+
+    cotizacion_info = Paragraph(
+        f"<b>COTIZACIÓN</b><br/><b>No. {datos_generales.get('numeroCotizacion', 'N/A')}</b>"
+        f"<br/>Fecha: {fecha_actual}",
+        ParagraphStyle('CotInfo', parent=styles['Normal'], fontSize=9,
+                       fontName='Helvetica-Bold', textColor=CORPORATE_INDIGO, alignment=2)
+    )
+
+    left_block = Table([[logo, empresa_info]], colWidths=[1.15 * inch, 2.85 * inch])
+    left_block.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (1, 0), (1, 0), 8),
+    ]))
+    header_table = Table([[left_block, cotizacion_info]], colWidths=[4.0 * inch, 3.0 * inch])
+    header_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    story.append(header_table)
+    story.append(Spacer(1, 8))
+
+    # ── Proyecto destacado ──
+    if datos_generales.get('proyecto'):
+        proyecto_style = ParagraphStyle('Proyecto', parent=styles['Normal'],
+            fontSize=10, fontName='Helvetica-Bold', textColor=WHITE,
+            backColor=primary_color, borderPadding=6, alignment=1)
+        story.append(Paragraph(f"PROYECTO: {datos_generales.get('proyecto', '')}", proyecto_style))
+        story.append(Spacer(1, 6))
+
+    # ── Datos del cliente ──
+    cv = ParagraphStyle('CV', parent=styles['Normal'], fontSize=9,
+                        fontName='Helvetica', textColor=TEXT_DARK, leading=11, wordWrap='CJK')
+
+    def p(t):
+        return Paragraph(t or '', cv)
+
+    info_data = [
+        ['Cliente:', p(datos_generales.get('cliente', '')), 'Vendedor:', p(datos_generales.get('vendedor', ''))],
+        ['Atención A:', p(datos_generales.get('atencionA', '')), 'Contacto:', p(datos_generales.get('contacto', ''))],
+    ]
+    info_table = Table(info_data, colWidths=[1.0 * inch, 2.65 * inch, 1.0 * inch, 2.65 * inch])
+    info_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, 0), (0, -1), CORPORATE_INDIGO),
+        ('TEXTCOLOR', (2, 0), (2, -1), CORPORATE_INDIGO),
+        ('BACKGROUND', (0, 0), (0, -1), CORPORATE_INDIGO_LIGHT),
+        ('BACKGROUND', (2, 0), (2, -1), CORPORATE_INDIGO_LIGHT),
+        ('BACKGROUND', (1, 0), (1, -1), WHITE),
+        ('BACKGROUND', (3, 0), (3, -1), WHITE),
+        ('BOX', (0, 0), (-1, -1), 0.75, CORPORATE_INDIGO),
+        ('INNERGRID', (0, 0), (-1, -1), 0.3, BORDER_GRAY),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 10))
+
+    # ── Líneas (cantidad × precio) ──
+    items_data = [['ITEM', 'DESCRIPCIÓN', 'CANT.', 'PRECIO UNIT.', 'TOTAL']]
+    subtotal = 0.0
+    for i, item in enumerate(items):
+        cantidad = safe_float(item.get('cantidad', 0))
+        precio = safe_float(item.get('precio_unitario', item.get('precio', 0)))
+        total_linea = cantidad * precio
+        subtotal += total_linea
+        desc = Paragraph(wrap_description_text(item.get('descripcion', '')), description_style)
+        items_data.append([
+            str(i + 1),
+            desc,
+            f"{cantidad:,.2f}",
+            f"${precio:,.2f}",
+            f"${total_linea:,.2f}",
+        ])
+
+    items_table = Table(items_data, colWidths=[0.4 * inch, 3.5 * inch, 0.7 * inch, 1.1 * inch, 1.4 * inch])
+    items_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), primary_color),
+        ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('GRID', (0, 0), (-1, -1), 0.3, BORDER_GRAY),
+        ('BOX', (0, 0), (-1, -1), 0.75, CORPORATE_INDIGO),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, BG_LIGHT]),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    story.append(items_table)
+    story.append(Spacer(1, 8))
+
+    # ── Totales ──
+    iva = subtotal * (iva_rate / 100.0)
+    total = subtotal + iva
+    totales_data = [
+        ['Subtotal:', f"${subtotal:,.2f}"],
+        [f'IVA ({iva_rate:g}%):', f"${iva:,.2f}"],
+        ['TOTAL:', f"${total:,.2f}"],
+    ]
+    totales_table = Table(totales_data, colWidths=[4.5 * inch, 1.5 * inch])
+    totales_table.setStyle(TableStyle([
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica'),
+        ('FONTNAME', (0, 2), (0, 2), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 2), (1, 2), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, 2), (-1, 2), primary_color),
+        ('TEXTCOLOR', (0, 2), (-1, 2), WHITE),
+        ('BOX', (0, 0), (-1, -1), 0.75, CORPORATE_INDIGO),
+        ('INNERGRID', (0, 0), (-1, -1), 0.3, BORDER_GRAY),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+    ]))
+    story.append(totales_table)
+
+    # ── Footer ──
+    footer_style = ParagraphStyle('Footer', parent=styles['Normal'],
+        fontSize=7.5, fontName='Helvetica', textColor=TEXT_GRAY, alignment=1,
+        borderPadding=5, backColor=BG_LIGHT, borderColor=BORDER_GRAY, borderWidth=0.5)
+    footer_text = branding.get('footer_text', DEFAULT_BRANDING['footer_text'])
+    story.append(Spacer(1, 16))
+    story.append(Paragraph(footer_text, footer_style))
+
+    doc.build(story)
+    buffer.seek(0)
     return buffer.getvalue()
 
 

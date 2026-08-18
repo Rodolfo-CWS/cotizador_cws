@@ -7,7 +7,8 @@ Todas las rutas se preservan aquí para backward compatibility.
 from cotizador import (
     create_app, REPORTLAB_AVAILABLE, WEASYPRINT_AVAILABLE,
     safe_float, safe_int, validate_material_data,
-    wrap_description_text, generar_pdf_reportlab, generar_desglose_pdf_reportlab
+    wrap_description_text, generar_pdf_reportlab, generar_desglose_pdf_reportlab,
+    generar_pdf_simple_reportlab
 )
 
 # ── Imports estándar usados por las rutas ──
@@ -857,7 +858,11 @@ def timestamp_to_date(timestamp):
 # ============================================
 
 from functools import wraps
-from cotizador.middleware import login_required
+from cotizador.middleware import login_required, plan_required
+from cotizador.plans import (
+    FEATURE_SIMPLE_PDF, FEATURE_FAST_QUOTE, FEATURE_FULL_FORM, FEATURE_DESGLOSE,
+    PLAN_FAST_QUOTE, get_limit,
+)
 
 @app.route("/login")
 def login():
@@ -942,6 +947,12 @@ def keepalive_stats():
 @login_required
 def home():
     """Página principal - Vista de tabla Excel con todas las cotizaciones paginadas"""
+    # Plan fast_quote no tiene listado/storage: redirige directo a Fast Quote
+    if request.method == "GET":
+        plan = (g.get("company") or {}).get("plan")
+        if plan == PLAN_FAST_QUOTE:
+            return redirect(url_for("fast_quote_page"))
+
     if request.method == "POST":
         try:
             datos = request.get_json()
@@ -1078,7 +1089,10 @@ def home():
                     "total": total_calculado,
                     "moneda": moneda,
                     "_id": cot.get('_id', ''),
-                    "tiene_desglose": True,
+                    "tiene_desglose": (
+                        datos_gen.get('tipo') != 'simple'
+                        if isinstance(datos_gen, dict) else True
+                    ),
                     "es_antigua": False
                 })
         else:
@@ -1214,6 +1228,7 @@ def home():
 
 @app.route("/formulario", methods=["GET", "POST"])
 @login_required
+@plan_required(FEATURE_FULL_FORM)
 def formulario():
     """Formulario de cotización"""
     if request.method == "POST":
@@ -3092,6 +3107,7 @@ Resumen de ítems cotizados:
 
 @app.route("/fast-quote", methods=["GET"])
 @login_required
+@plan_required(FEATURE_FAST_QUOTE)
 def fast_quote_page():
     """Renderiza la página de Cotización Rápida."""
     return render_template(
@@ -3127,6 +3143,7 @@ def _build_materials_context() -> str:
 
 @app.route("/api/fast-quote/estimate", methods=["POST"])
 @login_required
+@plan_required(FEATURE_FAST_QUOTE)
 def fast_quote_estimate():
     """
     Estima un precio usando IA basado en la descripción del producto.
@@ -3435,6 +3452,142 @@ REGLAS:
 
 
 # ============================================
+# COTIZACIÓN SIMPLE → PDF (plan 'pdf')
+# ============================================
+
+@app.route("/cotizacion-pdf", methods=["GET", "POST"])
+@login_required
+@plan_required(FEATURE_SIMPLE_PDF)
+def cotizacion_pdf():
+    """Formulario simple → PDF profesional (plan 'pdf').
+
+    Líneas con matemática simple: cantidad × precio unitario, subtotal, IVA y total.
+    Sin desglose de materiales/pesos.
+    """
+    company = g.get("company") or {}
+    company_id = session.get("company_id")
+
+    if request.method == "GET":
+        return render_template("pdf_simple.html", company=company)
+
+    try:
+        datos = request.get_json() or {}
+    except Exception:
+        datos = {}
+
+    datos_generales = datos.get("datosGenerales", {})
+    items = datos.get("items", [])
+
+    # ── IVA rate de la compañía ──
+    try:
+        iva_rate = float(company.get("iva_rate", 16.0))
+    except (ValueError, TypeError):
+        iva_rate = 16.0
+
+    # ── Calcular totales en servidor (autoritativo) ──
+    subtotal = 0.0
+    items_limpios = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        cantidad = safe_float(item.get("cantidad", 0))
+        precio = safe_float(item.get("precio_unitario", item.get("precio", 0)))
+        total_linea = round(cantidad * precio, 2)
+        subtotal += total_linea
+        items_limpios.append({
+            "descripcion": item.get("descripcion", ""),
+            "cantidad": cantidad,
+            "precio_unitario": precio,
+            "total": total_linea,
+            "uom": item.get("uom", ""),
+        })
+
+    iva = round(subtotal * (iva_rate / 100.0), 2)
+    total = round(subtotal + iva, 2)
+
+    # ── Número de cotización simple ──
+    try:
+        numero = db_manager.generar_numero_simple(company_id)
+    except Exception:
+        numero = None
+
+    # ── Límite de plan ──
+    plan = company.get("plan", "full")
+    max_pdfs = get_limit(plan, "max_pdfs")
+    if max_pdfs is not None:
+        usados = db_manager.contar_cotizaciones_company(company_id)
+        if usados >= max_pdfs:
+            return jsonify({
+                "success": False,
+                "tipo_error": "plan_limit",
+                "error": (
+                    f"Alcanzaste el límite de {max_pdfs} PDFs de tu plan. "
+                    "Contacta a soporte para ampliarlo."
+                ),
+            }), 403
+
+    datos_completos = {
+        "tipo": "simple",
+        "plan": plan,
+        "numeroCotizacion": numero,
+        "datosGenerales": {
+            "tipo": "simple",
+            "numeroCotizacion": numero,
+            "cliente": datos_generales.get("cliente", ""),
+            "vendedor": datos_generales.get("vendedor", ""),
+            "proyecto": datos_generales.get("proyecto", ""),
+            "atencionA": datos_generales.get("atencionA", ""),
+            "contacto": datos_generales.get("contacto", ""),
+            "fecha": datos_generales.get("fecha") or datetime.datetime.now().strftime("%Y-%m-%d"),
+            "revision": 1,
+            "condiciones": {
+                "moneda": "MXN",
+                "subtotal": subtotal,
+                "iva": iva,
+                "total": total,
+                "iva_rate": iva_rate,
+            },
+        },
+        "items": items_limpios,
+        "condiciones": {
+            "moneda": "MXN",
+            "subtotal": subtotal,
+            "iva": iva,
+            "total": total,
+            "iva_rate": iva_rate,
+        },
+        "totales": {"subtotal": subtotal, "iva": iva, "total": total},
+    }
+
+    resultado = db_manager.guardar_cotizacion(datos_completos, company_id=company_id)
+    if not resultado.get("success"):
+        status = 403 if resultado.get("tipo_error") == "plan_limit" else 500
+        return jsonify({
+            "success": False,
+            "error": resultado.get("error", "Error al guardar la cotización"),
+        }), status
+
+    numero_final = resultado.get("numeroCotizacion") or numero
+
+    # ── Generar y almacenar el PDF ──
+    try:
+        pdf_bytes = generar_pdf_simple_reportlab(datos_completos, company_branding=company)
+        if pdf_manager:
+            pdf_manager.almacenar_pdf_nuevo(
+                pdf_content=pdf_bytes,
+                cotizacion_data=datos_completos
+            )
+    except Exception as e:
+        print(f"[COTIZACION-PDF] Error generando/almacenando PDF: {e}")
+
+    return jsonify({
+        "success": True,
+        "numeroCotizacion": numero_final,
+        "redirect": f"/pdf/{numero_final}",
+    })
+
+
+# ============================================
 # GENERACIÓN DE PDF
 # ============================================
 
@@ -3606,6 +3759,7 @@ def generar_pdf():
 # ============================================
 
 @app.route("/buscar_pdfs", methods=["POST"])
+@login_required
 def buscar_pdfs():
     """Buscar PDFs almacenados (resultado principal de búsqueda)"""
     try:
@@ -3638,6 +3792,18 @@ def servir_pdf(numero_cotizacion):
 
         # BUGFIX: Eliminar trailing slash que causa problemas con nombres de archivo
         numero_cotizacion = numero_cotizacion.rstrip('/')
+
+        # Verificación de propiedad (multi-tenant): si la cotización existe en BD
+        # y pertenece a otra compañía, denegar. Los PDFs legacy sin cotización en
+        # BD (Google Drive de CWS) se siguen sirviendo.
+        company_id_session = session.get("company_id")
+        try:
+            owner = db_manager.obtener_cotizacion(numero_cotizacion)
+            owner_company = owner.get("item", {}).get("company_id") if owner.get("encontrado") else None
+        except Exception:
+            owner_company = None
+        if owner_company and owner_company != company_id_session:
+            return jsonify({"error": "No tienes permiso para ver este PDF"}), 403
 
         print(f"PDF: Sirviendo PDF:")
         print(f"   URL original: '{numero_original}'")
@@ -3798,6 +3964,8 @@ def servir_pdf(numero_cotizacion):
         return jsonify({"error": f"Error sirviendo PDF: {str(e)}"}), 500
 
 @app.route("/desglose/<path:numero_cotizacion>")
+@login_required
+@plan_required(FEATURE_DESGLOSE)
 def ver_desglose(numero_cotizacion):
     """Ver desglose detallado de cotización - MANEJO INTELIGENTE"""
     try:
@@ -3810,6 +3978,11 @@ def ver_desglose(numero_cotizacion):
         resultado_cotizacion = db_manager.obtener_cotizacion(numero_cotizacion)
         
         if resultado_cotizacion.get("encontrado"):
+            # Verificación de propiedad (multi-tenant)
+            owner_company = resultado_cotizacion.get("item", {}).get("company_id")
+            if owner_company and owner_company != session.get("company_id"):
+                return jsonify({"error": "No tienes permiso para ver este desglose"}), 403
+
             # Tenemos datos completos - mostrar desglose normal
             cotizacion = resultado_cotizacion["item"]
             print(f"[DESGLOSE] Cotización encontrada en DB - mostrando desglose completo")
@@ -4164,6 +4337,8 @@ def ver_desglose(numero_cotizacion):
 
 
 @app.route("/desglose/<path:numero_cotizacion>/pdf")
+@login_required
+@plan_required(FEATURE_DESGLOSE)
 def descargar_desglose_pdf(numero_cotizacion):
     """Genera y sirve un PDF compacto del desglose — optimizado para compartir.
 
