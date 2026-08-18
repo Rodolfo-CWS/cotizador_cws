@@ -10,15 +10,15 @@
         .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .card h2 { font-size: 16px; color: #1e293b; margin: 0 0 16px 0; }
         .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
         label { display: block; font-size: 13px; font-weight: 500; color: #1e293b; margin-bottom: 6px; }
-        input { width: 100%; padding: 10px 12px; border: 1.5px solid #d6d3d1; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
-        input:focus { outline: none; border-color: #4f46e5; }
+        input, select, textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #d6d3d1; border-radius: 8px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #4f46e5; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #f5f4f1; text-align: left; font-size: 12px; color: #44403c; padding: 8px; }
         td { padding: 6px 8px; border-bottom: 1px solid #e7e5e4; }
         .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 500; cursor: pointer; }
         .btn-primary { background: #4f46e5; color: white; }
+        .btn-ia { background: #7c3aed; color: white; }
         .btn-danger { background: #ef4444; color: white; }
         .btn-sm { padding: 6px 12px; font-size: 13px; }
         .totals { margin-top: 16px; max-width: 320px; margin-left: auto; }
@@ -27,6 +27,10 @@
         .error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; display: none; }
         .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         .hint { font-size: 12px; color: #78716c; }
+        .ia-row { display: flex; gap: 10px; align-items: flex-start; }
+        .ia-row textarea { flex: 1; }
+        .ia-row .btn { flex-shrink: 0; margin-top: 22px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
@@ -92,7 +96,53 @@
             <div style="margin-top:12px;">
                 <button type="button" class="btn btn-primary btn-sm" onclick="agregarFila()">+ Agregar concepto</button>
             </div>
+        </div>
 
+        <!-- Términos y condiciones -->
+        <div class="card">
+            <h2>Términos y Condiciones</h2>
+            <div class="grid">
+                <div>
+                    <label>Moneda</label>
+                    <select name="moneda" id="moneda" onchange="toggleTipoCambio()">
+                        <option value="MXN" selected>MXN (Pesos)</option>
+                        <option value="USD">USD (Dólares)</option>
+                    </select>
+                </div>
+                <div id="tipoCambioWrap" class="hidden">
+                    <label>Tipo de cambio (MXN/USD)</label>
+                    <input type="number" name="tipoCambio" id="tipoCambio" step="any" min="0" placeholder="Ej: 17.50">
+                </div>
+                <div>
+                    <label>Tiempo de entrega</label>
+                    <input type="text" name="tiempoEntrega" id="tiempoEntrega" placeholder="Ej: 2 semanas">
+                </div>
+                <div>
+                    <label>Entregar en</label>
+                    <input type="text" name="entregaEn" id="entregaEn" placeholder="Ej: Planta del cliente">
+                </div>
+                <div>
+                    <label>Términos de pago</label>
+                    <input type="text" name="terminos" id="terminos" placeholder="Ej: 50% anticipo, 50% contra entrega">
+                </div>
+                <div>
+                    <label>Comentarios</label>
+                    <input type="text" name="comentarios" id="comentarios" placeholder="Comentarios adicionales">
+                </div>
+            </div>
+        </div>
+
+        <!-- Texto introductorio con IA -->
+        <div class="card">
+            <h2>Texto introductorio</h2>
+            <div class="ia-row">
+                <textarea id="textoIA" rows="4" placeholder="Texto que aparecerá al inicio de tu cotización. Puedes generarlo con IA o escribirlo tú."></textarea>
+                <button type="button" class="btn btn-ia" id="btnIA" onclick="generarTextoIA()">✨ Generar con IA</button>
+            </div>
+        </div>
+
+        <!-- Totales -->
+        <div class="card">
             <div class="totals">
                 <div class="row"><span>Subtotal</span><span id="subtotalTxt">$0.00</span></div>
                 <div class="row"><span>IVA ({{ (company.iva_rate|default(16)) }}%)</span><span id="ivaTxt">$0.00</span></div>
@@ -108,7 +158,6 @@
 
     <script>
         const IVA_RATE = parseFloat("{{ (company.iva_rate|default(16)) }}") || 16;
-        const filas = [];
         let filaId = 0;
 
         function agregarFila(desc = '', cant = '', precio = '') {
@@ -138,6 +187,11 @@
             });
         }
 
+        function toggleTipoCambio() {
+            const esUSD = document.getElementById('moneda').value === 'USD';
+            document.getElementById('tipoCambioWrap').classList.toggle('hidden', !esUSD);
+        }
+
         function recolectarItems() {
             const items = [];
             document.querySelectorAll('#itemsBody tr').forEach(function(tr){
@@ -148,11 +202,23 @@
                     items.push({
                         descripcion: desc,
                         cantidad: parseFloat(cant) || 0,
-                        precio_unitario: parseFloat(precio) || 0
+                        precio_unitario: parseFloat(precio) || 0,
+                        uom: 'pza'
                     });
                 }
             });
             return items;
+        }
+
+        function recolectarCondiciones() {
+            return {
+                moneda: document.getElementById('moneda').value,
+                tipoCambio: document.getElementById('tipoCambio').value || '1.0',
+                tiempoEntrega: document.getElementById('tiempoEntrega').value.trim(),
+                entregaEn: document.getElementById('entregaEn').value.trim(),
+                terminos: document.getElementById('terminos').value.trim(),
+                comentarios: document.getElementById('comentarios').value.trim()
+            };
         }
 
         function recalcular() {
@@ -170,6 +236,46 @@
             const box = document.getElementById('errorBox');
             box.textContent = msg;
             box.style.display = 'block';
+        }
+
+        async function generarTextoIA() {
+            const btn = document.getElementById('btnIA');
+            const cliente = document.getElementById('cliente').value.trim();
+            if (!cliente) { mostrarError('Llena primero el campo "Cliente".'); return; }
+
+            const items = recolectarItems();
+            const condiciones = recolectarCondiciones();
+            const datosGenerales = {
+                cliente: cliente,
+                proyecto: document.getElementById('proyecto').value.trim(),
+                vendedor: document.getElementById('vendedor').value.trim()
+            };
+
+            btn.disabled = true;
+            btn.textContent = 'Generando...';
+            try {
+                const resp = await fetch('/api/generar-texto-ia', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        datosGenerales: datosGenerales,
+                        items: items,
+                        condiciones: condiciones,
+                        revision: '1'
+                    })
+                });
+                const data = await resp.json();
+                if (data.success && data.texto) {
+                    document.getElementById('textoIA').value = data.texto;
+                } else {
+                    mostrarError(data.error || 'No se pudo generar el texto.');
+                }
+            } catch (e) {
+                mostrarError('Error de conexión: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✨ Generar con IA';
+            }
         }
 
         async function generarPDF() {
@@ -198,7 +304,12 @@
                 const resp = await fetch('/cotizacion-pdf', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ datosGenerales: datosGenerales, items: items })
+                    body: JSON.stringify({
+                        datosGenerales: datosGenerales,
+                        items: items,
+                        condiciones: recolectarCondiciones(),
+                        textoPersonalizado: document.getElementById('textoIA').value.trim()
+                    })
                 });
                 const data = await resp.json();
                 if (data.success && data.redirect) {

@@ -7,8 +7,7 @@ Todas las rutas se preservan aquí para backward compatibility.
 from cotizador import (
     create_app, REPORTLAB_AVAILABLE, WEASYPRINT_AVAILABLE,
     safe_float, safe_int, validate_material_data,
-    wrap_description_text, generar_pdf_reportlab, generar_desglose_pdf_reportlab,
-    generar_pdf_simple_reportlab
+    wrap_description_text, generar_pdf_reportlab, generar_desglose_pdf_reportlab
 )
 
 # ── Imports estándar usados por las rutas ──
@@ -2942,6 +2941,7 @@ def listar_cotizaciones():
 # ============================================
 
 @app.route("/api/generar-texto-ia", methods=["POST"])
+@login_required
 def generar_texto_ia():
     """
     Genera texto introductorio personalizado usando Claude AI.
@@ -3477,6 +3477,8 @@ def cotizacion_pdf():
 
     datos_generales = datos.get("datosGenerales", {})
     items = datos.get("items", [])
+    condiciones_form = datos.get("condiciones", {}) or {}
+    texto_personalizado = (datos.get("textoPersonalizado") or "").strip()
 
     # ── IVA rate de la compañía ──
     try:
@@ -3526,10 +3528,24 @@ def cotizacion_pdf():
                 ),
             }), 403
 
+    condiciones_guardar = {
+        "moneda": condiciones_form.get("moneda", "MXN") or "MXN",
+        "tipoCambio": condiciones_form.get("tipoCambio", "1.0") or "1.0",
+        "tiempoEntrega": condiciones_form.get("tiempoEntrega", ""),
+        "entregaEn": condiciones_form.get("entregaEn", ""),
+        "terminos": condiciones_form.get("terminos", ""),
+        "comentarios": condiciones_form.get("comentarios", ""),
+        "subtotal": subtotal,
+        "iva": iva,
+        "total": total,
+        "iva_rate": iva_rate,
+    }
+
     datos_completos = {
         "tipo": "simple",
         "plan": plan,
         "numeroCotizacion": numero,
+        "textoIntroductorio": texto_personalizado,
         "datosGenerales": {
             "tipo": "simple",
             "numeroCotizacion": numero,
@@ -3540,22 +3556,11 @@ def cotizacion_pdf():
             "contacto": datos_generales.get("contacto", ""),
             "fecha": datos_generales.get("fecha") or datetime.datetime.now().strftime("%Y-%m-%d"),
             "revision": 1,
-            "condiciones": {
-                "moneda": "MXN",
-                "subtotal": subtotal,
-                "iva": iva,
-                "total": total,
-                "iva_rate": iva_rate,
-            },
+            "textoIntroductorio": texto_personalizado,
+            "condiciones": condiciones_guardar,
         },
         "items": items_limpios,
-        "condiciones": {
-            "moneda": "MXN",
-            "subtotal": subtotal,
-            "iva": iva,
-            "total": total,
-            "iva_rate": iva_rate,
-        },
+        "condiciones": condiciones_guardar,
         "totales": {"subtotal": subtotal, "iva": iva, "total": total},
     }
 
@@ -3569,9 +3574,13 @@ def cotizacion_pdf():
 
     numero_final = resultado.get("numeroCotizacion") or numero
 
-    # ── Generar y almacenar el PDF ──
+    # ── Generar y almacenar el PDF (mismo generador del PDF original) ──
     try:
-        pdf_bytes = generar_pdf_simple_reportlab(datos_completos, company_branding=company)
+        pdf_bytes = generar_pdf_reportlab(
+            datos_completos,
+            company_branding=company,
+            texto_personalizado=texto_personalizado or None,
+        )
         if pdf_manager:
             pdf_manager.almacenar_pdf_nuevo(
                 pdf_content=pdf_bytes,
