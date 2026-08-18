@@ -1092,6 +1092,10 @@ def home():
                         datos_gen.get('tipo') != 'simple'
                         if isinstance(datos_gen, dict) else True
                     ),
+                    "es_simple": (
+                        datos_gen.get('tipo') == 'simple'
+                        if isinstance(datos_gen, dict) else False
+                    ),
                     "es_antigua": False
                 })
         else:
@@ -1134,6 +1138,7 @@ def home():
                         "moneda": "N/A",
                         "_id": '',
                         "tiene_desglose": False,  # PDFs antiguos NO tienen desglose
+                        "es_simple": False,
                         "es_antigua": True  # Marcar como antigua
                     })
 
@@ -2553,6 +2558,7 @@ def todas_cotizaciones():
                         "moneda": "N/A",
                         "_id": '',
                         "tiene_desglose": False,  # PDFs antiguos NO tienen desglose
+                        "es_simple": False,
                         "es_antigua": True  # Marcar como antigua
                     })
 
@@ -3455,6 +3461,15 @@ REGLAS:
 # COTIZACIÓN SIMPLE → PDF (plan 'pdf')
 # ============================================
 
+def _sanitizar_nombre_cotizacion(nombre):
+    """Limpia el nombre de cotización elegido por el usuario."""
+    import re
+    nombre = (nombre or "").strip()
+    nombre = nombre.replace('/', '-').replace('\\', '-')
+    nombre = re.sub(r'\s+', ' ', nombre).strip()
+    return nombre
+
+
 @app.route("/cotizacion-pdf", methods=["GET", "POST"])
 @login_required
 @plan_required(FEATURE_SIMPLE_PDF)
@@ -3468,7 +3483,20 @@ def cotizacion_pdf():
     company_id = session.get("company_id")
 
     if request.method == "GET":
-        return render_template("pdf_simple.html", company=company)
+        cotizacion_edit = None
+        numero_edit = request.args.get("numero", "").strip()
+        if numero_edit:
+            try:
+                r = db_manager.obtener_cotizacion(numero_edit)
+                if r.get("encontrado"):
+                    item = r["item"]
+                    if item.get("company_id") == company_id:
+                        cotizacion_edit = item
+            except Exception as e:
+                print(f"[COTIZACION-PDF] Error cargando para editar: {e}")
+        return render_template(
+            "pdf_simple.html", company=company, cotizacion_edit=cotizacion_edit
+        )
 
     try:
         datos = request.get_json() or {}
@@ -3479,6 +3507,8 @@ def cotizacion_pdf():
     items = datos.get("items", [])
     condiciones_form = datos.get("condiciones", {}) or {}
     texto_personalizado = (datos.get("textoPersonalizado") or "").strip()
+    numero_existente = (datos.get("numeroCotizacion") or "").strip()
+    nombre_usuario = (datos.get("nombre") or "").strip()
 
     # ── IVA rate de la compañía ──
     try:
@@ -3507,26 +3537,41 @@ def cotizacion_pdf():
     iva = round(subtotal * (iva_rate / 100.0), 2)
     total = round(subtotal + iva, 2)
 
-    # ── Número de cotización simple ──
-    try:
-        numero = db_manager.generar_numero_simple(company_id)
-    except Exception:
-        numero = None
-
-    # ── Límite de plan ──
+    # ── Número de cotización (nombre elegido por el usuario o automático) ──
     plan = company.get("plan", "full")
-    max_pdfs = get_limit(plan, "max_pdfs")
-    if max_pdfs is not None:
-        usados = db_manager.contar_cotizaciones_company(company_id)
-        if usados >= max_pdfs:
-            return jsonify({
-                "success": False,
-                "tipo_error": "plan_limit",
-                "error": (
-                    f"Alcanzaste el límite de {max_pdfs} PDFs de tu plan. "
-                    "Contacta a soporte para ampliarlo."
-                ),
-            }), 403
+    if numero_existente:
+        numero = numero_existente  # edición: número fijo
+    elif nombre_usuario:
+        numero = _sanitizar_nombre_cotizacion(nombre_usuario)
+        if not numero:
+            numero = db_manager.generar_numero_simple(company_id)
+        else:
+            existente = db_manager.obtener_cotizacion(numero)
+            if existente.get("encontrado"):
+                return jsonify({
+                    "success": False,
+                    "error": (
+                        f"Ya existe una cotización con el nombre '{numero}'. "
+                        "Elige otro nombre."
+                    ),
+                }), 409
+    else:
+        numero = db_manager.generar_numero_simple(company_id)
+
+    # ── Límite de plan (solo al crear, no al editar) ──
+    if not numero_existente:
+        max_pdfs = get_limit(plan, "max_pdfs")
+        if max_pdfs is not None:
+            usados = db_manager.contar_cotizaciones_company(company_id)
+            if usados >= max_pdfs:
+                return jsonify({
+                    "success": False,
+                    "tipo_error": "plan_limit",
+                    "error": (
+                        f"Alcanzaste el límite de {max_pdfs} PDFs de tu plan. "
+                        "Contacta a soporte para ampliarlo."
+                    ),
+                }), 403
 
     condiciones_guardar = {
         "moneda": condiciones_form.get("moneda", "MXN") or "MXN",
