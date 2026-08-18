@@ -13,19 +13,24 @@
         label { display: block; font-size: 13px; font-weight: 500; color: #1e293b; margin-bottom: 6px; }
         input, select, textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #d6d3d1; border-radius: 8px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
         input:focus, select:focus, textarea:focus { outline: none; border-color: #4f46e5; }
+        input[readonly] { background: #f5f4f1; color: #78716c; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #f5f4f1; text-align: left; font-size: 12px; color: #44403c; padding: 8px; }
         td { padding: 6px 8px; border-bottom: 1px solid #e7e5e4; }
-        .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 500; cursor: pointer; }
+        .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-block; }
         .btn-primary { background: #4f46e5; color: white; }
         .btn-ia { background: #7c3aed; color: white; }
         .btn-danger { background: #ef4444; color: white; }
         .btn-sm { padding: 6px 12px; font-size: 13px; }
+        .btn-secondary { background: #f1f5f9; color: #334155; }
         .totals { margin-top: 16px; max-width: 320px; margin-left: auto; }
         .totals .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
         .totals .row.total { font-weight: 700; font-size: 16px; border-top: 2px solid #4f46e5; margin-top: 4px; padding-top: 10px; }
         .error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; display: none; }
+        .success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 32px; border-radius: 12px; text-align: center; }
+        .success h2 { color: #16a34a; }
         .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .actions-center { justify-content: center; }
         .hint { font-size: 12px; color: #78716c; }
         .ia-row { display: flex; gap: 10px; align-items: flex-start; }
         .ia-row textarea { flex: 1; }
@@ -47,11 +52,26 @@
 
     <div id="errorBox" class="error"></div>
 
+    <!-- Estado de éxito -->
+    <div id="successBox" class="success" style="display:none;">
+        <h2>✅ PDF generado correctamente</h2>
+        <p style="color:#166534;margin-bottom:24px;">Tu cotización quedó guardada y el PDF está listo.</p>
+        <div class="actions actions-center">
+            <a id="verPdfLink" href="#" target="_blank" class="btn btn-primary">Ver / descargar PDF</a>
+            <button type="button" class="btn btn-secondary" onclick="window.location.href='/';">Volver al inicio</button>
+        </div>
+    </div>
+
     <form id="pdfForm" onsubmit="return false;">
         <!-- Datos generales -->
         <div class="card">
             <h2>Datos de la cotización</h2>
             <div class="grid">
+                <div>
+                    <label>Nombre de la cotización</label>
+                    <input type="text" name="nombre" id="nombre" placeholder="Ej: Cotización ABC-2026 (opcional)">
+                    <p class="hint">Si lo dejas vacío se genera un número automático.</p>
+                </div>
                 <div>
                     <label>Cliente *</label>
                     <input type="text" name="cliente" id="cliente" required>
@@ -151,7 +171,7 @@
         </div>
 
         <div class="actions">
-            <button type="button" class="btn" style="background:#f1f5f9;color:#334155;" onclick="window.location.href='/';">Cancelar</button>
+            <button type="button" class="btn btn-secondary" onclick="window.location.href='/';">Cancelar</button>
             <button type="submit" class="btn btn-primary" id="btnGenerar" onclick="generarPDF()">Generar PDF</button>
         </div>
     </form>
@@ -159,6 +179,7 @@
     <script>
         const IVA_RATE = parseFloat("{{ (company.iva_rate|default(16)) }}") || 16;
         let filaId = 0;
+        let numeroExistente = '';
 
         function agregarFila(desc = '', cant = '', precio = '') {
             filaId++;
@@ -221,6 +242,17 @@
             };
         }
 
+        function recolectarDatosGenerales() {
+            return {
+                cliente: document.getElementById('cliente').value.trim(),
+                proyecto: document.getElementById('proyecto').value.trim(),
+                vendedor: document.getElementById('vendedor').value.trim(),
+                atencionA: document.getElementById('atencionA').value.trim(),
+                contacto: document.getElementById('contacto').value.trim(),
+                fecha: document.getElementById('fecha').value
+            };
+        }
+
         function recalcular() {
             const items = recolectarItems();
             let subtotal = 0;
@@ -243,13 +275,9 @@
             const cliente = document.getElementById('cliente').value.trim();
             if (!cliente) { mostrarError('Llena primero el campo "Cliente".'); return; }
 
+            const datosGenerales = recolectarDatosGenerales();
             const items = recolectarItems();
             const condiciones = recolectarCondiciones();
-            const datosGenerales = {
-                cliente: cliente,
-                proyecto: document.getElementById('proyecto').value.trim(),
-                vendedor: document.getElementById('vendedor').value.trim()
-            };
 
             btn.disabled = true;
             btn.textContent = 'Generando...';
@@ -287,15 +315,6 @@
             const items = recolectarItems();
             if (items.length === 0) { mostrarError('Agrega al menos un concepto.'); return; }
 
-            const datosGenerales = {
-                cliente: cliente,
-                proyecto: document.getElementById('proyecto').value.trim(),
-                vendedor: document.getElementById('vendedor').value.trim(),
-                atencionA: document.getElementById('atencionA').value.trim(),
-                contacto: document.getElementById('contacto').value.trim(),
-                fecha: document.getElementById('fecha').value
-            };
-
             const btn = document.getElementById('btnGenerar');
             btn.disabled = true;
             btn.textContent = 'Generando...';
@@ -305,15 +324,20 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        datosGenerales: datosGenerales,
+                        datosGenerales: recolectarDatosGenerales(),
                         items: items,
                         condiciones: recolectarCondiciones(),
-                        textoPersonalizado: document.getElementById('textoIA').value.trim()
+                        textoPersonalizado: document.getElementById('textoIA').value.trim(),
+                        nombre: document.getElementById('nombre').value.trim(),
+                        numeroCotizacion: numeroExistente
                     })
                 });
                 const data = await resp.json();
                 if (data.success && data.redirect) {
-                    window.location.href = data.redirect;
+                    document.getElementById('verPdfLink').href = data.redirect;
+                    document.getElementById('pdfForm').style.display = 'none';
+                    document.getElementById('successBox').style.display = 'block';
+                    window.scrollTo(0, 0);
                 } else {
                     mostrarError(data.error || 'Error al generar el PDF.');
                 }
@@ -325,13 +349,53 @@
             }
         }
 
-        // Fecha por defecto hoy + 3 filas iniciales
+        function precargarEdicion(c) {
+            const dg = c.datosGenerales || {};
+            const cond = c.condiciones || dg.condiciones || {};
+
+            document.getElementById('nombre').value = c.numeroCotizacion || '';
+            document.getElementById('nombre').readOnly = true;
+            numeroExistente = c.numeroCotizacion || '';
+
+            document.getElementById('cliente').value = dg.cliente || '';
+            document.getElementById('proyecto').value = dg.proyecto || '';
+            document.getElementById('vendedor').value = dg.vendedor || '';
+            document.getElementById('atencionA').value = dg.atencionA || '';
+            document.getElementById('contacto').value = dg.contacto || '';
+            document.getElementById('fecha').value = (dg.fecha || '').slice(0, 10);
+            document.getElementById('textoIA').value = dg.textoIntroductorio || '';
+
+            document.getElementById('moneda').value = cond.moneda || 'MXN';
+            document.getElementById('tipoCambio').value = cond.tipoCambio || '';
+            document.getElementById('tiempoEntrega').value = cond.tiempoEntrega || '';
+            document.getElementById('entregaEn').value = cond.entregaEn || '';
+            document.getElementById('terminos').value = cond.terminos || '';
+            document.getElementById('comentarios').value = cond.comentarios || '';
+            toggleTipoCambio();
+
+            document.getElementById('itemsBody').innerHTML = '';
+            filaId = 0;
+            const items = c.items || [];
+            items.forEach(function(it){
+                const precio = (it.precio_unitario != null && it.precio_unitario !== '')
+                    ? it.precio_unitario
+                    : ((parseFloat(it.cantidad) > 0) ? (parseFloat(it.total) / parseFloat(it.cantidad)) : 0);
+                agregarFila(it.descripcion || '', it.cantidad || '', precio);
+            });
+            if (!items.length) { agregarFila(); agregarFila(); agregarFila(); }
+        }
+
+        // Fecha por defecto hoy + filas iniciales + precarga si es edición
         document.addEventListener('DOMContentLoaded', function(){
-            const hoy = new Date().toISOString().slice(0, 10);
-            document.getElementById('fecha').value = hoy;
+            document.getElementById('fecha').value = new Date().toISOString().slice(0, 10);
+
+            {% if cotizacion_edit %}
+            precargarEdicion({{ cotizacion_edit | tojson }});
+            {% else %}
             agregarFila();
             agregarFila();
             agregarFila();
+            {% endif %}
         });
     </script>
 </body>
