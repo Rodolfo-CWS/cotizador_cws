@@ -311,9 +311,17 @@
 <body>
     <!-- Top bar -->
     <div class="top-bar">
-        <div class="brand">⚡ CWS <span>Fast Quote</span></div>
-        <div>
+        <div class="brand" style="display:flex; align-items:center;">
+            {% if company and company.logo_url %}
+            <img src="{{ company.logo_url }}" alt="{{ company.name }}" style="height:30px; max-width:140px; object-fit:contain; margin-right:10px;">
+            {% endif %}
+            ⚡ {{ company.name if company else 'CWS' }} <span>Fast Quote</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:16px;">
+            {% if company_plan != 'fast_quote' %}
             <a href="/">← Inicio</a>
+            {% endif %}
+            <a href="/auth/logout" style="color:#dc2626;">Cerrar sesión</a>
         </div>
     </div>
 
@@ -338,9 +346,11 @@
                 <div class="spinner"></div>
             </button>
 
+            {% if company_plan != 'fast_quote' %}
             <div style="text-align: center; margin-top: 12px;">
                 <a href="/" style="color: #78716c; font-size: 14px; text-decoration: none;">🏠 Volver al Inicio</a>
             </div>
+            {% endif %}
 
             <div id="errorBox" class="error-box"></div>
         </div>
@@ -439,8 +449,12 @@
                 </div>
 
                 <div class="btn-row">
+                    {% if company_plan != 'fast_quote' %}
                     <a href="/" class="btn btn-outline">🏠 Inicio</a>
+                    {% endif %}
+                    {% if plan_has_feature(company_plan, 'full_form') %}
                     <a href="/formulario" class="btn btn-primary" onclick="precargarCotizacionFormal(event)">📄 Ir a Cotización Formal</a>
+                    {% endif %}
                     <button class="btn btn-outline" onclick="location.reload()">🔄 Nueva Estimación</button>
                 </div>
             </div>
