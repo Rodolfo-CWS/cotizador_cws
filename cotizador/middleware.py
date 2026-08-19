@@ -107,8 +107,13 @@ def init_middleware(app, supabase_manager):
                         f"[MIDDLEWARE] No se pudo cargar compañía {company_id}: {e}"
                     )
         else:
-            # No autenticado — guardar ruta intentada para redirect post-login
-            session['next_url'] = request.url
+            # No autenticado — guardar ruta intentada para redirect post-login.
+            # Solo GETs de páginas (sin extensión de archivo) para no guardar
+            # requests de assets/favicon que provocarían un 404 tras el login.
+            if request.method == 'GET':
+                last_segment = request.path.rstrip('/').rsplit('/', 1)[-1]
+                if '.' not in last_segment:
+                    session['next_url'] = request.full_path
             g.user = None
             g.company = None
 
@@ -171,8 +176,9 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            # Guardar URL actual para redirigir después del login
-            session['next_url'] = request.url
+            # Guardar URL actual (relativa) para redirigir después del login
+            if request.method == 'GET':
+                session['next_url'] = request.full_path
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
