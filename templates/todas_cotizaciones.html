@@ -263,7 +263,6 @@
                         <td>
                             <div class="acciones-col">
                                 <a href="/pdf/{{ cot.numero }}" target="_blank" class="btn-icon" title="Ver PDF">PDF</a>
-                                <button class="btn-icon" onclick="descargarOCompartirPDF('{{ cot.numero }}')" title="Descargar o compartir PDF">Descargar</button>
                                 {% if cot.tiene_desglose %}
                                 <a href="/desglose/{{ cot.numero }}" class="btn-icon" title="Ver Desglose">Desglose</a>
                                 {% else %}
@@ -605,20 +604,6 @@
             }
         }
 
-        function descargarOCompartirPDF(numero) {
-            const url = '/pdf/' + numero;
-            if (navigator.share) {
-                navigator.share({ url: window.location.origin + url })
-                    .catch(() => {});
-            } else {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = numero + '.pdf';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }
-        }
     </script>
 </body>
 </html>
