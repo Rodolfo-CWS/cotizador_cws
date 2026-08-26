@@ -1,5 +1,5 @@
 """
-CWS Cotizador - Archivo principal (wrapper thin).
+Sifra Cotizador - Archivo principal (wrapper thin).
 La inicialización se delega al paquete cotizador/ (factory pattern).
 Todas las rutas se preservan aquí para backward compatibility.
 """
@@ -381,6 +381,14 @@ pdf_manager = app.extensions['pdf_manager']
 sync_scheduler = app.extensions.get('sync_scheduler')
 LISTA_MATERIALES = app.config.get('LISTA_MATERIALES', [])
 
+
+def _es_legacy_drive_import():
+    """Indica si la compañía del usuario tiene habilitada la importación
+    de cotizaciones legacy desde Google Drive (flag por tenant)."""
+    company = g.get('company') or {}
+    return bool(company.get('legacy_drive_import'))
+
+
 def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
     """
     Verifica si una cotización es la revisión más reciente
@@ -395,7 +403,7 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
         print(f"[VERIFICAR_REVISION] Número cotización a verificar: {numero_cotizacion}")
 
         # Extraer el número base y revisión actual
-        # Formato típico: CLIENTE-CWS-VENDOR-###-R#-PROYECTO
+        # Formato típico: CLIENTE-<CODIGO>-VENDOR-###-R#-PROYECTO
         partes = numero_cotizacion.split('-')
         print(f"[VERIFICAR_REVISION] Partes del número: {partes}")
 
@@ -423,11 +431,11 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
             }
 
         # Construir patrón base (sin R#)
-        # Ejemplo: BMW-CWS-RAE-001-R2-PROYECTO -> BMW-CWS-RAE-001-PROYECTO
+        # Ejemplo: BMW-<CODIGO>-RAE-001-R2-PROYECTO -> BMW-<CODIGO>-RAE-001-PROYECTO
         patron_base = '-'.join(partes[:indice_revision] + partes[indice_revision+1:])
 
         # También crear versión simplificada para búsqueda más amplia
-        # Buscar por las primeras 4 partes (CLIENTE-CWS-VENDOR-###)
+        # Buscar por las primeras 4 partes (CLIENTE-<CODIGO>-VENDOR-###)
         patron_busqueda = '-'.join(partes[:min(4, len(partes))])
 
         print(f"[VERIFICAR_REVISION] Patrón base: {patron_base}")
@@ -1101,9 +1109,8 @@ def home():
         else:
             print(f"[HOME] Error: {resultado_db.get('error')}")
 
-        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (solo para CWS Company legacy)
-        cws_company_id = '5f6b07c9-3b9f-42ac-8ea0-e3ad9a4fe56b'
-        if session.get('company_id') == cws_company_id and not resultado_pdfs.get("error"):
+        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (solo tenants con flag legacy_drive_import)
+        if _es_legacy_drive_import() and not resultado_pdfs.get("error"):
             pdfs_antiguos = resultado_pdfs.get("resultados", [])
             print(f"[HOME] Encontrados {len(pdfs_antiguos)} PDFs totales")
 
@@ -1112,7 +1119,7 @@ def home():
 
                 # Solo agregar si no está ya en la lista (evitar duplicados)
                 if numero_pdf not in numeros_vistos and numero_pdf != 'N/A':
-                    # Extraer metadatos del nombre (formato: CLIENTE-CWS-VENDEDOR-###-R#-PROYECTO)
+                    # Extraer metadatos del nombre (formato: CLIENTE-<CODIGO>-VENDEDOR-###-R#-PROYECTO)
                     import re
                     nombre_partes = numero_pdf.split('-')
 
@@ -1671,7 +1678,7 @@ def guardar_draft():
 
     Body JSON:
         {
-            "vendedor": "RCWS",
+            "vendedor": "RAE",
             "datos": {
                 "datosGenerales": {...},
                 "items": [...],
@@ -1732,7 +1739,7 @@ def listar_drafts():
             "drafts": [
                 {
                     "id": "draft_123",
-                    "vendedor": "RCWS",
+                    "vendedor": "RAE",
                     "nombre": "Cliente X - Proyecto Y",
                     "timestamp": 1234567890,
                     "fecha_creacion": "2025-10-24T10:30:00",
@@ -1774,7 +1781,7 @@ def cargar_draft(draft_id):
             "success": true,
             "draft": {
                 "id": "draft_123",
-                "vendedor": "RCWS",
+                "vendedor": "RAE",
                 "nombre": "Cliente X - Proyecto Y",
                 "datos": {
                     "datosGenerales": {...},
@@ -2190,8 +2197,7 @@ def buscar():
                 resultado_pdfs = pdf_manager.buscar_pdfs(query, 1, 1000)  # Obtener todos
                 print(f"[PDF] Resultado PDFs: {type(resultado_pdfs)} - {list(resultado_pdfs.keys()) if isinstance(resultado_pdfs, dict) else 'No es dict'}")
                 
-                cws_id = '5f6b07c9-3b9f-42ac-8ea0-e3ad9a4fe56b'
-                if session.get('company_id') == cws_id and not resultado_pdfs.get("error"):
+                if _es_legacy_drive_import() and not resultado_pdfs.get("error"):
                     pdfs = resultado_pdfs.get("resultados", [])
                     print(f"[PDF] Encontrados {len(pdfs)} PDFs")
 
@@ -2521,9 +2527,8 @@ def todas_cotizaciones():
         else:
             print(f"[TODAS-COTIZACIONES] Error: {resultado_db.get('error')}")
 
-        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (solo CWS Company)
-        cws_company_id = '5f6b07c9-3b9f-42ac-8ea0-e3ad9a4fe56b'
-        if session.get('company_id') == cws_company_id and not resultado_pdfs.get("error"):
+        # AGREGAR COTIZACIONES ANTIGUAS DE GOOGLE DRIVE (solo tenants con flag legacy_drive_import)
+        if _es_legacy_drive_import() and not resultado_pdfs.get("error"):
             pdfs_antiguos = resultado_pdfs.get("resultados", [])
             print(f"[TODAS-COTIZACIONES] Encontrados {len(pdfs_antiguos)} PDFs totales")
 
@@ -2532,7 +2537,7 @@ def todas_cotizaciones():
 
                 # Solo agregar si no está ya en la lista (evitar duplicados)
                 if numero_pdf not in numeros_vistos and numero_pdf != 'N/A':
-                    # Extraer metadatos del nombre (formato: CLIENTE-CWS-VENDEDOR-###-R#-PROYECTO)
+                    # Extraer metadatos del nombre (formato: CLIENTE-<CODIGO>-VENDEDOR-###-R#-PROYECTO)
                     import re
                     nombre_partes = numero_pdf.split('-')
 
@@ -2975,6 +2980,10 @@ def generar_texto_ia():
         if not datos:
             return jsonify({"success": False, "error": "No se recibieron datos"}), 400
 
+        # Nombre de la compañía del tenant (para textos dinámicos)
+        company = g.get('company') or {}
+        nombre_empresa = company.get('name') or 'Sifra'
+
         # Buscar texto guardado previamente en la cotización
         texto_guardado = None
         numero_cotizacion = datos.get('numeroCotizacion', '').strip()
@@ -3016,7 +3025,7 @@ def generar_texto_ia():
 
             cliente = datos_generales.get('cliente', 'Cliente')
             proyecto = datos_generales.get('proyecto', 'su proyecto')
-            vendedor = datos_generales.get('vendedor', 'CWS Company')
+            vendedor = datos_generales.get('vendedor') or nombre_empresa
 
             # Construir resumen de items
             items_resumen = ""
@@ -3088,7 +3097,7 @@ Resumen de ítems cotizados:
 
         texto_generico = (
             f"Estimado {cliente},\n\n"
-            f"CWS Company presenta esta propuesta económica "
+            f"{nombre_empresa} presenta esta propuesta económica "
             f"para {proyecto}, "
             f"equilibrando calidad, funcionalidad y costo.\n\n"
             f"Quedamos a la espera de su respuesta."
@@ -3647,7 +3656,7 @@ def cotizacion_pdf():
 
 @app.route("/generar_pdf", methods=["POST"])
 def generar_pdf():
-    """Genera PDF de la cotización usando el formato CWS oficial"""
+    """Genera PDF de la cotización usando el formato oficial de Sifra"""
     # Verificar si hay generadores de PDF disponibles
     if not WEASYPRINT_AVAILABLE and not REPORTLAB_AVAILABLE:
         return jsonify({
@@ -3718,7 +3727,10 @@ def generar_pdf():
             'total': f"{total:.2f}",
             
             # Logo path for PDF (solo para WeasyPrint)
-            'logo_path': 'static/logo.png'
+            'logo_path': 'static/logo.png',
+
+            # Compañía (tenant) para branding dinámico del PDF
+            'company': g.get("company") or {}
         }
         
         print(f"Generando PDF para: {numero_cotizacion}")
@@ -3849,7 +3861,7 @@ def servir_pdf(numero_cotizacion):
 
         # Verificación de propiedad (multi-tenant): si la cotización existe en BD
         # y pertenece a otra compañía, denegar. Los PDFs legacy sin cotización en
-        # BD (Google Drive de CWS) se siguen sirviendo.
+        # BD (Google Drive legacy) se siguen sirviendo.
         company_id_session = session.get("company_id")
         try:
             owner = db_manager.obtener_cotizacion(numero_cotizacion)
@@ -4144,7 +4156,7 @@ def ver_desglose(numero_cotizacion):
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Datos de Cotización No Disponibles - CWS</title>
+                    <title>Datos de Cotización No Disponibles - Sifra</title>
                     <link rel="stylesheet" href="/static/css/style.css">
                     <style>
                         body { background: var(--gray-50); margin: 0; padding: 20px; }
@@ -4160,7 +4172,7 @@ def ver_desglose(numero_cotizacion):
                 <body>
                     <div class="container">
                         <div class="header">
-                            <div class="logo">🏢 CWS Company</div>
+                            <div class="logo">🏢 Sifra</div>
                             <h1>Datos de Cotización No Disponibles</h1>
                         </div>
                         
@@ -4200,7 +4212,7 @@ def ver_desglose(numero_cotizacion):
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Desglose No Disponible - CWS</title>
+                    <title>Desglose No Disponible - Sifra</title>
                     <link rel="stylesheet" href="/static/css/style.css">
                     <style>
                         body { background: var(--gray-50); margin: 0; padding: 20px; }
@@ -4214,7 +4226,7 @@ def ver_desglose(numero_cotizacion):
                 <body>
                     <div class="container">
                         <div class="header">
-                            <div class="logo">🏢 CWS Company</div>
+                            <div class="logo">🏢 Sifra</div>
                             <h1>PDF Histórico</h1>
                         </div>
                         
@@ -4246,7 +4258,7 @@ def ver_desglose(numero_cotizacion):
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Cotización No Encontrada - CWS</title>
+            <title>Cotización No Encontrada - Sifra</title>
             <link rel="stylesheet" href="/static/css/style.css">
             <style>
                 body { background: var(--gray-50); margin: 0; padding: 20px; }
@@ -4261,7 +4273,7 @@ def ver_desglose(numero_cotizacion):
         <body>
             <div class="container">
                 <div class="header">
-                    <div class="logo">🏢 CWS Company</div>
+                    <div class="logo">🏢 Sifra</div>
                     <h1>Cotización No Encontrada</h1>
                 </div>
                 
@@ -4291,7 +4303,7 @@ def ver_desglose(numero_cotizacion):
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Error - CWS Cotizador</title>
+            <title>Error - Sifra</title>
             <style>
                 body {
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -4474,7 +4486,7 @@ def panel_admin():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>CWS - Panel de Administración</title>
+        <title>Sifra - Panel de Administración</title>
         <style>
             body {{
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -4556,7 +4568,7 @@ def panel_admin():
     </head>
     <body>
         <div class="container">
-            <h1>🔧 CWS - Panel de Administración</h1>
+            <h1>🔧 Sifra - Panel de Administración</h1>
             
             <div class="section">
                 <h3>Estado del Sistema</h3>
@@ -4790,7 +4802,7 @@ def admin_pdfs():
         <html lang="es">
         <head>
             <meta charset="UTF-8">
-            <title>CWS - Administración de PDFs</title>
+            <title>Sifra - Administración de PDFs</title>
             <style>
                 body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; margin: 0; padding: 20px; }}
                 .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }}
@@ -4818,7 +4830,7 @@ def admin_pdfs():
         </head>
         <body>
             <div class="container">
-                <h1>📄 CWS - Administración de PDFs</h1>
+                <h1>📄 Sifra - Administración de PDFs</h1>
                 
                 <div class="section">
                     <h3>📊 Estadísticas de PDFs</h3>
@@ -5731,7 +5743,7 @@ def info_sistema():
         pdf_info["google_drive_debug"] = {"error": str(debug_error)}
     
     return jsonify({
-        "app": os.getenv('APP_NAME', 'CWS Cotizaciones'),
+        "app": os.getenv('APP_NAME', 'Sifra'),
         "version": os.getenv('APP_VERSION', '1.0.0'),
         "environment": os.getenv('FLASK_ENV', 'development'),
         "debug": app.config.get('DEBUG', False),
@@ -7176,7 +7188,7 @@ def servir_pdf_local(numero_cotizacion):
 # ============================================
 
 if __name__ == "__main__":
-    app_name = os.getenv('APP_NAME', 'CWS Cotizaciones')
+    app_name = os.getenv('APP_NAME', 'Sifra')
     app_version = os.getenv('APP_VERSION', '1.0.0')
     environment = os.getenv('FLASK_ENV', 'development')
     database = os.getenv('MONGO_DATABASE', 'cotizaciones')

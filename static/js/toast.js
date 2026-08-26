@@ -1,5 +1,5 @@
 /* ============================================
-   CWS Cotizador — Toast Notification System
+   Sifra Cotizador — Toast Notification System
    Usa las clases CSS definidas en style.css
    ============================================ */
 

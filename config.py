@@ -18,7 +18,7 @@ class Config:
     DATABASE_URL = os.environ.get('DATABASE_URL')  # PostgreSQL connection string
     
     # Configuración de la aplicación
-    APP_NAME = os.environ.get('APP_NAME', 'CWS Cotizaciones')
+    APP_NAME = os.environ.get('APP_NAME', 'Sifra')
     APP_VERSION = os.environ.get('APP_VERSION', '1.0.0')
     
     # Límites

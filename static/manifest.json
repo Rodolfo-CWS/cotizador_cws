@@ -1,7 +1,7 @@
 {
-  "name": "CWS Cotizaciones",
-  "short_name": "CWS",
-  "description": "Sistema de Cotizaciones CWS Company",
+  "name": "Sifra",
+  "short_name": "Sifra",
+  "description": "Sifra — Cotizador profesional para manufactura",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#2c5282",

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CWS - Cotizaciones</title>
+    <title>Sifra - Cotizaciones</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="/static/js/toast.js"></script>
     <style>
@@ -90,10 +90,10 @@
                     {% if company and company.logo_url %}
                     <img src="{{ company.logo_url }}" alt="{{ company.name }}">
                     {% else %}
-                    <img src="/static/logo.png" alt="CWS Company">
+                    <img src="/static/logo.png" alt="Sifra">
                     {% endif %}
                 </div>
-                <h1>{{ company.name if company else 'CWS' }} Sistema de Cotizaciones</h1>
+                <h1>{{ company.name if company else 'Sifra' }} Sistema de Cotizaciones</h1>
             </div>
             <div class="user-info">
                 <span>Sesión: <strong>{{ user_name }}</strong></span>
@@ -173,7 +173,7 @@
         <div class="filter-grid">
             <div class="filter-field">
                 <label>Número de Cotización</label>
-                <input type="text" id="filterNumero" placeholder="Ej: CLIENTE-CWS-VEN..." value="{{ filtro_numero or '' }}">
+                <input type="text" id="filterNumero" placeholder="Ej: CLIENTE-COD-VEN..." value="{{ filtro_numero or '' }}">
             </div>
 
             <div class="filter-field">
@@ -496,7 +496,7 @@
 
         // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Sistema CWS iniciado');
+            console.log('Sistema Sifra iniciado');
             cargarConteoDrafts();
 
             // Enter en búsqueda rápida

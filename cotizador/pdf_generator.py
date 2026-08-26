@@ -1,5 +1,5 @@
 """
-Generador de PDF profesional CWS usando ReportLab.
+Generador de PDF profesional de Sifra usando ReportLab.
 """
 import io
 import os
@@ -31,16 +31,14 @@ WHITE = colors.white
 
 # Branding por defecto (se usa si no hay company_branding de la BD)
 DEFAULT_BRANDING = {
-    'name': 'CWS COMPANY SA DE CV',
-    'address': 'Puerta de los monos 250, 78421 Villa de Pozos, SLP',
+    'name': 'Sifra',
+    'address': '',
     'logo_url': None,
     'primary_color': '#1e293b',
     'secondary_color': '#0f172a',
     'footer_text': (
-        '<b>CWS Company SA de CV</b> &nbsp;|&nbsp; '
-        'Puerta de los monos 250, 78421 Villa de Pozos, SLP, México<br/>'
-        'Esta cotización es válida por 30 días a partir de la fecha de emisión '
-        '&nbsp;|&nbsp; <b>¡Gracias por confiar en CWS Company!</b>'
+        '<b>Sifra</b><br/>'
+        'Esta cotización es válida por 30 días a partir de la fecha de emisión.'
     ),
     'iva_rate': 16.00,
 }
@@ -288,8 +286,8 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     if texto_personalizado:
         intro_text = texto_personalizado.replace("\n", "<br/>\n")
     else:
-        intro_text = """Estimado Cliente,<br/>
-        CWS Company presenta esta propuesta económica para el proyecto solicitado.
+        intro_text = f"""Estimado Cliente,<br/>
+        {branding['name']} presenta esta propuesta económica para el proyecto solicitado.
         Quedamos a la espera de su respuesta."""
 
     story.append(Paragraph(intro_text, intro_style))
@@ -538,7 +536,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
             if img_url.startswith('http'):
                 import urllib.request
                 import tempfile
-                req = urllib.request.Request(img_url, headers={'User-Agent': 'CWS-Cotizador/1.0'})
+                req = urllib.request.Request(img_url, headers={'User-Agent': 'Sifra-Cotizador/1.0'})
                 with urllib.request.urlopen(req, timeout=15) as response:
                     content_type = response.headers.get('Content-Type', '')
                     if response.status != 200:
@@ -610,7 +608,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     # ── PIE DE PÁGINA ──
     story.append(Spacer(1, 8))
 
-    vendedor = datos_generales.get('vendedor', 'Equipo CWS')
+    vendedor = datos_generales.get('vendedor', 'Equipo')
 
     closing_style = ParagraphStyle(
         'ClosingText', parent=styles['Normal'],
@@ -1043,9 +1041,9 @@ def generar_desglose_pdf_reportlab(datos_cotizacion, company_branding=None):
     story.append(separator2)
     story.append(Spacer(1, 4))
 
-    vendedor = datos_generales.get('vendedor', 'CWS Company')
+    vendedor = datos_generales.get('vendedor', 'Equipo')
     story.append(Paragraph(
-        f"CWS Company SA de CV &nbsp;|&nbsp; {vendedor} &nbsp;|&nbsp; {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        f"{branding['name']} &nbsp;|&nbsp; {vendedor} &nbsp;|&nbsp; {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}",
         small_style
     ))
     story.append(Paragraph(

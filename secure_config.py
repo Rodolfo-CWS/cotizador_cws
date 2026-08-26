@@ -1,5 +1,5 @@
 """
-CONFIGURACIÓN DE SEGURIDAD REFORZADA PARA CWS
+CONFIGURACIÓN DE SEGURIDAD REFORZADA PARA SIFRA
 Reemplaza config.py con medidas de seguridad mejoradas
 """
 
@@ -67,7 +67,7 @@ class SecureConfig:
                 f"{self.MONGO_DATABASE}?{opciones}")
     
     # Configuración de aplicación
-    APP_NAME = os.environ.get('APP_NAME', 'CWS Cotizaciones')
+    APP_NAME = os.environ.get('APP_NAME', 'Sifra')
     APP_VERSION = os.environ.get('APP_VERSION', '1.0.0')
     
     # Límites de seguridad

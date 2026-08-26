@@ -57,14 +57,14 @@ for tabla in ['cotizaciones', 'pdf_storage', 'drafts']:
 print("3/5 Creando CWS Company...")
 cur.execute("""
     INSERT INTO public.companies (name, slug, tax_id, address, phone, email,
-        primary_color, secondary_color, footer_text, iva_rate)
+        primary_color, secondary_color, footer_text, iva_rate, codigo, legacy_drive_import)
     VALUES (
         'CWS Company SA de CV', 'cws-company', 'CWS-123456',
         'Puerta de los monos 250, 78421 Villa de Pozos, SLP, Mexico',
         '+52 444 123 4567', 'info@cwscompany.com',
         '#1e293b', '#0f172a',
         '<b>CWS Company SA de CV</b> | Puerta de los monos 250, 78421 Villa de Pozos, SLP, Mexico<br/>Esta cotizacion es valida por 30 dias | <b>Gracias por confiar en CWS Company!</b>',
-        16.00
+        16.00, 'CWS', true
     ) ON CONFLICT (slug) DO NOTHING
 """)
 cur.execute("SELECT id FROM public.companies WHERE slug = 'cws-company'")

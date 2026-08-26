@@ -1,5 +1,5 @@
 """
-Utilidades compartidas para el cotizador CWS.
+Utilidades compartidas para el cotizador Sifra.
 Funciones auxiliares extraídas de app.py para ser usadas por los blueprints.
 """
 import json

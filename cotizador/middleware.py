@@ -1,5 +1,5 @@
 """
-Middleware multi-tenant para CWS Cotizador SaaS.
+Middleware multi-tenant para Sifra Cotizador SaaS.
 
 Antes de cada request:
 1. Verifica que el usuario esté autenticado (session con Supabase Auth)
@@ -156,7 +156,7 @@ def _load_company_from_db(supabase_manager, company_id):
             cursor.execute(
                 """SELECT id, name, slug, tax_id, address, phone, email,
                    logo_url, primary_color, secondary_color, footer_text,
-                   iva_rate, is_active, plan
+                   iva_rate, is_active, plan, codigo, legacy_drive_import
                 FROM public.companies WHERE id = %s AND is_active = true""",
                 (company_id,)
             )

@@ -1,13 +1,8 @@
 @echo off
-title CWS - Instalador de App de Escritorio
+title Sifra - Instalador de App de Escritorio
 color 0B
 echo.
-echo     ██████╗██╗    ██╗███████╗
-echo    ██╔════╝██║    ██║██╔════╝
-echo    ██║     ██║ █╗ ██║███████╗
-echo    ██║     ██║███╗██║╚════██║
-echo    ╚██████╗╚███╔███╔╝███████║
-echo     ╚═════╝ ╚══╝╚══╝ ╚══════╝
+echo          S I F R A
 echo.
 echo    SISTEMA DE COTIZACIONES
 echo      INSTALADOR DE APP
@@ -96,13 +91,13 @@ echo 🎉 ¡INSTALACIÓN COMPLETADA!
 echo ==========================================
 echo.
 echo 📁 Archivos creados:
-if exist "dist\CWS_Cotizaciones.exe" echo    ✅ dist\CWS_Cotizaciones.exe (App completa)
+if exist "dist\Sifra_Cotizaciones.exe" echo    ✅ dist\Sifra_Cotizaciones.exe (App completa)
 if exist "Accesos_Directos_CWS" echo    ✅ Accesos_Directos_CWS\ (Accesos directos)
 if exist "static\manifest.json" echo    ✅ PWA configurada
 echo    ✅ Iconos profesionales en static\
 echo.
 echo 📤 Para distribuir a usuarios:
-echo    • App completa: Envía dist\CWS_Cotizaciones.exe
+echo    • App completa: Envía dist\Sifra_Cotizaciones.exe
 echo    • Accesos directos: Envía carpeta Accesos_Directos_CWS\
 echo    • PWA: Los usuarios instalan desde el navegador
 echo.

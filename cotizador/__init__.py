@@ -1,5 +1,5 @@
 """
-CWS Cotizador - Aplicación Flask modularizada.
+Sifra Cotizador - Aplicación Flask modularizada.
 Factory pattern para inicializar la app con todos sus componentes.
 """
 import os
@@ -270,7 +270,7 @@ def create_app():
         stats = db_manager.obtener_estadisticas()
         return jsonify({
             "status": "ok",
-            "app": os.getenv('APP_NAME', 'CWS Cotizaciones'),
+            "app": os.getenv('APP_NAME', 'Sifra'),
             "version": os.getenv('APP_VERSION', '1.0.0'),
             "modo": "offline" if db_manager.modo_offline else "online",
             **stats

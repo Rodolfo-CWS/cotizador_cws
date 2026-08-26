@@ -1,4 +1,6 @@
-# 🏗️ CWS Cotizador - Sistema Profesional de Cotizaciones
+# 🏗️ Sifra - Sistema Profesional de Cotizaciones
+
+> **Rebranding:** la app (antes "CWS Cotizador") ahora se llama **Sifra**. CWS Company pasa a ser un tenant más; la marca y el código del folio son ahora genéricos/por compañía.
 
 **Sistema profesional de cotizaciones con arquitectura híbrida Supabase, almacenamiento permanente en la nube y capacidades offline completas.**
 
@@ -42,7 +44,7 @@
 - ✅ Formulario dinámico con items y materiales
 - ✅ Cálculos automáticos en tiempo real (subtotales, IVA 16%, total)
 - ✅ Sistema de revisiones (R1, R2, R3...) con justificación obligatoria
-- ✅ Numeración automática: `CLIENTE-CWS-VENDEDOR-###-R#-PROYECTO`
+- ✅ Numeración automática: `CLIENTE-<CODIGO>-VENDEDOR-###-R#-PROYECTO` (código por compañía)
 - ✅ Validación completa client-side y server-side
 
 ### 💾 **Sistema de Borradores (Drafts)**
@@ -56,7 +58,7 @@
 ### 📄 **Generación Profesional de PDFs**
 - ✅ **ReportLab** como motor principal (PDFs de 36KB+)
 - ✅ **WeasyPrint** como motor de respaldo
-- ✅ Diseño corporativo CWS con logo y colores oficiales
+- ✅ Diseño corporativo del tenant con logo y colores oficiales
 - ✅ Formato profesional: encabezado, tablas estructuradas, resumen financiero
 - ✅ Descarga automática con nombres descriptivos
 - ✅ **Vista previa interactiva** antes de generar el PDF final
@@ -198,7 +200,7 @@ cotizador_cws/
 │   ├── cotizador_fallos_criticos.log
 │   └── fallos_silenciosos_detectados.log
 ├── static/
-│   ├── logo.png                     # Logo CWS
+│   ├── logo.png                     # Logo de la app
 │   └── manifest.json                # PWA manifest
 ├── templates/
 │   ├── home.html                    # Página principal con búsqueda y drafts
@@ -334,7 +336,7 @@ cotizador_cws/
 curl -X POST https://cotizador-cws.onrender.com/api/draft/save \
   -H "Content-Type: application/json" \
   -d '{
-    "vendedor": "RCWS",
+    "vendedor": "RAE",
     "datos": {
       "datosGenerales": {...},
       "items": [...],
@@ -343,7 +345,7 @@ curl -X POST https://cotizador-cws.onrender.com/api/draft/save \
   }'
 
 # Listar borradores
-curl https://cotizador-cws.onrender.com/api/draft/list?vendedor=RCWS
+curl https://cotizador-cws.onrender.com/api/draft/list?vendedor=RAE
 
 # Cargar borrador
 curl https://cotizador-cws.onrender.com/api/draft/load/draft_1234567890
@@ -566,13 +568,13 @@ curl https://cotizador-cws.onrender.com/api/draft/list
 - ✅ **Dual storage**: Supabase + JSON local automático
 
 ### ✨ PDFs Profesionales
-- ✅ **Diseño corporativo CWS**: Logo, colores, estructura oficial
+- ✅ **Diseño corporativo del tenant**: Logo, colores, estructura oficial
 - ✅ **36KB+ tamaño**: Documentos completos y profesionales
 - ✅ **Triple almacenamiento**: Supabase Storage + Google Drive + Local
 - ✅ **URLs directas**: Acceso inmediato sin redirects
 
 ### ✨ Numeración Automática
-- ✅ **Formato**: `CLIENTE-CWS-VENDEDOR-###-R#-PROYECTO`
+- ✅ **Formato**: `CLIENTE-<CODIGO>-VENDEDOR-###-R#-PROYECTO` (código por compañía)
 - ✅ **Sequential por vendedor**: Contadores independientes
 - ✅ **Revisiones**: R1 → R2 → R3... automático con justificación
 
@@ -634,7 +636,7 @@ curl -X POST https://cotizador-cws.onrender.com/buscar \
 curl https://cotizador-cws.onrender.com/api/draft/list
 
 # 4. Verificar PDF serving
-curl -I https://cotizador-cws.onrender.com/pdf/TEST-CWS-TEST-001-R1-TEST
+curl -I https://cotizador-cws.onrender.com/pdf/TEST-SIFRA-TEST-001-R1-TEST
 ```
 
 ### 4. Monitoreo Continuo
@@ -725,7 +727,7 @@ print(json.dumps(status, indent=2))
 ✅ **Zero Downtime Architecture**: Sistema garantizado 24/7
 ✅ **Triple-Layer Fallback**: PostgreSQL → SDK REST → JSON
 ✅ **Auto-Save System**: Borradores cada 30 segundos
-✅ **Professional PDFs**: Diseño corporativo oficial CWS
+✅ **Professional PDFs**: Diseño corporativo oficial de Sifra
 ✅ **AI-Powered Text**: Claude genera texto introductorio personalizado
 ✅ **PDF Preview Modal**: Editar texto IA antes de generar PDF
 ✅ **Minor Edits**: Correcciones sin nueva revisión, con preservación de IA
@@ -738,9 +740,9 @@ print(json.dumps(status, indent=2))
 
 **Última actualización:** Junio 18, 2026
 **Versión:** 2.3.0
-**Proyecto:** CWS Cotizador - Sistema Profesional de Cotizaciones
+**Proyecto:** Sifra - Sistema Profesional de Cotizaciones
 **Arquitectura:** Supabase Hybrid Triple-Layer + IA Anthropic Claude
 
 ---
 
-**Desarrollado con ❤️ para CWS Company**
+**Desarrollado con ❤️ — Sifra**

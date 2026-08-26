@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-"""Entry point for CWS Cotizador - Desarrollo local."""
+"""Entry point for Sifra Cotizador - Desarrollo local."""
 import os
 from cotizador import create_app
 
 app = create_app()
 
 if __name__ == "__main__":
-    app_name = os.getenv('APP_NAME', 'CWS Cotizaciones')
+    app_name = os.getenv('APP_NAME', 'Sifra')
     app_version = os.getenv('APP_VERSION', '1.0.0')
     environment = os.getenv('FLASK_ENV', 'development')
 
