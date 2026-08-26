@@ -746,6 +746,17 @@ def generar_desglose_pdf_reportlab(datos_cotizacion, company_branding=None):
     numero = datos_cotizacion.get('numeroCotizacion', datos_generales.get('numeroCotizacion', 'N/A'))
     revision = datos_generales.get('revision', '1')
 
+    # Fecha del desglose (misma lógica que el PDF principal)
+    fecha_guardada = datos_generales.get('fecha', '')
+    if fecha_guardada:
+        try:
+            fecha_dt = datetime.datetime.strptime(fecha_guardada[:10], '%Y-%m-%d')
+            fecha_actual = fecha_dt.strftime('%d/%m/%Y')
+        except (ValueError, TypeError):
+            fecha_actual = datetime.datetime.now().strftime('%d/%m/%Y')
+    else:
+        fecha_actual = datetime.datetime.now().strftime('%d/%m/%Y')
+
     # ── TÍTULO ──
     story.append(Paragraph("DESGLOSE DE COTIZACIÓN", title_style))
     story.append(Paragraph(
