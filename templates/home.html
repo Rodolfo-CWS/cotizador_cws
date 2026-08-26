@@ -276,7 +276,6 @@
                         <td>
                             <div class="acciones-col">
                                 <a href="/pdf/{{ cot.numero }}" target="_blank" class="btn-icon" title="Ver PDF en nueva pestaña">PDF</a>
-                                <button class="btn-icon" onclick="descargarOCompartirPDF('{{ cot.numero }}')" title="Descargar o compartir PDF">Descargar</button>
                                 {% if cot.es_simple %}
                                 <a href="/cotizacion-pdf?numero={{ cot.numero | urlencode }}" class="btn-icon" title="Editar cotización">Editar</a>
                                 {% endif %}
@@ -572,20 +571,6 @@
             });
         }
 
-        function descargarOCompartirPDF(numero) {
-            const url = `/pdf/${numero}`;
-            if (navigator.share) {
-                navigator.share({ url: window.location.origin + url })
-                    .catch(() => {});
-            } else {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${numero}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }
-        }
     </script>
 </body>
 </html>
