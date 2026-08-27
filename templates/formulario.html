@@ -4495,6 +4495,33 @@ async function guardarEdicionMenor() {
     try {
         const numero = DATOS_EDICION_MENOR.numeroCotizacion;
 
+        // Para revisiones (R>1), regenerar el texto introductorio con IA para que
+        // refleje los cambios de esta revisión (evita heredar el texto de la R anterior).
+        let textoParaGuardar = textoIntroductorioGuardado || '';
+        const revisionActual = parseInt((DATOS_EDICION_MENOR.datosGenerales || {}).revision || '1', 10);
+        if (revisionActual > 1) {
+            try {
+                const respAI = await fetch('/api/generar-texto-ia', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        numeroCotizacion: numero,
+                        datosGenerales: recopilarDatosGenerales(),
+                        items: recopilarItems(),
+                        condiciones: recopilarCondiciones(),
+                        revision: String(revisionActual),
+                        cambiosRevision: ''
+                    })
+                });
+                const resAI = await respAI.json();
+                if (resAI.success && resAI.texto) {
+                    textoParaGuardar = resAI.texto;
+                }
+            } catch (e) {
+                console.warn('[EDICION_MENOR] No se pudo regenerar el texto IA:', e);
+            }
+        }
+
         // Recopilar datos completos (proyecto, condiciones, items completos)
         const parche = { datosGenerales: {}, condiciones: {}, items: [] };
 
@@ -4592,9 +4619,9 @@ async function guardarEdicionMenor() {
             });
         });
 
-        // Preservar texto introductorio IA
-        if (textoIntroductorioGuardado) {
-            parche.textoIntroductorio = textoIntroductorioGuardado;
+        // Preservar texto introductorio IA (regenerado para revisiones R>1)
+        if (textoParaGuardar) {
+            parche.textoIntroductorio = textoParaGuardar;
         }
 
         // Incluir imagen de referencia
@@ -4640,8 +4667,8 @@ async function guardarEdicionMenor() {
 
             // Regenerar PDF en segundo plano con el nuevo número
             const bodyPDF = { numeroCotizacion: nuevoNumero };
-            if (textoIntroductorioGuardado) {
-                bodyPDF.textoPersonalizado = textoIntroductorioGuardado;
+            if (textoParaGuardar) {
+                bodyPDF.textoPersonalizado = textoParaGuardar;
             }
             fetch('/generar_pdf', {
                 method: 'POST',

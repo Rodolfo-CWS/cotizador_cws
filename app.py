@@ -3002,8 +3002,12 @@ def generar_texto_ia():
             except Exception as e:
                 print(f"[IA] Error buscando texto guardado: {e}")
 
-        # Si ya existe texto guardado, devolverlo sin llamar a Claude
-        if texto_guardado:
+        # Para revisiones (R>1) NO reusar el texto guardado: es el heredado de la
+        # revisión anterior y debe regenerarse para reflejar los cambios de esta.
+        es_revision = str(datos.get('revision', '1') or '1') != '1'
+
+        # Si ya existe texto guardado Y no es una revisión, devolverlo sin llamar a Claude
+        if texto_guardado and not es_revision:
             return jsonify({
                 "success": True,
                 "texto": texto_guardado,
