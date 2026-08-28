@@ -239,9 +239,11 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         ['Atención A:', p(datos_generales.get('atencionA', '')), 'Contacto:', p(datos_generales.get('contacto', ''))],
     ]
 
-    if datos_generales.get('revision', '1') != '1':
-        info_data.append(['Revisión:', p(f"Rev. {datos_generales.get('revision', '1')}"),
-                         'Actualización:', p(datos_generales.get('actualizacionRevision', ''))])
+    revision_val = str(datos_generales.get('revision', '1'))
+    actualizacion_val = (datos_generales.get('actualizacionRevision') or '').strip()
+    if revision_val != '1' or actualizacion_val:
+        info_data.append(['Revisión:', p(f"Rev. {revision_val}"),
+                         'Actualización:', p(actualizacion_val)])
 
     info_table = Table(info_data, colWidths=[1.0*inch, 2.65*inch, 1.0*inch, 2.65*inch])
     info_table.setStyle(TableStyle([
@@ -315,7 +317,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         story.append(Paragraph("ITEMS DE COTIZACIÓN", subtitle_style))
         story.append(Spacer(1, 6))
 
-        items_data = [['ITEM', 'DESCRIPCIÓN', 'CANT.', 'UOM', 'PRECIO UNIT.', 'TOTAL']]
+        items_data = [['ITEM', 'DESCRIPCIÓN', 'CANT.', 'UDM', 'PRECIO UNIT.', 'TOTAL']]
         subtotal = 0
 
         for i, item in enumerate(items):
@@ -632,6 +634,16 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     footer_text = branding.get('footer_text', DEFAULT_BRANDING['footer_text'])
 
     story.append(Paragraph(footer_text, footer_style))
+
+    # Línea de marca solo para cotizaciones del plan simple (PDF)
+    if datos_cotizacion.get('tipo') == 'simple':
+        generated_style = ParagraphStyle(
+            'GeneratedBy', parent=styles['Normal'],
+            fontSize=7, fontName='Helvetica',
+            textColor=TEXT_GRAY, alignment=1
+        )
+        story.append(Spacer(1, 4))
+        story.append(Paragraph("Cotización generada con Sifra", generated_style))
 
     # Construir PDF
     doc.build(story)

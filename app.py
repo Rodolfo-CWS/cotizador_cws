@@ -3508,7 +3508,8 @@ def cotizacion_pdf():
             except Exception as e:
                 print(f"[COTIZACION-PDF] Error cargando para editar: {e}")
         return render_template(
-            "pdf_simple.html", company=company, cotizacion_edit=cotizacion_edit
+            "pdf_simple.html", company=company, cotizacion_edit=cotizacion_edit,
+            user_name=session.get("user_name", ""),
         )
 
     try:
@@ -3608,12 +3609,13 @@ def cotizacion_pdf():
             "tipo": "simple",
             "numeroCotizacion": numero,
             "cliente": datos_generales.get("cliente", ""),
-            "vendedor": datos_generales.get("vendedor", ""),
+            "vendedor": datos_generales.get("vendedor") or session.get("user_name", ""),
             "proyecto": datos_generales.get("proyecto", ""),
             "atencionA": datos_generales.get("atencionA", ""),
             "contacto": datos_generales.get("contacto", ""),
             "fecha": datos_generales.get("fecha") or datetime.datetime.now().strftime("%Y-%m-%d"),
-            "revision": 1,
+            "revision": str(datos_generales.get("revision") or "1"),
+            "actualizacionRevision": (datos_generales.get("actualizacionRevision") or "").strip(),
             "textoIntroductorio": texto_personalizado,
             "condiciones": condiciones_guardar,
         },
@@ -3621,6 +3623,21 @@ def cotizacion_pdf():
         "condiciones": condiciones_guardar,
         "totales": {"subtotal": subtotal, "iva": iva, "total": total},
     }
+
+    # ── Imagen de referencia (opcional) ──
+    img_payload = datos.get("imagenReferencia")
+    img_ref = None
+    if img_payload and img_payload.get("base64"):
+        img_ref = procesar_imagen_referencia(datos, numero or "nueva")
+    elif img_payload and img_payload.get("conservar") and numero_existente:
+        try:
+            existente = db_manager.obtener_cotizacion(numero_existente)
+            if existente.get("encontrado"):
+                img_ref = (existente.get("item") or {}).get("datosGenerales", {}).get("imagenReferencia")
+        except Exception as e:
+            print(f"[COTIZACION-PDF] Error conservando imagen: {e}")
+    if img_ref:
+        datos_completos["datosGenerales"]["imagenReferencia"] = img_ref
 
     resultado = db_manager.guardar_cotizacion(datos_completos, company_id=company_id)
     if not resultado.get("success"):
