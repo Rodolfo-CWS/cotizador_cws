@@ -118,7 +118,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         'DescriptionStyle', parent=styles['Normal'],
         fontSize=9, fontName='Helvetica',
         alignment=0, leftIndent=0, rightIndent=0,
-        spaceAfter=0, spaceBefore=0, leading=11
+        spaceAfter=0, spaceBefore=0, leading=11, wordWrap='CJK'
     )
 
     # Extraer datos
@@ -163,7 +163,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     """, ParagraphStyle(
         'EmpresaInfo', parent=styles['Normal'],
         fontSize=9, fontName='Helvetica',
-        textColor=TEXT_DARK, alignment=0, leading=12
+        textColor=TEXT_DARK, alignment=0, leading=12, wordWrap='CJK'
     ))
 
     # Logo + empresa juntos en la izquierda
@@ -194,7 +194,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     """, ParagraphStyle(
         'CotizacionInfo', parent=styles['Normal'],
         fontSize=9, fontName='Helvetica-Bold',
-        textColor=CORPORATE_INDIGO, alignment=2
+        textColor=CORPORATE_INDIGO, alignment=2, wordWrap='CJK'
     ))
 
     # Header en 2 columnas: [Logo+Empresa] [Datos Cotización]
@@ -217,7 +217,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
             'ProyectoDestacado', parent=styles['Normal'],
             fontSize=10, fontName='Helvetica-Bold',
             textColor=WHITE, backColor=primary_color,
-            borderPadding=6, alignment=1
+            borderPadding=6, alignment=1, wordWrap='CJK'
         )
         story.append(Paragraph(f"PROYECTO: {datos_generales.get('proyecto', '')}", proyecto_style))
         story.append(Spacer(1, 6))
@@ -282,7 +282,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         'IntroText', parent=styles['Normal'],
         fontSize=9, fontName='Helvetica',
         textColor=TEXT_BODY, alignment=4,
-        spaceAfter=8, leading=13
+        spaceAfter=8, leading=13, wordWrap='CJK'
     )
 
     if texto_personalizado:
@@ -615,7 +615,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     closing_style = ParagraphStyle(
         'ClosingText', parent=styles['Normal'],
         fontSize=9, fontName='Helvetica',
-        textColor=TEXT_DARK, alignment=0
+        textColor=TEXT_DARK, alignment=0, wordWrap='CJK'
     )
     story.append(Paragraph(
         f"Atentamente,<br/><b>{vendedor}</b> — {branding['name']}", closing_style
@@ -627,7 +627,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         fontSize=7.5, fontName='Helvetica',
         textColor=TEXT_GRAY, alignment=1,
         borderPadding=5, backColor=BG_LIGHT,
-        borderColor=BORDER_GRAY, borderWidth=0.5
+        borderColor=BORDER_GRAY, borderWidth=0.5, wordWrap='CJK'
     )
 
     # Usar footer_text de la compañía o fallback
