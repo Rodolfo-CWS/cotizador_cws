@@ -531,11 +531,13 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     # ── IMAGEN DE REFERENCIA ──
     imagen_referencia = datos_cotizacion.get('datosGenerales', {}).get('imagenReferencia', None)
     if imagen_referencia and (imagen_referencia.get('url') or imagen_referencia.get('dataUri')):
-        img_url = imagen_referencia.get('url', '')
+        img_url = imagen_referencia.get('url', '') or ''
         img_path = None
         _is_temp = False
-        try:
-            if img_url.startswith('http'):
+
+        # 1) Intentar obtener la imagen por URL (Supabase Storage o local)
+        if img_url.startswith('http'):
+            try:
                 import urllib.request
                 import tempfile
                 req = urllib.request.Request(img_url, headers={'User-Agent': 'Sifra-Cotizador/1.0'})
@@ -546,32 +548,43 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
                     if 'text/html' in content_type:
                         raise Exception(f"Recibido HTML en vez de imagen. Content-Type: {content_type}")
                     img_bytes = response.read()
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.img') as tmp:
                     tmp.write(img_bytes)
                     img_path = tmp.name
                     _is_temp = True
-            elif img_url.startswith('/static/') or img_url.startswith('static/'):
-                clean_url = img_url.lstrip('/')
-                candidate = os.path.join(os.path.dirname(os.path.dirname(__file__)), clean_url)
-                if os.path.exists(candidate):
-                    img_path = candidate
-            elif os.path.exists(img_url):
-                img_path = img_url
+            except Exception as e:
+                print(f"[PDF_IMAGEN] No se pudo descargar URL ({img_url}): {e}")
+                img_path = None
+        elif img_url.startswith('/static/') or img_url.startswith('static/'):
+            clean_url = img_url.lstrip('/')
+            candidate = os.path.join(os.path.dirname(os.path.dirname(__file__)), clean_url)
+            if os.path.exists(candidate):
+                img_path = candidate
+        elif img_url and os.path.exists(img_url):
+            img_path = img_url
 
-            # Fallback: si no se pudo obtener por URL, usar dataUri (base64)
-            if (not img_path or not os.path.exists(img_path)) and imagen_referencia.get('dataUri'):
+        # 2) Fallback: si no se pudo obtener por URL, usar dataUri (base64)
+        if (not img_path or not os.path.exists(img_path)) and imagen_referencia.get('dataUri'):
+            try:
                 import tempfile
                 data_uri = imagen_referencia.get('dataUri', '')
                 if ',' in data_uri:
                     _, encoded = data_uri.split(',', 1)
                 else:
                     encoded = data_uri
-                img_bytes = base64.b64decode(encoded)
-                img_bytes = io.BytesIO(img_bytes)
-                img_path = img_bytes  # BytesIO, no archivo — se usa directo
-                print(f"[PDF_IMAGEN] Usando dataUri (fallback base64, {img_bytes.getbuffer().nbytes} bytes)")
+                raw = base64.b64decode(encoded)
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.img') as tmp:
+                    tmp.write(raw)
+                    img_path = tmp.name
+                    _is_temp = True
+                print(f"[PDF_IMAGEN] Usando dataUri (fallback base64, {len(raw)} bytes)")
+            except Exception as e:
+                print(f"[PDF_IMAGEN] Error decodificando dataUri: {e}")
+                img_path = None
 
-            if img_path and (hasattr(img_path, 'read') or os.path.exists(img_path)):
+        # 3) Incrustar la imagen en el PDF
+        if img_path and os.path.exists(img_path):
+            try:
                 from reportlab.lib.utils import ImageReader
                 img_reader = ImageReader(img_path)
                 img_w, img_h = img_reader.getSize()
@@ -596,16 +609,16 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
                 story.append(Spacer(1, 4))
 
                 print(f"[PDF_IMAGEN] Imagen incrustada ({display_w:.0f}x{display_h:.0f}px)")
-            else:
-                print(f"[PDF_IMAGEN] No se pudo resolver imagen (URL: {img_url}, dataUri: {bool(imagen_referencia.get('dataUri'))})")
-        except Exception as e:
-            print(f"[PDF_IMAGEN] Error incrustando imagen (se omite): {e}")
-        finally:
-            if _is_temp and img_path and os.path.exists(img_path):
-                try:
-                    os.unlink(img_path)
-                except Exception:
-                    pass
+            except Exception as e:
+                print(f"[PDF_IMAGEN] Error renderizando imagen: {e}")
+        else:
+            print(f"[PDF_IMAGEN] No se pudo resolver imagen (URL: {img_url}, dataUri: {bool(imagen_referencia.get('dataUri'))})")
+
+        if _is_temp and img_path and os.path.exists(img_path):
+            try:
+                os.unlink(img_path)
+            except Exception:
+                pass
 
     # ── PIE DE PÁGINA ──
     story.append(Spacer(1, 8))
