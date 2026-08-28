@@ -214,9 +214,9 @@
             }).join('');
             tr.innerHTML = `
                 <td><input type="text" class="item-desc" value="${esc(desc)}" placeholder="Descripción del concepto"></td>
-                <td><input type="number" class="item-cant" min="0" step="any" value="${cant}" placeholder="0" oninput="recalcular()"></td>
+                <td><input type="number" class="item-cant" min="0" step="any" value="${cant}" placeholder="0" oninput="recalcular()" onchange="recalcular()"></td>
                 <td><select class="item-uom">${opcionesUom}</select></td>
-                <td><input type="number" class="item-precio" min="0" step="any" value="${precio}" placeholder="0.00" oninput="recalcular()"></td>
+                <td><input type="number" class="item-precio" min="0" step="any" value="${precio}" placeholder="0.00" oninput="recalcular()" onchange="recalcular()"></td>
                 <td><button type="button" class="btn btn-danger btn-sm" onclick="eliminarFila(${filaId})">✕</button></td>
             `;
             tbody.appendChild(tr);
