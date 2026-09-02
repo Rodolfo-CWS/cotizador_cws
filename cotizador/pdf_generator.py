@@ -5,6 +5,7 @@ import io
 import os
 import base64
 import datetime
+from xml.sax.saxutils import escape
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
@@ -286,7 +287,10 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     )
 
     if texto_personalizado:
-        intro_text = texto_personalizado.replace("\n", "<br/>\n")
+        # Escapar caracteres XML (&, <, >) antes de meter el texto en un
+        # Paragraph de ReportLab. Sin esto, un "&" o "<" en el texto generado
+        # por la IA rompe el parseo XML y lanza una excepción al generar el PDF.
+        intro_text = escape(texto_personalizado).replace("\n", "<br/>\n")
     else:
         intro_text = """Estimado Cliente,<br/>
         CWS Company presenta esta propuesta económica para el proyecto solicitado.
