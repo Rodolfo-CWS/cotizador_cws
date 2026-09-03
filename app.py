@@ -5782,6 +5782,63 @@ def info_sistema():
         "pdfs": pdf_info
     })
 
+@app.route("/debug/imagen")
+def debug_imagen_referencia():
+    """DEBUG TEMPORAL: inspecciona el estado de imagenReferencia de una cotización.
+
+    Devuelve SOLO metadatos (presencia de url/dataUri y tamaños), NUNCA el base64 completo.
+    Uso: /debug/imagen?numero=<folio>
+    """
+    numero = request.args.get('numero', '').strip()
+    if not numero:
+        return jsonify({"error": "Falta parámetro 'numero'"}), 400
+
+    try:
+        resultado = db_manager.obtener_cotizacion(numero)
+    except Exception as e:
+        return jsonify({"error": f"Error consultando cotización: {e}"}), 500
+
+    if not resultado.get("encontrado"):
+        return jsonify({
+            "encontrado": False,
+            "numero_buscado": numero,
+            "mensaje": resultado.get("mensaje", "No encontrada"),
+            "modo": resultado.get("modo", "desconocido"),
+        })
+
+    item = resultado.get("item") or {}
+    dg = item.get("datosGenerales") or {}
+    img = dg.get("imagenReferencia") or {}
+
+    url = img.get("url") or ""
+    data_uri = img.get("dataUri") or ""
+
+    def _resumir_url(u):
+        if not u:
+            return None
+        if u.startswith('http'):
+            from urllib.parse import urlparse
+            p = urlparse(u)
+            return {"scheme": p.scheme, "netloc": p.netloc, "path": p.path, "tiene_query": bool(p.query)}
+        return u
+
+    return jsonify({
+        "encontrado": True,
+        "numero": numero,
+        "modo": resultado.get("modo", "desconocido"),
+        "imagenReferencia": {
+            "presente": bool(img),
+            "url": _resumir_url(url),
+            "tiene_dataUri": bool(data_uri),
+            "dataUri_longitud": len(data_uri) if data_uri else 0,
+            "dataUri_prefijo": data_uri[:30] if data_uri else None,
+            "nombre": img.get("nombre"),
+            "tamano_bytes": img.get("tamano_bytes"),
+            "mime_type": img.get("mime_type"),
+            "claves": sorted(img.keys()) if isinstance(img, dict) else None,
+        }
+    })
+
 @app.route("/debug-pdfs")
 def debug_pdfs_simple():
     """Debug simple para ver PDFs en Google Drive"""

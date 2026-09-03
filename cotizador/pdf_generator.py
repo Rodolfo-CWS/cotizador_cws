@@ -534,54 +534,18 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         img_url = imagen_referencia.get('url', '') or ''
         raw = None
 
-        # 1) Obtener los bytes de la imagen (por URL de Supabase o archivo local)
-        if img_url.startswith('http'):
+        def _es_imagen_valida(raw_bytes):
             try:
-                import urllib.request
-                req = urllib.request.Request(img_url, headers={'User-Agent': 'Sifra-Cotizador/1.0'})
-                with urllib.request.urlopen(req, timeout=15) as response:
-                    content_type = response.headers.get('Content-Type', '')
-                    if response.status != 200:
-                        raise Exception(f"HTTP {response.status}")
-                    if 'text/html' in content_type:
-                        raise Exception(f"Recibido HTML en vez de imagen. Content-Type: {content_type}")
-                    raw = response.read()
-            except Exception as e:
-                print(f"[PDF_IMAGEN] No se pudo descargar URL ({img_url}): {e}")
-                raw = None
-        elif img_url.startswith('/static/') or img_url.startswith('static/'):
-            clean_url = img_url.lstrip('/')
-            candidate = os.path.join(os.path.dirname(os.path.dirname(__file__)), clean_url)
-            if os.path.exists(candidate):
-                try:
-                    with open(candidate, 'rb') as f:
-                        raw = f.read()
-                except Exception as e:
-                    print(f"[PDF_IMAGEN] Error leyendo archivo local: {e}")
-                    raw = None
-        elif img_url and os.path.exists(img_url):
-            try:
-                with open(img_url, 'rb') as f:
-                    raw = f.read()
-            except Exception as e:
-                print(f"[PDF_IMAGEN] Error leyendo archivo: {e}")
-                raw = None
+                from reportlab.lib.utils import ImageReader as _IR
+                _IR(io.BytesIO(raw_bytes)).getSize()
+                return True
+            except Exception:
+                return False
 
-        # 1b) Validar que los bytes descargados de URL/local sean realmente una imagen.
-        #     Si Supabase devuelve un error JSON/HTML (por ejemplo, objeto no público o
-        #     bucket sin permiso), el Content-Type puede no ser 'text/html' y 'raw' quedaría
-        #     con bytes no válidos; al validar aquí, el fallback a dataUri se activa y la
-        #     foto sí sale en el PDF.
-        if raw:
-            try:
-                from reportlab.lib.utils import ImageReader as _ImageReaderValidate
-                _ImageReaderValidate(io.BytesIO(raw)).getSize()
-            except Exception as e:
-                print(f"[PDF_IMAGEN] Bytes de URL/local no son imagen válida ({e}); usando dataUri")
-                raw = None
-
-        # 2) Fallback: si no se pudo obtener por URL, usar dataUri (base64)
-        if not raw and imagen_referencia.get('dataUri'):
+        # 1) PRIORIDAD: dataUri (base64 persistente). Es la copia más confiable:
+        #    siempre está presente (la guarda procesar_imagen_referencia) y no depende
+        #    de red, de permisos del bucket ni de que la URL de Supabase siga viva.
+        if imagen_referencia.get('dataUri'):
             try:
                 data_uri = imagen_referencia.get('dataUri', '')
                 if ',' in data_uri:
@@ -589,9 +553,51 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
                 else:
                     encoded = data_uri
                 raw = base64.b64decode(encoded)
-                print(f"[PDF_IMAGEN] Usando dataUri (fallback base64, {len(raw)} bytes)")
+                print(f"[PDF_IMAGEN] Usando dataUri (base64, {len(raw)} bytes)")
             except Exception as e:
                 print(f"[PDF_IMAGEN] Error decodificando dataUri: {e}")
+                raw = None
+
+            if raw and not _es_imagen_valida(raw):
+                print("[PDF_IMAGEN] Bytes de dataUri no son imagen válida; se intentará URL")
+                raw = None
+
+        # 2) FALLBACK: descargar de URL (Supabase Storage) o leer archivo local.
+        if not raw and img_url:
+            if img_url.startswith('http'):
+                try:
+                    import urllib.request
+                    req = urllib.request.Request(img_url, headers={'User-Agent': 'Sifra-Cotizador/1.0'})
+                    with urllib.request.urlopen(req, timeout=15) as response:
+                        content_type = response.headers.get('Content-Type', '')
+                        if response.status != 200:
+                            raise Exception(f"HTTP {response.status}")
+                        if 'text/html' in content_type:
+                            raise Exception(f"Recibido HTML en vez de imagen. Content-Type: {content_type}")
+                        raw = response.read()
+                except Exception as e:
+                    print(f"[PDF_IMAGEN] No se pudo descargar URL ({img_url}): {e}")
+                    raw = None
+            elif img_url.startswith('/static/') or img_url.startswith('static/'):
+                clean_url = img_url.lstrip('/')
+                candidate = os.path.join(os.path.dirname(os.path.dirname(__file__)), clean_url)
+                if os.path.exists(candidate):
+                    try:
+                        with open(candidate, 'rb') as f:
+                            raw = f.read()
+                    except Exception as e:
+                        print(f"[PDF_IMAGEN] Error leyendo archivo local: {e}")
+                        raw = None
+            elif os.path.exists(img_url):
+                try:
+                    with open(img_url, 'rb') as f:
+                        raw = f.read()
+                except Exception as e:
+                    print(f"[PDF_IMAGEN] Error leyendo archivo: {e}")
+                    raw = None
+
+            if raw and not _es_imagen_valida(raw):
+                print("[PDF_IMAGEN] Bytes de URL/local no son imagen válida")
                 raw = None
 
         # 3) Incrustar la imagen en el PDF desde bytes en memoria (sin archivo temporal,
