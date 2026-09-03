@@ -3638,6 +3638,9 @@ def cotizacion_pdf():
             print(f"[COTIZACION-PDF] Error conservando imagen: {e}")
     if img_ref:
         datos_completos["datosGenerales"]["imagenReferencia"] = img_ref
+        print(f"[COTIZACION-PDF] Imagen de referencia incluida: url={bool(img_ref.get('url'))}, dataUri={bool(img_ref.get('dataUri'))}")
+    else:
+        print(f"[COTIZACION-PDF] Sin imagen de referencia (img_payload={bool(img_payload)}, base64={bool(img_payload and img_payload.get('base64'))}, conservar={bool(img_payload and img_payload.get('conservar'))})")
 
     resultado = db_manager.guardar_cotizacion(datos_completos, company_id=company_id)
     if not resultado.get("success"):

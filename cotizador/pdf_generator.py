@@ -567,6 +567,19 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
                 print(f"[PDF_IMAGEN] Error leyendo archivo: {e}")
                 raw = None
 
+        # 1b) Validar que los bytes descargados de URL/local sean realmente una imagen.
+        #     Si Supabase devuelve un error JSON/HTML (por ejemplo, objeto no público o
+        #     bucket sin permiso), el Content-Type puede no ser 'text/html' y 'raw' quedaría
+        #     con bytes no válidos; al validar aquí, el fallback a dataUri se activa y la
+        #     foto sí sale en el PDF.
+        if raw:
+            try:
+                from reportlab.lib.utils import ImageReader as _ImageReaderValidate
+                _ImageReaderValidate(io.BytesIO(raw)).getSize()
+            except Exception as e:
+                print(f"[PDF_IMAGEN] Bytes de URL/local no son imagen válida ({e}); usando dataUri")
+                raw = None
+
         # 2) Fallback: si no se pudo obtener por URL, usar dataUri (base64)
         if not raw and imagen_referencia.get('dataUri'):
             try:
