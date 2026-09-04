@@ -3423,6 +3423,7 @@ REGLAS:
         # Salida estructurada: fuerza que Claude devuelva JSON válido (evita texto libre).
         json_schema = {
             "type": "object",
+            "additionalProperties": False,
             "properties": {
                 "needs_clarification": {"type": "boolean"},
                 "analisis": {"type": "string"},
@@ -3431,6 +3432,7 @@ REGLAS:
                     "type": "array",
                     "items": {
                         "type": "object",
+                        "additionalProperties": False,
                         "properties": {
                             "concepto": {"type": "string"},
                             "cantidad": {"type": "number"},
