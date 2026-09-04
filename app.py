@@ -841,37 +841,6 @@ def procesar_imagen_referencia(datos, numero_cotizacion):
         "mime_type": mime_type
     }
 
-
-def _diagnosticar_imagen_falla(base64_str, mime_type):
-    """Devuelve la razón por la que procesar_imagen_referencia fallaría (solo diagnóstico).
-
-    Revalida el payload SIN subir a Storage para saber exactamente qué validación
-    está rechazando la imagen. Se usa solo para el campo temporal imageDebug.
-    """
-    if not base64_str:
-        return "base64 vacío"
-    try:
-        import base64 as _b64
-        if ',' in base64_str:
-            _, encoded = base64_str.split(',', 1)
-        else:
-            encoded = base64_str
-        image_bytes = _b64.b64decode(encoded)
-    except Exception as e:
-        return f"base64 no decodifica: {e}"
-    if len(image_bytes) > 5 * 1024 * 1024:
-        return f"tamaño {len(image_bytes)} bytes > 5MB"
-    if mime_type not in ['image/jpeg', 'image/png']:
-        return f"MIME '{mime_type}' no soportado"
-    try:
-        from reportlab.lib.utils import ImageReader as _IR
-        import io as _io
-        _IR(_io.BytesIO(image_bytes)).getSize()
-    except Exception as e:
-        return f"no es imagen válida (PIL/reportlab): {e}"
-    return "pasó validación local (la falla sería en la subida a Storage)"
-
-
 # ============================================
 # FILTROS PARA TEMPLATES
 # ============================================
@@ -3669,51 +3638,20 @@ def cotizacion_pdf():
     # ── Imagen de referencia (opcional) ──
     img_payload = datos.get("imagenReferencia")
     img_ref = None
-    image_debug = {"img_payload_presente": bool(img_payload)}
-
-    if isinstance(img_payload, dict):
-        image_debug["img_payload_claves"] = sorted(img_payload.keys())
-        image_debug["base64_presente"] = bool(img_payload.get("base64"))
-        image_debug["base64_longitud"] = len(img_payload.get("base64") or "")
-        image_debug["base64_prefijo"] = (img_payload.get("base64") or "")[:30]
-        image_debug["mime_type_enviado"] = img_payload.get("mime_type")
-        image_debug["conservar"] = bool(img_payload.get("conservar"))
-
     if img_payload and img_payload.get("base64"):
-        try:
-            img_ref = procesar_imagen_referencia(datos, numero or "nueva")
-        except Exception as e:
-            image_debug["procesar_excepcion"] = repr(e)
-        if img_ref:
-            image_debug["img_ref_url"] = bool(img_ref.get("url"))
-            image_debug["img_ref_dataUri"] = bool(img_ref.get("dataUri"))
-            image_debug["img_ref_dataUri_len"] = len(img_ref.get("dataUri") or "")
-        else:
-            image_debug["razon_falla"] = _diagnosticar_imagen_falla(
-                img_payload.get("base64") or "", img_payload.get("mime_type")
-            )
+        img_ref = procesar_imagen_referencia(datos, numero or "nueva")
     elif img_payload and img_payload.get("conservar") and numero_existente:
         try:
             existente = db_manager.obtener_cotizacion(numero_existente)
             if existente.get("encontrado"):
                 img_ref = (existente.get("item") or {}).get("datosGenerales", {}).get("imagenReferencia")
-                image_debug["conservar_encontrado"] = bool(img_ref)
-            else:
-                image_debug["conservar_encontrado"] = False
         except Exception as e:
             print(f"[COTIZACION-PDF] Error conservando imagen: {e}")
-            image_debug["conservar_excepcion"] = repr(e)
-    else:
-        image_debug["razon_falla"] = "sin base64 y sin conservar"
-
     if img_ref:
         datos_completos["datosGenerales"]["imagenReferencia"] = img_ref
         print(f"[COTIZACION-PDF] Imagen de referencia incluida: url={bool(img_ref.get('url'))}, dataUri={bool(img_ref.get('dataUri'))}")
     else:
-        print(f"[COTIZACION-PDF] Sin imagen de referencia: {image_debug}")
-
-    # Diagnóstico temporal (se inspecciona vía /debug/imagen y se quita luego)
-    datos_completos["datosGenerales"]["imageDebug"] = image_debug
+        print(f"[COTIZACION-PDF] Sin imagen de referencia (img_payload={bool(img_payload)}, base64={bool(img_payload and img_payload.get('base64'))}, conservar={bool(img_payload and img_payload.get('conservar'))})")
 
     resultado = db_manager.guardar_cotizacion(datos_completos, company_id=company_id)
     if not resultado.get("success"):
@@ -3744,7 +3682,6 @@ def cotizacion_pdf():
         "success": True,
         "numeroCotizacion": numero_final,
         "redirect": f"/pdf/{numero_final}",
-        "imageDebug": image_debug,
     })
 
 
@@ -5854,64 +5791,6 @@ def info_sistema():
             "default_page_size": int(os.getenv('DEFAULT_PAGE_SIZE', '20'))
         },
         "pdfs": pdf_info
-    })
-
-@app.route("/debug/imagen")
-def debug_imagen_referencia():
-    """DEBUG TEMPORAL: inspecciona el estado de imagenReferencia de una cotización.
-
-    Devuelve SOLO metadatos (presencia de url/dataUri y tamaños), NUNCA el base64 completo.
-    Uso: /debug/imagen?numero=<folio>
-    """
-    numero = request.args.get('numero', '').strip()
-    if not numero:
-        return jsonify({"error": "Falta parámetro 'numero'"}), 400
-
-    try:
-        resultado = db_manager.obtener_cotizacion(numero)
-    except Exception as e:
-        return jsonify({"error": f"Error consultando cotización: {e}"}), 500
-
-    if not resultado.get("encontrado"):
-        return jsonify({
-            "encontrado": False,
-            "numero_buscado": numero,
-            "mensaje": resultado.get("mensaje", "No encontrada"),
-            "modo": resultado.get("modo", "desconocido"),
-        })
-
-    item = resultado.get("item") or {}
-    dg = item.get("datosGenerales") or {}
-    img = dg.get("imagenReferencia") or {}
-
-    url = img.get("url") or ""
-    data_uri = img.get("dataUri") or ""
-
-    def _resumir_url(u):
-        if not u:
-            return None
-        if u.startswith('http'):
-            from urllib.parse import urlparse
-            p = urlparse(u)
-            return {"scheme": p.scheme, "netloc": p.netloc, "path": p.path, "tiene_query": bool(p.query)}
-        return u
-
-    return jsonify({
-        "encontrado": True,
-        "numero": numero,
-        "modo": resultado.get("modo", "desconocido"),
-        "imagenReferencia": {
-            "presente": bool(img),
-            "url": _resumir_url(url),
-            "tiene_dataUri": bool(data_uri),
-            "dataUri_longitud": len(data_uri) if data_uri else 0,
-            "dataUri_prefijo": data_uri[:30] if data_uri else None,
-            "nombre": img.get("nombre"),
-            "tamano_bytes": img.get("tamano_bytes"),
-            "mime_type": img.get("mime_type"),
-            "claves": sorted(img.keys()) if isinstance(img, dict) else None,
-        },
-        "imageDebug": dg.get("imageDebug"),
     })
 
 @app.route("/debug-pdfs")
