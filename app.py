@@ -3078,7 +3078,9 @@ Resumen de ítems cotizados:
                     system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}]
                 )
-                texto_generado = message.content[0].text
+                texto_generado = "".join(
+                    getattr(block, "text", "") or "" for block in message.content
+                )
                 print(f"[IA] Texto generado: {len(texto_generado)} caracteres")
 
                 return jsonify({
@@ -3424,7 +3426,10 @@ REGLAS:
             messages=[{"role": "user", "content": user_prompt}]
         )
 
-        raw_text = message.content[0].text
+        # Extraer solo bloques de texto; los ThinkingBlock no tienen .text
+        raw_text = "".join(
+            getattr(block, "text", "") or "" for block in message.content
+        )
         print(f"[FAST_QUOTE] Claude response: {len(raw_text)} chars")
 
         # 5. Extraer JSON de la respuesta
