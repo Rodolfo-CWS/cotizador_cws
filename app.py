@@ -3076,6 +3076,7 @@ Resumen de ítems cotizados:
                     model="claude-sonnet-5",
                     max_tokens=400,
                     system=system_prompt,
+                    thinking={"type": "disabled"},
                     messages=[{"role": "user", "content": user_prompt}]
                 )
                 texto_generado = "".join(
@@ -3423,6 +3424,7 @@ REGLAS:
             model="claude-sonnet-5",
             max_tokens=1500,
             system=system_prompt,
+            thinking={"type": "disabled"},
             messages=[{"role": "user", "content": user_prompt}]
         )
 
