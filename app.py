@@ -3555,6 +3555,17 @@ def cotizacion_pdf():
     numero_existente = (datos.get("numeroCotizacion") or "").strip()
     nombre_usuario = (datos.get("nombre") or "").strip()
 
+    # ── Validación server-side (defensa en profundidad) ──
+    # No guardar cotizaciones vacías. Evita que se creen registros "en cero"
+    # si el frontend se salta su validación (caché del navegador, error de JS
+    # o envío directo a la API). Un PDF válido siempre tiene cliente y ≥1 concepto.
+    cliente_val = (datos_generales.get("cliente") or "").strip() if isinstance(datos_generales, dict) else ""
+    if not cliente_val or not isinstance(items, list) or len(items) == 0:
+        return jsonify({
+            "success": False,
+            "error": "La cotización está vacía. Agrega un cliente y al menos un concepto.",
+        }), 400
+
     # ── IVA rate de la compañía ──
     try:
         iva_rate = float(company.get("iva_rate", 16.0))
