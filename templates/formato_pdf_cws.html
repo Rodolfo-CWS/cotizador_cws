@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cotización CWS - {{ numeroCotizacion }}</title>
+    <title>Cotización {{ company.name if company else 'Sifra' }} - {{ numeroCotizacion }}</title>
     <style>
         @page {
             size: letter;
@@ -471,18 +471,17 @@
 </head>
 <body>
     <!-- MARCA DE AGUA -->
-    <div class="watermark">CWS</div>
+    <div class="watermark">{{ company.codigo if company and company.codigo else 'Sifra' }}</div>
     
     <!-- ENCABEZADO -->
     <div class="header">
         <div class="header-content">
             <div class="company-section">
                 <div class="logo-container">
-                    <img src="file:///{{ logo_path }}" alt="CWS Company Logo">
+                    <img src="file:///{{ logo_path }}" alt="{{ company.name if company else 'Sifra' }} Logo">
                 </div>
-                <div class="company-name">CWS COMPANY SA DE CV</div>
-                <div class="company-address">Puerta de los monos 250</div>
-                <div class="company-address">78421 Villa de Pozos, SLP, México</div>
+                <div class="company-name">{{ company.name if company else 'Sifra' }}</div>
+                <div class="company-address">{{ company.address if company else '' }}</div>
             </div>
             
             <div class="quote-section">
@@ -539,7 +538,7 @@
     <!-- TEXTO INTRODUCTORIO -->
     <div class="intro-text">
         Estimado Cliente,<br><br>
-        Agradeciendo de antemano la oportunidad de participar en éste proyecto en marcha y de acuerdo con su solicitud, CWS se complace en presentar para su consideración, ésta propuesta económica relacionada con el tema mencionado anteriormente.<br><br>
+        Agradeciendo de antemano la oportunidad de participar en éste proyecto en marcha y de acuerdo con su solicitud, {{ company.name if company else 'Sifra' }} se complace en presentar para su consideración, ésta propuesta económica relacionada con el tema mencionado anteriormente.<br><br>
         Esperando haber entendido sus deseos correctamente y en su totalidad, permaneceremos a la espera de su agradecida noticia, mientras le enviamos nuestro más cordial saludo.
     </div>
 

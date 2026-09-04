@@ -1,7 +1,7 @@
 @echo off
-title CWS - Crear Accesos Directos para Usuarios
+title Sifra - Crear Accesos Directos para Usuarios
 echo ==========================================
-echo       CREAR ACCESOS DIRECTOS CWS
+echo       CREAR ACCESOS DIRECTOS SIFRA
 echo ==========================================
 echo.
 
@@ -25,20 +25,20 @@ if not exist "Accesos_Directos_CWS" mkdir "Accesos_Directos_CWS"
 
 REM Crear acceso directo principal
 echo Creando acceso directo principal...
-powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut('Accesos_Directos_CWS\\CWS Cotizaciones.lnk');$s.TargetPath='%URL%';$s.IconLocation='%~dp0static\\logo.ico';$s.Description='Sistema de Cotizaciones CWS Company';$s.Save()"
+powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut('Accesos_Directos_CWS\\Sifra.lnk');$s.TargetPath='%URL%';$s.IconLocation='%~dp0static\\logo.ico';$s.Description='Sifra - Sistema de Cotizaciones';$s.Save()"
 
 REM Crear script para abrir en navegador
-echo @echo off > "Accesos_Directos_CWS\CWS_Cotizaciones.bat"
-echo title CWS Cotizaciones >> "Accesos_Directos_CWS\CWS_Cotizaciones.bat"
-echo echo Abriendo CWS Cotizaciones... >> "Accesos_Directos_CWS\CWS_Cotizaciones.bat"
-echo start "" "%URL%" >> "Accesos_Directos_CWS\CWS_Cotizaciones.bat"
-echo exit >> "Accesos_Directos_CWS\CWS_Cotizaciones.bat"
+echo @echo off > "Accesos_Directos_CWS\Sifra_Cotizaciones.bat"
+echo title Sifra >> "Accesos_Directos_CWS\Sifra_Cotizaciones.bat"
+echo echo Abriendo Sifra... >> "Accesos_Directos_CWS\Sifra_Cotizaciones.bat"
+echo start "" "%URL%" >> "Accesos_Directos_CWS\Sifra_Cotizaciones.bat"
+echo exit >> "Accesos_Directos_CWS\Sifra_Cotizaciones.bat"
 
 REM Crear archivo de instrucciones
-echo # 🏢 CWS Cotizaciones - Acceso para Usuarios > "Accesos_Directos_CWS\INSTRUCCIONES.md"
+echo # 🏢 Sifra - Acceso para Usuarios > "Accesos_Directos_CWS\INSTRUCCIONES.md"
 echo. >> "Accesos_Directos_CWS\INSTRUCCIONES.md"
 echo ## 🚀 Cómo Usar: >> "Accesos_Directos_CWS\INSTRUCCIONES.md"
-echo 1. **Doble clic** en `CWS Cotizaciones.lnk` >> "Accesos_Directos_CWS\INSTRUCCIONES.md"
+echo 1. **Doble clic** en `Sifra.lnk` >> "Accesos_Directos_CWS\INSTRUCCIONES.md"
 echo 2. Se abrirá automáticamente en tu navegador >> "Accesos_Directos_CWS\INSTRUCCIONES.md"
 echo 3. ¡Listo para crear cotizaciones! >> "Accesos_Directos_CWS\INSTRUCCIONES.md"
 echo. >> "Accesos_Directos_CWS\INSTRUCCIONES.md"

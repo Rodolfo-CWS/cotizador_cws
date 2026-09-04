@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cotizador CWS - Nuevo Formulario</title>
+    <title>Cotizador Sifra - Nuevo Formulario</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="/static/js/toast.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -4877,7 +4877,7 @@ async function abrirModalVistaPrevia(numeroCotizacion) {
         } else {
             document.getElementById('preview-texto-intro').value =
                 'Estimado Cliente,\n\n' +
-                'CWS Company se complace en presentar esta propuesta economica para el proyecto solicitado. ' +
+                '{{ company.name if company else 'Sifra' }} se complace en presentar esta propuesta economica para el proyecto solicitado. ' +
                 'Esperamos haber entendido sus requerimientos y permanecemos a la espera de su respuesta.';
             document.getElementById('preview-fuente').textContent = 'Texto generico (error: ' + error.message + ')';
         }

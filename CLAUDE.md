@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**CWS Cotizador** - Professional quotation system for CWS Company with automated PDF generation, hybrid database architecture, and production deployment on Render.
+**Sifra** (antes "CWS Cotizador") - Professional quotation system with automated PDF generation, hybrid database architecture, and production deployment on Render. CWS Company is now a tenant, not the brand.
 
 **Production URL**: https://cotizador-cws.onrender.com/
 
@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **PDF Generation**: Automatic generation with ReportLab (36KB+ PDFs) + permanent storage
 - **PDF Visualization**: ✅ **WORKING** - Direct PDF serving through Flask from Supabase Storage
 - **Automatic Workflow**: `/formulario` route generates PDFs and saves with triple redundancy
-- **Numbering System**: Automatic sequential numbering working correctly (format: CLIENT-CWS-VENDOR-###-R1-PROJECT)
+- **Numbering System**: Automatic sequential numbering working correctly (format: CLIENT-<CODIGO>-VENDOR-###-R1-PROJECT)
 - **Web Interface**: Responsive interface with real-time quotation management  
 - **Revision System**: ✅ **WORKING** - Create R1, R2, R3... revisions with SDK REST fallback
 - **Hybrid Database**: ✅ **BULLETPROOF** - PostgreSQL → SDK REST → JSON with automatic fallback
@@ -40,7 +40,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **PDF Visualization Issues**: ✅ **RESOLVED** - Fixed redirect problems and empty URLs in PDF serving (August 26, 2025)
 - **Supabase Storage URL Issues**: ✅ **RESOLVED** - Fixed empty ruta_completa in PDF search results
 - **Supabase Client Initialization**: ✅ **RESOLVED** - Fixed 'proxy' parameter error by updating to supabase>=2.5.0
-- **Number Generation**: ✅ **WORKING** - Automatic sequential numbering (CLIENT-CWS-VENDOR-###-R1-PROJECT)
+- **Number Generation**: ✅ **WORKING** - Automatic sequential numbering (CLIENT-<CODIGO>-VENDOR-###-R1-PROJECT)
 - **PDF Storage Architecture**: ✅ **UNIFIED** - Supabase Storage primary + Google Drive and local fallback
 - **Unicode Compatibility**: ✅ **RESOLVED** - Full Windows/Linux compatibility maintained
 - **Offline Fallback**: ✅ **GUARANTEED** - System works 100% offline with JSON backup
@@ -434,12 +434,12 @@ curl https://cotizador-cws.onrender.com/admin/keepalive/stats
 - **Environment Detection**: Automatic Render.com vs local environment detection
 
 #### Business Logic Patterns
-- **Automatic Numbering**: `Cliente-CWS-VendedorIniciales-###-R#-Proyecto`
+- **Automatic Numbering**: `Cliente-<CODIGO>-VendedorIniciales-###-R#-Proyecto`
   - Format: Generated server-side in `database.py:generar_numero_automatico()`
   - Sequential per vendor: Separate counters for each vendedor
   - Client-side field disabled to prevent manual editing
 - **Revision Control**: Automatic versioning (R1, R2, R3...) with mandatory justification for R2+
-- **Professional PDF**: Corporate CWS design with logo, colors, and structured layout
+- **Professional PDF**: Corporate tenant design with logo, colors, and structured layout
 
 #### Error Handling Patterns
 - **Graceful Degradation**: System continues operating even with service failures
@@ -489,7 +489,7 @@ cotizador_cws/
 │   ├── cotizador_fallos_criticos.log      # Main application logs (rotated 10MB)
 │   └── fallos_silenciosos_detectados.log  # Critical failures only (rotated 5MB)
 ├── static/                   # Static assets
-│   ├── logo.png             # CWS Company logo
+│   ├── logo.png             # App logo
 │   └── manifest.json        # PWA manifest
 ├── templates/                # Jinja2 HTML templates
 │   ├── home.html            # ENHANCED: Unified search system (no more inconsistencies)
@@ -552,7 +552,7 @@ cotizador_cws/
 ## PDF Generation System
 
 ### ReportLab (Primary Engine)
-- **Professional format** with CWS corporate design
+- **Professional format** with tenant corporate design
 - **Features**: Logo, colors, structured tables, financial summaries
 - **Automatic storage** in Google Drive and local folders
 
@@ -578,7 +578,7 @@ cotizador_cws/
 ## Quotation System Features
 
 ### Automatic Numbering
-- **Format**: `CLIENTE-CWS-VendedorIniciales-###-R#-PROYECTO`
+- **Format**: `CLIENTE-<CODIGO>-VendedorIniciales-###-R#-PROYECTO`
 - **Sequential**: Auto-incremented per vendor and client
 - **Immutable**: Field disabled in frontend to prevent manual editing
 
@@ -694,7 +694,7 @@ GOOGLE_DRIVE_FOLDER_ANTIGUAS=1GqM9yfwUKd9n8nN97IUiBSUrWUZ1Vida
 
 - **Always test PDF generation** after changes - it's a core feature
 - **Maintain fallback systems** - users expect offline functionality
-- **Preserve numbering system** - critical for CWS business process
+- **Preserve numbering system** - critical for the business process
 - **Test on Windows** - primary deployment environment for local users
 - **Monitor Render logs** - production deployment requires monitoring
 
@@ -1016,7 +1016,7 @@ print(f'Storage disponible: {storage.is_available()}')
 ### **PDF Serving Validation:**
 ```bash
 # Test PDF endpoint directly
-curl -I https://cotizador-cws.onrender.com/pdf/CLIENT-CWS-VEN-001-R1-PROJECT
+curl -I https://cotizador-cws.onrender.com/pdf/CLIENT-SIFRA-VEN-001-R1-PROJECT
 
 # Expected Response:
 # HTTP/1.1 200 OK

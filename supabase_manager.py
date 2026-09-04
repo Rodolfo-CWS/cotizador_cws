@@ -111,7 +111,7 @@ class SupabaseManager:
                 self.database_url,
                 cursor_factory=RealDictCursor,
                 connect_timeout=10,
-                application_name="CWS_Cotizador"
+                application_name="Sifra_Cotizador"
             )
             
             print(f"[SUPABASE] Conexión PostgreSQL establecida")
@@ -594,8 +594,11 @@ class SupabaseManager:
 
                     print(f"[GUARDAR] Generando consecutivo para: Cliente='{cliente}', Vendedor='{vendedor}', Proyecto='{proyecto}', Rev={revision}")
 
+                    # Código corto de la compañía para el folio (multi-tenant)
+                    company_code = self._resolve_company_code(company_id)
+
                     # Usar el método consecutivo irrepetible solo para NUEVAS cotizaciones
-                    numero_cotizacion = self.generar_numero_cotizacion(cliente, vendedor, proyecto, revision)
+                    numero_cotizacion = self.generar_numero_cotizacion(cliente, vendedor, proyecto, revision, company_code=company_code)
                     datos['numeroCotizacion'] = numero_cotizacion
 
                     # Actualizar también en datosGenerales para consistencia
@@ -668,7 +671,7 @@ class SupabaseManager:
                     print(f"[GUARDAR] REINTENTO {intento}/{MAX_RETRIES-1} tras colisión de número...")
                     # Solo regenerar número para nuevas R1 (no para revisiones)
                     if es_nueva_r1:
-                        numero_cotizacion = self.generar_numero_cotizacion(cliente_r1, vendedor_r1, proyecto_r1, revision_r1)
+                        numero_cotizacion = self.generar_numero_cotizacion(cliente_r1, vendedor_r1, proyecto_r1, revision_r1, company_code=company_code)
                         datos['numeroCotizacion'] = numero_cotizacion
                         datos['datosGenerales']['numeroCotizacion'] = numero_cotizacion
                         print(f"[GUARDAR] Número regenerado en reintento: {numero_cotizacion}")
@@ -1567,7 +1570,7 @@ class SupabaseManager:
     def generar_numero_automatico(self, datos_generales: Dict) -> str:
         """
         Generar número automático de cotización
-        Formato: CLIENTE-CWS-VENDEDOR-###-R#-PROYECTO
+        Formato: CLIENTE-<CODIGO>-VENDEDOR-###-R#-PROYECTO
 
         Fix #5: Redirigido a generar_numero_cotizacion() que usa el contador
         atómico de PostgreSQL. La implementación anterior usaba COUNT(*) por
@@ -1594,17 +1597,31 @@ class SupabaseManager:
             error_msg = safe_str(e)
             print(f"[NUMERO] Error generando: {error_msg}")
             timestamp = int(time.time())
-            return f"CWS-AUTO-{timestamp}-R1"
+            return f"GEN-AUTO-{timestamp}-R1"
     
-    def generar_numero_cotizacion(self, cliente, vendedor, proyecto, revision=1):
+    def _resolve_company_code(self, company_id=None) -> str:
+        """Devuelve el código corto de compañía para el folio (multi-tenant)."""
+        codigo = None
+        if company_id:
+            company = self.get_company_by_id(company_id)
+            if company:
+                codigo = company.get('codigo')
+                if not codigo and company.get('slug'):
+                    codigo = re.sub(r'[^A-Za-z0-9]', '', str(company['slug'])).upper()
+        return codigo or 'GEN'
+
+    def generar_numero_cotizacion(self, cliente, vendedor, proyecto, revision=1, company_code=None):
         """
         Genera un número de cotización automáticamente con el formato:
-        CLIENTE-CWS-INICIALES_VENDEDOR-###-R#-PROYECTO
+        CLIENTE-<CODIGO>-INICIALES_VENDEDOR-###-R#-PROYECTO
         
         Con numeración consecutiva irrepetible usando PostgreSQL atomic operations
         """
         try:
-            print(f"[NUMERO_COTIZACION] Generando para: Cliente='{cliente}', Vendedor='{vendedor}', Proyecto='{proyecto}', Revision={revision}")
+            if not company_code:
+                company_code = 'GEN'
+            company_code = re.sub(r'[^A-Z0-9]', '', str(company_code)).upper() or 'GEN'
+            print(f"[NUMERO_COTIZACION] Generando para: Cliente='{cliente}', Vendedor='{vendedor}', Proyecto='{proyecto}', Revision={revision}, Codigo='{company_code}'")
 
             # Normalizar datos de entrada con acentos y espacios
             if cliente:
@@ -1641,11 +1658,11 @@ class SupabaseManager:
             print(f"[NUMERO_COTIZACION] Normalizados - Cliente: '{cliente}', Iniciales: '{iniciales_vendedor}', Proyecto: '{proyecto}'")
             
             # Generar patrón base para buscar números consecutivos
-            patron_base = f"{cliente}-CWS-{iniciales_vendedor}"
+            patron_base = f"{cliente}-{company_code}-{iniciales_vendedor}"
             numero_consecutivo = self._obtener_siguiente_consecutivo(patron_base)
             
             # Formatear número completo
-            numero_cotizacion = f"{cliente}-CWS-{iniciales_vendedor}-{numero_consecutivo:03d}-R{revision}-{proyecto}"
+            numero_cotizacion = f"{cliente}-{company_code}-{iniciales_vendedor}-{numero_consecutivo:03d}-R{revision}-{proyecto}"
             
             print(f"[NUMERO_COTIZACION] Generado: {numero_cotizacion}")
             return numero_cotizacion
@@ -1655,18 +1672,18 @@ class SupabaseManager:
             print(f"[NUMERO_COTIZACION] Error generando: {error_msg}")
             # Fallback a número único basado en timestamp
             timestamp = int(time.time())
-            return f"CWS-{timestamp}-R{revision}"
+            return f"{company_code}-{timestamp}-R{revision}"
     
     def generar_numero_revision(self, numero_cotizacion_original, nueva_revision):
         """
         Genera un número de cotización para una nueva revisión manteniendo 
         el mismo número base pero actualizando la revisión
-        Formato: CLIENTE-CWS-INICIALES-###-R#-PROYECTO
+        Formato: CLIENTE-<CODIGO>-INICIALES-###-R#-PROYECTO
         """
         try:
             print(f"[NUMERO_REVISION] Original: '{numero_cotizacion_original}', Nueva revisión: {nueva_revision}")
 
-            # Caso 1: Formato normal con proyecto al final: CLIENTE-CWS-VE-001-R1-PROYECTO
+            # Caso 1: Formato normal con proyecto al final: CLIENTE-<CODIGO>-VE-001-R1-PROYECTO
             patron_con_proyecto = r'-R\d+-'
             match = re.search(patron_con_proyecto, numero_cotizacion_original)
 
@@ -1683,7 +1700,7 @@ class SupabaseManager:
                 print(f"[NUMERO_REVISION] Generado: {nuevo_numero}")
                 return nuevo_numero
 
-            # Caso 2: Formato sin proyecto al final: CWS-1234567-R1
+            # Caso 2: Formato sin proyecto al final: <CODIGO>-1234567-R1
             patron_sin_proyecto = r'-R\d+$'
             match_final = re.search(patron_sin_proyecto, numero_cotizacion_original)
 
@@ -1834,7 +1851,7 @@ class SupabaseManager:
         Fix #2: Reemplaza el parsing frágil por índice de segmento (que fallaba
         con nombres de cliente que contienen guiones).
 
-        Formato esperado: CLIENTE-CWS-INICIALES-###-R#-PROYECTO
+        Formato esperado: CLIENTE-<CODIGO>-INICIALES-###-R#-PROYECTO
         Busca 3 dígitos justo antes de -R<digitos>-
         """
         match = re.search(r'-(\d{3})-R\d+-', numero_cotizacion)
@@ -2367,7 +2384,7 @@ class SupabaseManager:
     def _regenerar_numero_por_proyecto(self, numero_actual: str, nuevo_proyecto: str) -> str:
         """
         Regenera el número de cotización reemplazando el segmento del proyecto.
-        Formato: CLIENTE-CWS-VENDOR-###-R#-PROYECTO
+        Formato: CLIENTE-<CODIGO>-VENDOR-###-R#-PROYECTO
         El proyecto es el último segmento después de -R#-.
         """
         import re as _re
@@ -3163,7 +3180,8 @@ class SupabaseManager:
                     pass
                 cursor = self.pg_connection.cursor()
                 cursor.execute(
-                    """SELECT id, name, slug, tax_id, address, phone, email,
+                    """SELECT id, name, slug, codigo, legacy_drive_import, tax_id,
+                              address, phone, email,
                               logo_url, primary_color, secondary_color, footer_text,
                               iva_rate, is_active
                        FROM public.companies WHERE id = %s""",
@@ -3421,6 +3439,100 @@ class SupabaseManager:
             except:
                 pass
         return False
+
+    # ================================================================
+    # FAST QUOTE — CUOTA MENSUAL (para límites del plan)
+    # ================================================================
+
+    def registrar_estimacion_fast_quote(self, company_id: str) -> bool:
+        """Registra una estimación de Fast Quote (para la cuota mensual)."""
+        if not company_id:
+            return False
+
+        # Intento 1: PostgreSQL directo
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """INSERT INTO public.fast_quote_usage (company_id)
+                       VALUES (%s)""",
+                    (company_id,)
+                )
+                self.pg_connection.commit()
+                cursor.close()
+                return True
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error registrar uso (PG): {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+
+        # Intento 2: SDK con service key
+        try:
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                client.table('fast_quote_usage').insert({'company_id': company_id}).execute()
+                return True
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error registrar uso (SDK): {e}")
+
+        return False
+
+    def contar_estimaciones_fast_quote_mes(self, company_id: str) -> int:
+        """Cuenta las estimaciones Fast Quote del mes calendario actual."""
+        if not company_id:
+            return 0
+
+        # Intento 1: PostgreSQL directo (conteo exacto del mes)
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """SELECT COUNT(*) FROM public.fast_quote_usage
+                       WHERE company_id = %s
+                         AND created_at >= date_trunc('month', NOW())""",
+                    (company_id,)
+                )
+                count = cursor.fetchone()[0]
+                cursor.close()
+                return int(count)
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error contando uso (PG): {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+
+        # Intento 2: SDK con service key (mejor esfuerzo)
+        try:
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                month_start = datetime.utcnow().replace(
+                    day=1, hour=0, minute=0, second=0, microsecond=0
+                ).isoformat()
+                resp = client.table('fast_quote_usage') \
+                    .select('id') \
+                    .eq('company_id', company_id) \
+                    .gte('created_at', month_start) \
+                    .execute()
+                return len(resp.data or [])
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error contando uso (SDK): {e}")
+
+        return 0
 
     def close(self):
         """Cierra conexiones del manager."""

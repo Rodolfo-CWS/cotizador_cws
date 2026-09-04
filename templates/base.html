@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ company.name if company else 'CWS' }} - Cotizador{% endblock %}</title>
+    <title>{% block title %}{{ company.name if company else 'Sifra' }} - Cotizador{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
         :root {
@@ -20,9 +20,9 @@
             {% if company and company.logo_url %}
             <img src="{{ company.logo_url }}" alt="{{ company.name }}" style="height: 28px; max-width: 120px; object-fit: contain;">
             {% else %}
-            <img src="/static/logo.png" alt="CWS" style="height: 28px;">
+            <img src="/static/logo.png" alt="Sifra" style="height: 28px;">
             {% endif %}
-            <span style="font-size: 14px; font-weight: 600; color: var(--primary);">{{ company.name if company else 'CWS Cotizador' }}</span>
+            <span style="font-size: 14px; font-weight: 600; color: var(--primary);">{{ company.name if company else 'Sifra' }}</span>
         </div>
 
         <div style="display: flex; align-items: center; gap: 16px;">

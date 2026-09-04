@@ -1,5 +1,5 @@
 """
-Generador de PDF profesional CWS usando ReportLab.
+Generador de PDF profesional de Sifra usando ReportLab.
 """
 import io
 import os
@@ -32,16 +32,14 @@ WHITE = colors.white
 
 # Branding por defecto (se usa si no hay company_branding de la BD)
 DEFAULT_BRANDING = {
-    'name': 'CWS COMPANY SA DE CV',
-    'address': 'Puerta de los monos 250, 78421 Villa de Pozos, SLP',
+    'name': 'Sifra',
+    'address': '',
     'logo_url': None,
     'primary_color': '#1e293b',
     'secondary_color': '#0f172a',
     'footer_text': (
-        '<b>CWS Company SA de CV</b> &nbsp;|&nbsp; '
-        'Puerta de los monos 250, 78421 Villa de Pozos, SLP, México<br/>'
-        'Esta cotización es válida por 30 días a partir de la fecha de emisión '
-        '&nbsp;|&nbsp; <b>¡Gracias por confiar en CWS Company!</b>'
+        '<b>Sifra</b><br/>'
+        'Esta cotización es válida por 30 días a partir de la fecha de emisión.'
     ),
     'iva_rate': 16.00,
 }
@@ -121,7 +119,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         'DescriptionStyle', parent=styles['Normal'],
         fontSize=9, fontName='Helvetica',
         alignment=0, leftIndent=0, rightIndent=0,
-        spaceAfter=0, spaceBefore=0, leading=11
+        spaceAfter=0, spaceBefore=0, leading=11, wordWrap='CJK'
     )
 
     # Extraer datos
@@ -166,7 +164,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     """, ParagraphStyle(
         'EmpresaInfo', parent=styles['Normal'],
         fontSize=9, fontName='Helvetica',
-        textColor=TEXT_DARK, alignment=0, leading=12
+        textColor=TEXT_DARK, alignment=0, leading=12, wordWrap='CJK'
     ))
 
     # Logo + empresa juntos en la izquierda
@@ -197,7 +195,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     """, ParagraphStyle(
         'CotizacionInfo', parent=styles['Normal'],
         fontSize=9, fontName='Helvetica-Bold',
-        textColor=CORPORATE_INDIGO, alignment=2
+        textColor=CORPORATE_INDIGO, alignment=2, wordWrap='CJK'
     ))
 
     # Header en 2 columnas: [Logo+Empresa] [Datos Cotización]
@@ -220,7 +218,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
             'ProyectoDestacado', parent=styles['Normal'],
             fontSize=10, fontName='Helvetica-Bold',
             textColor=WHITE, backColor=primary_color,
-            borderPadding=6, alignment=1
+            borderPadding=6, alignment=1, wordWrap='CJK'
         )
         story.append(Paragraph(f"PROYECTO: {datos_generales.get('proyecto', '')}", proyecto_style))
         story.append(Spacer(1, 6))
@@ -242,9 +240,11 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         ['Atención A:', p(datos_generales.get('atencionA', '')), 'Contacto:', p(datos_generales.get('contacto', ''))],
     ]
 
-    if datos_generales.get('revision', '1') != '1':
-        info_data.append(['Revisión:', p(f"Rev. {datos_generales.get('revision', '1')}"),
-                         'Actualización:', p(datos_generales.get('actualizacionRevision', ''))])
+    revision_val = str(datos_generales.get('revision', '1'))
+    actualizacion_val = (datos_generales.get('actualizacionRevision') or '').strip()
+    if revision_val != '1' or actualizacion_val:
+        info_data.append(['Revisión:', p(f"Rev. {revision_val}"),
+                         'Actualización:', p(actualizacion_val)])
 
     info_table = Table(info_data, colWidths=[1.0*inch, 2.65*inch, 1.0*inch, 2.65*inch])
     info_table.setStyle(TableStyle([
@@ -283,7 +283,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         'IntroText', parent=styles['Normal'],
         fontSize=9, fontName='Helvetica',
         textColor=TEXT_BODY, alignment=4,
-        spaceAfter=8, leading=13
+        spaceAfter=8, leading=13, wordWrap='CJK'
     )
 
     if texto_personalizado:
@@ -292,8 +292,8 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         # por la IA rompe el parseo XML y lanza una excepción al generar el PDF.
         intro_text = escape(texto_personalizado).replace("\n", "<br/>\n")
     else:
-        intro_text = """Estimado Cliente,<br/>
-        CWS Company presenta esta propuesta económica para el proyecto solicitado.
+        intro_text = f"""Estimado Cliente,<br/>
+        {branding['name']} presenta esta propuesta económica para el proyecto solicitado.
         Quedamos a la espera de su respuesta."""
 
     story.append(Paragraph(intro_text, intro_style))
@@ -321,7 +321,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         story.append(Paragraph("ITEMS DE COTIZACIÓN", subtitle_style))
         story.append(Spacer(1, 6))
 
-        items_data = [['ITEM', 'DESCRIPCIÓN', 'CANT.', 'UOM', 'PRECIO UNIT.', 'TOTAL']]
+        items_data = [['ITEM', 'DESCRIPCIÓN', 'CANT.', 'UDM', 'PRECIO UNIT.', 'TOTAL']]
         subtotal = 0
 
         for i, item in enumerate(items):
@@ -535,49 +535,82 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     # ── IMAGEN DE REFERENCIA ──
     imagen_referencia = datos_cotizacion.get('datosGenerales', {}).get('imagenReferencia', None)
     if imagen_referencia and (imagen_referencia.get('url') or imagen_referencia.get('dataUri')):
-        img_url = imagen_referencia.get('url', '')
-        img_path = None
-        _is_temp = False
-        try:
-            if img_url.startswith('http'):
-                import urllib.request
-                import tempfile
-                req = urllib.request.Request(img_url, headers={'User-Agent': 'CWS-Cotizador/1.0'})
-                with urllib.request.urlopen(req, timeout=15) as response:
-                    content_type = response.headers.get('Content-Type', '')
-                    if response.status != 200:
-                        raise Exception(f"HTTP {response.status}")
-                    if 'text/html' in content_type:
-                        raise Exception(f"Recibido HTML en vez de imagen. Content-Type: {content_type}")
-                    img_bytes = response.read()
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
-                    tmp.write(img_bytes)
-                    img_path = tmp.name
-                    _is_temp = True
-            elif img_url.startswith('/static/') or img_url.startswith('static/'):
-                clean_url = img_url.lstrip('/')
-                candidate = os.path.join(os.path.dirname(os.path.dirname(__file__)), clean_url)
-                if os.path.exists(candidate):
-                    img_path = candidate
-            elif os.path.exists(img_url):
-                img_path = img_url
+        img_url = imagen_referencia.get('url', '') or ''
+        raw = None
 
-            # Fallback: si no se pudo obtener por URL, usar dataUri (base64)
-            if (not img_path or not os.path.exists(img_path)) and imagen_referencia.get('dataUri'):
-                import tempfile
+        def _es_imagen_valida(raw_bytes):
+            try:
+                from reportlab.lib.utils import ImageReader as _IR
+                _IR(io.BytesIO(raw_bytes)).getSize()
+                return True
+            except Exception:
+                return False
+
+        # 1) PRIORIDAD: dataUri (base64 persistente). Es la copia más confiable:
+        #    siempre está presente (la guarda procesar_imagen_referencia) y no depende
+        #    de red, de permisos del bucket ni de que la URL de Supabase siga viva.
+        if imagen_referencia.get('dataUri'):
+            try:
                 data_uri = imagen_referencia.get('dataUri', '')
                 if ',' in data_uri:
                     _, encoded = data_uri.split(',', 1)
                 else:
                     encoded = data_uri
-                img_bytes = base64.b64decode(encoded)
-                img_bytes = io.BytesIO(img_bytes)
-                img_path = img_bytes  # BytesIO, no archivo — se usa directo
-                print(f"[PDF_IMAGEN] Usando dataUri (fallback base64, {img_bytes.getbuffer().nbytes} bytes)")
+                raw = base64.b64decode(encoded)
+                print(f"[PDF_IMAGEN] Usando dataUri (base64, {len(raw)} bytes)")
+            except Exception as e:
+                print(f"[PDF_IMAGEN] Error decodificando dataUri: {e}")
+                raw = None
 
-            if img_path and (hasattr(img_path, 'read') or os.path.exists(img_path)):
+            if raw and not _es_imagen_valida(raw):
+                print("[PDF_IMAGEN] Bytes de dataUri no son imagen válida; se intentará URL")
+                raw = None
+
+        # 2) FALLBACK: descargar de URL (Supabase Storage) o leer archivo local.
+        if not raw and img_url:
+            if img_url.startswith('http'):
+                try:
+                    import urllib.request
+                    req = urllib.request.Request(img_url, headers={'User-Agent': 'Sifra-Cotizador/1.0'})
+                    with urllib.request.urlopen(req, timeout=15) as response:
+                        content_type = response.headers.get('Content-Type', '')
+                        if response.status != 200:
+                            raise Exception(f"HTTP {response.status}")
+                        if 'text/html' in content_type:
+                            raise Exception(f"Recibido HTML en vez de imagen. Content-Type: {content_type}")
+                        raw = response.read()
+                except Exception as e:
+                    print(f"[PDF_IMAGEN] No se pudo descargar URL ({img_url}): {e}")
+                    raw = None
+            elif img_url.startswith('/static/') or img_url.startswith('static/'):
+                clean_url = img_url.lstrip('/')
+                candidate = os.path.join(os.path.dirname(os.path.dirname(__file__)), clean_url)
+                if os.path.exists(candidate):
+                    try:
+                        with open(candidate, 'rb') as f:
+                            raw = f.read()
+                    except Exception as e:
+                        print(f"[PDF_IMAGEN] Error leyendo archivo local: {e}")
+                        raw = None
+            elif os.path.exists(img_url):
+                try:
+                    with open(img_url, 'rb') as f:
+                        raw = f.read()
+                except Exception as e:
+                    print(f"[PDF_IMAGEN] Error leyendo archivo: {e}")
+                    raw = None
+
+            if raw and not _es_imagen_valida(raw):
+                print("[PDF_IMAGEN] Bytes de URL/local no son imagen válida")
+                raw = None
+
+        # 3) Incrustar la imagen en el PDF desde bytes en memoria (sin archivo temporal,
+        #    para que ReportLab pueda leerla cuando haga doc.build() al final).
+        if raw:
+            try:
                 from reportlab.lib.utils import ImageReader
-                img_reader = ImageReader(img_path)
+                # getSize usa un reader propio; Image usa otro BytesIO fresco (no reutilizar el consumido)
+                img_reader = ImageReader(io.BytesIO(raw))
                 img_w, img_h = img_reader.getSize()
 
                 max_w = 4 * inch
@@ -586,7 +619,7 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
                 display_w = img_w * scale
                 display_h = img_h * scale
 
-                img_flowable = Image(img_path, width=display_w, height=display_h)
+                img_flowable = Image(io.BytesIO(raw), width=display_w, height=display_h)
                 img_container = Table([[img_flowable]], colWidths=[6.5 * inch])
                 img_container.setStyle(TableStyle([
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -600,26 +633,20 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
                 story.append(Spacer(1, 4))
 
                 print(f"[PDF_IMAGEN] Imagen incrustada ({display_w:.0f}x{display_h:.0f}px)")
-            else:
-                print(f"[PDF_IMAGEN] No se pudo resolver imagen (URL: {img_url}, dataUri: {bool(imagen_referencia.get('dataUri'))})")
-        except Exception as e:
-            print(f"[PDF_IMAGEN] Error incrustando imagen (se omite): {e}")
-        finally:
-            if _is_temp and img_path and os.path.exists(img_path):
-                try:
-                    os.unlink(img_path)
-                except Exception:
-                    pass
+            except Exception as e:
+                print(f"[PDF_IMAGEN] Error renderizando imagen: {e}")
+        else:
+            print(f"[PDF_IMAGEN] No se pudo resolver imagen (URL: {img_url}, dataUri: {bool(imagen_referencia.get('dataUri'))})")
 
     # ── PIE DE PÁGINA ──
     story.append(Spacer(1, 8))
 
-    vendedor = datos_generales.get('vendedor', 'Equipo CWS')
+    vendedor = datos_generales.get('vendedor', 'Equipo')
 
     closing_style = ParagraphStyle(
         'ClosingText', parent=styles['Normal'],
         fontSize=9, fontName='Helvetica',
-        textColor=TEXT_DARK, alignment=0
+        textColor=TEXT_DARK, alignment=0, wordWrap='CJK'
     )
     story.append(Paragraph(
         f"Atentamente,<br/><b>{vendedor}</b> — {branding['name']}", closing_style
@@ -631,13 +658,333 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
         fontSize=7.5, fontName='Helvetica',
         textColor=TEXT_GRAY, alignment=1,
         borderPadding=5, backColor=BG_LIGHT,
-        borderColor=BORDER_GRAY, borderWidth=0.5
+        borderColor=BORDER_GRAY, borderWidth=0.5, wordWrap='CJK'
     )
 
     # Usar footer_text de la compañía o fallback
     footer_text = branding.get('footer_text', DEFAULT_BRANDING['footer_text'])
 
     story.append(Paragraph(footer_text, footer_style))
+
+    # Línea de marca solo para cotizaciones del plan simple (PDF)
+    if datos_cotizacion.get('tipo') == 'simple':
+        generated_style = ParagraphStyle(
+            'GeneratedBy', parent=styles['Normal'],
+            fontSize=7, fontName='Helvetica',
+            textColor=TEXT_GRAY, alignment=1
+        )
+        story.append(Spacer(1, 4))
+        story.append(Paragraph("Cotización generada con Sifra", generated_style))
+
+    # Construir PDF
+    doc.build(story)
+    buffer.seek(0)
+
+    return buffer.getvalue()
+
+
+def generar_estimacion_fast_quote_pdf(estimacion, company_branding=None):
+    """Genera un PDF de una estimación Fast Quote (no es presupuesto formal).
+
+    Args:
+        estimacion: Dict con la estimación devuelta por la IA:
+            description, estimated_total, currency, subtotal, margin,
+            margin_amount, breakdown, analysis, confidence, notes, missing_info.
+        company_branding: Dict con branding de la compañía (opcional).
+    """
+    if not REPORTLAB_AVAILABLE:
+        raise ImportError("ReportLab no está disponible")
+
+    if company_branding is None:
+        company_branding = DEFAULT_BRANDING
+    branding = {**DEFAULT_BRANDING, **company_branding}
+
+    try:
+        primary_color = colors.HexColor(str(branding.get('primary_color', '#1e293b')))
+    except:
+        primary_color = CORPORATE_INDIGO
+    try:
+        secondary_color = colors.HexColor(str(branding.get('secondary_color', '#0f172a')))
+    except:
+        secondary_color = CORPORATE_INDIGO_DARK
+
+    # Moneda
+    moneda = (estimacion.get('currency') or 'MXN').upper()
+    simbolo = 'USD $' if moneda == 'USD' else '$'
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=letter,
+        rightMargin=0.6*inch, leftMargin=0.6*inch,
+        topMargin=0.55*inch, bottomMargin=0.45*inch
+    )
+    story = []
+    styles = getSampleStyleSheet()
+
+    # ── Estilos ──
+    header_style = ParagraphStyle(
+        'FQHeader', parent=styles['Normal'], fontSize=14, spaceAfter=6,
+        alignment=1, textColor=CORPORATE_INDIGO, fontName='Helvetica-Bold'
+    )
+    subtitle_style = ParagraphStyle(
+        'FQSubtitle', parent=styles['Normal'], fontSize=11, spaceAfter=8,
+        spaceBefore=8, fontName='Helvetica-Bold', textColor=TEXT_DARK
+    )
+    normal_style = ParagraphStyle(
+        'FQNormal', parent=styles['Normal'], fontSize=9,
+        fontName='Helvetica', textColor=TEXT_BODY
+    )
+    desc_style = ParagraphStyle(
+        'FQDesc', parent=styles['Normal'], fontSize=9, fontName='Helvetica',
+        alignment=0, leading=11, wordWrap='CJK'
+    )
+
+    # ── Logo ──
+    logo = None
+    logo_url = branding.get('logo_url')
+    if logo_url:
+        try:
+            import urllib.request
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                urllib.request.urlretrieve(logo_url, tmp.name)
+                if os.path.exists(tmp.name) and os.path.getsize(tmp.name) > 0:
+                    logo = Image(tmp.name, width=1.0*inch, height=0.65*inch)
+        except Exception:
+            logo = None
+    if not logo:
+        try:
+            if os.path.exists("static/logo.png"):
+                logo = Image("static/logo.png", width=1.0*inch, height=0.65*inch)
+        except:
+            pass
+    if not logo:
+        logo = Paragraph(branding['name'].replace('\n', '<br/>'), header_style)
+
+    empresa_info = Paragraph(
+        f"<b>{branding['name']}</b><br/><font size=\"7\">{branding.get('address', '')}</font>",
+        ParagraphStyle(
+            'FQEmpresa', parent=styles['Normal'], fontSize=9, fontName='Helvetica',
+            textColor=TEXT_DARK, alignment=0, leading=12, wordWrap='CJK'
+        )
+    )
+    left_block = Table([[logo, empresa_info]], colWidths=[1.15*inch, 2.85*inch])
+    left_block.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('ALIGN', (1, 0), (1, 0), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (1, 0), (1, 0), 8),
+        ('RIGHTPADDING', (0, 0), (0, 0), 0),
+    ]))
+
+    fecha_actual = datetime.datetime.now().strftime('%d/%m/%Y')
+    derecha_info = Paragraph(
+        f"<b>COTIZACIÓN RÁPIDA</b><br/>"
+        f"<b>ESTIMACIÓN</b> — No es presupuesto formal<br/>"
+        f"Fecha: {fecha_actual}",
+        ParagraphStyle(
+            'FQCotizInfo', parent=styles['Normal'], fontSize=9, fontName='Helvetica-Bold',
+            textColor=CORPORATE_INDIGO, alignment=2, wordWrap='CJK'
+        )
+    )
+
+    header_table = Table([[left_block, derecha_info]], colWidths=[4.0*inch, 3.0*inch])
+    header_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(header_table)
+    story.append(Spacer(1, 6))
+
+    # ── Banner de estimación ──
+    banner_style = ParagraphStyle(
+        'FQBanner', parent=styles['Normal'], fontSize=10, fontName='Helvetica-Bold',
+        textColor=WHITE, backColor=primary_color, borderPadding=6, alignment=1, wordWrap='CJK'
+    )
+    story.append(Paragraph("COTIZACIÓN RÁPIDA — ESTIMACIÓN REFERENCIAL (no vinculante)", banner_style))
+    story.append(Spacer(1, 12))
+
+    # ── Total destacado ──
+    try:
+        total = float(estimacion.get('estimated_total', 0) or 0)
+    except (ValueError, TypeError):
+        total = 0.0
+    total_style = ParagraphStyle(
+        'FQTotal', parent=styles['Normal'], fontSize=26, fontName='Helvetica-Bold',
+        textColor=primary_color, alignment=1, leading=30
+    )
+    story.append(Paragraph(f"{simbolo}{total:,.2f}", total_style))
+    total_label_style = ParagraphStyle(
+        'FQTotalLabel', parent=styles['Normal'], fontSize=9,
+        fontName='Helvetica', textColor=TEXT_GRAY, alignment=1
+    )
+    story.append(Paragraph(f"Precio estimado ({moneda}) — antes de IVA", total_label_style))
+    story.append(Spacer(1, 4))
+
+    # Confianza
+    confianza = (estimacion.get('confidence') or 'media').lower()
+    conf_map = {'alta': ('Confianza Alta', '#16a34a'), 'baja': ('Confianza Baja', '#dc2626')}
+    conf_label, conf_color = conf_map.get(confianza, ('Confianza Media', '#b45309'))
+    conf_style = ParagraphStyle(
+        'FQConf', parent=styles['Normal'], fontSize=8.5, fontName='Helvetica-Bold',
+        textColor=colors.HexColor(conf_color), alignment=1
+    )
+    story.append(Paragraph(f"● {conf_label}", conf_style))
+    story.append(Spacer(1, 12))
+
+    # ── Análisis ──
+    analisis = (estimacion.get('analysis') or '').strip()
+    if analisis:
+        story.append(Paragraph("ANÁLISIS", subtitle_style))
+        story.append(Spacer(1, 4))
+        analisis_style = ParagraphStyle(
+            'FQAnalisis', parent=styles['Normal'], fontSize=9, fontName='Helvetica',
+            textColor=TEXT_BODY, alignment=4, leading=13, wordWrap='CJK',
+            backColor=colors.HexColor('#eff6ff'), borderPadding=6
+        )
+        story.append(Paragraph(analisis.replace('\n', '<br/>\n'), analisis_style))
+        story.append(Spacer(1, 10))
+
+    # ── Desglose ──
+    breakdown = estimacion.get('breakdown') or []
+    if isinstance(breakdown, list) and breakdown:
+        story.append(Paragraph("DESGLOSE", subtitle_style))
+        story.append(Spacer(1, 4))
+
+        data = [['CONCEPTO', 'CANT.', 'UDM', 'P. UNIT.', 'SUBTOTAL']]
+        for it in breakdown:
+            if not isinstance(it, dict):
+                continue
+            concepto = Paragraph((it.get('concepto') or '—'), desc_style)
+            cantidad = it.get('cantidad')
+            cantidad_txt = f"{float(cantidad):,.2f}" if cantidad is not None else '—'
+            data.append([
+                concepto,
+                cantidad_txt,
+                it.get('unidad') or '—',
+                f"{simbolo}{float(it.get('precio_unitario') or 0):,.2f}",
+                f"{simbolo}{float(it.get('subtotal') or 0):,.2f}",
+            ])
+
+        tabla = Table(data, colWidths=[3.0*inch, 0.7*inch, 0.7*inch, 1.0*inch, 1.1*inch])
+        tabla.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), primary_color),
+            ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (-1, 0), 'CENTER'),
+            ('ALIGN', (1, 1), (3, -1), 'CENTER'),
+            ('ALIGN', (4, 1), (-1, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+            ('BOX', (0, 0), (-1, -1), 0.75, CORPORATE_INDIGO),
+            ('INNERGRID', (0, 0), (-1, -1), 0.3, BORDER_GRAY),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, BG_LIGHT]),
+            ('FONTNAME', (4, 1), (-1, -1), 'Helvetica-Bold'),
+            ('TEXTCOLOR', (4, 1), (-1, -1), CORPORATE_INDIGO),
+        ]))
+        story.append(tabla)
+        story.append(Spacer(1, 10))
+
+        # ── Totales ──
+        try:
+            subtotal = float(estimacion.get('subtotal') or 0)
+        except (ValueError, TypeError):
+            subtotal = 0.0
+        try:
+            margin_pct = float(estimacion.get('margin') or 0)
+        except (ValueError, TypeError):
+            margin_pct = 0.0
+        try:
+            margin_amt = float(estimacion.get('margin_amount') or 0)
+        except (ValueError, TypeError):
+            margin_amt = 0.0
+
+        totales_data = [
+            ['Subtotal:', f"{simbolo}{subtotal:,.2f}"],
+            [f'Margen ({margin_pct:g}%):', f"{simbolo}{margin_amt:,.2f}"],
+            ['TOTAL ESTIMADO:', f"{simbolo}{total:,.2f}"],
+        ]
+        totales_table = Table(totales_data, colWidths=[1.8*inch, 1.6*inch])
+        totales_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, -2), 'Helvetica'),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -2), 10),
+            ('FONTSIZE', (0, -1), (-1, -1), 11),
+            ('TEXTCOLOR', (0, 0), (-1, -2), TEXT_DARK),
+            ('TEXTCOLOR', (0, -1), (-1, -1), CORPORATE_INDIGO),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('BACKGROUND', (0, 0), (-1, -2), BG_LIGHT),
+            ('BACKGROUND', (0, -1), (-1, -1), CORPORATE_INDIGO_LIGHT),
+            ('LINEABOVE', (0, -1), (-1, -1), 2, CORPORATE_INDIGO),
+            ('BOX', (0, 0), (-1, -1), 1, BORDER_GRAY),
+        ]))
+        totales_container = Table([[totales_table]], colWidths=[6.5*inch])
+        totales_container.setStyle(TableStyle([('ALIGN', (0, 0), (0, 0), 'RIGHT')]))
+        story.append(totales_container)
+
+    # ── Información faltante ──
+    missing = estimacion.get('missing_info') or []
+    if isinstance(missing, list) and missing:
+        story.append(Spacer(1, 10))
+        story.append(Paragraph("INFORMACIÓN FALTANTE PARA UN PRESUPUESTO FORMAL", subtitle_style))
+        for m in missing:
+            story.append(Paragraph(f"• {m}", normal_style))
+
+    # ── Notas ──
+    notas = (estimacion.get('notes') or '').strip()
+    if notas:
+        story.append(Spacer(1, 10))
+        story.append(Paragraph("NOTAS", subtitle_style))
+        story.append(Paragraph(notas.replace('\n', '<br/>\n'), normal_style))
+
+    # ── Descripción original ──
+    descripcion = (estimacion.get('description') or '').strip()
+    if descripcion:
+        story.append(Spacer(1, 10))
+        story.append(Paragraph("DESCRIPCIÓN DEL PRODUCTO", subtitle_style))
+        story.append(Paragraph(descripcion.replace('\n', '<br/>\n'), normal_style))
+
+    # ── Disclaimer ──
+    story.append(Spacer(1, 12))
+    disclaimer_style = ParagraphStyle(
+        'FQDisclaimer', parent=styles['Normal'], fontSize=8, fontName='Helvetica',
+        textColor=colors.HexColor('#92400e'), alignment=1, leading=11,
+        backColor=colors.HexColor('#fef3c7'), borderPadding=6, wordWrap='CJK'
+    )
+    story.append(Paragraph(
+        "<b>⚠️ ESTA NO ES UNA COTIZACIÓN FORMAL.</b> Los precios mostrados son referenciales "
+        "y generados por inteligencia artificial. Pueden variar según condiciones reales de "
+        "fabricación, disponibilidad de materiales y alcance final del proyecto.",
+        disclaimer_style
+    ))
+
+    # ── Pie de página ──
+    story.append(Spacer(1, 8))
+    footer_style = ParagraphStyle(
+        'FQFooter', parent=styles['Normal'], fontSize=7.5, fontName='Helvetica',
+        textColor=TEXT_GRAY, alignment=1, borderPadding=5, backColor=BG_LIGHT,
+        borderColor=BORDER_GRAY, borderWidth=0.5, wordWrap='CJK'
+    )
+    footer_text = branding.get('footer_text', DEFAULT_BRANDING['footer_text'])
+    story.append(Paragraph(footer_text, footer_style))
+    story.append(Spacer(1, 4))
+    generated_style = ParagraphStyle(
+        'FQGenerated', parent=styles['Normal'], fontSize=7,
+        fontName='Helvetica', textColor=TEXT_GRAY, alignment=1
+    )
+    story.append(Paragraph("Estimación generada con Sifra", generated_style))
 
     # Construir PDF
     doc.build(story)
@@ -751,6 +1098,17 @@ def generar_desglose_pdf_reportlab(datos_cotizacion, company_branding=None):
     proyecto = datos_generales.get('proyecto', '')
     numero = datos_cotizacion.get('numeroCotizacion', datos_generales.get('numeroCotizacion', 'N/A'))
     revision = datos_generales.get('revision', '1')
+
+    # Fecha del desglose (misma lógica que el PDF principal)
+    fecha_guardada = datos_generales.get('fecha', '')
+    if fecha_guardada:
+        try:
+            fecha_dt = datetime.datetime.strptime(fecha_guardada[:10], '%Y-%m-%d')
+            fecha_actual = fecha_dt.strftime('%d/%m/%Y')
+        except (ValueError, TypeError):
+            fecha_actual = datetime.datetime.now().strftime('%d/%m/%Y')
+    else:
+        fecha_actual = datetime.datetime.now().strftime('%d/%m/%Y')
 
     # ── TÍTULO ──
     story.append(Paragraph("DESGLOSE DE COTIZACIÓN", title_style))
@@ -1047,9 +1405,9 @@ def generar_desglose_pdf_reportlab(datos_cotizacion, company_branding=None):
     story.append(separator2)
     story.append(Spacer(1, 4))
 
-    vendedor = datos_generales.get('vendedor', 'CWS Company')
+    vendedor = datos_generales.get('vendedor', 'Equipo')
     story.append(Paragraph(
-        f"CWS Company SA de CV &nbsp;|&nbsp; {vendedor} &nbsp;|&nbsp; {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        f"{branding['name']} &nbsp;|&nbsp; {vendedor} &nbsp;|&nbsp; {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}",
         small_style
     ))
     story.append(Paragraph(

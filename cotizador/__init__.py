@@ -1,5 +1,5 @@
 """
-CWS Cotizador - Aplicación Flask modularizada.
+Sifra Cotizador - Aplicación Flask modularizada.
 Factory pattern para inicializar la app con todos sus componentes.
 """
 import os
@@ -17,10 +17,14 @@ from cotizador._compat import REPORTLAB_AVAILABLE, WEASYPRINT_AVAILABLE
 # Utilidades compartidas
 from cotizador.utilities import (
     safe_float, safe_int, validate_material_data,
-    wrap_description_text, is_json_request,
+    wrap_description_text, slugify, is_json_request,
     handle_error_response, handle_not_found_response
 )
-from cotizador.pdf_generator import generar_pdf_reportlab, generar_desglose_pdf_reportlab
+from cotizador.pdf_generator import (
+    generar_pdf_reportlab,
+    generar_desglose_pdf_reportlab,
+    generar_estimacion_fast_quote_pdf,
+)
 
 
 def configurar_logging(app_instance=None):
@@ -270,7 +274,7 @@ def create_app():
         stats = db_manager.obtener_estadisticas()
         return jsonify({
             "status": "ok",
-            "app": os.getenv('APP_NAME', 'CWS Cotizaciones'),
+            "app": os.getenv('APP_NAME', 'Sifra'),
             "version": os.getenv('APP_VERSION', '1.0.0'),
             "modo": "offline" if db_manager.modo_offline else "online",
             **stats

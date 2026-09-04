@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script para crear aplicación de escritorio CWS Cotizaciones
+Script para crear aplicación de escritorio Sifra
 usando webview (alternativa ligera a Electron)
 """
 
@@ -30,7 +30,7 @@ import requests
 import sys
 import os
 
-class CWSApp:
+class SifraApp:
     def __init__(self):
         self.server_url = "http://127.0.0.1:5000"
         self.server_running = False
@@ -48,7 +48,7 @@ class CWSApp:
         mensaje = """
         <html>
         <head>
-            <title>CWS Cotizaciones</title>
+            <title>Sifra</title>
             <style>
                 body { 
                     font-family: Arial, sans-serif; 
@@ -72,7 +72,7 @@ class CWSApp:
         </head>
         <body>
             <div class="container">
-                <h1>🏢 CWS Cotizações</h1>
+                <h1>🏢 Sifra</h1>
                 <div class="error">⚠️ Servidor no disponible</div>
                 <div class="instructions">
                     <p><strong>Para usar la aplicación:</strong></p>
@@ -90,13 +90,13 @@ class CWSApp:
         return mensaje
 
 def main():
-    app = CWSApp()
+    app = SifraApp()
     
     # Verificar si el servidor está corriendo
     if app.verificar_servidor():
         # Servidor disponible - mostrar la aplicación web
         window = webview.create_window(
-            title='CWS Cotizaciones',
+            title='Sifra',
             url=app.server_url,
             width=1200,
             height=800,
@@ -106,7 +106,7 @@ def main():
     else:
         # Servidor no disponible - mostrar mensaje
         window = webview.create_window(
-            title='CWS Cotizaciones - Servidor Requerido',
+            title='Sifra - Servidor Requerido',
             html=app.mostrar_mensaje_servidor(),
             width=600,
             height=400,
@@ -120,10 +120,10 @@ if __name__ == '__main__':
     main()
 '''
     
-    with open('cws_app.py', 'w', encoding='utf-8') as f:
+    with open('sifra_app.py', 'w', encoding='utf-8') as f:
         f.write(app_content)
-    
-    print("✅ Archivo cws_app.py creado")
+
+    print("✅ Archivo sifra_app.py creado")
 
 def crear_ejecutable():
     """Crea el ejecutable usando PyInstaller"""
@@ -134,21 +134,21 @@ def crear_ejecutable():
         "pyinstaller",
         "--onefile",
         "--windowed",
-        "--name=CWS_Cotizaciones",
+        "--name=Sifra_Cotizaciones",
         "--icon=static/logo.ico",  # Si tienes un archivo .ico
-        "cws_app.py"
+        "sifra_app.py"
     ]
     
     try:
         subprocess.check_call(cmd)
-        print("✅ Ejecutable creado en dist/CWS_Cotizaciones.exe")
+        print("✅ Ejecutable creado en dist/Sifra_Cotizaciones.exe")
         return True
     except subprocess.CalledProcessError:
         print("❌ Error creando ejecutable")
         return False
 
 def main():
-    print("🏢 CWS Cotizaciones - Creador de App de Escritorio")
+    print("🏢 Sifra - Creador de App de Escritorio")
     print("=" * 60)
     
     if not instalar_dependencias():
@@ -160,7 +160,7 @@ def main():
     if respuesta.upper() == 'S':
         crear_ejecutable()
         print("\\n🎉 ¡App de escritorio creada exitosamente!")
-        print("📁 Archivo: dist/CWS_Cotizaciones.exe")
+        print("📁 Archivo: dist/Sifra_Cotizaciones.exe")
         print("📋 Puedes distribuir este archivo a otros usuarios")
     
     print("\\n✅ Proceso completado")

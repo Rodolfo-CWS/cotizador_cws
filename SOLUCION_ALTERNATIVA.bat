@@ -55,7 +55,7 @@ if /i "%respuesta%"=="si" (
     echo @echo off > EJECUTAR_PUERTO_8080.bat
     echo chcp 65001 ^>nul >> EJECUTAR_PUERTO_8080.bat
     echo cls >> EJECUTAR_PUERTO_8080.bat
-    echo echo 🚀 Iniciando Cotizador CWS en puerto 8080... >> EJECUTAR_PUERTO_8080.bat
+    echo echo 🚀 Iniciando Sifra en puerto 8080... >> EJECUTAR_PUERTO_8080.bat
     echo call env\Scripts\activate.bat >> EJECUTAR_PUERTO_8080.bat
     echo echo 📱 Accede desde celular: http://[TU-IP]:8080 >> EJECUTAR_PUERTO_8080.bat
     echo python -c "from app import app; app.run(host='0.0.0.0', port=8080, debug=False)" >> EJECUTAR_PUERTO_8080.bat

@@ -11,7 +11,7 @@
 </style>
 </head>
 <body>
-<h1>CWS COMPANY SA DE CV</h1>
+<h1>{{ company.name if company else 'Sifra' }}</h1>
 <p>Vendedor: {{ datos.vendedor }}</p>
 <p>Cliente: {{ datos.cliente }}</p>
 <p>Proyecto: {{ datos.proyecto }}</p>

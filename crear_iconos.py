@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-Script para crear iconos profesionales para la app CWS
+Script para crear iconos profesionales para la app Sifra
 """
 
 import os
 from PIL import Image, ImageDraw, ImageFont
 import requests
 
-def crear_icono_cws():
-    """Crea un icono profesional CWS si no existe logo"""
+def crear_icono_sifra():
+    """Crea un icono profesional Sifra si no existe logo"""
     try:
         # Verificar si ya existe el logo
         if os.path.exists('static/logo.png'):
             logo = Image.open('static/logo.png')
             print("✅ Logo existente encontrado")
         else:
-            # Crear un icono simple con las letras CWS
-            print("🎨 Creando icono CWS...")
+            # Crear un icono simple con las letras SIFRA
+            print("🎨 Creando icono Sifra...")
             logo = crear_icono_texto()
         
         # Redimensionar para diferentes tamaños
@@ -39,10 +39,10 @@ def crear_icono_cws():
         return False
 
 def crear_icono_texto():
-    """Crea un icono con las letras CWS"""
+    """Crea un icono con las letras SIFRA"""
     # Crear imagen base
     size = 512
-    img = Image.new('RGBA', (size, size), (44, 82, 130, 255))  # Color azul CWS
+    img = Image.new('RGBA', (size, size), (44, 82, 130, 255))  # Color azul Sifra
     draw = ImageDraw.Draw(img)
     
     # Intentar usar una fuente del sistema
@@ -54,8 +54,8 @@ def crear_icono_texto():
         except:
             font = ImageFont.load_default()
     
-    # Dibujar texto CWS
-    text = "CWS"
+    # Dibujar texto SIFRA
+    text = "SIFRA"
     bbox = draw.textbbox((0, 0), text, font=font)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
@@ -91,7 +91,7 @@ def instalar_pillow():
             return False
 
 def main():
-    print("🎨 CWS - Creador de Iconos Profesionales")
+    print("🎨 Sifra - Creador de Iconos Profesionales")
     print("=" * 50)
     
     if not instalar_pillow():
@@ -103,7 +103,7 @@ def main():
     global Image, ImageDraw, ImageFont
     from PIL import Image, ImageDraw, ImageFont
     
-    if crear_icono_cws():
+    if crear_icono_sifra():
         print("\n🎉 ¡Iconos creados exitosamente!")
         print("📁 Ubicación: static/")
         print("📋 Archivos creados:")

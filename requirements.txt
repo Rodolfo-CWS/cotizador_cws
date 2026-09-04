@@ -44,7 +44,9 @@ google-api-python-client==2.191.0
 google-auth==2.48.0
 
 # Claude/Anthropic API (IA para generación de texto personalizado)
-anthropic>=0.84.0
+# Pin fijo: v1.3.0 elimina el parámetro `temperature` de messages.create().
+# Se verifica que model/max_tokens/system/messages sí existen en esta versión.
+anthropic==1.3.0
 
 # Cloudinary eliminado - migrado a Supabase Storage
 

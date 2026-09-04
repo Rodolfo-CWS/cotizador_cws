@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-CWS COTIZADOR - APLICACIÓN PRINCIPAL UNIFICADA
+SIFRA COTIZADOR - APLICACIÓN PRINCIPAL UNIFICADA
 ==============================================
 
 Versión mejorada con sistema de almacenamiento unificado que integra:
@@ -265,7 +265,7 @@ def generar_pdf_reportlab(datos_cotizacion):
     story = []
     
     # Título principal
-    story.append(Paragraph("COTIZACIÓN CWS", title_style))
+    story.append(Paragraph("COTIZACIÓN SIFRA", title_style))
     story.append(Spacer(1, 20))
     
     # Información general
@@ -456,7 +456,7 @@ def cotizar():
             else:
                 # Fallback
                 timestamp = int(time.time())
-                numero_generado = f"CWS-{timestamp}-R1"
+                numero_generado = f"SIFRA-{timestamp}-R1"
                 datos_formulario['numeroCotizacion'] = numero_generado
                 datos_formulario['datosGenerales']['numeroCotizacion'] = numero_generado
         
@@ -752,7 +752,7 @@ def crear_templates_basicos():
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Error - CWS Cotizador</title>
+    <title>Error - Sifra</title>
     <meta charset="utf-8">
 </head>
 <body>
@@ -769,7 +769,7 @@ crear_templates_basicos()
 
 if __name__ == '__main__':
     """Ejecutar aplicación"""
-    logger.info("🚀 [START] Iniciando CWS Cotizador Unificado v3.0.0...")
+    logger.info("🚀 [START] Iniciando Sifra Cotizador Unificado v3.0.0...")
     
     # Configuración de servidor
     host = os.getenv('HOST', '0.0.0.0')

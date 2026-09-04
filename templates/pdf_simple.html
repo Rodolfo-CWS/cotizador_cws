@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cotización PDF - {{ company.name if company else 'CWS' }}</title>
+    <title>Cotización PDF - {{ company.name if company else 'Sifra' }}</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
         body { padding: 20px; }
@@ -42,7 +42,7 @@
     <div class="header">
         <div class="header-top">
             <div class="logo-title">
-                <h1>{{ company.name if company else 'CWS' }} - Cotización en PDF</h1>
+                <h1>{{ company.name if company else 'Sifra' }} - Cotización en PDF</h1>
             </div>
             <div class="user-info">
                 <a href="/" style="text-decoration:none;color:#4f46e5;">← Volver al inicio</a>
@@ -82,7 +82,7 @@
                 </div>
                 <div>
                     <label>Vendedor</label>
-                    <input type="text" name="vendedor" id="vendedor">
+                    <input type="text" name="vendedor" id="vendedor" value="{{ user_name }}">
                 </div>
                 <div>
                     <label>Fecha</label>
@@ -96,6 +96,14 @@
                     <label>Contacto</label>
                     <input type="text" name="contacto" id="contacto">
                 </div>
+                <div>
+                    <label>Revisión</label>
+                    <input type="number" name="revision" id="revision" min="1" value="1">
+                </div>
+                <div>
+                    <label>Actualización</label>
+                    <textarea name="actualizacionRevision" id="actualizacionRevision" rows="2" placeholder="Nota de actualización (opcional)"></textarea>
+                </div>
             </div>
         </div>
 
@@ -105,9 +113,10 @@
             <table id="itemsTable">
                 <thead>
                     <tr>
-                        <th style="width:50%;">Descripción</th>
-                        <th style="width:15%;">Cantidad</th>
-                        <th style="width:20%;">Precio unitario ($)</th>
+                        <th style="width:42%;">Descripción</th>
+                        <th style="width:13%;">Cantidad</th>
+                        <th style="width:14%;">UDM</th>
+                        <th style="width:16%;">Precio unitario ($)</th>
                         <th style="width:15%;"></th>
                     </tr>
                 </thead>
@@ -161,6 +170,17 @@
             </div>
         </div>
 
+        <!-- Imagen de referencia -->
+        <div class="card">
+            <h2>Imagen de referencia (opcional)</h2>
+            <input type="file" id="imagen-referencia-input" accept="image/jpeg,image/png" style="padding:8px;">
+            <div id="image-preview-wrap" class="hidden" style="margin-top:10px;">
+                <img id="image-preview" src="" alt="Vista previa" style="max-width:220px;max-height:180px;border-radius:8px;border:1px solid #e7e5e4;">
+                <button type="button" id="btn-remove-image" class="btn btn-danger btn-sm" style="margin-top:8px;">Eliminar imagen</button>
+            </div>
+            <p class="hint" style="margin-top:8px;">JPG o PNG, máximo 5 MB. Aparecerá en el PDF.</p>
+        </div>
+
         <!-- Totales -->
         <div class="card">
             <div class="totals">
@@ -180,16 +200,23 @@
         const IVA_RATE = parseFloat("{{ (company.iva_rate|default(16)) }}") || 16;
         let filaId = 0;
         let numeroExistente = '';
+        let imagenReferenciaBase64 = null;
+        let imagenReferenciaInfo = null;
 
-        function agregarFila(desc = '', cant = '', precio = '') {
+        function agregarFila(desc = '', cant = '', precio = '', uom = 'piezas') {
             filaId++;
             const tbody = document.getElementById('itemsBody');
             const tr = document.createElement('tr');
             tr.id = 'fila-' + filaId;
+            const opcionesUom = ['piezas', 'servicio', 'kg'].map(function(o){
+                const sel = (o === uom) ? ' selected' : '';
+                return `<option value="${o}"${sel}>${o}</option>`;
+            }).join('');
             tr.innerHTML = `
                 <td><input type="text" class="item-desc" value="${esc(desc)}" placeholder="Descripción del concepto"></td>
-                <td><input type="number" class="item-cant" min="0" step="any" value="${cant}" placeholder="0" oninput="recalcular()"></td>
-                <td><input type="number" class="item-precio" min="0" step="any" value="${precio}" placeholder="0.00" oninput="recalcular()"></td>
+                <td><input type="number" class="item-cant" min="0" step="any" value="${cant}" placeholder="0" oninput="recalcular()" onchange="recalcular()"></td>
+                <td><select class="item-uom">${opcionesUom}</select></td>
+                <td><input type="number" class="item-precio" min="0" step="any" value="${precio}" placeholder="0.00" oninput="recalcular()" onchange="recalcular()"></td>
                 <td><button type="button" class="btn btn-danger btn-sm" onclick="eliminarFila(${filaId})">✕</button></td>
             `;
             tbody.appendChild(tr);
@@ -213,18 +240,81 @@
             document.getElementById('tipoCambioWrap').classList.toggle('hidden', !esUSD);
         }
 
+        function inicializarManejadorImagen() {
+            const input = document.getElementById('imagen-referencia-input');
+            const previewWrap = document.getElementById('image-preview-wrap');
+            const preview = document.getElementById('image-preview');
+            const btnRemove = document.getElementById('btn-remove-image');
+            const MAX_SIZE = 5 * 1024 * 1024;
+            if (!input) return;
+
+            input.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (file.size > MAX_SIZE) { mostrarError('La imagen excede el límite de 5 MB.'); input.value = ''; return; }
+                if (file.size === 0) { mostrarError('La imagen está vacía (0 KB). Si la foto viene de iCloud y aún no está descargada, descárgala primero y vuelve a seleccionarla.'); input.value = ''; return; }
+                if (['image/jpeg', 'image/png'].indexOf(file.type) === -1) { mostrarError('Solo se permiten JPG y PNG.'); input.value = ''; return; }
+                const reader = new FileReader();
+                reader.onerror = function() {
+                    mostrarError('No se pudo leer la imagen. Si viene de iCloud, descárgala primero y vuelve a intentarlo.');
+                    input.value = '';
+                    previewWrap.classList.add('hidden');
+                };
+                reader.onload = function(ev) {
+                    if (!ev.target.result || ev.target.result.length < 100) {
+                        mostrarError('No se pudo leer el contenido de la imagen (archivo vacío). Si viene de iCloud, descárgala primero.');
+                        input.value = '';
+                        return;
+                    }
+                    imagenReferenciaBase64 = ev.target.result;
+                    imagenReferenciaInfo = { nombre: file.name, tamano_bytes: file.size, mime_type: file.type };
+                    preview.src = imagenReferenciaBase64;
+                    previewWrap.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            });
+
+            btnRemove.addEventListener('click', function() {
+                imagenReferenciaBase64 = null;
+                imagenReferenciaInfo = null;
+                input.value = '';
+                preview.src = '';
+                previewWrap.classList.add('hidden');
+            });
+        }
+
+        function obtenerImagenReferenciaPayload() {
+            if (imagenReferenciaBase64) {
+                return {
+                    base64: imagenReferenciaBase64,
+                    nombre: imagenReferenciaInfo.nombre,
+                    tamano_bytes: imagenReferenciaInfo.tamano_bytes,
+                    mime_type: imagenReferenciaInfo.mime_type
+                };
+            } else if (imagenReferenciaInfo) {
+                return {
+                    nombre: imagenReferenciaInfo.nombre,
+                    tamano_bytes: imagenReferenciaInfo.tamano_bytes,
+                    mime_type: imagenReferenciaInfo.mime_type,
+                    conservar: true
+                };
+            }
+            return null;
+        }
+
         function recolectarItems() {
             const items = [];
             document.querySelectorAll('#itemsBody tr').forEach(function(tr){
                 const desc = tr.querySelector('.item-desc').value.trim();
                 const cant = tr.querySelector('.item-cant').value;
                 const precio = tr.querySelector('.item-precio').value;
+                const uom = tr.querySelector('.item-uom').value;
                 if (desc || cant || precio) {
                     items.push({
                         descripcion: desc,
                         cantidad: parseFloat(cant) || 0,
                         precio_unitario: parseFloat(precio) || 0,
-                        uom: 'pza'
+                        uom: uom
                     });
                 }
             });
@@ -249,6 +339,8 @@
                 vendedor: document.getElementById('vendedor').value.trim(),
                 atencionA: document.getElementById('atencionA').value.trim(),
                 contacto: document.getElementById('contacto').value.trim(),
+                revision: document.getElementById('revision').value,
+                actualizacionRevision: document.getElementById('actualizacionRevision').value.trim(),
                 fecha: document.getElementById('fecha').value
             };
         }
@@ -289,7 +381,7 @@
                         datosGenerales: datosGenerales,
                         items: items,
                         condiciones: condiciones,
-                        revision: '1'
+                        revision: document.getElementById('revision').value || '1'
                     })
                 });
                 const data = await resp.json();
@@ -329,7 +421,8 @@
                         condiciones: recolectarCondiciones(),
                         textoPersonalizado: document.getElementById('textoIA').value.trim(),
                         nombre: document.getElementById('nombre').value.trim(),
-                        numeroCotizacion: numeroExistente
+                        numeroCotizacion: numeroExistente,
+                        imagenReferencia: obtenerImagenReferenciaPayload()
                     })
                 });
                 const data = await resp.json();
@@ -363,7 +456,18 @@
             document.getElementById('atencionA').value = dg.atencionA || '';
             document.getElementById('contacto').value = dg.contacto || '';
             document.getElementById('fecha').value = (dg.fecha || '').slice(0, 10);
+            document.getElementById('revision').value = dg.revision || '1';
+            document.getElementById('actualizacionRevision').value = dg.actualizacionRevision || '';
             document.getElementById('textoIA').value = dg.textoIntroductorio || '';
+            if (dg.imagenReferencia && dg.imagenReferencia.url) {
+                imagenReferenciaInfo = {
+                    nombre: dg.imagenReferencia.nombre || 'imagen',
+                    tamano_bytes: dg.imagenReferencia.tamano_bytes || 0,
+                    mime_type: dg.imagenReferencia.mime_type || 'image/jpeg'
+                };
+                document.getElementById('image-preview').src = dg.imagenReferencia.url;
+                document.getElementById('image-preview-wrap').classList.remove('hidden');
+            }
 
             document.getElementById('moneda').value = cond.moneda || 'MXN';
             document.getElementById('tipoCambio').value = cond.tipoCambio || '';
@@ -380,13 +484,14 @@
                 const precio = (it.precio_unitario != null && it.precio_unitario !== '')
                     ? it.precio_unitario
                     : ((parseFloat(it.cantidad) > 0) ? (parseFloat(it.total) / parseFloat(it.cantidad)) : 0);
-                agregarFila(it.descripcion || '', it.cantidad || '', precio);
+                agregarFila(it.descripcion || '', it.cantidad || '', precio, it.uom || 'piezas');
             });
             if (!items.length) { agregarFila(); agregarFila(); agregarFila(); }
         }
 
         // Fecha por defecto hoy + filas iniciales + precarga si es edición
         document.addEventListener('DOMContentLoaded', function(){
+            inicializarManejadorImagen();
             document.getElementById('fecha').value = new Date().toISOString().slice(0, 10);
 
             {% if cotizacion_edit %}
