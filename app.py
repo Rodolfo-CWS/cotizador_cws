@@ -7,7 +7,7 @@ Todas las rutas se preservan aquí para backward compatibility.
 from cotizador import (
     create_app, REPORTLAB_AVAILABLE, WEASYPRINT_AVAILABLE,
     safe_float, safe_int, validate_material_data,
-    wrap_description_text, generar_pdf_reportlab, generar_desglose_pdf_reportlab,
+    wrap_description_text, slugify, generar_pdf_reportlab, generar_desglose_pdf_reportlab,
     generar_estimacion_fast_quote_pdf
 )
 
@@ -3616,7 +3616,9 @@ def fast_quote_pdf():
             "error": "No se pudo generar el PDF de la estimación."
         }), 500
 
-    filename = f"Estimacion-Sifra-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}.pdf"
+    descripcion = estimacion.get("description", "") or ""
+    slug = slugify(descripcion)
+    filename = f"Estimacion-{slug}.pdf" if slug else "Estimacion-Sifra.pdf"
     buf = io.BytesIO(pdf_bytes)
     return send_file(
         buf,

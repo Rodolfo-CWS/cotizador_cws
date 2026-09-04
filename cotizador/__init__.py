@@ -17,7 +17,7 @@ from cotizador._compat import REPORTLAB_AVAILABLE, WEASYPRINT_AVAILABLE
 # Utilidades compartidas
 from cotizador.utilities import (
     safe_float, safe_int, validate_material_data,
-    wrap_description_text, is_json_request,
+    wrap_description_text, slugify, is_json_request,
     handle_error_response, handle_not_found_response
 )
 from cotizador.pdf_generator import (

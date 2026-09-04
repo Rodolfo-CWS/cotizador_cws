@@ -767,6 +767,17 @@
             window.location.href = '/formulario?fastquote=1';
         }
 
+        function slugify(text, maxLength = 40) {
+            return (text || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .slice(0, maxLength)
+                .replace(/-+$/g, '');
+        }
+
         async function descargarPDF() {
             if (!lastResult) return;
 
@@ -799,7 +810,9 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'Estimacion-Sifra.pdf';
+                const desc = (descriptionInput.value || '').trim();
+                const slug = slugify(desc) || 'sifra';
+                a.download = `Estimacion-${slug}.pdf`;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();

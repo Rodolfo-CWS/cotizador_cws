@@ -3,6 +3,8 @@ Utilidades compartidas para el cotizador Sifra.
 Funciones auxiliares extraídas de app.py para ser usadas por los blueprints.
 """
 import json
+import re
+import unicodedata
 from flask import current_app
 
 
@@ -118,6 +120,20 @@ def wrap_description_text(text, max_chars_per_line=45):
         lines.append(current_line)
 
     return "\n".join(lines)
+
+
+def slugify(text, max_length=40):
+    """Convierte texto en un slug corto apto para nombre de archivo (sin acentos ni símbolos)."""
+    if not text:
+        return ""
+    text = unicodedata.normalize('NFKD', str(text))
+    text = text.encode('ascii', 'ignore').decode('ascii')
+    text = text.lower()
+    text = re.sub(r'[^a-z0-9]+', '-', text).strip('-')
+    text = re.sub(r'-{2,}', '-', text)
+    if len(text) > max_length:
+        text = text[:max_length].rstrip('-')
+    return text
 
 
 def is_json_request():
