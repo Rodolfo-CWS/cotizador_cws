@@ -3420,11 +3420,46 @@ REGLAS:
 - calculo = fórmula usada (solo si aplica)."""
 
         client = anthropic.Anthropic(api_key=api_key)
+        # Salida estructurada: fuerza que Claude devuelva JSON válido (evita texto libre).
+        json_schema = {
+            "type": "object",
+            "properties": {
+                "needs_clarification": {"type": "boolean"},
+                "analisis": {"type": "string"},
+                "preguntas": {"type": "array", "items": {"type": "string"}},
+                "desglose": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "concepto": {"type": "string"},
+                            "cantidad": {"type": "number"},
+                            "unidad": {"type": "string"},
+                            "precio_unitario": {"type": "number"},
+                            "subtotal": {"type": "number"},
+                            "material_csv": {"type": ["string", "null"]},
+                            "peso_kg": {"type": "number"},
+                            "calculo": {"type": "string"}
+                        }
+                    }
+                },
+                "subtotal": {"type": "number"},
+                "margen_aplicado": {"type": "number"},
+                "margen_monto": {"type": "number"},
+                "total_estimado": {"type": "number"},
+                "moneda": {"type": "string"},
+                "confianza": {"type": "string"},
+                "falta_informacion": {"type": "array", "items": {"type": "string"}},
+                "notas": {"type": "string"}
+            },
+            "required": ["needs_clarification"]
+        }
         message = client.messages.create(
             model="claude-sonnet-5",
             max_tokens=1500,
             system=system_prompt,
             thinking={"type": "disabled"},
+            output_config={"format": {"type": "json_schema", "schema": json_schema}},
             messages=[{"role": "user", "content": user_prompt}]
         )
 
@@ -3470,17 +3505,21 @@ REGLAS:
                         return candidato
             return None
 
-        candidato_json = _extraer_json_ia(raw_text)
-        if not candidato_json:
-            print(f"[FAST_QUOTE] No se pudo extraer JSON. Raw: {raw_text[:500]}")
-            raise ValueError("La IA no devolvió un formato válido. Intenta de nuevo.")
-
+        # Con output_config (json_schema) la respuesta debería ser JSON puro.
         try:
-            result = json.loads(candidato_json)
-        except json.JSONDecodeError as e:
-            print(f"[FAST_QUOTE] JSON inválido de IA: {e}")
-            print(f"[FAST_QUOTE] Candidato crudo: {candidato_json[:800]}")
-            raise
+            result = json.loads(raw_text)
+        except (json.JSONDecodeError, ValueError):
+            # Fallback por si el modelo devolvió texto libre con fences/extra.
+            candidato_json = _extraer_json_ia(raw_text)
+            if not candidato_json:
+                print(f"[FAST_QUOTE] No se pudo extraer JSON. Raw: {raw_text[:500]}")
+                raise ValueError("La IA no devolvió un formato válido. Intenta de nuevo.")
+            try:
+                result = json.loads(candidato_json)
+            except json.JSONDecodeError as e:
+                print(f"[FAST_QUOTE] JSON inválido de IA: {e}")
+                print(f"[FAST_QUOTE] Candidato crudo: {candidato_json[:800]}")
+                raise
 
         # 6. ¿La IA necesita clarificación?
         if result.get('needs_clarification'):
