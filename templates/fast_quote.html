@@ -455,6 +455,10 @@
                     {% if plan_has_feature(company_plan, 'full_form') %}
                     <a href="/formulario" class="btn btn-primary" onclick="precargarCotizacionFormal(event)">📄 Ir a Cotización Formal</a>
                     {% endif %}
+                    <button id="btnPdf" class="btn btn-outline" onclick="descargarPDF()">
+                        <span class="btn-text">⬇️ Descargar PDF</span>
+                        <div class="spinner"></div>
+                    </button>
                     <button class="btn btn-outline" onclick="location.reload()">🔄 Nueva Estimación</button>
                 </div>
             </div>
@@ -761,6 +765,52 @@
 
             // Navegar al formulario
             window.location.href = '/formulario?fastquote=1';
+        }
+
+        async function descargarPDF() {
+            if (!lastResult) return;
+
+            const btn = document.getElementById('btnPdf');
+            btn.classList.add('loading');
+            btn.disabled = true;
+            errorBox.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/fast-quote/pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...lastResult,
+                        description: descriptionInput.value.trim()
+                    })
+                });
+
+                if (!response.ok) {
+                    let msg = 'Error al generar el PDF.';
+                    try {
+                        const err = await response.json();
+                        msg = err.error || msg;
+                    } catch (e) {}
+                    showError(msg);
+                    return;
+                }
+
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Estimacion-Sifra.pdf';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                console.error('[PDF]', err);
+                showError('Error de conexión al generar el PDF.');
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
         }
     </script>
 </body>

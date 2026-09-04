@@ -7,7 +7,8 @@ Todas las rutas se preservan aquí para backward compatibility.
 from cotizador import (
     create_app, REPORTLAB_AVAILABLE, WEASYPRINT_AVAILABLE,
     safe_float, safe_int, validate_material_data,
-    wrap_description_text, generar_pdf_reportlab, generar_desglose_pdf_reportlab
+    wrap_description_text, generar_pdf_reportlab, generar_desglose_pdf_reportlab,
+    generar_estimacion_fast_quote_pdf
 )
 
 # ── Imports estándar usados por las rutas ──
@@ -3072,9 +3073,8 @@ Resumen de ítems cotizados:
             try:
                 client = anthropic.Anthropic(api_key=api_key)
                 message = client.messages.create(
-                    model="claude-sonnet-4-6",
+                    model="claude-sonnet-5",
                     max_tokens=400,
-                    temperature=0.7,
                     system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}]
                 )
@@ -3213,6 +3213,26 @@ def fast_quote_estimate():
                 print(f"[FAST_QUOTE] Prompt cargado: {len(prompt_text)} chars para company_id={company_id}")
             except Exception as e:
                 print(f"[FAST_QUOTE] Error cargando prompt: {e}")
+
+        # 1.5 Límite de plan (cuota mensual). No aplica a recálculo por feedback.
+        is_feedback = bool(feedback and previous_estimate)
+        plan = (g.get("company") or {}).get("plan", "full")
+        if not is_feedback:
+            max_estimates = get_limit(plan, "max_estimates")
+            if max_estimates is not None and company_id:
+                try:
+                    usadas = db_manager.contar_estimaciones_fast_quote_mes(company_id)
+                    if usadas >= max_estimates:
+                        return jsonify({
+                            "success": False,
+                            "tipo_error": "plan_limit",
+                            "error": (
+                                f"Alcanzaste el límite de {max_estimates} estimaciones "
+                                "de tu plan este mes. Contacta a soporte para ampliarlo."
+                            ),
+                        }), 403
+                except Exception as e:
+                    print(f"[FAST_QUOTE] Error checando límite: {e}")
 
         # 2. Verificar disponibilidad de Claude
         api_key = os.getenv('ANTHROPIC_API_KEY', '').strip()
@@ -3398,9 +3418,8 @@ REGLAS:
 
         client = anthropic.Anthropic(api_key=api_key)
         message = client.messages.create(
-            model="claude-sonnet-4-6",
+            model="claude-sonnet-5",
             max_tokens=1500,
-            temperature=0.3,
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}]
         )
@@ -3426,6 +3445,13 @@ REGLAS:
                 "analysis": result.get('analisis', ''),
                 "preguntas": result.get('preguntas', [])
             }), 200
+
+        # 6.5 Registrar uso (cuota mensual). No se cuenta el recálculo por feedback.
+        if not is_feedback and company_id:
+            try:
+                db_manager.registrar_estimacion_fast_quote(company_id)
+            except Exception as e:
+                print(f"[FAST_QUOTE] Error registrando uso: {e}")
 
         # 7. Es una estimación — validar campos
         estimated_total = result.get('total_estimado', 0)
@@ -3468,6 +3494,50 @@ REGLAS:
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "error": f"Error al generar estimación: {error_msg}"}), 500
+
+
+@app.route("/api/fast-quote/pdf", methods=["POST"])
+@login_required
+@plan_required(FEATURE_FAST_QUOTE)
+def fast_quote_pdf():
+    """Genera y descarga un PDF con la estimación Fast Quote actual."""
+    if not REPORTLAB_AVAILABLE:
+        return jsonify({
+            "success": False,
+            "error": "El generador de PDF no está disponible en este momento."
+        }), 503
+
+    try:
+        estimacion = request.get_json() or {}
+    except Exception:
+        estimacion = {}
+
+    if not estimacion.get("estimated_total"):
+        return jsonify({
+            "success": False,
+            "error": "No hay una estimación para exportar. Genera primero una estimación."
+        }), 400
+
+    try:
+        pdf_bytes = generar_estimacion_fast_quote_pdf(
+            estimacion,
+            company_branding=g.get("company"),
+        )
+    except Exception as e:
+        print(f"[FAST_QUOTE] Error generando PDF: {e}")
+        return jsonify({
+            "success": False,
+            "error": "No se pudo generar el PDF de la estimación."
+        }), 500
+
+    filename = f"Estimacion-Sifra-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}.pdf"
+    buf = io.BytesIO(pdf_bytes)
+    return send_file(
+        buf,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=filename,
+    )
 
 
 # ============================================

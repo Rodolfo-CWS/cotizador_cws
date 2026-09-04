@@ -679,6 +679,316 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     return buffer.getvalue()
 
 
+def generar_estimacion_fast_quote_pdf(estimacion, company_branding=None):
+    """Genera un PDF de una estimación Fast Quote (no es presupuesto formal).
+
+    Args:
+        estimacion: Dict con la estimación devuelta por la IA:
+            description, estimated_total, currency, subtotal, margin,
+            margin_amount, breakdown, analysis, confidence, notes, missing_info.
+        company_branding: Dict con branding de la compañía (opcional).
+    """
+    if not REPORTLAB_AVAILABLE:
+        raise ImportError("ReportLab no está disponible")
+
+    if company_branding is None:
+        company_branding = DEFAULT_BRANDING
+    branding = {**DEFAULT_BRANDING, **company_branding}
+
+    try:
+        primary_color = colors.HexColor(str(branding.get('primary_color', '#1e293b')))
+    except:
+        primary_color = CORPORATE_INDIGO
+    try:
+        secondary_color = colors.HexColor(str(branding.get('secondary_color', '#0f172a')))
+    except:
+        secondary_color = CORPORATE_INDIGO_DARK
+
+    # Moneda
+    moneda = (estimacion.get('currency') or 'MXN').upper()
+    simbolo = 'USD $' if moneda == 'USD' else '$'
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=letter,
+        rightMargin=0.6*inch, leftMargin=0.6*inch,
+        topMargin=0.55*inch, bottomMargin=0.45*inch
+    )
+    story = []
+    styles = getSampleStyleSheet()
+
+    # ── Estilos ──
+    header_style = ParagraphStyle(
+        'FQHeader', parent=styles['Normal'], fontSize=14, spaceAfter=6,
+        alignment=1, textColor=CORPORATE_INDIGO, fontName='Helvetica-Bold'
+    )
+    subtitle_style = ParagraphStyle(
+        'FQSubtitle', parent=styles['Normal'], fontSize=11, spaceAfter=8,
+        spaceBefore=8, fontName='Helvetica-Bold', textColor=TEXT_DARK
+    )
+    normal_style = ParagraphStyle(
+        'FQNormal', parent=styles['Normal'], fontSize=9,
+        fontName='Helvetica', textColor=TEXT_BODY
+    )
+    desc_style = ParagraphStyle(
+        'FQDesc', parent=styles['Normal'], fontSize=9, fontName='Helvetica',
+        alignment=0, leading=11, wordWrap='CJK'
+    )
+
+    # ── Logo ──
+    logo = None
+    logo_url = branding.get('logo_url')
+    if logo_url:
+        try:
+            import urllib.request
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                urllib.request.urlretrieve(logo_url, tmp.name)
+                if os.path.exists(tmp.name) and os.path.getsize(tmp.name) > 0:
+                    logo = Image(tmp.name, width=1.0*inch, height=0.65*inch)
+        except Exception:
+            logo = None
+    if not logo:
+        try:
+            if os.path.exists("static/logo.png"):
+                logo = Image("static/logo.png", width=1.0*inch, height=0.65*inch)
+        except:
+            pass
+    if not logo:
+        logo = Paragraph(branding['name'].replace('\n', '<br/>'), header_style)
+
+    empresa_info = Paragraph(
+        f"<b>{branding['name']}</b><br/><font size=\"7\">{branding.get('address', '')}</font>",
+        ParagraphStyle(
+            'FQEmpresa', parent=styles['Normal'], fontSize=9, fontName='Helvetica',
+            textColor=TEXT_DARK, alignment=0, leading=12, wordWrap='CJK'
+        )
+    )
+    left_block = Table([[logo, empresa_info]], colWidths=[1.15*inch, 2.85*inch])
+    left_block.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('ALIGN', (1, 0), (1, 0), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (1, 0), (1, 0), 8),
+        ('RIGHTPADDING', (0, 0), (0, 0), 0),
+    ]))
+
+    fecha_actual = datetime.datetime.now().strftime('%d/%m/%Y')
+    derecha_info = Paragraph(
+        f"<b>COTIZACIÓN RÁPIDA</b><br/>"
+        f"<b>ESTIMACIÓN</b> — No es presupuesto formal<br/>"
+        f"Fecha: {fecha_actual}",
+        ParagraphStyle(
+            'FQCotizInfo', parent=styles['Normal'], fontSize=9, fontName='Helvetica-Bold',
+            textColor=CORPORATE_INDIGO, alignment=2, wordWrap='CJK'
+        )
+    )
+
+    header_table = Table([[left_block, derecha_info]], colWidths=[4.0*inch, 3.0*inch])
+    header_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(header_table)
+    story.append(Spacer(1, 6))
+
+    # ── Banner de estimación ──
+    banner_style = ParagraphStyle(
+        'FQBanner', parent=styles['Normal'], fontSize=10, fontName='Helvetica-Bold',
+        textColor=WHITE, backColor=primary_color, borderPadding=6, alignment=1, wordWrap='CJK'
+    )
+    story.append(Paragraph("COTIZACIÓN RÁPIDA — ESTIMACIÓN REFERENCIAL (no vinculante)", banner_style))
+    story.append(Spacer(1, 12))
+
+    # ── Total destacado ──
+    try:
+        total = float(estimacion.get('estimated_total', 0) or 0)
+    except (ValueError, TypeError):
+        total = 0.0
+    total_style = ParagraphStyle(
+        'FQTotal', parent=styles['Normal'], fontSize=26, fontName='Helvetica-Bold',
+        textColor=primary_color, alignment=1, leading=30
+    )
+    story.append(Paragraph(f"{simbolo}{total:,.2f}", total_style))
+    total_label_style = ParagraphStyle(
+        'FQTotalLabel', parent=styles['Normal'], fontSize=9,
+        fontName='Helvetica', textColor=TEXT_GRAY, alignment=1
+    )
+    story.append(Paragraph(f"Precio estimado ({moneda}) — antes de IVA", total_label_style))
+    story.append(Spacer(1, 4))
+
+    # Confianza
+    confianza = (estimacion.get('confidence') or 'media').lower()
+    conf_map = {'alta': ('Confianza Alta', '#16a34a'), 'baja': ('Confianza Baja', '#dc2626')}
+    conf_label, conf_color = conf_map.get(confianza, ('Confianza Media', '#b45309'))
+    conf_style = ParagraphStyle(
+        'FQConf', parent=styles['Normal'], fontSize=8.5, fontName='Helvetica-Bold',
+        textColor=colors.HexColor(conf_color), alignment=1
+    )
+    story.append(Paragraph(f"● {conf_label}", conf_style))
+    story.append(Spacer(1, 12))
+
+    # ── Análisis ──
+    analisis = (estimacion.get('analysis') or '').strip()
+    if analisis:
+        story.append(Paragraph("ANÁLISIS", subtitle_style))
+        story.append(Spacer(1, 4))
+        analisis_style = ParagraphStyle(
+            'FQAnalisis', parent=styles['Normal'], fontSize=9, fontName='Helvetica',
+            textColor=TEXT_BODY, alignment=4, leading=13, wordWrap='CJK',
+            backColor=colors.HexColor('#eff6ff'), borderPadding=6
+        )
+        story.append(Paragraph(analisis.replace('\n', '<br/>\n'), analisis_style))
+        story.append(Spacer(1, 10))
+
+    # ── Desglose ──
+    breakdown = estimacion.get('breakdown') or []
+    if isinstance(breakdown, list) and breakdown:
+        story.append(Paragraph("DESGLOSE", subtitle_style))
+        story.append(Spacer(1, 4))
+
+        data = [['CONCEPTO', 'CANT.', 'UDM', 'P. UNIT.', 'SUBTOTAL']]
+        for it in breakdown:
+            if not isinstance(it, dict):
+                continue
+            concepto = Paragraph((it.get('concepto') or '—'), desc_style)
+            cantidad = it.get('cantidad')
+            cantidad_txt = f"{float(cantidad):,.2f}" if cantidad is not None else '—'
+            data.append([
+                concepto,
+                cantidad_txt,
+                it.get('unidad') or '—',
+                f"{simbolo}{float(it.get('precio_unitario') or 0):,.2f}",
+                f"{simbolo}{float(it.get('subtotal') or 0):,.2f}",
+            ])
+
+        tabla = Table(data, colWidths=[3.0*inch, 0.7*inch, 0.7*inch, 1.0*inch, 1.1*inch])
+        tabla.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), primary_color),
+            ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (-1, 0), 'CENTER'),
+            ('ALIGN', (1, 1), (3, -1), 'CENTER'),
+            ('ALIGN', (4, 1), (-1, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+            ('BOX', (0, 0), (-1, -1), 0.75, CORPORATE_INDIGO),
+            ('INNERGRID', (0, 0), (-1, -1), 0.3, BORDER_GRAY),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, BG_LIGHT]),
+            ('FONTNAME', (4, 1), (-1, -1), 'Helvetica-Bold'),
+            ('TEXTCOLOR', (4, 1), (-1, -1), CORPORATE_INDIGO),
+        ]))
+        story.append(tabla)
+        story.append(Spacer(1, 10))
+
+        # ── Totales ──
+        try:
+            subtotal = float(estimacion.get('subtotal') or 0)
+        except (ValueError, TypeError):
+            subtotal = 0.0
+        try:
+            margin_pct = float(estimacion.get('margin') or 0)
+        except (ValueError, TypeError):
+            margin_pct = 0.0
+        try:
+            margin_amt = float(estimacion.get('margin_amount') or 0)
+        except (ValueError, TypeError):
+            margin_amt = 0.0
+
+        totales_data = [
+            ['Subtotal:', f"{simbolo}{subtotal:,.2f}"],
+            [f'Margen ({margin_pct:g}%):', f"{simbolo}{margin_amt:,.2f}"],
+            ['TOTAL ESTIMADO:', f"{simbolo}{total:,.2f}"],
+        ]
+        totales_table = Table(totales_data, colWidths=[1.8*inch, 1.6*inch])
+        totales_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, -2), 'Helvetica'),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -2), 10),
+            ('FONTSIZE', (0, -1), (-1, -1), 11),
+            ('TEXTCOLOR', (0, 0), (-1, -2), TEXT_DARK),
+            ('TEXTCOLOR', (0, -1), (-1, -1), CORPORATE_INDIGO),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('BACKGROUND', (0, 0), (-1, -2), BG_LIGHT),
+            ('BACKGROUND', (0, -1), (-1, -1), CORPORATE_INDIGO_LIGHT),
+            ('LINEABOVE', (0, -1), (-1, -1), 2, CORPORATE_INDIGO),
+            ('BOX', (0, 0), (-1, -1), 1, BORDER_GRAY),
+        ]))
+        totales_container = Table([[totales_table]], colWidths=[6.5*inch])
+        totales_container.setStyle(TableStyle([('ALIGN', (0, 0), (0, 0), 'RIGHT')]))
+        story.append(totales_container)
+
+    # ── Información faltante ──
+    missing = estimacion.get('missing_info') or []
+    if isinstance(missing, list) and missing:
+        story.append(Spacer(1, 10))
+        story.append(Paragraph("INFORMACIÓN FALTANTE PARA UN PRESUPUESTO FORMAL", subtitle_style))
+        for m in missing:
+            story.append(Paragraph(f"• {m}", normal_style))
+
+    # ── Notas ──
+    notas = (estimacion.get('notes') or '').strip()
+    if notas:
+        story.append(Spacer(1, 10))
+        story.append(Paragraph("NOTAS", subtitle_style))
+        story.append(Paragraph(notas.replace('\n', '<br/>\n'), normal_style))
+
+    # ── Descripción original ──
+    descripcion = (estimacion.get('description') or '').strip()
+    if descripcion:
+        story.append(Spacer(1, 10))
+        story.append(Paragraph("DESCRIPCIÓN DEL PRODUCTO", subtitle_style))
+        story.append(Paragraph(descripcion.replace('\n', '<br/>\n'), normal_style))
+
+    # ── Disclaimer ──
+    story.append(Spacer(1, 12))
+    disclaimer_style = ParagraphStyle(
+        'FQDisclaimer', parent=styles['Normal'], fontSize=8, fontName='Helvetica',
+        textColor=colors.HexColor('#92400e'), alignment=1, leading=11,
+        backColor=colors.HexColor('#fef3c7'), borderPadding=6, wordWrap='CJK'
+    )
+    story.append(Paragraph(
+        "<b>⚠️ ESTA NO ES UNA COTIZACIÓN FORMAL.</b> Los precios mostrados son referenciales "
+        "y generados por inteligencia artificial. Pueden variar según condiciones reales de "
+        "fabricación, disponibilidad de materiales y alcance final del proyecto.",
+        disclaimer_style
+    ))
+
+    # ── Pie de página ──
+    story.append(Spacer(1, 8))
+    footer_style = ParagraphStyle(
+        'FQFooter', parent=styles['Normal'], fontSize=7.5, fontName='Helvetica',
+        textColor=TEXT_GRAY, alignment=1, borderPadding=5, backColor=BG_LIGHT,
+        borderColor=BORDER_GRAY, borderWidth=0.5, wordWrap='CJK'
+    )
+    footer_text = branding.get('footer_text', DEFAULT_BRANDING['footer_text'])
+    story.append(Paragraph(footer_text, footer_style))
+    story.append(Spacer(1, 4))
+    generated_style = ParagraphStyle(
+        'FQGenerated', parent=styles['Normal'], fontSize=7,
+        fontName='Helvetica', textColor=TEXT_GRAY, alignment=1
+    )
+    story.append(Paragraph("Estimación generada con Sifra", generated_style))
+
+    # Construir PDF
+    doc.build(story)
+    buffer.seek(0)
+
+    return buffer.getvalue()
+
+
 def generar_desglose_pdf_reportlab(datos_cotizacion, company_branding=None):
     """Genera un PDF COMPACTO tipo lista/resumen del desglose — optimizado para compartir.
 

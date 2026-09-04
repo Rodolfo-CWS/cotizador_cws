@@ -3440,6 +3440,100 @@ class SupabaseManager:
                 pass
         return False
 
+    # ================================================================
+    # FAST QUOTE — CUOTA MENSUAL (para límites del plan)
+    # ================================================================
+
+    def registrar_estimacion_fast_quote(self, company_id: str) -> bool:
+        """Registra una estimación de Fast Quote (para la cuota mensual)."""
+        if not company_id:
+            return False
+
+        # Intento 1: PostgreSQL directo
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """INSERT INTO public.fast_quote_usage (company_id)
+                       VALUES (%s)""",
+                    (company_id,)
+                )
+                self.pg_connection.commit()
+                cursor.close()
+                return True
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error registrar uso (PG): {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+
+        # Intento 2: SDK con service key
+        try:
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                client.table('fast_quote_usage').insert({'company_id': company_id}).execute()
+                return True
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error registrar uso (SDK): {e}")
+
+        return False
+
+    def contar_estimaciones_fast_quote_mes(self, company_id: str) -> int:
+        """Cuenta las estimaciones Fast Quote del mes calendario actual."""
+        if not company_id:
+            return 0
+
+        # Intento 1: PostgreSQL directo (conteo exacto del mes)
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """SELECT COUNT(*) FROM public.fast_quote_usage
+                       WHERE company_id = %s
+                         AND created_at >= date_trunc('month', NOW())""",
+                    (company_id,)
+                )
+                count = cursor.fetchone()[0]
+                cursor.close()
+                return int(count)
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error contando uso (PG): {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+
+        # Intento 2: SDK con service key (mejor esfuerzo)
+        try:
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                month_start = datetime.utcnow().replace(
+                    day=1, hour=0, minute=0, second=0, microsecond=0
+                ).isoformat()
+                resp = client.table('fast_quote_usage') \
+                    .select('id') \
+                    .eq('company_id', company_id) \
+                    .gte('created_at', month_start) \
+                    .execute()
+                return len(resp.data or [])
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error contando uso (SDK): {e}")
+
+        return 0
+
     def close(self):
         """Cierra conexiones del manager."""
         if self.pg_connection:

@@ -46,7 +46,11 @@ PLAN_LIMITS = {
     PLAN_PDF: {
         'max_pdfs': 20,
     },
-    PLAN_FAST_QUOTE: {},
+    # Cuota mensual de estimaciones Fast Quote (por mes calendario).
+    # Se cuenta en la tabla public.fast_quote_usage (migrations/v5_fast_quote_usage.sql).
+    PLAN_FAST_QUOTE: {
+        'max_estimates': 30,
+    },
     PLAN_FULL: {},
 }
 
