@@ -3432,15 +3432,53 @@ REGLAS:
         )
         print(f"[FAST_QUOTE] Claude response: {len(raw_text)} chars")
 
-        # 5. Extraer JSON de la respuesta
+        # 5. Extraer JSON de la respuesta (robusto: fences, texto extra, comas finales)
         import re
-        json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
 
-        if not json_match:
+        def _extraer_json_ia(texto):
+            # Quitar fences de markdown ```json ... ```
+            texto = re.sub(r'```(?:json)?\s*', '', texto)
+            inicio = texto.find('{')
+            if inicio == -1:
+                return None
+            # Recorrer el objeto balanceado (respetando strings)
+            profundidad = 0
+            en_string = False
+            escape = False
+            for i in range(inicio, len(texto)):
+                c = texto[i]
+                if en_string:
+                    if escape:
+                        escape = False
+                    elif c == '\\':
+                        escape = True
+                    elif c == '"':
+                        en_string = False
+                    continue
+                if c == '"':
+                    en_string = True
+                elif c == '{':
+                    profundidad += 1
+                elif c == '}':
+                    profundidad -= 1
+                    if profundidad == 0:
+                        candidato = texto[inicio:i + 1]
+                        # Tolerar comas finales (error común de la IA)
+                        candidato = re.sub(r',\s*([}\]])', r'\1', candidato)
+                        return candidato
+            return None
+
+        candidato_json = _extraer_json_ia(raw_text)
+        if not candidato_json:
             print(f"[FAST_QUOTE] No se pudo extraer JSON. Raw: {raw_text[:500]}")
             raise ValueError("La IA no devolvió un formato válido. Intenta de nuevo.")
 
-        result = json.loads(json_match.group())
+        try:
+            result = json.loads(candidato_json)
+        except json.JSONDecodeError as e:
+            print(f"[FAST_QUOTE] JSON inválido de IA: {e}")
+            print(f"[FAST_QUOTE] Candidato crudo: {candidato_json[:800]}")
+            raise
 
         # 6. ¿La IA necesita clarificación?
         if result.get('needs_clarification'):
