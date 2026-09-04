@@ -252,9 +252,20 @@
                 const file = e.target.files[0];
                 if (!file) return;
                 if (file.size > MAX_SIZE) { mostrarError('La imagen excede el límite de 5 MB.'); input.value = ''; return; }
+                if (file.size === 0) { mostrarError('La imagen está vacía (0 KB). Si la foto viene de iCloud y aún no está descargada, descárgala primero y vuelve a seleccionarla.'); input.value = ''; return; }
                 if (['image/jpeg', 'image/png'].indexOf(file.type) === -1) { mostrarError('Solo se permiten JPG y PNG.'); input.value = ''; return; }
                 const reader = new FileReader();
+                reader.onerror = function() {
+                    mostrarError('No se pudo leer la imagen. Si viene de iCloud, descárgala primero y vuelve a intentarlo.');
+                    input.value = '';
+                    previewWrap.classList.add('hidden');
+                };
                 reader.onload = function(ev) {
+                    if (!ev.target.result || ev.target.result.length < 100) {
+                        mostrarError('No se pudo leer el contenido de la imagen (archivo vacío). Si viene de iCloud, descárgala primero.');
+                        input.value = '';
+                        return;
+                    }
                     imagenReferenciaBase64 = ev.target.result;
                     imagenReferenciaInfo = { nombre: file.name, tamano_bytes: file.size, mime_type: file.type };
                     preview.src = imagenReferenciaBase64;
