@@ -8,7 +8,7 @@
 
 **URL:** https://cotizador-cws.onrender.com/
 **Status:** ✅ **100% Operacional - Sistema Bulletproof con Triple Redundancia + IA**
-**Última actualización:** Junio 18, 2026 - IA Text Generation + Minor Edits + PDF Preview
+**Última actualización:** Septiembre 4, 2026 - Fast Quote (PDF + cuota mensual) + rebrand Sifra
 
 ---
 
@@ -74,6 +74,14 @@
 - ✅ **Preservación entre revisiones**: el texto IA se hereda a nuevas revisiones
 - ✅ **Preservación en ediciones menores**: el texto sobrevive correcciones de typos
 - ✅ Configuración simple: solo requiere `ANTHROPIC_API_KEY` en `.env`
+
+### ⚡ **Plan Fast Quote (Estimación Rápida con IA)**
+- ✅ Estimación referencial a partir de una descripción en texto (Claude)
+- ✅ Cuestionario de clarificación automático si falta información
+- ✅ Desglose con conceptos, cantidades, margen y total estimado
+- ✅ **Export a PDF** con branding del tenant (`Estimacion-<descripción>.pdf`)
+- ✅ **Cuota mensual** de 30 estimaciones para el plan `fast_quote`
+- ✅ Criterios de precios por empresa (tabla `fast_quote_prompt`)
 
 ### ✏️ **Sistema de Edición Menor**
 - ✅ **Corrección de typos y texto** sin generar nueva revisión

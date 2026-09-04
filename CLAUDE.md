@@ -8,6 +8,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Production URL**: https://cotizador-cws.onrender.com/
 
+## ⚡ Plan Fast Quote (estimación rápida con IA)
+
+Plan SaaS por tenant que genera una **estimación referencial** (no un presupuesto
+formal) a partir de una descripción en texto, usando Claude (IA). Es uno de los
+planes de `cotizador/plans.py` (`PLAN_FAST_QUOTE`), junto con `pdf` y `full`.
+
+### Flujo
+1. `GET /fast-quote` → vista con caja de texto (`templates/fast_quote.html`).
+2. `POST /api/fast-quote/estimate` → llama a Claude. Si falta información, responde
+   con un **cuestionario de clarificación** (`needs_clarification: true` + `preguntas`).
+3. El usuario responde; se re-llama a la IA y devuelve la estimación completa
+   (`desglose`, `subtotal`, `margen`, `total_estimado`, `confianza`, `notas`, etc.).
+4. Se puede **descargar un PDF** de la estimación: `POST /api/fast-quote/pdf`, con
+   branding del tenant y nombre `Estimacion-<slug de la descripción>.pdf`.
+
+### Características
+- **Cuota mensual**: el plan `fast_quote` tiene `max_estimates: 30` (`PLAN_LIMITS`).
+  Cada estimación se registra en `public.fast_quote_usage` (migración
+  `migrations/v5_fast_quote_usage.sql`, ya aplicada). El recálculo por feedback
+  NO cuenta contra la cuota.
+- **Criterios por empresa**: el prompt de precios por tenant vive en la tabla
+  `fast_quote_prompt`.
+- **Export PDF**: `generar_estimacion_fast_quote_pdf()` en `cotizador/pdf_generator.py`.
+
+### Archivos clave
+- `app.py`: rutas `/fast-quote`, `/api/fast-quote/estimate`, `/api/fast-quote/pdf`.
+- `cotizador/pdf_generator.py`: `generar_estimacion_fast_quote_pdf()`.
+- `cotizador/plans.py`: `PLAN_FAST_QUOTE`, `PLAN_LIMITS` (`max_estimates`).
+- `supabase_manager.py`: `registrar_estimacion_fast_quote()` y `contar_estimaciones_fast_quote_mes()`.
+- `templates/fast_quote.html`: vista + JS (descarga de PDF con `slugify()`).
+- `migrations/v5_fast_quote_usage.sql`: tabla de cuota mensual.
+
+### Integración con Claude (gotchas importantes)
+- SDK: `anthropic==1.3.0` (esta versión **eliminó `temperature`** de `messages.create()`).
+- Modelo: `claude-sonnet-5` (el antiguo `claude-sonnet-4-6` ya no es válido).
+- `claude-sonnet-5` es un modelo con razonamiento; para una respuesta limpia:
+  - `thinking={"type": "disabled"}` (si no, devuelve bloques `ThinkingBlock`).
+  - Forzar JSON con `output_config={"format": {"type": "json_schema", "schema": {...}}}`;
+    el schema **exige `"additionalProperties": false`** en los objetos.
+- Leer el texto solo de bloques `type == "text"` de `message.content`
+  (los `ThinkingBlock` no tienen `.text`).
+
 ## 🚨 CURRENT SYSTEM STATUS (September 8, 2025) - SUPABASE HYBRID TRIPLE-LAYER ARCHITECTURE 
 
 ### ✅ PRODUCTION READY COMPONENTS - FULLY OPERATIONAL
