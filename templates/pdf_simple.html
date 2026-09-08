@@ -67,7 +67,7 @@
         <div class="card">
             <h2>Datos de la cotización</h2>
             <div class="grid">
-                <div>
+                <div {% if company_plan == 'full' %}style="display:none;"{% endif %}>
                     <label>Nombre de la cotización</label>
                     <input type="text" name="nombre" id="nombre" placeholder="Ej: Cotización ABC-2026 (opcional)">
                     <p class="hint">Si lo dejas vacío se genera un número automático.</p>
@@ -77,8 +77,8 @@
                     <input type="text" name="cliente" id="cliente" required>
                 </div>
                 <div>
-                    <label>Proyecto</label>
-                    <input type="text" name="proyecto" id="proyecto">
+                    <label>Proyecto{% if company_plan == 'full' %} *{% endif %}</label>
+                    <input type="text" name="proyecto" id="proyecto"{% if company_plan == 'full' %} required{% endif %}>
                 </div>
                 <div>
                     <label>Vendedor</label>
@@ -404,6 +404,10 @@
 
             const cliente = document.getElementById('cliente').value.trim();
             if (!cliente) { mostrarError('El campo "Cliente" es obligatorio.'); return; }
+            {% if company_plan == 'full' %}
+            const proyecto = document.getElementById('proyecto').value.trim();
+            if (!proyecto) { mostrarError('El campo "Proyecto" es obligatorio.'); return; }
+            {% endif %}
             const items = recolectarItems();
             if (items.length === 0) { mostrarError('Agrega al menos un concepto.'); return; }
 

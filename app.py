@@ -869,7 +869,7 @@ from functools import wraps
 from cotizador.middleware import login_required, plan_required
 from cotizador.plans import (
     FEATURE_SIMPLE_PDF, FEATURE_FAST_QUOTE, FEATURE_FULL_FORM, FEATURE_DESGLOSE,
-    PLAN_FAST_QUOTE, get_limit,
+    PLAN_FAST_QUOTE, PLAN_FULL, get_limit,
 )
 
 @app.route("/login")
@@ -3722,8 +3722,29 @@ def cotizacion_pdf():
 
     # ── Número de cotización (nombre elegido por el usuario o automático) ──
     plan = company.get("plan", "full")
+
+    # Proyecto obligatorio en plan Full: forma parte del folio consecutivo.
+    if plan == PLAN_FULL:
+        proyecto_val = (datos_generales.get("proyecto") or "").strip() if isinstance(datos_generales, dict) else ""
+        if not proyecto_val:
+            return jsonify({
+                "success": False,
+                "error": "El campo 'Proyecto' es obligatorio en tu plan.",
+            }), 400
+
     if numero_existente:
         numero = numero_existente  # edición: número fijo
+    elif plan == PLAN_FULL:
+        # Plan Full → numeración consecutiva idéntica al formulario completo.
+        # Reusa _resolve_company_code para compartir EXACTAMENTE la misma secuencia
+        # (patrón {cliente}-{codigo}-{iniciales}) que /formulario.
+        numero = db_manager.generar_numero_cotizacion(
+            cliente_val,
+            datos_generales.get("vendedor") or session.get("user_name", ""),
+            datos_generales.get("proyecto", ""),
+            revision=1,
+            company_code=db_manager._resolve_company_code(company_id),
+        )
     elif nombre_usuario:
         numero = _sanitizar_nombre_cotizacion(nombre_usuario)
         if not numero:
