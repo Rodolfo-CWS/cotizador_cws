@@ -2905,6 +2905,7 @@ class SupabaseManager:
                             'id': d['id'],
                             'vendedor': d['vendedor'],
                             'nombre': d['nombre'],
+                            'tipo': (d.get('datos') or {}).get('tipo', 'full'),
                             'timestamp': d['timestamp'],
                             'fecha_creacion': d['fecha_creacion'],
                             'ultima_modificacion': d['ultima_modificacion']
@@ -2942,6 +2943,7 @@ class SupabaseManager:
                 'id': d['id'],
                 'vendedor': d['vendedor'],
                 'nombre': d['nombre'],
+                'tipo': (d.get('datos') or {}).get('tipo', 'full'),
                 'timestamp': d['timestamp'],
                 'fecha_creacion': d.get('fecha_creacion', ''),
                 'ultima_modificacion': d.get('ultima_modificacion', '')
