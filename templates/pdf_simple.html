@@ -202,6 +202,10 @@
         let numeroExistente = '';
         let imagenReferenciaBase64 = null;
         let imagenReferenciaInfo = null;
+        let draftActualId = null;
+        let formModificado = false;
+        let cotizacionCompletada = false;
+        let autoGuardadoTimer;
 
         function agregarFila(desc = '', cant = '', precio = '', uom = 'piezas') {
             filaId++;
@@ -345,6 +349,111 @@
             };
         }
 
+        function inicializarSistemaAutoGuardado() {
+            const form = document.getElementById('pdfForm');
+            if (form) {
+                form.addEventListener('input', function(){ formModificado = true; });
+                form.addEventListener('change', function(){ formModificado = true; });
+            }
+            autoGuardadoTimer = setInterval(autoGuardarDraft, 30000);
+            window.addEventListener('beforeunload', function(e) {
+                if (formModificado) { autoGuardarDraftSincrono(); }
+            });
+        }
+
+        async function autoGuardarDraft() {
+            if (cotizacionCompletada) { return; }
+            if (!formModificado) { return; }
+
+            const vendedor = document.getElementById('vendedor').value.trim();
+            const cliente = document.getElementById('cliente').value.trim();
+            if (!vendedor && !cliente) { return; }
+
+            try {
+                const datosDraft = {
+                    vendedor: vendedor || 'UNKNOWN',
+                    datos: {
+                        datosGenerales: recolectarDatosGenerales(),
+                        items: recolectarItems(),
+                        condiciones: recolectarCondiciones(),
+                        tipo: 'simple'
+                    }
+                };
+                if (draftActualId) { datosDraft.draft_id = draftActualId; }
+
+                const respuesta = await fetch('/api/draft/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datosDraft)
+                });
+
+                if (respuesta.ok) {
+                    const resultado = await respuesta.json();
+                    if (resultado.success) {
+                        draftActualId = resultado.draft_id;
+                        formModificado = false;
+                    }
+                }
+            } catch (e) {
+                console.error('[DRAFT] Error auto-guardando:', e);
+            }
+        }
+
+        function autoGuardarDraftSincrono() {
+            if (cotizacionCompletada) { return; }
+            const vendedor = document.getElementById('vendedor').value.trim();
+            if (!vendedor) { return; }
+
+            const datosDraft = {
+                vendedor: vendedor,
+                datos: {
+                    datosGenerales: recolectarDatosGenerales(),
+                    items: recolectarItems(),
+                    condiciones: recolectarCondiciones(),
+                    tipo: 'simple'
+                }
+            };
+            if (draftActualId) { datosDraft.draft_id = draftActualId; }
+
+            const blob = new Blob([JSON.stringify(datosDraft)], { type: 'application/json' });
+            navigator.sendBeacon('/api/draft/save', blob);
+        }
+
+        function precargarDraft(d) {
+            draftActualId = d.id || null;
+            const dg = (d.datos && d.datos.datosGenerales) || {};
+            const cond = (d.datos && d.datos.condiciones) || dg.condiciones || {};
+
+            document.getElementById('cliente').value = dg.cliente || '';
+            document.getElementById('proyecto').value = dg.proyecto || '';
+            document.getElementById('vendedor').value = dg.vendedor || '';
+            document.getElementById('atencionA').value = dg.atencionA || '';
+            document.getElementById('contacto').value = dg.contacto || '';
+            document.getElementById('fecha').value = (dg.fecha || '').slice(0, 10);
+            document.getElementById('revision').value = dg.revision || '1';
+            document.getElementById('actualizacionRevision').value = dg.actualizacionRevision || '';
+            document.getElementById('textoIA').value = dg.textoIntroductorio || '';
+
+            document.getElementById('moneda').value = cond.moneda || 'MXN';
+            document.getElementById('tipoCambio').value = cond.tipoCambio || '';
+            document.getElementById('tiempoEntrega').value = cond.tiempoEntrega || '';
+            document.getElementById('entregaEn').value = cond.entregaEn || '';
+            document.getElementById('terminos').value = cond.terminos || '';
+            document.getElementById('comentarios').value = cond.comentarios || '';
+            toggleTipoCambio();
+
+            document.getElementById('itemsBody').innerHTML = '';
+            filaId = 0;
+            const items = (d.datos && d.datos.items) || [];
+            items.forEach(function(it){
+                const precio = (it.precio_unitario != null && it.precio_unitario !== '')
+                    ? it.precio_unitario
+                    : ((parseFloat(it.cantidad) > 0) ? (parseFloat(it.total) / parseFloat(it.cantidad)) : 0);
+                agregarFila(it.descripcion || '', it.cantidad || '', precio, it.uom || 'piezas');
+            });
+            if (!items.length) { agregarFila(); agregarFila(); agregarFila(); }
+        }
+
         function recalcular() {
             const items = recolectarItems();
             let subtotal = 0;
@@ -431,6 +540,10 @@
                 });
                 const data = await resp.json();
                 if (data.success && data.redirect) {
+                    cotizacionCompletada = true;
+                    if (draftActualId) {
+                        try { await fetch('/api/draft/delete/' + draftActualId, { method: 'DELETE' }); } catch (e) {}
+                    }
                     document.getElementById('verPdfLink').href = data.redirect;
                     document.getElementById('pdfForm').style.display = 'none';
                     document.getElementById('successBox').style.display = 'block';
@@ -498,12 +611,18 @@
             inicializarManejadorImagen();
             document.getElementById('fecha').value = new Date().toISOString().slice(0, 10);
 
-            {% if cotizacion_edit %}
+            {% if draft_edit %}
+            precargarDraft({{ draft_edit | tojson }});
+            {% elif cotizacion_edit %}
             precargarEdicion({{ cotizacion_edit | tojson }});
             {% else %}
             agregarFila();
             agregarFila();
             agregarFila();
+            {% endif %}
+
+            {% if company_plan == 'full' %}
+            inicializarSistemaAutoGuardado();
             {% endif %}
         });
     </script>

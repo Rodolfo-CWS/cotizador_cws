@@ -3822,8 +3822,17 @@ def cotizacion_pdf():
 
     if request.method == "GET":
         cotizacion_edit = None
+        draft_edit = None
         numero_edit = request.args.get("numero", "").strip()
-        if numero_edit:
+        draft_id = request.args.get("draft", "").strip()
+        if draft_id and company.get("plan", "full") == PLAN_FULL:
+            try:
+                d = db_manager.obtener_draft(draft_id)
+                if d and (d.get("datos") or {}).get("tipo") == "simple":
+                    draft_edit = d
+            except Exception as e:
+                print(f"[COTIZACION-PDF] Error cargando draft: {e}")
+        elif numero_edit:
             try:
                 r = db_manager.obtener_cotizacion(numero_edit)
                 if r.get("encontrado"):
@@ -3834,6 +3843,7 @@ def cotizacion_pdf():
                 print(f"[COTIZACION-PDF] Error cargando para editar: {e}")
         return render_template(
             "pdf_simple.html", company=company, cotizacion_edit=cotizacion_edit,
+            draft_edit=draft_edit,
             user_name=session.get("user_name", ""),
         )
 

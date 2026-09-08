@@ -528,7 +528,7 @@
                                     <h3 style="font-size: 16px; font-weight: 600; color: #212529; margin: 0 0 4px 0;">${draft.nombre || 'Sin nombre'}</h3>
                                     <p style="font-size: 12px; color: #6c757d; margin: 0 0 12px 0;">Vendedor: ${draft.vendedor} • ${fechaFormateada}</p>
                                     <div style="display: flex; gap: 8px;">
-                                        <button onclick="cargarDraft('${draft.id}')" style="flex: 1; background: #4f46e5; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">Continuar editando</button>
+                                        <button onclick="cargarDraft('${draft.id}', '${draft.tipo || 'full'}')" style="flex: 1; background: #4f46e5; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">Continuar editando</button>
                                         <button onclick="eliminarDraft('${draft.id}')" style="background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">Eliminar</button>
                                     </div>
                                 </div>
@@ -546,8 +546,9 @@
             document.getElementById('modalDrafts').style.display = 'none';
         }
 
-        async function cargarDraft(draftId) {
-            window.location.href = `/formulario?draft=${encodeURIComponent(draftId)}`;
+        async function cargarDraft(draftId, tipo) {
+            const dest = (tipo === 'simple') ? '/cotizacion-pdf' : '/formulario';
+            window.location.href = `${dest}?draft=${encodeURIComponent(draftId)}`;
         }
 
         async function eliminarDraft(draftId) {
