@@ -2415,9 +2415,18 @@ def cotizacion_resumen(numero_cotizacion):
         items_preview = []
         for item in items[:5]:
             if isinstance(item, dict):
-                cantidad = safe_float(item.get('cantidad', 0))
-                total_item = safe_float(item.get('total', item.get('subtotal', 0)))
-                precio_unitario = (total_item / cantidad) if cantidad > 0 else 0.0
+                cantidad = safe_float(item.get('cantidad') or 0)
+                # El precio unitario vive en campos distintos según el esquema del item:
+                # costoUnidad (desglose) > precio_unitario > precio (legacy).
+                precio_unitario = safe_float(
+                    item.get('costoUnidad') or item.get('precio_unitario') or item.get('precio') or 0
+                )
+                total_item = safe_float(item.get('total') or item.get('subtotal') or 0)
+                # Derivar el campo que falte (total = precio × cantidad; precio = total / cantidad)
+                if not total_item and precio_unitario and cantidad:
+                    total_item = precio_unitario * cantidad
+                elif not precio_unitario and total_item and cantidad:
+                    precio_unitario = total_item / cantidad
                 items_preview.append({
                     "descripcion": item.get('descripcion') or item.get('nombre') or 'Item',
                     "cantidad": item.get('cantidad', ''),
