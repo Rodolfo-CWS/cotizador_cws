@@ -925,31 +925,172 @@ def health_check():
             'error': str(e)
         }), 200
 
-@app.route("/admin/keepalive/stats", methods=["GET"])
-@login_required
-def keepalive_stats():
-    """
-    Endpoint administrativo para ver estadísticas del keepalive.
-
-    Requiere autenticación. Devuelve información detallada del scheduler.
-    """
-    try:
-        from render_keepalive import get_keepalive_instance
-
-        keepalive = get_keepalive_instance()
-        stats = keepalive.get_stats()
-
-        return jsonify(stats), 200
-
-    except Exception as e:
-        return jsonify({
-            'error': str(e),
-            'keepalive_available': False
-        }), 500
-
 # ============================================
 # RUTAS PRINCIPALES
 # ============================================
+
+def _transformar_cotizacion(cot):
+    """Convierte una cotización cruda de buscar_cotizaciones a la forma plana
+    que consumen el home (/) y el endpoint /buscar.
+
+    Centraliza el cálculo de fecha, total, moneda, revisión y es_antigua que
+    antes vivía inline en home(), para no triplicarlo en /buscar ni en
+    /cotizacion-resumen.
+    """
+    import re
+    from datetime import datetime
+
+    datos_gen = cot.get('datosGenerales', {})
+    if not isinstance(datos_gen, dict):
+        datos_gen = {}
+
+    # EXTRACCIÓN ROBUSTA DE FECHA
+    fecha = 'N/A'
+    if isinstance(datos_gen, dict):
+        fecha = datos_gen.get('fecha') or datos_gen.get('Fecha')
+    if not fecha or fecha == 'N/A':
+        fecha = cot.get('fecha') or cot.get('fechaCreacion') or cot.get('timestamp')
+        if fecha and isinstance(fecha, (int, float)):
+            try:
+                fecha = datetime.fromtimestamp(fecha/1000 if fecha > 10000000000 else fecha).strftime('%Y-%m-%d')
+            except:
+                fecha = 'N/A'
+    if not fecha:
+        fecha = 'N/A'
+
+    # CÁLCULO DEL TOTAL
+    total_calculado = 0.0
+    items = cot.get('items', [])
+    if isinstance(items, list):
+        for item in items:
+            if isinstance(item, dict):
+                if 'total' in item and item['total']:
+                    total_calculado += safe_float(item.get('total', 0))
+                elif 'subtotal' in item and item['subtotal']:
+                    total_calculado += safe_float(item.get('subtotal', 0))
+                elif 'precio_unitario' in item:
+                    precio = safe_float(item.get('precio_unitario', 0))
+                    cantidad = safe_float(item.get('cantidad', 1))
+                    total_calculado += precio * cantidad
+
+    # Moneda
+    condiciones = cot.get('condiciones', {})
+    if not condiciones or not isinstance(condiciones, dict):
+        condiciones = datos_gen.get('condiciones', {})
+    moneda = condiciones.get('moneda', 'MXN') if isinstance(condiciones, dict) else 'MXN'
+
+    # Revisión
+    revision = None
+    numero_cot = cot.get('numeroCotizacion', '')
+    if numero_cot and isinstance(numero_cot, str):
+        match = re.search(r'-R(\d+)-', numero_cot)
+        if match:
+            revision = int(match.group(1))
+    if not revision and 'revision' in cot:
+        try:
+            revision = int(cot.get('revision'))
+        except:
+            pass
+    if not revision:
+        revision = 1
+
+    return {
+        "numero": numero_cot,
+        "cliente": datos_gen.get('cliente', 'N/A'),
+        "vendedor": datos_gen.get('vendedor', 'N/A'),
+        "proyecto": datos_gen.get('proyecto', 'N/A'),
+        "fecha": fecha,
+        "revision": revision,
+        "total": total_calculado,
+        "moneda": moneda,
+        "_id": cot.get('_id', ''),
+        "tiene_desglose": datos_gen.get('tipo') != 'simple',
+        "es_simple": datos_gen.get('tipo') == 'simple',
+        "es_antigua": False
+    }
+
+
+def _aplicar_filtros_cotizaciones(cotizaciones, filtro_numero, filtro_cliente,
+                                   filtro_vendedor, filtro_proyecto, filtro_fecha_desde,
+                                   filtro_fecha_hasta, filtro_revision, filtro_moneda,
+                                   filtro_tipo):
+    """Aplica los 9 filtros del panel del home sobre una lista de cotizaciones
+    ya en forma plana. Devuelve la lista filtrada. Lógica idéntica a la de
+    /todas-cotizaciones, para que home() y /buscar se comporten igual."""
+    if not any([filtro_numero, filtro_cliente, filtro_vendedor, filtro_proyecto,
+                filtro_fecha_desde, filtro_fecha_hasta, filtro_revision,
+                filtro_moneda, filtro_tipo]):
+        return cotizaciones
+
+    from datetime import datetime
+    cotizaciones_filtradas = []
+
+    for cot in cotizaciones:
+        cumple = True
+
+        if filtro_numero and cumple:
+            cumple = filtro_numero.lower() in str(cot.get('numero', '')).lower()
+        if filtro_cliente and cumple:
+            cumple = filtro_cliente.lower() in str(cot.get('cliente', '')).lower()
+        if filtro_vendedor and cumple:
+            cumple = filtro_vendedor.lower() in str(cot.get('vendedor', '')).lower()
+        if filtro_proyecto and cumple:
+            cumple = filtro_proyecto.lower() in str(cot.get('proyecto', '')).lower()
+
+        if filtro_fecha_desde and cumple:
+            fecha_cot = cot.get('fecha', 'N/A')
+            if fecha_cot != 'N/A':
+                try:
+                    fecha_cot_dt = datetime.strptime(
+                        str(fecha_cot) if len(str(fecha_cot)) == 10 else str(fecha_cot)[:10],
+                        '%Y-%m-%d')
+                    fecha_desde_dt = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d')
+                    if fecha_cot_dt < fecha_desde_dt:
+                        cumple = False
+                except:
+                    cumple = False
+
+        if filtro_fecha_hasta and cumple:
+            fecha_cot = cot.get('fecha', 'N/A')
+            if fecha_cot != 'N/A':
+                try:
+                    fecha_cot_dt = datetime.strptime(
+                        str(fecha_cot) if len(str(fecha_cot)) == 10 else str(fecha_cot)[:10],
+                        '%Y-%m-%d')
+                    fecha_hasta_dt = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d')
+                    if fecha_cot_dt > fecha_hasta_dt:
+                        cumple = False
+                except:
+                    cumple = False
+
+        if filtro_revision and cumple:
+            revision_cot = cot.get('revision', 1)
+            if filtro_revision == '5+':
+                if revision_cot < 5:
+                    cumple = False
+            else:
+                try:
+                    if int(revision_cot) != int(filtro_revision):
+                        cumple = False
+                except:
+                    cumple = False
+
+        if filtro_moneda and cumple:
+            if cot.get('moneda', 'N/A') != filtro_moneda:
+                cumple = False
+
+        if filtro_tipo and cumple:
+            es_antigua = cot.get('es_antigua', False)
+            if filtro_tipo == 'nueva' and es_antigua:
+                cumple = False
+            elif filtro_tipo == 'antigua' and not es_antigua:
+                cumple = False
+
+        if cumple:
+            cotizaciones_filtradas.append(cot)
+
+    return cotizaciones_filtradas
+
 
 @app.route("/", methods=["GET", "POST"])
 @login_required
@@ -965,6 +1106,12 @@ def home():
         try:
             datos = request.get_json()
             print("Nueva cotizacion recibida")
+
+            # Fallback: si el frontend no manda vendedor, usar el nombre canónico del usuario logueado
+            datos_generales = datos.get('datosGenerales') or {}
+            if not (datos_generales.get('vendedor') or '').strip():
+                datos_generales['vendedor'] = (session.get('user_name') or '').strip()
+                datos['datosGenerales'] = datos_generales
 
             # Guardar TODOS los datos usando el DatabaseManager
             resultado = db_manager.guardar_cotizacion(datos, company_id=session.get("company_id"))
@@ -1029,84 +1176,11 @@ def home():
             cotizaciones_raw = resultado_db.get("resultados", [])
             print(f"[HOME] Encontradas {len(cotizaciones_raw)} cotizaciones de BD")
 
-            # Transformar datos para tabla compacta
+            # Transformar datos para tabla compacta (lógica centralizada en _transformar_cotizacion)
             for idx, cot in enumerate(cotizaciones_raw):
-                datos_gen = cot.get('datosGenerales', {})
-
-                # EXTRACCIÓN ROBUSTA DE FECHA
-                fecha = 'N/A'
-                if isinstance(datos_gen, dict):
-                    fecha = datos_gen.get('fecha') or datos_gen.get('Fecha')
-                if not fecha or fecha == 'N/A':
-                    fecha = cot.get('fecha') or cot.get('fechaCreacion') or cot.get('timestamp')
-                    if fecha and isinstance(fecha, (int, float)):
-                        from datetime import datetime
-                        try:
-                            fecha = datetime.fromtimestamp(fecha/1000 if fecha > 10000000000 else fecha).strftime('%Y-%m-%d')
-                        except:
-                            fecha = 'N/A'
-                if not fecha:
-                    fecha = 'N/A'
-
-                # CÁLCULO DEL TOTAL
-                total_calculado = 0.0
-                items = cot.get('items', [])
-                if isinstance(items, list):
-                    for item in items:
-                        if isinstance(item, dict):
-                            if 'total' in item and item['total']:
-                                total_calculado += safe_float(item.get('total', 0))
-                            elif 'subtotal' in item and item['subtotal']:
-                                total_calculado += safe_float(item.get('subtotal', 0))
-                            elif 'precio_unitario' in item:
-                                precio = safe_float(item.get('precio_unitario', 0))
-                                cantidad = safe_float(item.get('cantidad', 1))
-                                total_calculado += precio * cantidad
-
-                # Obtener moneda
-                condiciones = cot.get('condiciones', {})
-                if not condiciones or not isinstance(condiciones, dict):
-                    condiciones = datos_gen.get('condiciones', {})
-                moneda = condiciones.get('moneda', 'MXN') if isinstance(condiciones, dict) else 'MXN'
-
-                # EXTRACCIÓN DE REVISIÓN
-                revision = None
-                import re
-                numero_cot = cot.get('numeroCotizacion', '')
-                if numero_cot and isinstance(numero_cot, str):
-                    match = re.search(r'-R(\d+)-', numero_cot)
-                    if match:
-                        revision = int(match.group(1))
-                if not revision and 'revision' in cot:
-                    try:
-                        revision = int(cot.get('revision'))
-                    except:
-                        pass
-                if not revision:
-                    revision = 1
-
-                numeros_vistos.add(numero_cot)
-
-                cotizaciones.append({
-                    "numero": numero_cot,
-                    "cliente": datos_gen.get('cliente', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
-                    "vendedor": datos_gen.get('vendedor', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
-                    "proyecto": datos_gen.get('proyecto', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
-                    "fecha": fecha,
-                    "revision": revision,
-                    "total": total_calculado,
-                    "moneda": moneda,
-                    "_id": cot.get('_id', ''),
-                    "tiene_desglose": (
-                        datos_gen.get('tipo') != 'simple'
-                        if isinstance(datos_gen, dict) else True
-                    ),
-                    "es_simple": (
-                        datos_gen.get('tipo') == 'simple'
-                        if isinstance(datos_gen, dict) else False
-                    ),
-                    "es_antigua": False
-                })
+                cotizacion = _transformar_cotizacion(cot)
+                numeros_vistos.add(cotizacion["numero"])
+                cotizaciones.append(cotizacion)
         else:
             print(f"[HOME] Error: {resultado_db.get('error')}")
 
@@ -1167,28 +1241,13 @@ def home():
             cotizaciones = cotizaciones_busqueda
             print(f"[HOME] Después de búsqueda rápida: {len(cotizaciones)} cotizaciones")
 
-        # APLICAR FILTROS AVANZADOS antes de paginación
-        if any([filtro_numero, filtro_cliente, filtro_vendedor, filtro_proyecto,
-                filtro_fecha_desde, filtro_fecha_hasta, filtro_revision, filtro_moneda, filtro_tipo]):
-
-            cotizaciones_filtradas = []
-            for cot in cotizaciones:
-                cumple_filtros = True
-
-                if filtro_numero and filtro_numero.lower() not in cot.get('numero', '').lower():
-                    cumple_filtros = False
-                if filtro_cliente and cumple_filtros and filtro_cliente.lower() not in cot.get('cliente', '').lower():
-                    cumple_filtros = False
-                if filtro_vendedor and cumple_filtros and filtro_vendedor.lower() not in cot.get('vendedor', '').lower():
-                    cumple_filtros = False
-                if filtro_proyecto and cumple_filtros and filtro_proyecto.lower() not in cot.get('proyecto', '').lower():
-                    cumple_filtros = False
-
-                if cumple_filtros:
-                    cotizaciones_filtradas.append(cot)
-
-            cotizaciones = cotizaciones_filtradas
-            print(f"[HOME] Después de filtros avanzados: {len(cotizaciones)} cotizaciones")
+        # APLICAR FILTROS AVANZADOS antes de paginación (los 9, vía helper compartido)
+        cotizaciones = _aplicar_filtros_cotizaciones(
+            cotizaciones, filtro_numero, filtro_cliente, filtro_vendedor,
+            filtro_proyecto, filtro_fecha_desde, filtro_fecha_hasta,
+            filtro_revision, filtro_moneda, filtro_tipo
+        )
+        print(f"[HOME] Después de filtros avanzados: {len(cotizaciones)} cotizaciones")
 
         # APLICAR PAGINACIÓN
         total_cotizaciones = len(cotizaciones)
@@ -2142,155 +2201,251 @@ def diagnostico_entorno():
 # ============================================
 
 @app.route("/buscar", methods=["POST"])
+@login_required
 def buscar():
-    """Buscar cotizaciones con paginación - BÚSQUEDA UNIFICADA"""
+    """Búsqueda unificada por AJAX (la consume home.html).
+
+    Recibe por JSON: query, page/per_page y los 9 filtros del panel del home
+    (numero, cliente, vendedor, proyecto, fecha_desde, fecha_hasta, revision,
+    moneda, tipo). Devuelve resultados en la misma forma plana que home.html.
+    """
     try:
-        datos = request.get_json()
-        query = datos.get("query", "")
-        page = datos.get("page", 1)
-        per_page = datos.get("per_page", int(os.getenv('DEFAULT_PAGE_SIZE', '20')))
-        
-        print(f"[BÚSQUEDA UNIFICADA] Query: '{query}' (página {page})")
-        print(f"[BÚSQUEDA UNIFICADA] Estado DB: modo_offline={db_manager.modo_offline}")
-        
-        # PASO 1: Buscar en Supabase/JSON local (cotizaciones con desglose)
-        resultados_cotizaciones = []
+        datos = request.get_json(silent=True) or {}
+        query = (datos.get("query") or "").strip()
+        page = int(datos.get("page", 1) or 1)
+        per_page = int(datos.get("per_page", int(os.getenv('DEFAULT_PAGE_SIZE', '20'))) or 20)
+
+        # Filtros avanzados (mismos nombres que home())
+        filtro_numero = (datos.get("numero") or "").strip()
+        filtro_cliente = (datos.get("cliente") or "").strip()
+        filtro_vendedor = (datos.get("vendedor") or "").strip()
+        filtro_proyecto = (datos.get("proyecto") or "").strip()
+        filtro_fecha_desde = (datos.get("fecha_desde") or "").strip()
+        filtro_fecha_hasta = (datos.get("fecha_hasta") or "").strip()
+        filtro_revision = (datos.get("revision") or "").strip()
+        filtro_moneda = (datos.get("moneda") or "").strip()
+        filtro_tipo = (datos.get("tipo") or "").strip()
+
+        resultados_combinados = {}
+
+        # PASO 1: cotizaciones con desglose (Supabase/JSON local)
         try:
-            print(f"[DB] Iniciando búsqueda en {'Supabase' if not db_manager.modo_offline else 'JSON local'}...")
-            resultado_db = db_manager.buscar_cotizaciones(query, 1, 1000, company_id=session.get("company_id"))  # Obtener todas
-            print(f"[DB] Resultado de búsqueda: {type(resultado_db)} - {list(resultado_db.keys()) if isinstance(resultado_db, dict) else 'No es dict'}")
-            
+            resultado_db = db_manager.buscar_cotizaciones(query, 1, 10000, company_id=session.get("company_id"))
             if not resultado_db.get("error"):
-                cotizaciones = resultado_db.get("resultados", [])
-                print(f"[DB] Encontradas {len(cotizaciones)} cotizaciones en base de datos")
-                
-                if len(cotizaciones) > 0:
-                    print(f"[DB] Primera cotización: {list(cotizaciones[0].keys()) if cotizaciones[0] else 'Vacía'}")
-                    if 'datosGenerales' in cotizaciones[0]:
-                        print(f"[DB] datosGenerales keys: {list(cotizaciones[0]['datosGenerales'].keys())}")
-                else:
-                    print(f"[DB] ⚠️ No se encontraron cotizaciones para query: '{query}'")
-                
-                for cot in cotizaciones:
-                    datos_gen = cot.get('datosGenerales', {})
-                    resultados_cotizaciones.append({
-                        "numero_cotizacion": cot.get('numeroCotizacion', 'N/A'),
-                        "cliente": datos_gen.get('cliente', 'N/A'),
-                        "vendedor": datos_gen.get('vendedor', 'N/A'),
-                        "proyecto": datos_gen.get('proyecto', 'N/A'),
-                        "fecha_creacion": cot.get('fechaCreacion', 'N/A'),
-                        "tipo": "cotizacion",
-                        "tiene_desglose": True,
-                        "fuente": "supabase" if not db_manager.modo_offline else "json_local",
-                        "revision": cot.get('revision', 1),
-                        "_id": cot.get('_id')
-                    })
-            else:
-                print(f"[DB] Error en búsqueda de cotizaciones: {resultado_db.get('error')}")
+                for cot in resultado_db.get("resultados", []):
+                    c = _transformar_cotizacion(cot)
+                    c["numero_cotizacion"] = c["numero"]  # alias por compatibilidad
+                    c["fecha_creacion"] = cot.get('fechaCreacion', c["fecha"])
+                    c["tipo"] = "cotizacion"
+                    c["fuente"] = "supabase" if not db_manager.modo_offline else "json_local"
+                    resultados_combinados[c["numero"]] = c
         except Exception as e:
             print(f"[DB] Error buscando cotizaciones: {e}")
-        
-        # PASO 2: Buscar en PDFs (Supabase Storage + Google Drive + Local)
-        resultados_pdfs = []
-        try:
-            if pdf_manager:
-                print(f"[PDF] Iniciando búsqueda de PDFs...")
-                resultado_pdfs = pdf_manager.buscar_pdfs(query, 1, 1000)  # Obtener todos
-                print(f"[PDF] Resultado PDFs: {type(resultado_pdfs)} - {list(resultado_pdfs.keys()) if isinstance(resultado_pdfs, dict) else 'No es dict'}")
-                
-                if _es_legacy_drive_import() and not resultado_pdfs.get("error"):
-                    pdfs = resultado_pdfs.get("resultados", [])
-                    print(f"[PDF] Encontrados {len(pdfs)} PDFs")
 
-                    for pdf in pdfs:
-                        resultados_pdfs.append({
-                            "numero_cotizacion": pdf.get('numero_cotizacion', 'N/A'),
+        # PASO 2: PDFs legados (Google Drive / Storage) — solo tenants con flag
+        try:
+            if pdf_manager and _es_legacy_drive_import():
+                resultado_pdfs = pdf_manager.buscar_pdfs(query, 1, 10000)
+                if not resultado_pdfs.get("error"):
+                    for pdf in resultado_pdfs.get("resultados", []):
+                        numero = pdf.get('numero_cotizacion', 'N/A')
+                        if numero == 'N/A':
+                            continue
+                        if numero in resultados_combinados:
+                            resultados_combinados[numero]['tiene_pdf'] = True
+                            continue
+                        fecha = pdf.get('fecha_creacion', 'N/A')
+                        if isinstance(fecha, str) and len(fecha) > 10:
+                            fecha = fecha[:10]
+                        resultados_combinados[numero] = {
+                            "numero": numero,
+                            "numero_cotizacion": numero,
                             "cliente": pdf.get('cliente', 'N/A'),
                             "vendedor": pdf.get('vendedor', 'N/A'),
                             "proyecto": pdf.get('proyecto', 'N/A'),
+                            "fecha": fecha,
                             "fecha_creacion": pdf.get('fecha_creacion', 'N/A'),
-                            "tipo": pdf.get('tipo', 'pdf'),
+                            "revision": pdf.get('revision', 1),
+                            "total": pdf.get('total', 0),
+                            "moneda": pdf.get('moneda', 'N/A'),
+                            "es_antigua": True,
                             "tiene_desglose": pdf.get('tiene_desglose', False),
+                            "es_simple": False,
+                            "_id": '',
+                            "tipo": pdf.get('tipo', 'pdf'),
                             "fuente": pdf.get('tipo', 'pdf_manager'),
-                            "revision": pdf.get('revision', 1)
-                        })
-                else:
-                    print(f"[PDF] Error en búsqueda de PDFs: {resultado_pdfs.get('error')}")
-            else:
-                print(f"[PDF] ⚠️ PDFManager no disponible - saltando búsqueda de PDFs")
+                        }
         except Exception as e:
             print(f"[PDF] Error buscando PDFs: {e}")
             import traceback
             traceback.print_exc()
-        
-        # PASO 3: Combinar y deduplicar resultados
-        resultados_combinados = {}
-        
-        print(f"[COMBINAR] Cotizaciones DB: {len(resultados_cotizaciones)}, PDFs: {len(resultados_pdfs)}")
-        
-        # Añadir cotizaciones (prioridad alta - tienen desglose)
-        for cot in resultados_cotizaciones:
-            numero = cot['numero_cotizacion']
-            resultados_combinados[numero] = cot
-            print(f"[COMBINAR] Agregada cotización: {numero}")
-        
-        # Añadir PDFs solo si no existe cotización con desglose
-        for pdf in resultados_pdfs:
-            numero = pdf['numero_cotizacion']
-            if numero not in resultados_combinados:
-                resultados_combinados[numero] = pdf
-                print(f"[COMBINAR] Agregado PDF: {numero}")
-            else:
-                # Si ya existe cotización, marcar que tiene PDF
-                resultados_combinados[numero]['tiene_pdf'] = True
-                print(f"[COMBINAR] PDF {numero} ya existe como cotización - marcando tiene_pdf=True")
-        
-        # Convertir a lista y ordenar por relevancia
-        resultados_finales = list(resultados_combinados.values())
-        
-        # Aplicar filtros de búsqueda si hay query
-        if query.strip():
-            resultados_filtrados = []
+
+        resultados = list(resultados_combinados.values())
+
+        # Re-filtro defensivo por query (buscar_cotizaciones ya filtra, pero
+        # garantiza consistencia entre las capas PG/SDK/offline)
+        if query:
             query_lower = query.lower()
-            for res in resultados_finales:
-                # Buscar en múltiples campos
-                texto_busqueda = f"{res.get('numero_cotizacion', '')} {res.get('cliente', '')} {res.get('vendedor', '')} {res.get('proyecto', '')}".lower()
-                if query_lower in texto_busqueda:
-                    resultados_filtrados.append(res)
-            resultados_finales = resultados_filtrados
-        
-        # Paginación
-        total = len(resultados_finales)
+            resultados = [
+                r for r in resultados
+                if (query_lower in str(r.get('numero', '')).lower()
+                    or query_lower in str(r.get('cliente', '')).lower()
+                    or query_lower in str(r.get('vendedor', '')).lower()
+                    or query_lower in str(r.get('proyecto', '')).lower())
+            ]
+
+        # APLICAR FILTROS AVANZADOS (los 9, vía helper compartido)
+        resultados = _aplicar_filtros_cotizaciones(
+            resultados, filtro_numero, filtro_cliente, filtro_vendedor,
+            filtro_proyecto, filtro_fecha_desde, filtro_fecha_hasta,
+            filtro_revision, filtro_moneda, filtro_tipo
+        )
+
+        # PAGINACIÓN
+        total = len(resultados)
+        total_pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+        if page < 1:
+            page = 1
+        elif page > total_pages and total_pages > 0:
+            page = total_pages
         start = (page - 1) * per_page
         end = start + per_page
-        resultados_paginados = resultados_finales[start:end]
-        
-        print(f"[UNIFICADA] Total: {total}, Página: {len(resultados_paginados)} resultados")
-        
-        # Debug: mostrar estructura de respuesta
-        if len(resultados_paginados) > 0:
-            print(f"[UNIFICADA] Primer resultado enviado al frontend:")
-            primer_resultado = resultados_paginados[0]
-            for key, value in primer_resultado.items():
-                print(f"   {key}: {value}")
-        
+        resultados_paginados = resultados[start:end]
+
         respuesta = {
+            "success": True,
             "resultados": resultados_paginados,
+            "resultados_cotizaciones": resultados_paginados,
             "total": total,
             "pagina": page,
+            "page": page,
             "por_pagina": per_page,
-            "total_paginas": (total + per_page - 1) // per_page,
+            "page_size": per_page,
+            "total_paginas": total_pages,
+            "total_pages": total_pages,
             "modo": "busqueda_unificada"
         }
-        
-        print(f"[UNIFICADA] Enviando respuesta con {len(resultados_paginados)} resultados")
         return jsonify(respuesta)
 
     except Exception as e:
         print(f"[UNIFICADA] Error en búsqueda: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({"error": "Error en búsqueda unificada"}), 500
+        return jsonify({"success": False, "error": "Error en búsqueda unificada"}), 500
+
+
+@app.route("/sugerencias")
+@login_required
+def sugerencias():
+    """Sugerencias de autocompletado para la búsqueda del home (Mejora 1)."""
+    try:
+        query = (request.args.get('q') or '').strip()
+        try:
+            limit = int(request.args.get('limit', 8))
+        except:
+            limit = 8
+
+        if len(query) < 2:
+            return jsonify({"success": True, "sugerencias": []})
+
+        sugerencias = []
+        query_lower = query.lower()
+        vistos = set()
+
+        try:
+            resultado = db_manager.buscar_cotizaciones(query, 1, 50, company_id=session.get("company_id"))
+            if not resultado.get("error"):
+                for cot in resultado.get("resultados", []):
+                    dg = cot.get('datosGenerales', {})
+                    if not isinstance(dg, dict):
+                        dg = {}
+                    campos = [
+                        (cot.get('numeroCotizacion', ''), 'cotización'),
+                        (dg.get('cliente', ''), 'cliente'),
+                        (dg.get('vendedor', ''), 'vendedor'),
+                        (dg.get('proyecto', ''), 'proyecto'),
+                    ]
+                    for text, tipo in campos:
+                        text = str(text or '').strip()
+                        if text and query_lower in text.lower() and text not in vistos:
+                            vistos.add(text)
+                            sugerencias.append({"text": text, "tipo": tipo})
+                            if len(sugerencias) >= limit:
+                                break
+                    if len(sugerencias) >= limit:
+                        break
+        except Exception as e:
+            print(f"[SUGERENCIAS] Error en búsqueda BD: {e}")
+
+        return jsonify({"success": True, "sugerencias": sugerencias[:limit]})
+
+    except Exception as e:
+        print(f"[SUGERENCIAS] Error: {e}")
+        return jsonify({"success": False, "sugerencias": [], "error": str(e)})
+
+
+@app.route("/cotizacion-resumen/<path:numero_cotizacion>")
+@login_required
+def cotizacion_resumen(numero_cotizacion):
+    """Resumen de una cotización para la vista previa inline del home (Mejora 5)."""
+    try:
+        resultado = db_manager.buscar_cotizaciones(numero_cotizacion, 1, 50, company_id=session.get("company_id"))
+        if resultado.get("error"):
+            return jsonify({"success": False, "error": resultado["error"]})
+
+        cotizaciones = resultado.get("resultados", [])
+        if not cotizaciones:
+            return jsonify({"success": False, "error": "Cotización no encontrada"})
+
+        # buscar_cotizaciones hace match por subcadena; preferir el match exacto
+        cot = None
+        for c in cotizaciones:
+            if c.get('numeroCotizacion') == numero_cotizacion:
+                cot = c
+                break
+        if cot is None:
+            cot = cotizaciones[0]
+
+        plano = _transformar_cotizacion(cot)
+
+        # Items preview (primeros 5)
+        items = cot.get('items', [])
+        if not isinstance(items, list):
+            items = []
+        items_preview = []
+        for item in items[:5]:
+            if isinstance(item, dict):
+                items_preview.append({
+                    "descripcion": item.get('descripcion') or item.get('nombre') or 'Item',
+                    "cantidad": item.get('cantidad', ''),
+                    "precio_unitario": item.get('precio_unitario', item.get('precio', '')),
+                    "total": item.get('total', item.get('subtotal', ''))
+                })
+
+        return jsonify({
+            "success": True,
+            "cotizacion": {
+                "numero": plano["numero"],
+                "cliente": plano["cliente"],
+                "vendedor": plano["vendedor"],
+                "proyecto": plano["proyecto"],
+                "fecha": plano["fecha"],
+                "fecha_creacion": plano["fecha"],
+                "moneda": plano["moneda"],
+                "total": plano["total"],
+                "revision": plano["revision"],
+                "items_count": len(items),
+                "items_preview": items_preview,
+                "tiene_desglose": plano["tiene_desglose"]
+            }
+        })
+
+    except Exception as e:
+        print(f"[COTIZACION-RESUMEN] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)})
+
 
 @app.route("/todas-cotizaciones")
 @login_required
