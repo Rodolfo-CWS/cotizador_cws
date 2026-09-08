@@ -2415,11 +2415,14 @@ def cotizacion_resumen(numero_cotizacion):
         items_preview = []
         for item in items[:5]:
             if isinstance(item, dict):
+                cantidad = safe_float(item.get('cantidad', 0))
+                total_item = safe_float(item.get('total', item.get('subtotal', 0)))
+                precio_unitario = (total_item / cantidad) if cantidad > 0 else 0.0
                 items_preview.append({
                     "descripcion": item.get('descripcion') or item.get('nombre') or 'Item',
                     "cantidad": item.get('cantidad', ''),
-                    "precio_unitario": item.get('precio_unitario', item.get('precio', '')),
-                    "total": item.get('total', item.get('subtotal', ''))
+                    "precio_unitario": precio_unitario,
+                    "total": total_item
                 })
 
         return jsonify({
