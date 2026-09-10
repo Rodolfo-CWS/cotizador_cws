@@ -54,14 +54,56 @@
             <h1>Usuarios de {{ company.name if company else 'tu empresa' }}</h1>
             <p class="subtitle">Personas que pueden acceder a esta cuenta</p>
 
-            <div style="margin-bottom:16px;">
-                <span style="font-size:14px;color:#44403c;">Para invitar a un nuevo usuario, comparte este enlace:</span>
-                <div style="display:flex;gap:8px;margin-top:8px;">
-                    <input type="text" value="{{ request.host_url }}auth/register" readonly style="flex:1;padding:8px 12px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px;background:#faf9f7;" onclick="this.select()">
-                    <button onclick="navigator.clipboard.writeText('{{ request.host_url }}auth/register');this.textContent='Copiado!';setTimeout(()=>this.textContent='Copiar',2000)" style="padding:8px 16px;background:#4f46e5;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;">Copiar</button>
+            <div style="margin-bottom:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <span style="font-size:14px;color:#44403c;font-weight:600;">Invitar usuario</span>
+                    <span style="font-size:13px;color:#78716c;">Asientos: <strong>{{ active_users if active_users is not none else 0 }} de {{ company['max_users'] if company and company.get('max_users') else 10 }}</strong></span>
                 </div>
-                <p style="font-size:12px;color:#78716c;margin-top:6px;">El nuevo usuario debe registrarse con ese enlace. Luego contacta al admin del sistema para vincularlo a {{ company['name'] if company else 'tu empresa' }}.</p>
+                <form method="POST" action="/admin/company/users/invite" style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <input type="email" name="email" placeholder="correo@ejemplo.com" required style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #d6d3d1;border-radius:6px;font-size:14px;background:#faf9f7;">
+                    <select name="role" style="padding:8px 12px;border:1px solid #d6d3d1;border-radius:6px;font-size:14px;background:#faf9f7;">
+                        <option value="seller">Vendedor</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                    <button type="submit" style="padding:8px 16px;background:#4f46e5;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px;">Invitar</button>
+                </form>
+                <p style="font-size:12px;color:#78716c;margin-top:6px;">La persona recibirá un email para completar su cuenta y unirse a {{ company['name'] if company else 'tu empresa' }}.</p>
             </div>
+
+            {% if invitations %}
+            <div style="margin-bottom:20px;">
+                <h2 style="font-size:13px;color:#4f46e5;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8px 0;">Invitaciones pendientes</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Enviada</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in invitations %}
+                        <tr>
+                            <td>{{ inv['email'] }}</td>
+                            <td>
+                                {% if inv['role'] == 'admin' %}<span class="role-badge role-badge-admin">Admin</span>
+                                {% elif inv['role'] == 'manager' %}<span class="role-badge role-badge-manager">Manager</span>
+                                {% else %}<span class="role-badge role-badge-seller">Vendedor</span>{% endif %}
+                            </td>
+                            <td>{{ (inv['created_at']|string)[:10] if inv['created_at'] else 'N/A' }}</td>
+                            <td style="text-align:right;">
+                                <form method="POST" action="/admin/company/users/{{ inv['id'] }}/revoke" style="display:inline;" onsubmit="return confirm('Revocar invitación de {{ inv['email'] }}?')">
+                                    <button type="submit" style="background:none;border:1px solid #fecaca;color:#dc2626;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;">Revocar</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
 
             {% if users %}
             <table>

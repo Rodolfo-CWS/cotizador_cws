@@ -179,10 +179,14 @@ def users():
         return redirect(url_for('home'))
 
     profiles = db.get_profiles_by_company(company_id) or []
+    invitations = db.list_invitations_by_company(company_id) or []
+    active_users = db.count_active_users(company_id)
 
     return render_template(
         'admin/users.html',
         users=profiles,
+        invitations=invitations,
+        active_users=active_users,
         company=db.get_company_by_id(company_id)
     )
 
@@ -216,6 +220,118 @@ def deactivate_user(user_id):
         flash(f"Error: {e}", "error")
 
     return redirect(url_for('company.users'))
+
+
+@company_bp.route('/users/invite', methods=['POST'])
+@login_required
+@admin_required
+def invite_user():
+    """Invitar a un nuevo usuario por email a unirse a la compañía."""
+    db = _get_db()
+    company_id = _get_company_id()
+
+    if not company_id:
+        flash("No se encontró tu compañía", "error")
+        return redirect(url_for('company.users'))
+
+    email = request.form.get('email', '').strip().lower()
+    role = request.form.get('role', 'seller').strip()
+
+    if not email or '@' not in email:
+        flash("Ingresa un email válido", "error")
+        return redirect(url_for('company.users'))
+
+    if role not in ('admin', 'manager', 'seller'):
+        role = 'seller'
+
+    company = db.get_company_by_id(company_id) or {}
+    max_users = company.get('max_users') or 10
+
+    # Límite de asientos: usuarios activos + invitaciones pendientes
+    active_users = db.count_active_users(company_id)
+    pending_invites = len(db.list_invitations_by_company(company_id))
+    if active_users + pending_invites >= max_users:
+        flash(
+            f"Límite de usuarios alcanzado ({max_users}). "
+            "Actualiza tu plan o libera un asiento.",
+            "error"
+        )
+        return redirect(url_for('company.users'))
+
+    # Evitar duplicar una invitación activa para el mismo email
+    existing = db.get_pending_invitation_by_email(email)
+    if existing and str(existing.get('company_id')) == str(company_id):
+        flash("Este email ya tiene una invitación pendiente", "error")
+        return redirect(url_for('company.users'))
+
+    invitation = db.create_invitation(
+        company_id, email, role, invited_by=session.get('user_id')
+    )
+    if not invitation:
+        flash("No se pudo crear la invitación. Intenta de nuevo.", "error")
+        return redirect(url_for('company.users'))
+
+    # Enviar email de invitación vía Supabase Auth
+    try:
+        from supabase import create_client
+        url = os.getenv('SUPABASE_URL')
+        key = os.getenv('SUPABASE_SERVICE_KEY')
+        client = create_client(url, key)
+        redirect_to = request.host_url.rstrip('/') + '/auth/login'
+        _admin_invite_user(client, email, redirect_to)
+        flash(f"Invitación enviada a {email} (rol: {role})", "success")
+    except Exception as e:
+        error_msg = str(e).lower()
+        if 'already registered' in error_msg or 'already exists' in error_msg:
+            # El usuario ya tiene cuenta en auth.users; la invitación queda
+            # pendiente y se vinculará automáticamente en su próximo login.
+            flash(
+                f"{email} ya tiene cuenta. Se vinculará automáticamente "
+                "cuando inicie sesión.",
+                "success"
+            )
+        else:
+            # No dejar una invitación colgando si el email no se pudo enviar
+            db.revoke_invitation(invitation.get('id'))
+            flash(f"Error al enviar la invitación: {e}", "error")
+
+    return redirect(url_for('company.users'))
+
+
+@company_bp.route('/users/<invitation_id>/revoke', methods=['POST'])
+@login_required
+@admin_required
+def revoke_invitation(invitation_id):
+    """Revocar una invitación pendiente."""
+    db = _get_db()
+    company_id = _get_company_id()
+
+    try:
+        pending = db.list_invitations_by_company(company_id)
+        if not any(str(i.get('id')) == str(invitation_id) for i in pending):
+            flash("No tienes permiso para revocar esta invitación", "error")
+            return redirect(url_for('company.users'))
+
+        if db.revoke_invitation(invitation_id):
+            flash("Invitación revocada", "success")
+        else:
+            flash("No se pudo revocar la invitación", "error")
+    except Exception as e:
+        flash(f"Error: {e}", "error")
+
+    return redirect(url_for('company.users'))
+
+
+def _admin_invite_user(client, email, redirect_to):
+    """Envía invitación vía Supabase Auth, tolerando firmas de versión distintas."""
+    try:
+        # Firma moderna: invite_user_by_email(email, options)
+        client.auth.admin.invite_user_by_email(
+            email, {"redirect_to": redirect_to}
+        )
+    except TypeError:
+        # Firma antigua: invite_user_by_email(email, redirect_to=...)
+        client.auth.admin.invite_user_by_email(email, redirect_to=redirect_to)
 
 
 #
