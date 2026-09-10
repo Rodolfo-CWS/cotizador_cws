@@ -3185,7 +3185,7 @@ class SupabaseManager:
                     """SELECT id, name, slug, codigo, legacy_drive_import, tax_id,
                               address, phone, email,
                               logo_url, primary_color, secondary_color, footer_text,
-                              iva_rate, is_active
+                              iva_rate, is_active, plan, max_users
                        FROM public.companies WHERE id = %s""",
                     (company_id,)
                 )
@@ -3362,6 +3362,329 @@ class SupabaseManager:
         except Exception as e:
             print(f"[TENANT] Error get_profiles_by_company: {e}")
         return []
+
+    # ================================================================
+    # INVITACIONES (v6) — onboarding autoservicio
+    # ================================================================
+
+    def create_invitation(self, company_id: str, email: str, role: str,
+                          invited_by: Optional[str] = None) -> Optional[Dict]:
+        """Crea una invitación pendiente para un email en la compañía."""
+        email = (email or '').strip().lower()
+        # Intento 1: SDK con service key
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                data = {"company_id": company_id, "email": email, "role": role}
+                if invited_by:
+                    data["invited_by"] = invited_by
+                resp = client.table('invitations').insert(data).execute()
+                if resp.data:
+                    return resp.data[0]
+        except Exception as e:
+            print(f"[TENANT] SDK create_invitation: {e}")
+
+        # Intento 2: PostgreSQL directo
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """INSERT INTO public.invitations (company_id, email, role, invited_by)
+                       VALUES (%s, %s, %s, %s) RETURNING *""",
+                    (company_id, email, role, invited_by)
+                )
+                row = cursor.fetchone()
+                self.pg_connection.commit()
+                cursor.close()
+                if row:
+                    colnames = [desc[0] for desc in cursor.description]
+                    return dict(zip(colnames, row))
+        except Exception as e:
+            print(f"[TENANT] Error create_invitation: {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+        return None
+
+    def get_pending_invitation_by_email(self, email: str) -> Optional[Dict]:
+        """Busca una invitación activa (no aceptada ni revocada) por email."""
+        email = (email or '').strip().lower()
+        # Intento 1: SDK con service key
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                resp = client.table('invitations').select('*') \
+                    .eq('email', email) \
+                    .is_('accepted_at', 'null') \
+                    .is_('revoked_at', 'null') \
+                    .execute()
+                if resp.data:
+                    return resp.data[0]
+        except Exception as e:
+            print(f"[TENANT] SDK get_pending_invitation: {e}")
+
+        # Intento 2: PostgreSQL directo
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """SELECT * FROM public.invitations
+                       WHERE lower(email) = lower(%s)
+                         AND accepted_at IS NULL AND revoked_at IS NULL
+                       ORDER BY created_at DESC LIMIT 1""",
+                    (email,)
+                )
+                row = cursor.fetchone()
+                cursor.close()
+                if row:
+                    colnames = [desc[0] for desc in cursor.description]
+                    return dict(zip(colnames, row))
+        except Exception as e:
+            print(f"[TENANT] Error get_pending_invitation: {e}")
+        return None
+
+    def list_invitations_by_company(self, company_id: str) -> List[Dict]:
+        """Lista invitaciones pendientes de una compañía."""
+        # Intento 1: SDK con service key
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                resp = client.table('invitations').select('*') \
+                    .eq('company_id', company_id) \
+                    .is_('accepted_at', 'null') \
+                    .is_('revoked_at', 'null') \
+                    .order('created_at', desc=True) \
+                    .execute()
+                if resp.data is not None:
+                    return resp.data
+        except Exception as e:
+            print(f"[TENANT] SDK list_invitations: {e}")
+
+        # Intento 2: PostgreSQL directo
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """SELECT * FROM public.invitations
+                       WHERE company_id = %s AND accepted_at IS NULL AND revoked_at IS NULL
+                       ORDER BY created_at DESC""",
+                    (company_id,)
+                )
+                rows = cursor.fetchall()
+                cursor.close()
+                colnames = [desc[0] for desc in cursor.description]
+                return [dict(zip(colnames, row)) for row in rows]
+        except Exception as e:
+            print(f"[TENANT] Error list_invitations: {e}")
+        return []
+
+    def accept_invitation(self, invitation_id: str) -> bool:
+        """Marca una invitación como aceptada (perfil ya vinculado)."""
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                client.table('invitations').update({
+                    'accepted_at': datetime.now().isoformat()
+                }).eq('id', invitation_id).execute()
+                return True
+        except Exception as e:
+            print(f"[TENANT] SDK accept_invitation: {e}")
+
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "UPDATE public.invitations SET accepted_at = NOW() WHERE id = %s",
+                    (invitation_id,)
+                )
+                self.pg_connection.commit()
+                cursor.close()
+                return True
+        except Exception as e:
+            print(f"[TENANT] Error accept_invitation: {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+        return False
+
+    def revoke_invitation(self, invitation_id: str) -> bool:
+        """Revoca (cancela) una invitación pendiente."""
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                client.table('invitations').update({
+                    'revoked_at': datetime.now().isoformat()
+                }).eq('id', invitation_id).execute()
+                return True
+        except Exception as e:
+            print(f"[TENANT] SDK revoke_invitation: {e}")
+
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "UPDATE public.invitations SET revoked_at = NOW() WHERE id = %s",
+                    (invitation_id,)
+                )
+                self.pg_connection.commit()
+                cursor.close()
+                return True
+        except Exception as e:
+            print(f"[TENANT] Error revoke_invitation: {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+        return False
+
+    def count_active_users(self, company_id: str) -> int:
+        """Número de usuarios activos de la compañía (perfiles con is_active=true)."""
+        return self._contar_usuarios_company(company_id)
+
+    def list_companies(self) -> List[Dict]:
+        """Lista todas las compañías (panel de plataforma). SDK service key primero."""
+        # Intento 1: SDK con service key (bypass RLS)
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                resp = client.table('companies').select(
+                    'id,name,slug,codigo,plan,is_active,max_users,created_at'
+                ).order('name').execute()
+                if resp.data is not None:
+                    return resp.data
+        except Exception as e:
+            print(f"[PLATFORM] SDK list_companies: {e}")
+
+        # Intento 2: PostgreSQL directo
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """SELECT id, name, slug, codigo, plan, is_active, max_users, created_at
+                       FROM public.companies ORDER BY name"""
+                )
+                rows = cursor.fetchall()
+                cursor.close()
+                colnames = [desc[0] for desc in cursor.description]
+                return [dict(zip(colnames, row)) for row in rows]
+        except Exception as e:
+            print(f"[PLATFORM] Error list_companies: {e}")
+        return []
+
+    def get_company_usage(self, company_id: str) -> Dict:
+        """Métricas de consumo de una compañía (panel de plataforma)."""
+        if not company_id:
+            return {}
+        return {
+            'cotizaciones': self.contar_cotizaciones_company(company_id),
+            'fast_quote_estimates_month': self.contar_estimaciones_fast_quote_mes(company_id),
+            'pdfs': self._contar_pdfs_company(company_id),
+            'usuarios': self._contar_usuarios_company(company_id),
+        }
+
+    def _contar_pdfs_company(self, company_id: str) -> int:
+        """Cuenta PDFs almacenados de una compañía (service key, fallback PG)."""
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                resp = client.table('pdf_storage').select('id').eq('company_id', company_id).execute()
+                return len(resp.data or [])
+        except Exception as e:
+            print(f"[PLATFORM] SDK _contar_pdfs_company: {e}")
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "SELECT COUNT(*) FROM public.pdf_storage WHERE company_id = %s",
+                    (company_id,)
+                )
+                count = cursor.fetchone()[0]
+                cursor.close()
+                return int(count)
+        except Exception as e:
+            print(f"[PLATFORM] Error _contar_pdfs_company: {e}")
+        return 0
+
+    def _contar_usuarios_company(self, company_id: str) -> int:
+        """Cuenta usuarios (perfiles) activos de una compañía."""
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                resp = client.table('profiles').select('id').eq('company_id', company_id).eq('is_active', True).execute()
+                return len(resp.data or [])
+        except Exception as e:
+            print(f"[PLATFORM] SDK _contar_usuarios_company: {e}")
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "SELECT COUNT(*) FROM public.profiles WHERE company_id = %s AND is_active = true",
+                    (company_id,)
+                )
+                count = cursor.fetchone()[0]
+                cursor.close()
+                return int(count)
+        except Exception as e:
+            print(f"[PLATFORM] Error _contar_usuarios_company: {e}")
+        return 0
 
     # ================================================================
     # FAST QUOTE — PROMPT DE CRITERIOS (v3)

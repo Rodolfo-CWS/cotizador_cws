@@ -105,6 +105,10 @@ def login():
             # 2. Buscar perfil del usuario (company_id, role)
             profile = _get_profile(user.id)
 
+            # 2b. Si no tiene perfil, intentar resolver una invitación pendiente
+            if not profile:
+                profile = _resolve_pending_invitation(user)
+
             if not profile:
                 error = (
                     "Tu cuenta no está asociada a ninguna compañía. "
@@ -115,7 +119,7 @@ def login():
             # 3. Guardar en sesión
             session['user_id'] = user.id
             session['user_email'] = user.email
-            session['user_name'] = profile.get('full_name', email)
+            session['user_name'] = ' '.join((profile.get('full_name') or email or '').split())
             session['user_role'] = profile.get('role', 'seller')
             session['company_id'] = profile.get('company_id')
             session.permanent = True  # sesión duradera (PERMANENT_SESSION_LIFETIME)
@@ -204,6 +208,20 @@ def register():
             error = "La contraseña debe tener al menos 8 caracteres"
             return render_template('register.html', error=error)
 
+        # Si hay una invitación pendiente para este email, redirigir a revisar
+        # el correo (evita que un invitado cree una compañía temporal por error).
+        try:
+            from flask import current_app
+            db = current_app.extensions.get('db_manager')
+            if db and db.get_pending_invitation_by_email(email):
+                error = (
+                    "Este email ya tiene una invitación pendiente para unirse a "
+                    "una empresa. Revisa tu correo y usa el enlace de la invitación."
+                )
+                return render_template('register.html', error=error)
+        except Exception as e:
+            logger.warning(f"[AUTH] Error verificando invitación en registro: {e}")
+
         try:
             # 1. Crear usuario en Supabase Auth
             supabase = get_supabase_auth_client()
@@ -238,7 +256,7 @@ def register():
             # 4. Guardar en sesión
             session['user_id'] = user.id
             session['user_email'] = user.email
-            session['user_name'] = full_name
+            session['user_name'] = ' '.join(full_name.split())
             session['user_role'] = 'admin'
             session['company_id'] = company_id
 
@@ -345,6 +363,44 @@ def _get_profile(user_id: str):
         }
     except Exception as e:
         logger.error(f"[AUTH] Error al obtener perfil: {e}")
+        return None
+
+
+def _resolve_pending_invitation(user):
+    """Si el usuario tiene una invitación pendiente, crea su perfil y lo vincula.
+
+    Se invoca desde login() cuando el usuario ya existe en Supabase Auth pero
+    aún no tiene perfil. Devuelve el perfil (dict) o None si no había invitación.
+    """
+    try:
+        from flask import current_app
+        db = current_app.extensions.get('db_manager')
+        if not db:
+            return None
+
+        invitation = db.get_pending_invitation_by_email(user.email)
+        if not invitation:
+            return None
+
+        company_id = invitation.get('company_id')
+        role = invitation.get('role', 'seller')
+        full_name = (
+            (user.user_metadata or {}).get('full_name')
+            or user.email
+            or ''
+        )
+
+        admin_client = get_supabase_admin_client()
+        _create_profile(admin_client, user.id, company_id, full_name, role)
+        db.accept_invitation(invitation.get('id'))
+
+        logger.info(
+            f"[AUTH] Invitación aceptada: {user.email} → "
+            f"company={company_id} (role={role})"
+        )
+        return _get_profile(user.id)
+    except Exception as e:
+        logger.error(f"[AUTH] Error resolviendo invitación: {e}")
         return None
 
 
