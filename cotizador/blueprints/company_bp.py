@@ -277,8 +277,14 @@ def invite_user():
         url = os.getenv('SUPABASE_URL')
         key = os.getenv('SUPABASE_SERVICE_KEY')
         client = create_client(url, key)
-        redirect_to = request.host_url.rstrip('/') + '/auth/login'
-        _admin_invite_user(client, email, redirect_to)
+        # Tras aceptar, el usuario debe definir su contraseña; reutilizamos la
+        # página de reset (ya pública y con el flujo updateUser listo).
+        redirect_to = request.host_url.rstrip('/') + '/auth/reset-password?invite=1'
+        data = {
+            "company_name": company.get('name', ''),
+            "inviter_name": session.get('user_name', ''),
+        }
+        _admin_invite_user(client, email, redirect_to, data)
         flash(f"Invitación enviada a {email} (rol: {role})", "success")
     except Exception as e:
         error_msg = str(e).lower()
@@ -322,16 +328,19 @@ def revoke_invitation(invitation_id):
     return redirect(url_for('company.users'))
 
 
-def _admin_invite_user(client, email, redirect_to):
+def _admin_invite_user(client, email, redirect_to, data=None):
     """Envía invitación vía Supabase Auth, tolerando firmas de versión distintas."""
+    options = {"redirect_to": redirect_to}
+    if data:
+        options["data"] = data
     try:
         # Firma moderna: invite_user_by_email(email, options)
-        client.auth.admin.invite_user_by_email(
-            email, {"redirect_to": redirect_to}
-        )
+        client.auth.admin.invite_user_by_email(email, options)
     except TypeError:
-        # Firma antigua: invite_user_by_email(email, redirect_to=...)
-        client.auth.admin.invite_user_by_email(email, redirect_to=redirect_to)
+        # Firma antigua: invite_user_by_email(email, redirect_to=..., data=...)
+        client.auth.admin.invite_user_by_email(
+            email, redirect_to=redirect_to, data=data
+        )
 
 
 #
