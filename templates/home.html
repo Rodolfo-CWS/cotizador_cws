@@ -377,6 +377,8 @@
                                 {% endif %}
                                 {% if cot.tiene_desglose %}
                                 <a href="/desglose/{{ cot.numero }}" class="btn-icon" title="Ver desglose de precios">Desglose</a>
+                                {% elif cot.es_simple and company_plan == 'full' %}
+                                <a href="/desglose/{{ cot.numero }}" class="btn-icon" title="Ver cotización y comentarios internos">Ver</a>
                                 {% else %}
                                 <span style="font-size: 10px; color: #999;">Sin desglose</span>
                                 {% endif %}
@@ -436,6 +438,7 @@
     </div>
 
     <script>
+        const companyPlan = {{ company_plan | tojson }};
         // Toggle filtros
         document.getElementById('toggleFilters').addEventListener('click', function() {
             const panel = document.getElementById('filterPanel');
@@ -758,7 +761,8 @@
                 const acciones = '<a href="/pdf/' + encodeURIComponent(num) + '" target="_blank" class="btn-icon" title="Ver PDF">PDF</a>'
                     + (cot.es_simple ? '<a href="/cotizacion-pdf?numero=' + encodeURIComponent(num) + '" class="btn-icon" title="Editar cotización">Editar</a>' : '')
                     + (cot.tiene_desglose ? '<a href="/desglose/' + encodeURIComponent(num) + '" class="btn-icon" title="Ver desglose">Desglose</a>'
-                        : '<span style="font-size:10px;color:#999;">Sin desglose</span>');
+                        : (cot.es_simple && companyPlan === 'full' ? '<a href="/desglose/' + encodeURIComponent(num) + '" class="btn-icon" title="Ver cotización y comentarios internos">Ver</a>'
+                            : '<span style="font-size:10px;color:#999;">Sin desglose</span>'));
 
                 html += '<tr' + antigua + '>'
                     + '<td><span class="expand-btn" data-numero="' + safeNum + '" onclick="togglePreview(this)">▶</span></td>'

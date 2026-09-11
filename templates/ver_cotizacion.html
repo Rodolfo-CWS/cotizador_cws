@@ -406,7 +406,7 @@
         <!-- ── HEADER ── -->
         <div class="pg-header">
             <img src="/static/logo.png" alt="Sifra" class="logo">
-            <h1>Desglose de Cotización</h1>
+            <h1>{% if cotizacion.datosGenerales and cotizacion.datosGenerales.tipo == 'simple' %}Cotización{% else %}Desglose de Cotización{% endif %}</h1>
             <p class="meta">
                 No. <b>{{ cotizacion.numeroCotizacion or 'Sin número' }}</b>
                 <span>|</span> Rev. <b>{{ cotizacion.revision or '1' }}</b>
@@ -715,7 +715,8 @@
                 Ver PDF
             </a>
             {% set numero_cotizacion = cotizacion.get('numeroCotizacion') or cotizacion.get('numero_cotizacion') %}
-            {% if numero_cotizacion %}
+            {% set es_simple = cotizacion.datosGenerales and cotizacion.datosGenerales.tipo == 'simple' %}
+            {% if numero_cotizacion and not es_simple %}
             <a href="/formulario?revision={{ numero_cotizacion | urlencode }}" class="btn btn-success" title="Crear nueva revisión">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17,13H13V17H11V13H7V11H11V7H13V11H17M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/></svg>
                 Nueva Revisión
