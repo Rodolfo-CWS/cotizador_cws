@@ -499,7 +499,7 @@
                 <!-- Materiales + Extras (Transporte/Instalación/Seguridad/Descuento) -->
                 {% set tiene_mat = item.get('materiales') and item.get('materiales')|length > 0 %}
                 {% set tiene_otro = item.get('otrosMateriales') and item.get('otrosMateriales')|length > 0 %}
-                {% set tiene_extras = (item.instalacion | float) > 0 or (item.seguridad | float) > 0 or (item.descuento | float) > 0 %}
+                {% set tiene_extras = (item.get('instalacion', 0) | float) > 0 or (item.get('seguridad', 0) | float) > 0 or (item.get('descuento', 0) | float) > 0 %}
 
                 <table class="mat-table">
                     <thead>
@@ -563,32 +563,32 @@
                             <td {% if tiene_mat or tiene_otro %}colspan="2"{% endif %}>
                                 <span style="color:#92400e; font-size:11px; font-weight:600;">⚙ Transporte</span>
                             </td>
-                            <td class="right"><b style="color:#92400e;">${{ "{:,.2f}".format(item.transporte | float) if item.transporte else '0.00' }} MXN</b></td>
+                            <td class="right"><b style="color:#92400e;">${{ "{:,.2f}".format(item.get('transporte', 0) | float) if item.get('transporte', 0) else '0.00' }} MXN</b></td>
                         </tr>
                         <!-- Extras (Instalación, Seguridad, Descuento) -->
                         {% if tiene_extras %}
-                        {% if (item.instalacion | float) > 0 %}
+                        {% if (item.get('instalacion', 0) | float) > 0 %}
                         <tr style="background:#fefce8;">
                             <td {% if tiene_mat or tiene_otro %}colspan="2"{% endif %}>
                                 <span style="color:#92400e; font-size:11px; font-weight:600;">⚙ Instalación</span>
                             </td>
-                            <td class="right"><b style="color:#92400e;">${{ "{:,.2f}".format(item.instalacion | float) }} MXN</b></td>
+                            <td class="right"><b style="color:#92400e;">${{ "{:,.2f}".format(item.get('instalacion', 0) | float) }} MXN</b></td>
                         </tr>
                         {% endif %}
-                        {% if (item.seguridad | float) > 0 %}
+                        {% if (item.get('seguridad', 0) | float) > 0 %}
                         <tr style="background:#fefce8;">
                             <td {% if tiene_mat or tiene_otro %}colspan="2"{% endif %}>
                                 <span style="color:#92400e; font-size:11px; font-weight:600;">⚙ Seguridad</span>
                             </td>
-                            <td class="right"><b style="color:#92400e;">{{ item.seguridad }}%</b></td>
+                            <td class="right"><b style="color:#92400e;">{{ item.get('seguridad', 0) }}%</b></td>
                         </tr>
                         {% endif %}
-                        {% if (item.descuento | float) > 0 %}
+                        {% if (item.get('descuento', 0) | float) > 0 %}
                         <tr style="background:#fefce8;">
                             <td {% if tiene_mat or tiene_otro %}colspan="2"{% endif %}>
                                 <span style="color:#92400e; font-size:11px; font-weight:600;">⚙ Descuento</span>
                             </td>
-                            <td class="right"><b style="color:#92400e;">{{ item.descuento }}%</b></td>
+                            <td class="right"><b style="color:#92400e;">{{ item.get('descuento', 0) }}%</b></td>
                         </tr>
                         {% endif %}
                         {% endif %}
