@@ -107,6 +107,16 @@
             </div>
         </div>
 
+        {% if company_plan == 'full' %}
+        <!-- Comentarios internos (solo plan Full, no se imprimen en el PDF) -->
+        <div class="card">
+            <h2>Comentarios internos</h2>
+            <textarea name="comentariosInternos" id="comentariosInternos" rows="3"
+                      placeholder="Notas internas del equipo — NO aparecerán en el PDF del cliente..."></textarea>
+            <p class="hint">🔒 Estos comentarios son solo para uso interno. No se incluyen en el PDF.</p>
+        </div>
+        {% endif %}
+
         <!-- Líneas -->
         <div class="card">
             <h2>Conceptos <span class="hint">(cantidad × precio unitario)</span></h2>
@@ -345,7 +355,8 @@
                 contacto: document.getElementById('contacto').value.trim(),
                 revision: document.getElementById('revision').value,
                 actualizacionRevision: document.getElementById('actualizacionRevision').value.trim(),
-                fecha: document.getElementById('fecha').value
+                fecha: document.getElementById('fecha').value,
+                comentariosInternos: (document.getElementById('comentariosInternos') ? document.getElementById('comentariosInternos').value.trim() : '')
             };
         }
 
@@ -433,6 +444,8 @@
             document.getElementById('revision').value = dg.revision || '1';
             document.getElementById('actualizacionRevision').value = dg.actualizacionRevision || '';
             document.getElementById('textoIA').value = dg.textoIntroductorio || '';
+            const ciEl = document.getElementById('comentariosInternos');
+            if (ciEl) ciEl.value = dg.comentariosInternos || '';
 
             document.getElementById('moneda').value = cond.moneda || 'MXN';
             document.getElementById('tipoCambio').value = cond.tipoCambio || '';
@@ -576,6 +589,8 @@
             document.getElementById('revision').value = dg.revision || '1';
             document.getElementById('actualizacionRevision').value = dg.actualizacionRevision || '';
             document.getElementById('textoIA').value = dg.textoIntroductorio || '';
+            const ciEl = document.getElementById('comentariosInternos');
+            if (ciEl) ciEl.value = dg.comentariosInternos || '';
             if (dg.imagenReferencia && dg.imagenReferencia.url) {
                 imagenReferenciaInfo = {
                     nombre: dg.imagenReferencia.nombre || 'imagen',

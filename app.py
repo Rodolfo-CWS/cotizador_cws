@@ -3983,6 +3983,8 @@ def cotizacion_pdf():
             "fecha": datos_generales.get("fecha") or datetime.datetime.now().strftime("%Y-%m-%d"),
             "revision": str(datos_generales.get("revision") or "1"),
             "actualizacionRevision": (datos_generales.get("actualizacionRevision") or "").strip(),
+            "comentariosInternos": (datos_generales.get("comentariosInternos") or "").strip()
+                                   if plan == PLAN_FULL else "",
             "textoIntroductorio": texto_personalizado,
             "condiciones": condiciones_guardar,
         },
