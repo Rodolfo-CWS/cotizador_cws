@@ -166,6 +166,66 @@
         .preview-items h4 { font-size: 12px; color: #6c757d; margin: 0 0 8px; }
         .preview-items table { width: 100%; border-collapse: collapse; }
         .preview-items th, .preview-items td { font-size: 12px; text-align: left; padding: 6px 8px; border-bottom: 1px solid #eef0f4; }
+
+        /* ===== Botón "+" desplegable (nueva cotización) ===== */
+        .new-quote { position: relative; }
+        .new-quote-btn {
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            justify-content: center;
+        }
+        .new-quote-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            min-width: 280px;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            z-index: 1000;
+            overflow: hidden;
+        }
+        .new-quote-menu.show { display: block; }
+        .new-quote-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 10px 16px;
+            font-size: 14px;
+            color: #212529;
+            text-decoration: none;
+            border-bottom: 1px solid #f1f3f5;
+            transition: background .15s;
+        }
+        .new-quote-item:last-child { border-bottom: none; }
+        a.new-quote-item:hover { background: #f0f0ff; color: var(--primary); }
+        .new-quote-item-ia { color: #d97706; font-weight: 600; }
+        .new-quote-item-disabled {
+            color: #adb5bd;
+            cursor: not-allowed;
+            background: #f8f9fa;
+        }
+        .new-quote-tag {
+            margin-left: auto;
+            font-size: 10px;
+            font-weight: 600;
+            color: #6d28d9;
+            background: #eef2ff;
+            border-radius: 10px;
+            padding: 2px 8px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            white-space: nowrap;
+        }
+        @media (max-width: 768px) {
+            .actions .new-quote-btn { width: 44px; height: 44px; justify-content: center; }
+            .new-quote-menu { left: 0; right: 0; min-width: 0; }
+        }
     </style>
 </head>
 <body>
@@ -188,29 +248,45 @@
         </div>
 
         <div class="actions">
-            {% if plan_has_feature(company_plan, 'full_form') %}
-            <a href="/formulario" class="btn btn-primary">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                </svg>
-                Nueva Cotización
-            </a>
-            {% endif %}
-            {% if plan_has_feature(company_plan, 'simple_pdf') %}
-            <a href="/cotizacion-pdf" class="btn btn-primary">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M13,9V3.5L18.5,9H13M6,12H18V14H6V12M6,16H14V18H6V16Z"/>
-                </svg>
-                Cotización en PDF
-            </a>
-            {% endif %}
-            {% if plan_has_feature(company_plan, 'fast_quote') %}
-            <a href="/fast-quote" class="btn btn-fast-quote" style="background: #f59e0b; color: white; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s;"
-               onmouseover="this.style.background='#d97706'"
-               onmouseout="this.style.background='#f59e0b'">
-                ⚡ Cotización Rápida
-            </a>
-            {% endif %}
+            <div class="new-quote">
+                <button id="btnNuevaCotizacion" class="btn btn-primary new-quote-btn"
+                        aria-haspopup="true" aria-expanded="false" title="Nueva cotización">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                </button>
+                <div class="new-quote-menu" id="menuNuevaCotizacion">
+                    {% if plan_has_feature(company_plan, 'full_form') %}
+                    <a href="/formulario" class="new-quote-item">Cotización detallada con desglose</a>
+                    {% else %}
+                    <span class="new-quote-item new-quote-item-disabled" aria-disabled="true"
+                          title="Disponible en el plan Completo">
+                        Cotización detallada con desglose
+                        <span class="new-quote-tag">Completo</span>
+                    </span>
+                    {% endif %}
+
+                    {% if plan_has_feature(company_plan, 'simple_pdf') %}
+                    <a href="/cotizacion-pdf" class="new-quote-item">Cotización simple</a>
+                    {% else %}
+                    <span class="new-quote-item new-quote-item-disabled" aria-disabled="true"
+                          title="Disponible en el plan Completo">
+                        Cotización simple
+                        <span class="new-quote-tag">Completo</span>
+                    </span>
+                    {% endif %}
+
+                    {% if plan_has_feature(company_plan, 'fast_quote') %}
+                    <a href="/fast-quote" class="new-quote-item new-quote-item-ia">Estimación IA!</a>
+                    {% else %}
+                    <span class="new-quote-item new-quote-item-disabled new-quote-item-ia"
+                          aria-disabled="true" title="Disponible en el plan Completo">
+                        Estimación IA!
+                        <span class="new-quote-tag">Completo</span>
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
             {% if plan_has_feature(company_plan, 'full_form') %}
             <button class="btn btn-drafts" onclick="abrirModalDrafts()" id="btnDrafts">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -439,6 +515,25 @@
 
     <script>
         const companyPlan = {{ company_plan | tojson }};
+
+        // Toggle menú "+" (nueva cotización)
+        (function () {
+            const btn = document.getElementById('btnNuevaCotizacion');
+            const menu = document.getElementById('menuNuevaCotizacion');
+            if (!btn || !menu) return;
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                const open = menu.classList.toggle('show');
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+            document.addEventListener('click', function (e) {
+                if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                    menu.classList.remove('show');
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+            });
+        })();
+
         // Toggle filtros
         document.getElementById('toggleFilters').addEventListener('click', function() {
             const panel = document.getElementById('filterPanel');
