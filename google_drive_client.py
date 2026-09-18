@@ -6,10 +6,17 @@ Maneja autenticación y descarga de archivos desde Google Drive para Render
 import os
 import json
 import io
+import httplib2
 from typing import Dict, List, Optional
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
+
+# Tiempo máximo (segundos) para cada llamada HTTP a la API de Google Drive.
+# Drive es solo el FALLBACK de almacenamiento (el primario es Supabase Storage),
+# por lo que nunca debe bloquear el arranque de la app: si la API no responde
+# dentro de este tiempo, la llamada falla y el cliente queda inactivo (service=None).
+DRIVE_HTTP_TIMEOUT = int(os.getenv('GOOGLE_DRIVE_TIMEOUT', '15'))
 
 
 class GoogleDriveClient:
@@ -118,7 +125,12 @@ class GoogleDriveClient:
             # MEJORADO: Crear servicio con mejor manejo de errores
             print("[GOOGLE_DRIVE] Construyendo servicio Drive API v3...")
             try:
-                self.service = build('drive', 'v3', credentials=credentials)
+                # Timeout explícito en el cliente HTTP: si Drive tarda/no responde,
+                # la llamada falla en DRIVE_HTTP_TIMEOUT segundos en vez de colgarse
+                # para siempre y bloquear el arranque de gunicorn.
+                http = httplib2.Http(timeout=DRIVE_HTTP_TIMEOUT)
+                http = credentials.authorize(http)
+                self.service = build('drive', 'v3', http=http)
                 print("[GOOGLE_DRIVE] [OK] Servicio Drive API construido")
             except Exception as service_error:
                 print(f"[ERROR] Google Drive: Error construyendo servicio: {service_error}")

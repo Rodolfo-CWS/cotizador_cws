@@ -42,6 +42,7 @@ gunicorn==25.1.0
 # Google Drive API (para acceso a PDFs en la nube) - MANTENIDO COMO FALLBACK
 google-api-python-client==2.191.0
 google-auth==2.48.0
+httplib2>=0.19.0
 
 # Claude/Anthropic API (IA para generación de texto personalizado)
 # Pin fijo: v1.3.0 elimina el parámetro `temperature` de messages.create().
