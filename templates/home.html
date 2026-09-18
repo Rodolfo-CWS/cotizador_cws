@@ -226,6 +226,17 @@
             .actions .new-quote-btn { width: 44px; height: 44px; justify-content: center; }
             .new-quote-menu { left: 0; right: 0; min-width: 0; }
         }
+
+        /* Botón de filtros (solo ícono) junto al botón Buscar */
+        .btn-filters {
+            background: var(--gray-600);
+            padding: 10px 14px;
+            justify-content: center;
+        }
+        .btn-filters:hover {
+            background: var(--gray-700);
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.35);
+        }
     </style>
 </head>
 <body>
@@ -296,13 +307,6 @@
                 <span id="badge-drafts"></span>
             </button>
             {% endif %}
-            <button id="toggleFilters" class="btn btn-secondary">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
-                </svg>
-                <span id="filterToggleText">Mostrar Filtros</span>
-                <span id="filterBadge" style="display: none; background: #ef4444; color: white; border-radius: 10px; padding: 2px 8px; margin-left: 6px; font-size: 11px; font-weight: 600;">0</span>
-            </button>
         </div>
     </div>
 
@@ -324,6 +328,11 @@
                     <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
                 </svg>
                 Buscar
+            </button>
+            <button id="toggleFilters" class="btn-search btn-filters" title="Mostrar filtros" aria-label="Mostrar filtros" aria-expanded="false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+                </svg>
             </button>
         </div>
     </div>
@@ -537,14 +546,9 @@
         // Toggle filtros
         document.getElementById('toggleFilters').addEventListener('click', function() {
             const panel = document.getElementById('filterPanel');
-            const text = document.getElementById('filterToggleText');
-            if (panel.style.display === 'none') {
-                panel.style.display = 'block';
-                text.textContent = 'Ocultar Filtros';
-            } else {
-                panel.style.display = 'none';
-                text.textContent = 'Mostrar Filtros';
-            }
+            const abierto = panel.style.display === 'block';
+            panel.style.display = abierto ? 'none' : 'block';
+            this.setAttribute('aria-expanded', abierto ? 'false' : 'true');
         });
 
         // Aplicar filtros (AJAX)
