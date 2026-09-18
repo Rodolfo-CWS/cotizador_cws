@@ -114,6 +114,26 @@ def safe_int(value, default=0):
     """Convierte un valor a int de forma robusta"""
     return int(safe_float(value, default))
 
+def _convertir_a_moneda_mostrar(monto_mxn, condiciones):
+    """Convierte un monto guardado en MXN a la moneda de visualización.
+
+    Internamente los ítems/totales se guardan SIEMPRE en MXN. Cuando la
+    cotización es USD, se divide por el tipo de cambio (misma regla que
+    cotizador/pdf_generator.py) para que el home, /buscar y el preview
+    muestren la cifra en la moneda correcta.
+    """
+    if not isinstance(condiciones, dict):
+        return monto_mxn
+    if condiciones.get('moneda', 'MXN') != 'USD':
+        return monto_mxn
+    try:
+        tipo_cambio = float(condiciones.get('tipoCambio') or 0)
+    except (ValueError, TypeError):
+        tipo_cambio = 0.0
+    if tipo_cambio > 0 and tipo_cambio != 1.0:
+        return monto_mxn / tipo_cambio
+    return monto_mxn
+
 def validate_material_data(material, item_index=0, material_index=0):
     """
     Valida y limpia los datos de un material, asegurando tipos correctos
@@ -1001,7 +1021,7 @@ def _transformar_cotizacion(cot):
         "proyecto": datos_gen.get('proyecto', 'N/A'),
         "fecha": fecha,
         "revision": revision,
-        "total": total_calculado,
+        "total": _convertir_a_moneda_mostrar(total_calculado, condiciones),
         "moneda": moneda,
         "_id": cot.get('_id', ''),
         "tiene_desglose": datos_gen.get('tipo') != 'simple',
@@ -2408,6 +2428,11 @@ def cotizacion_resumen(numero_cotizacion):
 
         plano = _transformar_cotizacion(cot)
 
+        # Condiciones para convertir montos a moneda de visualización en el preview
+        condiciones_prev = cot.get('condiciones', {})
+        if not isinstance(condiciones_prev, dict):
+            condiciones_prev = {}
+
         # Items preview (primeros 5)
         items = cot.get('items', [])
         if not isinstance(items, list):
@@ -2430,8 +2455,8 @@ def cotizacion_resumen(numero_cotizacion):
                 items_preview.append({
                     "descripcion": item.get('descripcion') or item.get('nombre') or 'Item',
                     "cantidad": item.get('cantidad', ''),
-                    "precio_unitario": precio_unitario,
-                    "total": total_item
+                    "precio_unitario": _convertir_a_moneda_mostrar(precio_unitario, condiciones_prev),
+                    "total": _convertir_a_moneda_mostrar(total_item, condiciones_prev)
                 })
 
         return jsonify({
@@ -2686,7 +2711,7 @@ def todas_cotizaciones():
                     "proyecto": datos_gen.get('proyecto', 'N/A') if isinstance(datos_gen, dict) else 'N/A',
                     "fecha": fecha,
                     "revision": revision,
-                    "total": total_calculado,
+                    "total": _convertir_a_moneda_mostrar(total_calculado, condiciones),
                     "moneda": moneda,
                     "_id": cot.get('_id', ''),
                     "tiene_desglose": True,  # Cotizaciones de BD tienen desglose
@@ -3199,16 +3224,36 @@ def generar_texto_ia():
             proyecto = datos_generales.get('proyecto', 'su proyecto')
             vendedor = datos_generales.get('vendedor') or nombre_empresa
 
-            # Construir resumen de items
+            moneda = condiciones.get('moneda', 'MXN')
+
+            # Tipo de cambio para convertir precios MXN → USD (igual que el PDF).
+            # Los ítems se guardan en MXN; sin esta conversión la IA suma en MXN
+            # y, al leer "Moneda: USD", escribe un total en USD inflado ~17x.
+            try:
+                tipo_cambio = float(condiciones.get('tipoCambio') or 0)
+            except (ValueError, TypeError):
+                tipo_cambio = 0.0
+            convertir_usd = (moneda == 'USD' and tipo_cambio > 0 and tipo_cambio != 1.0)
+
+            # Total real (sobre TODOS los ítems, no solo los resumidos abajo)
+            total_mxn = 0.0
+            for it in items:
+                if isinstance(it, dict):
+                    total_mxn += safe_float(it.get('total') or it.get('totalItem') or 0)
+
+            # Construir resumen de items (max 10 para no exceder tokens)
             items_resumen = ""
-            for i, item in enumerate(items[:10]):  # max 10 items para no exceder tokens
+            for i, item in enumerate(items[:10]):
                 desc = (item.get('descripcion') or 'Sin descripción')[:100]
                 precio = item.get('total') or item.get('totalItem') or 'N/A'
                 uom = item.get('uom', '')
                 cant = item.get('cantidad', '')
-                items_resumen += f"- Item {i+1}: {desc} | {cant} {uom} | ${precio}\n"
+                precio_num = safe_float(precio)
+                precio_mostrar = (precio_num / tipo_cambio) if convertir_usd else precio_num
+                items_resumen += f"- Item {i+1}: {desc} | {cant} {uom} | ${precio_mostrar:,.2f}\n"
 
-            moneda = condiciones.get('moneda', 'MXN')
+            total_mostrar = (total_mxn / tipo_cambio) if convertir_usd else total_mxn
+            resumen_total = f"Total: ${total_mostrar:,.2f} {moneda}"
 
             # System prompt
             system_prompt = (
@@ -3230,7 +3275,8 @@ Moneda: {moneda}
 Revisión: R{revision}
 
 Resumen de ítems cotizados:
-{items_resumen if items_resumen else 'No se especificaron ítems'}"""
+{items_resumen if items_resumen else 'No se especificaron ítems'}
+{resumen_total}"""
 
             if cambios and revision != '1':
                 user_prompt += f"\nCambios respecto a revisión anterior:\n{cambios}\nExplica estos cambios de forma profesional.\n"
