@@ -6,7 +6,7 @@ Maneja autenticación y descarga de archivos desde Google Drive para Render
 import os
 import json
 import io
-import httplib2
+import threading
 from typing import Dict, List, Optional
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -17,6 +17,31 @@ from googleapiclient.http import MediaIoBaseDownload
 # por lo que nunca debe bloquear el arranque de la app: si la API no responde
 # dentro de este tiempo, la llamada falla y el cliente queda inactivo (service=None).
 DRIVE_HTTP_TIMEOUT = int(os.getenv('GOOGLE_DRIVE_TIMEOUT', '15'))
+
+
+def _call_with_timeout(fn, timeout):
+    """Ejecuta fn() en un hilo y devuelve su resultado.
+
+    Si fn() excede `timeout` segundos, lanza TimeoutError. El hilo se marca como
+    daemon, de modo que si la llamada queda bloqueada para siempre no impide que
+    el proceso (gunicorn) arranque o termine.
+    """
+    resultado = {}
+
+    def _target():
+        try:
+            resultado['value'] = fn()
+        except Exception as e:  # noqa: BLE001 — se re-lanza en el hilo principal
+            resultado['error'] = e
+
+    hilo = threading.Thread(target=_target, daemon=True)
+    hilo.start()
+    hilo.join(timeout)
+    if hilo.is_alive():
+        raise TimeoutError(f"Google Drive no respondió en {timeout}s")
+    if 'error' in resultado:
+        raise resultado['error']
+    return resultado.get('value')
 
 
 class GoogleDriveClient:
@@ -125,12 +150,7 @@ class GoogleDriveClient:
             # MEJORADO: Crear servicio con mejor manejo de errores
             print("[GOOGLE_DRIVE] Construyendo servicio Drive API v3...")
             try:
-                # Timeout explícito en el cliente HTTP: si Drive tarda/no responde,
-                # la llamada falla en DRIVE_HTTP_TIMEOUT segundos en vez de colgarse
-                # para siempre y bloquear el arranque de gunicorn.
-                http = httplib2.Http(timeout=DRIVE_HTTP_TIMEOUT)
-                http = credentials.authorize(http)
-                self.service = build('drive', 'v3', http=http)
+                self.service = build('drive', 'v3', credentials=credentials)
                 print("[GOOGLE_DRIVE] [OK] Servicio Drive API construido")
             except Exception as service_error:
                 print(f"[ERROR] Google Drive: Error construyendo servicio: {service_error}")
@@ -147,17 +167,23 @@ class GoogleDriveClient:
             try:
                 # Test 1: Verificación básica de API
                 print("[TEST 1] Verificación básica de API...")
-                about_info = self.service.about().get(fields='user').execute()
+                about_info = _call_with_timeout(
+                    lambda: self.service.about().get(fields='user').execute(),
+                    DRIVE_HTTP_TIMEOUT
+                )
                 print(f"[TEST 1] [OK] API accesible - Usuario: {about_info.get('user', {}).get('emailAddress', 'N/A')}")
                 tests_passed += 1
                 
                 # Test 2: Verificación de acceso a carpeta "nuevas"
                 print(f"[TEST 2] Verificando acceso a carpeta 'nuevas': {self.folder_nuevas}")
                 try:
-                    folder_info = self.service.files().get(
-                        fileId=self.folder_nuevas,
-                        fields='id,name,permissions'
-                    ).execute()
+                    folder_info = _call_with_timeout(
+                        lambda: self.service.files().get(
+                            fileId=self.folder_nuevas,
+                            fields='id,name,permissions'
+                        ).execute(),
+                        DRIVE_HTTP_TIMEOUT
+                    )
                     print(f"[TEST 2] [OK] Carpeta 'nuevas' accesible: {folder_info.get('name', 'Sin nombre')}")
                     tests_passed += 1
                 except Exception as folder_error:
@@ -168,10 +194,13 @@ class GoogleDriveClient:
                 # Test 3: Verificación de acceso a carpeta "antiguas"
                 print(f"[TEST 3] Verificando acceso a carpeta 'antiguas': {self.folder_antiguas}")
                 try:
-                    folder_info = self.service.files().get(
-                        fileId=self.folder_antiguas,
-                        fields='id,name'
-                    ).execute()
+                    folder_info = _call_with_timeout(
+                        lambda: self.service.files().get(
+                            fileId=self.folder_antiguas,
+                            fields='id,name'
+                        ).execute(),
+                        DRIVE_HTTP_TIMEOUT
+                    )
                     print(f"[TEST 3] [OK] Carpeta 'antiguas' accesible: {folder_info.get('name', 'Sin nombre')}")
                     tests_passed += 1
                 except Exception as folder_error:
