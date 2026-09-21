@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cotización PDF - {{ company.name if company else 'Sifra' }}</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <script src="/static/js/calculator.js" defer></script>
+    <script src="/static/js/calculator.js"></script>
     <style>
         body { padding: 20px; }
         .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -625,8 +625,6 @@
         // Fecha por defecto hoy + filas iniciales + precarga si es edición
         document.addEventListener('DOMContentLoaded', function(){
             inicializarManejadorImagen();
-            // Calculadora temporal para campos numéricos (cantidad y precio unitario)
-            initCalcCalculator('.item-cant, .item-precio');
             document.getElementById('fecha').value = new Date().toISOString().slice(0, 10);
 
             {% if draft_edit %}
@@ -643,6 +641,10 @@
             inicializarSistemaAutoGuardado();
             {% endif %}
         });
+    </script>
+    <script>
+        // Calculadora flotante global (botón fijo + popup)
+        initFloatingCalculator();
     </script>
 </body>
 </html>

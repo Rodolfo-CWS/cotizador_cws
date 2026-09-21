@@ -1,34 +1,32 @@
 /* ============================================================
-   Sifra — Calculadora temporal para campos numéricos
+   Sifra — Calculadora flotante global
    ============================================================
-   Botón ícono discreto que aparece al enfocar un campo numérico
-   y abre una mini-calculadora (+, −, ×, ÷) para insertar el
-   resultado sin salir del formulario.
+   Botón flotante fijo (FAB), independiente de cualquier campo y
+   siempre visible sin importar el scroll. Al hacer clic abre una
+   mini-calculadora (+, −, ×, ÷) en popup; el resultado se copia
+   al portapapeles para pegarlo donde el usuario necesite.
 
    Uso:
-       initCalcCalculator('.cantidad-item, .transporte, .instalacion');
+       initFloatingCalculator();
 
    Sin dependencias (funciona con y sin Tailwind). Reusa las
-   clases CSS de static/css/style.css (`.calc-trigger` / `.calc-pop`).
+   clases CSS de static/css/style.css (`.calc-fab` / `.calc-pop`).
    ============================================================ */
 
 (function (global) {
     'use strict';
 
-    var MARGIN = 8;          // margen respecto a los bordes del viewport
-    var TRIGGER_SIZE = 30;   // alto/ancho del botón flotante
+    var MARGIN = 12; // margen respecto a los bordes del viewport
 
     var initialized = false;
-    var selector = '';
 
-    var trigger = null;   // botón flotante (ícono calculadora)
+    var fab = null;       // botón flotante fijo
     var pop = null;       // panel de la calculadora
     var displayEl = null; // pantalla de la calculadora
+    var copyBtn = null;   // botón "Copiar"
 
-    var activeInput = null;  // input objetivo de la inserción
     var popOpen = false;
-
-    var hideTimer = null;
+    var copyResetTimer = null;
 
     // Estado de la calculadora
     var calc = { current: '', previous: null, op: null, resetNext: false, error: false };
@@ -141,25 +139,33 @@
     }
 
     /* ---------- apertura / cierre ---------- */
-    function seedFromInput() {
-        clearAll();
-        if (!activeInput) return;
-        var v = (activeInput.value || '').trim().replace(',', '.');
-        if (v !== '' && isFinite(parseFloat(v))) {
-            calc.current = v;
+    function positionPop() {
+        if (!fab || !pop) return;
+        var fabRect = fab.getBoundingClientRect();
+        var pw = pop.offsetWidth || 240;
+        var ph = pop.offsetHeight || 360;
+
+        // Anclado a la derecha, alineado con el FAB
+        var left = fabRect.right - pw;
+        left = Math.max(MARGIN, Math.min(left, global.innerWidth - pw - MARGIN));
+
+        // Arriba del FAB; si no cabe, debajo (clampado al viewport)
+        var top = fabRect.top - ph - 8;
+        if (top < MARGIN) {
+            top = fabRect.bottom + 8;
+            if (top + ph > global.innerHeight - MARGIN) top = global.innerHeight - ph - MARGIN;
         }
-        renderDisplay();
+
+        pop.style.left = left + 'px';
+        pop.style.top = top + 'px';
     }
 
-    function openPop(input) {
-        activeInput = input;
-        seedFromInput();
+    function openPop() {
         pop.style.display = 'block';
         pop.style.visibility = 'hidden';
         positionPop();
         pop.style.visibility = 'visible';
         popOpen = true;
-        hideTrigger();
     }
 
     function closePop() {
@@ -167,101 +173,65 @@
         popOpen = false;
     }
 
-    function insertResult() {
+    function togglePop() {
+        if (popOpen) closePop();
+        else openPop();
+    }
+
+    /* ---------- copiar al portapapeles ---------- */
+    function fallbackCopy(text, onDone) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '0';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        document.body.removeChild(ta);
+        onDone(!!ok);
+    }
+
+    function copyResult() {
         var val = displayText();
-        if (val === 'Error') { closePop(); return; }
+        if (val === 'Error') val = '0';
         val = val.replace(/\.$/, '');
-        var num = parseFloat(val);
-        if (!isFinite(num)) { closePop(); return; }
-        if (activeInput && activeInput.isConnected) {
-            activeInput.value = formatNumber(num);
-            // Dispara el recálculo existente en cada formulario
-            // (formulario.html usa listeners delegados en document;
-            //  pdf_simple.html usa oninput="recalcular()").
-            activeInput.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-        closePop();
-    }
 
-    /* ---------- posicionamiento ---------- */
-    function positionTrigger() {
-        if (!activeInput) return;
-        var r = activeInput.getBoundingClientRect();
-        if (r.width === 0 && r.height === 0) { hideTrigger(); return; }
-
-        var left = r.right + 4;
-        if (left + TRIGGER_SIZE > global.innerWidth - MARGIN) left = r.left - TRIGGER_SIZE - 4;
-        if (left < MARGIN) left = r.right - TRIGGER_SIZE - 4;
-
-        var top = r.top + (r.height - TRIGGER_SIZE) / 2;
-        top = Math.max(MARGIN, Math.min(top, global.innerHeight - TRIGGER_SIZE - MARGIN));
-
-        trigger.style.left = left + 'px';
-        trigger.style.top = top + 'px';
-        trigger.style.display = 'flex';
-    }
-
-    function positionPop() {
-        if (!activeInput) return;
-        var r = activeInput.getBoundingClientRect();
-        var pw = pop.offsetWidth || 232;
-        var ph = pop.offsetHeight || 320;
-
-        var left = Math.max(MARGIN, Math.min(r.left, global.innerWidth - pw - MARGIN));
-        var top = r.bottom + 6;
-        if (top + ph > global.innerHeight - MARGIN) {
-            top = r.top - ph - 6;
-            if (top < MARGIN) top = MARGIN;
+        function onDone(ok) {
+            if (!copyBtn) return;
+            copyBtn.textContent = ok ? 'Copiado ✓' : 'No se pudo copiar';
+            copyBtn.classList.toggle('calc-pop__copy--ok', ok);
+            clearTimeout(copyResetTimer);
+            copyResetTimer = setTimeout(function () {
+                copyBtn.textContent = 'Copiar';
+                copyBtn.classList.remove('calc-pop__copy--ok');
+            }, 1500);
         }
 
-        pop.style.left = left + 'px';
-        pop.style.top = top + 'px';
-    }
-
-    function inputInView() {
-        if (!activeInput) return false;
-        var r = activeInput.getBoundingClientRect();
-        return r.bottom > 0 && r.top < global.innerHeight && r.right > 0 && r.left < global.innerWidth;
-    }
-
-    function syncPositions() {
-        if (!inputInView()) {
-            hideTrigger();
-            if (popOpen) closePop();
-            return;
+        if (global.navigator && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(val).then(
+                function () { onDone(true); },
+                function () { fallbackCopy(val, onDone); }
+            );
+        } else {
+            fallbackCopy(val, onDone);
         }
-        if (trigger.style.display !== 'none') positionTrigger();
-        if (popOpen) positionPop();
-    }
-
-    function showTriggerFor(input) {
-        if (popOpen && input !== activeInput) {
-            // Si el popover está abierto y se enfoca otro campo, lo re-encauza
-            activeInput = input;
-            seedFromInput();
-            positionPop();
-            return;
-        }
-        activeInput = input;
-        clearTimeout(hideTimer);
-        positionTrigger();
-    }
-
-    function hideTrigger() {
-        clearTimeout(hideTimer);
-        if (trigger) trigger.style.display = 'none';
     }
 
     /* ---------- construcción del DOM ---------- */
-    function buildTrigger() {
-        trigger = document.createElement('button');
-        trigger.type = 'button';
-        trigger.className = 'calc-trigger';
-        trigger.setAttribute('aria-label', 'Abrir calculadora');
-        trigger.setAttribute('title', 'Calculadora');
-        trigger.innerHTML =
+    function buildFab() {
+        fab = document.createElement('button');
+        fab.type = 'button';
+        fab.className = 'calc-fab';
+        fab.setAttribute('aria-label', 'Abrir calculadora');
+        fab.setAttribute('title', 'Calculadora');
+        fab.innerHTML =
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
-            'stroke-linecap="round" stroke-linejoin="round">' +
+            'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
             '<rect x="4" y="2" width="16" height="20" rx="2"></rect>' +
             '<line x1="8" y1="6" x2="16" y2="6"></line>' +
             '<line x1="8" y1="11" x2="8" y2="11.01"></line>' +
@@ -271,33 +241,32 @@
             '<line x1="12" y1="15" x2="12" y2="15.01"></line>' +
             '<line x1="16" y1="15" x2="16" y2="18"></line>' +
             '</svg>';
-        trigger.style.display = 'none';
-        trigger.addEventListener('pointerdown', function (e) {
-            e.preventDefault();
-            if (activeInput) openPop(activeInput);
+        fab.addEventListener('click', function (e) {
+            e.stopPropagation();
+            togglePop();
         });
-        document.body.appendChild(trigger);
+        document.body.appendChild(fab);
     }
 
     var KEYS = [
-        { t: 'C', a: 'ac', cls: 'calc-pop__key--ac' },
+        { t: 'C',  a: 'ac',              cls: 'calc-pop__key--ac' },
         { t: '⌫', a: 'back' },
-        { t: '÷', a: 'op', v: '÷', cls: 'calc-pop__key--op' },
-        { t: '×', a: 'op', v: '×', cls: 'calc-pop__key--op' },
-        { t: '7', a: 'digit', v: '7' },
-        { t: '8', a: 'digit', v: '8' },
-        { t: '9', a: 'digit', v: '9' },
-        { t: '−', a: 'op', v: '−', cls: 'calc-pop__key--op' },
-        { t: '4', a: 'digit', v: '4' },
-        { t: '5', a: 'digit', v: '5' },
-        { t: '6', a: 'digit', v: '6' },
-        { t: '+', a: 'op', v: '+', cls: 'calc-pop__key--op' },
-        { t: '1', a: 'digit', v: '1' },
-        { t: '2', a: 'digit', v: '2' },
-        { t: '3', a: 'digit', v: '3' },
-        { t: '.', a: 'dot', v: '.' },
-        { t: '0', a: 'digit', v: '0', cls: 'calc-pop__key--zero' },
-        { t: '=', a: 'eq', cls: 'calc-pop__key--eq' }
+        { t: '÷',  a: 'op', v: '÷',      cls: 'calc-pop__key--op' },
+        { t: '×',  a: 'op', v: '×',      cls: 'calc-pop__key--op' },
+        { t: '7',  a: 'digit', v: '7' },
+        { t: '8',  a: 'digit', v: '8' },
+        { t: '9',  a: 'digit', v: '9' },
+        { t: '−',  a: 'op', v: '−',      cls: 'calc-pop__key--op' },
+        { t: '4',  a: 'digit', v: '4' },
+        { t: '5',  a: 'digit', v: '5' },
+        { t: '6',  a: 'digit', v: '6' },
+        { t: '+',  a: 'op', v: '+',      cls: 'calc-pop__key--op' },
+        { t: '1',  a: 'digit', v: '1' },
+        { t: '2',  a: 'digit', v: '2' },
+        { t: '3',  a: 'digit', v: '3' },
+        { t: '.',  a: 'dot', v: '.' },
+        { t: '0',  a: 'digit', v: '0',   cls: 'calc-pop__key--zero' },
+        { t: '=',  a: 'eq',              cls: 'calc-pop__key--eq' }
     ];
 
     function handleKey(key) {
@@ -329,7 +298,7 @@
             return '<button type="button" class="calc-pop__key ' + (k.cls || '') + '" data-key="' + k.a + '" data-val="' + (k.v || '') + '">' + k.t + '</button>';
         }).join('');
 
-        var ok = '<button type="button" class="calc-pop__key--ok">Insertar ✓</button>';
+        var copy = '<button type="button" class="calc-pop__copy">Copiar</button>';
 
         pop.innerHTML =
             head +
@@ -337,15 +306,16 @@
             display +
             '<div class="calc-pop__keys">' + keysHtml + '</div>' +
             '</div>' +
-            ok;
+            copy;
 
         document.body.appendChild(pop);
         displayEl = pop.querySelector('.calc-pop__display');
+        copyBtn = pop.querySelector('.calc-pop__copy');
 
         pop.querySelector('.calc-pop__close').addEventListener('click', closePop);
-        pop.querySelector('.calc-pop__key--ok').addEventListener('click', insertResult);
+        copyBtn.addEventListener('click', copyResult);
 
-        // Delegación de teclas dentro del popover
+        // Delegación de teclas dentro del popup
         pop.querySelector('.calc-pop__keys').addEventListener('click', function (e) {
             var btn = e.target.closest('.calc-pop__key');
             if (!btn) return;
@@ -357,58 +327,47 @@
 
     /* ---------- listeners globales ---------- */
     function setup() {
-        buildTrigger();
-        buildPop();
-
-        // Mostrar el botón al enfocar/tocar un campo objetivo
-        document.addEventListener('focusin', function (e) {
-            if (e.target && e.target.matches && e.target.matches(selector)) {
-                showTriggerFor(e.target);
-            }
-        });
-        document.addEventListener('click', function (e) {
-            if (e.target && e.target.matches && e.target.matches(selector)) {
-                showTriggerFor(e.target);
-            }
-        });
-
-        // Ocultar el botón al salir del campo (con un pequeño delay)
-        document.addEventListener('focusout', function (e) {
-            if (e.target === activeInput) {
-                clearTimeout(hideTimer);
-                hideTimer = setTimeout(hideTrigger, 180);
-            }
-        });
-
-        // Cerrar el popover al tocar fuera (excepto dentro del pop, el botón o un campo objetivo)
+        // Cerrar al tocar fuera del popup y fuera del FAB
         document.addEventListener('pointerdown', function (e) {
             if (!popOpen) return;
             if (pop.contains(e.target)) return;
-            if (e.target === trigger) return;
-            if (e.target && e.target.matches && e.target.matches(selector)) return;
+            if (fab && fab.contains(e.target)) return;
             closePop();
         });
 
-        // Esc cierra el popover
+        // Esc cierra el popup
         document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') {
-                closePop();
-                hideTrigger();
-            }
+            if (e.key !== 'Escape' || !popOpen) return;
+            closePop();
         });
 
-        // Mantener posiciones correctas al hacer scroll / redimensionar
-        global.addEventListener('scroll', syncPositions, true);
-        global.addEventListener('resize', syncPositions);
+        // Teclado físico cuando el popup está abierto (opcional, no roba foco)
+        document.addEventListener('keydown', function (e) {
+            if (!popOpen) return;
+            var k = e.key;
+            if (k >= '0' && k <= '9') { e.preventDefault(); handleKey({ a: 'digit', v: k }); }
+            else if (k === '.') { e.preventDefault(); handleKey({ a: 'dot', v: '.' }); }
+            else if (k === '+') { e.preventDefault(); handleKey({ a: 'op', v: '+' }); }
+            else if (k === '-') { e.preventDefault(); handleKey({ a: 'op', v: '−' }); }
+            else if (k === '*' || k === 'x' || k === 'X') { e.preventDefault(); handleKey({ a: 'op', v: '×' }); }
+            else if (k === '/') { e.preventDefault(); handleKey({ a: 'op', v: '÷' }); }
+            else if (k === 'Enter' || k === '=') { e.preventDefault(); handleKey({ a: 'eq' }); }
+            else if (k === 'Backspace') { e.preventDefault(); handleKey({ a: 'back' }); }
+        });
+
+        // Mantener la posición correcta al redimensionar
+        global.addEventListener('resize', function () {
+            if (popOpen) positionPop();
+        });
     }
 
-    function initCalcCalculator(sel) {
-        if (typeof sel !== 'string' || !sel) return;
-        selector = sel;
+    function initFloatingCalculator() {
         if (initialized) return;
         initialized = true;
+        buildFab();
+        buildPop();
         setup();
     }
 
-    global.initCalcCalculator = initCalcCalculator;
+    global.initFloatingCalculator = initFloatingCalculator;
 })(window);
