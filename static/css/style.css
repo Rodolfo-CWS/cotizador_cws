@@ -956,101 +956,83 @@ textarea.form-input {
     }
 }
 
-/* ── Calculadora temporal (botón flotante + popover) ── */
-.calc-trigger {
+/* ============================================================
+   Calculadora flotante global (FAB + popup)
+   ============================================================ */
+
+/* Botón flotante fijo, discreto, siempre visible */
+.calc-fab {
     position: fixed;
+    right: 16px;
+    bottom: 16px;
     z-index: 1100;
-    width: 30px;
-    height: 30px;
-    border: 1px solid var(--gray-300);
-    border-radius: var(--radius-md);
-    background: #fff;
-    color: var(--gray-600);
+    width: 52px;
+    height: 52px;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    padding: 0;
-    opacity: 0.9;
-    box-shadow: var(--shadow-sm);
-    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.calc-trigger:hover,
-.calc-trigger:active {
-    background: var(--gray-100);
+    border-radius: 50%;
+    border: 1px solid var(--gray-200);
+    background: var(--gray-50);
     color: var(--primary);
-    border-color: var(--primary);
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: box-shadow .15s ease, transform .15s ease, background-color .15s ease;
 }
+.calc-fab:hover { background: var(--gray-100); box-shadow: var(--shadow-lg); }
+.calc-fab:active { transform: scale(0.96); }
+.calc-fab svg { width: 24px; height: 24px; }
 
-.calc-trigger svg {
-    width: 16px;
-    height: 16px;
-    display: block;
-}
-
+/* Panel de la calculadora */
 .calc-pop {
     position: fixed;
-    z-index: 1100;
-    width: 232px;
-    background: #fff;
+    z-index: 1101;
+    width: 240px;
+    background: var(--gray-50);
     border: 1px solid var(--gray-200);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     overflow: hidden;
-    font-family: var(--font-family);
-    -webkit-tap-highlight-color: transparent;
 }
 
 .calc-pop__head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 6px 0 12px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--gray-200);
 }
-
 .calc-pop__title {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--gray-600);
-    letter-spacing: 0.02em;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-700);
 }
-
 .calc-pop__close {
-    background: none;
     border: none;
-    font-size: 16px;
+    background: transparent;
     color: var(--gray-500);
+    font-size: 14px;
     cursor: pointer;
-    padding: 4px 8px;
-    line-height: 1;
-    touch-action: manipulation;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
 }
+.calc-pop__close:hover { color: var(--gray-800); background: var(--gray-100); }
 
-.calc-pop__close:hover {
-    color: var(--gray-900);
-}
-
-.calc-pop__body {
-    padding: 6px 8px 8px;
-}
+.calc-pop__body { padding: 10px 12px; }
 
 .calc-pop__display {
-    padding: 8px 10px;
-    margin-bottom: 8px;
-    background: var(--gray-800);
+    background: var(--gray-900);
     color: #fff;
-    border-radius: var(--radius-md);
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 600;
     text-align: right;
-    min-height: 34px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    margin-bottom: 10px;
+    min-height: 26px;
     overflow: hidden;
     white-space: nowrap;
-    text-overflow: ellipsis;
-    letter-spacing: 0.02em;
 }
 
 .calc-pop__keys {
@@ -1061,75 +1043,44 @@ textarea.form-input {
 
 .calc-pop__key {
     height: 40px;
-    border: none;
-    border-radius: var(--radius-md);
-    background: var(--gray-100);
-    color: var(--gray-800);
     font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    font-family: inherit;
-    touch-action: manipulation;
-    transition: background 0.12s ease;
-}
-
-.calc-pop__key:hover {
-    background: var(--gray-200);
-}
-
-.calc-pop__key:active {
-    background: var(--gray-300);
-}
-
-.calc-pop__key--op {
-    background: var(--primary-light);
-    color: var(--primary-dark);
-}
-
-.calc-pop__key--op:hover {
-    background: rgba(79, 70, 229, 0.18);
-}
-
-.calc-pop__key--eq {
-    background: var(--primary);
-    color: #fff;
-    grid-column: span 2;
-}
-
-.calc-pop__key--eq:hover {
-    background: var(--primary-dark);
-}
-
-.calc-pop__key--ac {
-    background: var(--danger-light);
-    color: var(--danger);
-}
-
-.calc-pop__key--ac:hover {
-    background: rgba(220, 38, 38, 0.18);
-}
-
-.calc-pop__key--zero {
-    grid-column: span 2;
-}
-
-.calc-pop__key--ok {
-    display: block;
-    width: calc(100% - 16px);
-    margin: 0 8px 8px;
-    height: 40px;
-    border: none;
+    border: 1px solid var(--gray-200);
     border-radius: var(--radius-md);
-    background: var(--success);
-    color: #fff;
+    background: #fff;
+    color: var(--gray-800);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background-color .12s ease;
+}
+.calc-pop__key:hover { background: var(--gray-100); }
+.calc-pop__key:active { background: var(--gray-200); }
+
+.calc-pop__key--ac { color: var(--danger); font-weight: 600; }
+.calc-pop__key--op { color: var(--primary); font-weight: 600; }
+.calc-pop__key--eq { grid-column: span 2; background: var(--primary); color: #fff; border-color: var(--primary); }
+.calc-pop__key--eq:hover { background: var(--primary-dark); }
+.calc-pop__key--zero { grid-column: span 2; }
+
+.calc-pop__copy {
+    display: block;
+    width: calc(100% - 24px);
+    margin: 10px 12px 12px;
+    padding: 10px;
     font-size: 14px;
     font-weight: 600;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--primary);
+    color: #fff;
     cursor: pointer;
-    font-family: inherit;
     touch-action: manipulation;
-    transition: background 0.12s ease;
+    transition: background-color .12s ease;
 }
+.calc-pop__copy:hover { background: var(--primary-dark); }
+.calc-pop__copy--ok { background: var(--success); }
+.calc-pop__copy--ok:hover { background: var(--success-dark); }
 
-.calc-pop__key--ok:hover {
-    background: var(--success-dark);
+/* Ajuste móvil */
+@media (max-width: 480px) {
+    .calc-fab { right: 12px; bottom: 12px; width: 48px; height: 48px; }
 }
