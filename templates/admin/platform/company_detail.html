@@ -1,0 +1,81 @@
+{% extends "admin/platform/_platform.html" %}
+{% block title %}{{ company.get('name', 'Empresa') }} - Plataforma Sifra{% endblock %}
+{% block content %}
+
+<div class="card">
+    <h1>{{ company.get('name', '—') }}</h1>
+    <p class="subtitle">Detalle, uso y gestión del tenant</p>
+
+    <div class="kv">
+        <div class="k">Slug</div><div>{{ company.get('slug', '—') }}</div>
+        <div class="k">Código</div><div>{{ company.get('codigo', '—') }}</div>
+        <div class="k">Plan</div><div>{{ plan_names.get(plan, plan) }}</div>
+        <div class="k">Estado</div>
+        <div>{% if company.get('is_active') %}<span class="badge badge-active">Activa</span>{% else %}<span class="badge badge-inactive">Inactiva</span>{% endif %}</div>
+        <div class="k">Usuarios máx.</div><div>{{ company.get('max_users', '—') }}</div>
+        <div class="k">Creada</div><div>{{ company.get('created_at', '—') }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <h1>Uso actual</h1>
+    <p class="subtitle">Consumo del tenant vs. límites de su plan</p>
+    <div class="stat-grid">
+        <div class="stat">
+            <div class="label">Cotizaciones</div>
+            <div class="value">{{ usage.get('cotizaciones', '—') }}</div>
+        </div>
+        <div class="stat">
+            <div class="label">PDFs</div>
+            <div class="value">{{ usage.get('pdfs', '—') }}</div>
+        </div>
+        <div class="stat">
+            <div class="label">Fast Quote (mes)</div>
+            <div class="value">{{ usage.get('fast_quote_estimates_month', '—') }}
+                {% if limits.get('max_estimates') %}<span class="muted"> / {{ limits.get('max_estimates') }}</span>{% endif %}
+            </div>
+        </div>
+        <div class="stat">
+            <div class="label">Usuarios</div>
+            <div class="value">{{ usage.get('usuarios', '—') }}
+                {% if company.get('max_users') %}<span class="muted"> / {{ company.get('max_users') }}</span>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if limits.get('max_pdfs') %}
+    <div class="section-title">Límite de PDFs: {{ usage.get('pdfs', 0) }} / {{ limits.get('max_pdfs') }}</div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h1>Cambiar plan</h1>
+    <p class="subtitle">Tarifa actual: {{ price.get('moneda', '—') }} {{ price.get('precio', 'Sin definir') }} / {{ price.get('frecuencia', '—') }}</p>
+
+    <form method="POST" action="/admin/companies/{{ company.get('id') }}/plan" class="form-row">
+        <select name="plan">
+            {% for p in valid_plans %}
+            <option value="{{ p }}" {% if p == plan %}selected{% endif %}>{{ plan_names.get(p, p) }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">Guardar plan</button>
+    </form>
+</div>
+
+<div class="card">
+    <h1>Acciones</h1>
+    <div class="form-row">
+        {% if company.get('is_active') %}
+        <form method="POST" action="/admin/companies/{{ company.get('id') }}/deactivate">
+            <button type="submit" class="btn btn-danger" onclick="return confirm('¿Desactivar esta empresa? Sus usuarios no podrán acceder.');">Desactivar empresa</button>
+        </form>
+        {% else %}
+        <form method="POST" action="/admin/companies/{{ company.get('id') }}/activate">
+            <button type="submit" class="btn btn-primary">Activar empresa</button>
+        </form>
+        {% endif %}
+        <a href="/admin/companies" class="btn btn-secondary">Volver a empresas</a>
+    </div>
+</div>
+
+{% endblock %}

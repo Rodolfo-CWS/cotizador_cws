@@ -7,6 +7,8 @@ Antes de cada request:
 3. Carga los datos de la compañía en g.company para templates
 """
 
+import os
+
 from flask import g, session, redirect, url_for, request, flash
 from functools import wraps
 
@@ -125,6 +127,7 @@ def init_middleware(app, supabase_manager):
             'user': g.get('user'),
             'company_plan': (g.get('company') or {}).get('plan', PLAN_FULL),
             'plan_has_feature': has_feature,
+            'is_superadmin': is_superadmin(),
         }
 
 
@@ -213,6 +216,40 @@ def role_required(role):
 def admin_required(f):
     """Decorador: requiere rol de admin."""
     return role_required('admin')(f)
+
+
+def is_superadmin():
+    """True si el email de la sesión está en SUPERADMIN_EMAILS.
+
+    El acceso al panel de plataforma (/admin) se restringe a un set fijo de
+    personas (desarrollador + administrador de Sifra), definido por env var
+    separada por comas. No depende del rol del tenant.
+    """
+    if 'user_id' not in session:
+        return False
+    email = (session.get('user_email') or '').strip().lower()
+    if not email:
+        return False
+    allowed = os.getenv('SUPERADMIN_EMAILS', '')
+    return email in {e.strip().lower() for e in allowed.split(',') if e.strip()}
+
+
+def superadmin_required(f):
+    """Decorador: requiere login + email en SUPERADMIN_EMAILS."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            if request.method == 'GET':
+                session['next_url'] = request.full_path
+            return redirect(url_for('auth.login'))
+        if not is_superadmin():
+            from flask import render_template
+            return render_template(
+                'error.html',
+                error="No tienes permisos para acceder a esta página"
+            ), 403
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 def plan_required(*features):

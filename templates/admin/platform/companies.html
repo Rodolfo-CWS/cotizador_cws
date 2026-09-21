@@ -1,0 +1,50 @@
+{% extends "admin/platform/_platform.html" %}
+{% block title %}Empresas - Plataforma Sifra{% endblock %}
+{% block content %}
+
+<div class="card">
+    <h1>Empresas</h1>
+    <p class="subtitle">Todos los tenants del SaaS y su consumo</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Código</th>
+                <th>Plan</th>
+                <th>Estado</th>
+                <th>Usuarios</th>
+                <th>Cotizaciones</th>
+                <th>PDFs</th>
+                <th>FQ mes</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for company in companies %}
+            {% set usage = company.get('usage', {}) %}
+            <tr>
+                <td>{{ company.get('name', '—') }}</td>
+                <td>{{ company.get('codigo', company.get('slug', '—')) }}</td>
+                <td>{{ plan_names.get(company.get('plan'), company.get('plan', '—')) }}</td>
+                <td>
+                    {% if company.get('is_active') %}
+                    <span class="badge badge-active">Activa</span>
+                    {% else %}
+                    <span class="badge badge-inactive">Inactiva</span>
+                    {% endif %}
+                </td>
+                <td>{{ usage.get('usuarios', '—') }}</td>
+                <td>{{ usage.get('cotizaciones', '—') }}</td>
+                <td>{{ usage.get('pdfs', '—') }}</td>
+                <td>{{ usage.get('fast_quote_estimates_month', '—') }}</td>
+                <td><a href="/admin/companies/{{ company.get('id') }}" class="btn btn-secondary btn-sm">Ver</a></td>
+            </tr>
+        {% else %}
+            <tr><td colspan="9" class="muted">No hay empresas registradas.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

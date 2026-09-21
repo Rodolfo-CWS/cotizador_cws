@@ -1,0 +1,43 @@
+{% extends "admin/platform/_platform.html" %}
+{% block title %}Tarifas - Plataforma Sifra{% endblock %}
+{% block content %}
+
+<div class="card">
+    <h1>Tarifas por plan</h1>
+    <p class="subtitle">Fuente de verdad: <code>cotizador/plans.py</code> (PLAN_PRICES / PLAN_LIMITS)</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Plan</th>
+                <th>Precio</th>
+                <th>Frecuencia</th>
+                <th>Límite PDFs</th>
+                <th>Límite Fast Quote / mes</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for plan in valid_plans %}
+            {% set price = plan_prices.get(plan, {}) %}
+            {% set limits = plan_limits.get(plan, {}) %}
+            <tr>
+                <td>{{ plan_names.get(plan, plan) }}</td>
+                <td>
+                    {% if price.get('precio') %}
+                        {{ price.get('moneda', '') }} {{ price.get('precio') }}
+                    {% else %}
+                        <span class="muted">Sin definir</span>
+                    {% endif %}
+                </td>
+                <td>{{ price.get('frecuencia', '—') }}</td>
+                <td>{{ limits.get('max_pdfs', '—') }}</td>
+                <td>{{ limits.get('max_estimates', '—') }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <p class="muted" style="margin-top:16px;">Para definir tarifas, editar <code>PLAN_PRICES</code> en <code>cotizador/plans.py</code>.</p>
+</div>
+
+{% endblock %}

@@ -54,6 +54,39 @@ PLAN_LIMITS = {
     PLAN_FULL: {},
 }
 
+# ── Nombres legibles por plan (para UI) ──
+PLAN_NAMES = {
+    PLAN_PDF: 'Cotización en PDF',
+    PLAN_FAST_QUOTE: 'Fast Quote (IA)',
+    PLAN_FULL: 'Completo',
+}
+
+# ── Precios por plan ──
+# TODO(tarifas): llenar los precios reales cuando se definan las tarifas.
+# Hoy no hay pasarela de pagos; esta estructura es la única fuente de verdad
+# que consume el panel de plataforma (/admin/pricing).
+# `precio` en None/0 = aún sin tarifa definida.
+PLAN_PRICES = {
+    PLAN_PDF: {
+        'nombre': 'Cotización en PDF',
+        'moneda': 'MXN',
+        'frecuencia': 'mensual',
+        'precio': None,
+    },
+    PLAN_FAST_QUOTE: {
+        'nombre': 'Fast Quote (IA)',
+        'moneda': 'MXN',
+        'frecuencia': 'mensual',
+        'precio': None,
+    },
+    PLAN_FULL: {
+        'nombre': 'Completo',
+        'moneda': 'MXN',
+        'frecuencia': 'mensual',
+        'precio': None,
+    },
+}
+
 
 def is_valid_plan(plan):
     """True si `plan` es uno de los planes válidos."""
