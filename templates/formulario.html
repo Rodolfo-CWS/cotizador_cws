@@ -6,6 +6,7 @@
     <title>Cotizador Sifra - Nuevo Formulario</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="/static/js/toast.js"></script>
+    <script src="/static/js/calculator.js" defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
@@ -1963,6 +1964,9 @@ function manejarRevision() {
 }
 
 function configurarEventListeners() {
+    // Calculadora temporal para campos numéricos (cantidad, transporte, instalación)
+    initCalcCalculator('.cantidad-item, .cantidad-input, .cantidad-otro, .transporte, .instalacion');
+
     document.addEventListener('input', function(e) {
         const itemElement = e.target.closest('.item-block');
         if (itemElement) {
