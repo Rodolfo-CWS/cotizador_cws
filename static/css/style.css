@@ -955,3 +955,181 @@ textarea.form-input {
         max-width: 230px;
     }
 }
+
+/* ── Calculadora temporal (botón flotante + popover) ── */
+.calc-trigger {
+    position: fixed;
+    z-index: 1100;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    background: #fff;
+    color: var(--gray-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    opacity: 0.9;
+    box-shadow: var(--shadow-sm);
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.calc-trigger:hover,
+.calc-trigger:active {
+    background: var(--gray-100);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.calc-trigger svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+.calc-pop {
+    position: fixed;
+    z-index: 1100;
+    width: 232px;
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    font-family: var(--font-family);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.calc-pop__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 6px 0 12px;
+}
+
+.calc-pop__title {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--gray-600);
+    letter-spacing: 0.02em;
+}
+
+.calc-pop__close {
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: var(--gray-500);
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+    touch-action: manipulation;
+}
+
+.calc-pop__close:hover {
+    color: var(--gray-900);
+}
+
+.calc-pop__body {
+    padding: 6px 8px 8px;
+}
+
+.calc-pop__display {
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    background: var(--gray-800);
+    color: #fff;
+    border-radius: var(--radius-md);
+    font-size: 20px;
+    font-weight: 600;
+    text-align: right;
+    min-height: 34px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    letter-spacing: 0.02em;
+}
+
+.calc-pop__keys {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+.calc-pop__key {
+    height: 40px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--gray-100);
+    color: var(--gray-800);
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+    transition: background 0.12s ease;
+}
+
+.calc-pop__key:hover {
+    background: var(--gray-200);
+}
+
+.calc-pop__key:active {
+    background: var(--gray-300);
+}
+
+.calc-pop__key--op {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+}
+
+.calc-pop__key--op:hover {
+    background: rgba(79, 70, 229, 0.18);
+}
+
+.calc-pop__key--eq {
+    background: var(--primary);
+    color: #fff;
+    grid-column: span 2;
+}
+
+.calc-pop__key--eq:hover {
+    background: var(--primary-dark);
+}
+
+.calc-pop__key--ac {
+    background: var(--danger-light);
+    color: var(--danger);
+}
+
+.calc-pop__key--ac:hover {
+    background: rgba(220, 38, 38, 0.18);
+}
+
+.calc-pop__key--zero {
+    grid-column: span 2;
+}
+
+.calc-pop__key--ok {
+    display: block;
+    width: calc(100% - 16px);
+    margin: 0 8px 8px;
+    height: 40px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--success);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+    transition: background 0.12s ease;
+}
+
+.calc-pop__key--ok:hover {
+    background: var(--success-dark);
+}
