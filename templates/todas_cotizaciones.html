@@ -103,7 +103,10 @@
             <h1>Todas las Cotizaciones</h1>
             <div class="user-info">Sesión: <strong>{{ user_name }}</strong></div>
         </div>
-        <a href="/auth/logout" class="btn-logout" style="text-decoration:none;display:inline-block;padding:8px 16px;background:var(--gray-200);color:var(--gray-700);border-radius:6px;font-size:14px;">Cerrar Sesión</a>
+        <div style="display:flex; align-items:center; gap:12px;">
+            <a href="/planes" style="text-decoration:none;display:inline-block;padding:8px 16px;background:var(--primary);color:#fff;border-radius:6px;font-size:14px;font-weight:600;">Planes</a>
+            <a href="/auth/logout" class="btn-logout" style="text-decoration:none;display:inline-block;padding:8px 16px;background:var(--gray-200);color:var(--gray-700);border-radius:6px;font-size:14px;">Cerrar Sesión</a>
+        </div>
     </div>
 
     <div class="actions">
