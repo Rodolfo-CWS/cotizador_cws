@@ -212,6 +212,34 @@
             }
         }
 
+        /* Costo por Unidad / Total del Item: bloque alineado a la derecha */
+        .moneda-block {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .moneda-field {
+            width: 100%;
+            max-width: 320px;
+            text-align: right;
+        }
+        .moneda-field + .moneda-field { margin-top: 12px; }
+        .moneda-display {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: .875rem;
+            font-weight: 600;
+            text-align: right;
+            background: #ffffff;
+            color: #111827;
+            box-sizing: border-box;
+        }
+        .moneda-display.costo { background: #ecfdf5; color: #065f46; }
+        .moneda-display.total { background: #eef2ff; color: #3730a3; }
+
         details[open] summary ~ * { animation: slideDown 0.3s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -2851,6 +2879,7 @@ function cargarDatosItem(itemData, index) {
             totalItem.value = valorTotal;
             console.log(`[CARGAR_ITEM] ✅ Total item cargado: ${valorTotal}`);
         }
+        actualizarDisplayMoneda(item);
 
         // Cargar notas del item
         const notas = item.querySelector('[name="notas[]"]');
@@ -3678,14 +3707,16 @@ function crearTemplateItem(numero) {
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                    <div>
+                <div class="moneda-block">
+                    <div class="moneda-field">
                         <label class="item-label">Costo por Unidad ($)</label>
-                        <input type="number" step="0.01" class="costo-unidad item-input input-total" style="background:#ecfdf5;" readonly>
+                        <div class="costo-unidad-display moneda-display costo">$0.00</div>
+                        <input type="hidden" class="costo-unidad">
                     </div>
-                    <div>
+                    <div class="moneda-field">
                         <label class="item-label">Total del Item ($)</label>
-                        <input type="number" step="0.01" class="total-item item-input input-total" style="background:#eef2ff;" readonly>
+                        <div class="total-item-display moneda-display total">$0.00</div>
+                        <input type="hidden" class="total-item">
                     </div>
                 </div>
             </div>
@@ -4098,6 +4129,22 @@ function calcularPesoAproximadoItem(itemBlock) {
     }
 }
 
+function formatearMoneda(valor) {
+    const num = parseFloat(valor);
+    if (isNaN(num)) return '$0.00';
+    return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function actualizarDisplayMoneda(itemElement) {
+    if (!itemElement) return;
+    const costoInput = itemElement.querySelector('.costo-unidad');
+    const totalInput = itemElement.querySelector('.total-item');
+    const costoDisp = itemElement.querySelector('.costo-unidad-display');
+    const totalDisp = itemElement.querySelector('.total-item-display');
+    if (costoInput && costoDisp) costoDisp.textContent = formatearMoneda(costoInput.value);
+    if (totalInput && totalDisp) totalDisp.textContent = formatearMoneda(totalInput.value);
+}
+
 function calcularCostosItem(itemElement) {
     if (!itemElement) return;
     let totalMateriales = 0;
@@ -4132,6 +4179,7 @@ function calcularCostosItem(itemElement) {
     const totalItemInput = itemElement.querySelector('.total-item');
     if (costoUnidadInput) costoUnidadInput.value = costoUnidad.toFixed(2);
     if (totalItemInput) totalItemInput.value = totalItem.toFixed(2);
+    actualizarDisplayMoneda(itemElement);
 }
 
 function actualizarTodosLosCalculos() {
