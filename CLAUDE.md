@@ -385,14 +385,14 @@ print(f'Supabase Storage: {\"OK\" if storage.storage_available else \"OFFLINE (f
 - ✅ **Smart Schedule**: Only active during CWS business hours (saves ~60% of compute hours)
 - ✅ **Zero Configuration**: Automatically activates in Render (disabled in local dev)
 - ✅ **Health Monitoring**: `/health` endpoint for automated pings and system status
-- ✅ **Admin Dashboard**: `/admin/keepalive/stats` for monitoring (requires authentication)
+- ✅ **Admin Dashboard**: `/admin` (panel de plataforma, requiere superadmin — `SUPERADMIN_EMAILS`)
 - ✅ **Graceful Degradation**: Returns 200 even on errors to keep service awake
 - ✅ **Cost Efficient**: Maximizes free tier while maintaining business-hour availability
 
 **Technical Implementation:**
 - Module: `render_keepalive.py` - Background scheduler with business hours cron
 - Health Endpoint: `GET /health` - Public endpoint returning system status
-- Admin Stats: `GET /admin/keepalive/stats` - Authenticated statistics endpoint
+- Admin Stats: dashboard del panel de plataforma `/admin` (requiere superadmin)
 - Auto-activation: Detects Render environment and starts automatically
 - Logging: Detailed keepalive ping logs with success/failure tracking
 
@@ -407,8 +407,8 @@ print(f'Supabase Storage: {\"OK\" if storage.storage_available else \"OFFLINE (f
 # Check keepalive status
 curl https://cotizador-cws.onrender.com/health
 
-# View detailed stats (requires login)
-curl https://cotizador-cws.onrender.com/admin/keepalive/stats
+# View detailed stats (panel de plataforma, requiere superadmin)
+# -> https://cotizador-cws.onrender.com/admin
 ```
 
 ### Deployment Process
@@ -549,23 +549,24 @@ cotizador_cws/
 - **Dynamic Search**: Real-time material filtering in quotation form
 - **Fallback Handling**: If CSV fails to load, system continues with empty materials list
 
-#### Hybrid System API Endpoints (NEW - August 2025)
+#### Panel de Plataforma (superadmin) — reemplaza los endpoints admin legacy
 
-**Render Keepalive Management (NEW - September 2025):**
-- `GET /health` - Public health check endpoint (no auth required, for automated keepalive pings)
-- `GET /admin/keepalive/stats` - Get keepalive statistics and scheduler status (requires authentication)
+Acceso restringido al desarrollador y administrador de Sifra vía `SUPERADMIN_EMAILS`
+(env var, lista de emails separados por coma) + `@superadmin_required`
+(`cotizador/middleware.py`). Blueprint: `cotizador/blueprints/platform_admin_bp.py`,
+templates en `templates/admin/platform/*`.
 
-**Scheduler Management:**
-- `GET /admin/scheduler/estado` - Get scheduler status and next sync time
-- `POST /admin/scheduler/sync-manual` - Execute immediate manual sync
-- `POST /admin/scheduler/iniciar` - Start automatic scheduler
-- `POST /admin/scheduler/detener` - Stop automatic scheduler
-- `POST /admin/scheduler/cambiar-intervalo` - Change sync interval
+- `GET /health` - Public health check (no auth, para keepalive)
+- `GET /admin` - Dashboard: estatus del sistema (Supabase, Storage, Scheduler, Keepalive) + resumen de empresas
+- `GET /admin/companies` - Listado de tenants con uso
+- `GET /admin/companies/<id>` - Detalle: uso vs límites, cambiar plan, activar/desactivar
+- `POST /admin/companies/<id>/plan` - Cambiar plan (pdf/fast_quote/full)
+- `POST /admin/companies/<id>/activate` / `/deactivate` - Activar/desactivar empresa
+- `GET /admin/pricing` - Tarifas y límites por plan (fuente: `cotizador/plans.py` PLAN_PRICES/PLAN_LIMITS)
 
-**Cloudinary Management:**
-- `GET /admin/cloudinary/estado` - Get Cloudinary statistics and usage (25GB monitoring)
-- `GET /admin/cloudinary/listar` - List PDFs stored in Cloudinary
-- Support for filtering by folder (`?folder=nuevas` or `?folder=antiguas`)
+El panel de tenant sigue en `/admin/company/*` (`company_bp.py`, rol `admin`).
+Los endpoints legacy de MongoDB/cloudinary/scheduler (`/admin/migrar-a-mongodb`,
+`/admin/scheduler/*`, `/admin/cloudinary/*`, `/admin/pdfs`, etc.) fueron eliminados.
 
 **Enhanced Database Operations:**
 - `database.sincronizar_bidireccional()` - NEW bidirectional sync with conflict resolution
@@ -724,6 +725,26 @@ GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 GOOGLE_DRIVE_FOLDER_NUEVAS=1h4DF0bdInRU5GUh9n7g8aXgZA4Kyt2Nf
 GOOGLE_DRIVE_FOLDER_ANTIGUAS=1GqM9yfwUKd9n8nN97IUiBSUrWUZ1Vida
 ```
+
+### Stripe (Billing) — Suscripciones SaaS
+```env
+# Claves de Stripe (modo test en dev, live en prod)
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Price IDs (creados en el dashboard de Stripe)
+STRIPE_PRICE_PRO=price_...
+STRIPE_PRICE_BUSINESS=price_...
+STRIPE_PRICE_PRO_ANNUAL=price_...        # opcional (frecuencia anual)
+STRIPE_PRICE_BUSINESS_ANNUAL=price_...   # opcional (frecuencia anual)
+STRIPE_PRICE_FASTQUOTE_PACK=price_...    # paquete Fast Quote extra (one-time)
+
+# Trial de suscripciones (días)
+STRIPE_TRIAL_DAYS=14
+```
+
+Los precios de referencia están en `cotizador/plans.py` (`PLAN_PRICES`): Starter $0, Pro $499, Business $999 MXN/mes + paquete Fast Quote $199. Los `STRIPE_PRICE_*` son los Price IDs reales de Stripe; las migraciones `migrations/v7`…`v9` se aplican en Supabase al momento del merge.
 
 ### ✅ SUPABASE UNIFIED SYSTEM BENEFITS (August 25, 2025)
 - **Database**: Supabase PostgreSQL + JSON fallback = Enterprise-grade database + Zero downtime

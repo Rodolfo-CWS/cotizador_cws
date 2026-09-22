@@ -7,10 +7,12 @@ Antes de cada request:
 3. Carga los datos de la compañía en g.company para templates
 """
 
+import os
+
 from flask import g, session, redirect, url_for, request, flash
 from functools import wraps
 
-from cotizador.plans import has_feature, PLAN_FULL
+from cotizador.plans import has_feature, effective_plan
 
 
 def init_middleware(app, supabase_manager):
@@ -33,6 +35,7 @@ def init_middleware(app, supabase_manager):
             '/auth/callback',
             '/health',
             '/static/',
+            '/stripe/webhook',
         ]
 
         # Saltar middleware para rutas públicas
@@ -120,11 +123,14 @@ def init_middleware(app, supabase_manager):
     @app.context_processor
     def inject_company_context():
         """Inyectar compañía, usuario y plan en todos los templates."""
+        company = g.get('company')
         return {
-            'company': g.get('company'),
+            'company': company,
             'user': g.get('user'),
-            'company_plan': (g.get('company') or {}).get('plan', PLAN_FULL),
+            'company_plan': effective_plan(company),
             'plan_has_feature': has_feature,
+            'is_internal': bool((company or {}).get('is_internal')),
+            'is_superadmin': is_superadmin(),
         }
 
 
@@ -156,7 +162,10 @@ def _load_company_from_db(supabase_manager, company_id):
             cursor.execute(
                 """SELECT id, name, slug, tax_id, address, phone, email,
                    logo_url, primary_color, secondary_color, footer_text,
-                   iva_rate, is_active, plan, codigo, legacy_drive_import
+                   iva_rate, is_active, plan, codigo, legacy_drive_import,
+                   is_internal, stripe_customer_id, stripe_subscription_id,
+                   subscription_status, trial_ends_at, current_period_end,
+                   fast_quote_pack_count
                 FROM public.companies WHERE id = %s AND is_active = true""",
                 (company_id,)
             )
@@ -215,6 +224,40 @@ def admin_required(f):
     return role_required('admin')(f)
 
 
+def is_superadmin():
+    """True si el email de la sesión está en SUPERADMIN_EMAILS.
+
+    El acceso al panel de plataforma (/admin) se restringe a un set fijo de
+    personas (desarrollador + administrador de Sifra), definido por env var
+    separada por comas. No depende del rol del tenant.
+    """
+    if 'user_id' not in session:
+        return False
+    email = (session.get('user_email') or '').strip().lower()
+    if not email:
+        return False
+    allowed = os.getenv('SUPERADMIN_EMAILS', '')
+    return email in {e.strip().lower() for e in allowed.split(',') if e.strip()}
+
+
+def superadmin_required(f):
+    """Decorador: requiere login + email en SUPERADMIN_EMAILS."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            if request.method == 'GET':
+                session['next_url'] = request.full_path
+            return redirect(url_for('auth.login'))
+        if not is_superadmin():
+            from flask import render_template
+            return render_template(
+                'error.html',
+                error="No tienes permisos para acceder a esta página"
+            ), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 def plan_required(*features):
     """Decorador: requiere que el plan de la compañía incluya las features dadas.
 
@@ -224,11 +267,11 @@ def plan_required(*features):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            plan = (g.get('company') or {}).get('plan', PLAN_FULL)
+            plan = effective_plan(g.get('company'))
             if not all(has_feature(plan, feature) for feature in features):
                 flash(
                     "Tu plan no incluye esta función. "
-                    "Actualiza tu plan o contacta a soporte.",
+                    "Actualiza tu plan desde la página de suscripción.",
                     "error"
                 )
                 return redirect(url_for('home'))

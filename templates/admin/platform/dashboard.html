@@ -1,0 +1,72 @@
+{% extends "admin/platform/_platform.html" %}
+{% block title %}Dashboard - Plataforma Sifra{% endblock %}
+{% block content %}
+
+<div class="card">
+    <h1>Estatus del sistema</h1>
+    <p class="subtitle">Salud de la infraestructura actual (Supabase + Storage + Scheduler + Keepalive)</p>
+
+    <div class="stat-grid">
+        <div class="stat">
+            <div class="label">Base de datos</div>
+            <div class="value {{ 'ok' if health and health.get('online') else 'err' }}">
+                {{ 'Online' if health and health.get('online') else 'Offline' }}
+            </div>
+            <div class="muted">{{ health.get('estado_actual', '—') if health else '—' }}</div>
+        </div>
+        <div class="stat">
+            <div class="label">Cotizaciones</div>
+            <div class="value">{{ stats.get('total_cotizaciones', '—') }}</div>
+            <div class="muted">{{ stats.get('fuente', '—') }}</div>
+        </div>
+        <div class="stat">
+            <div class="label">PDFs (storage)</div>
+            <div class="value">{{ storage_stats.get('total_pdfs', '—') }}</div>
+            <div class="muted">bucket: {{ storage_stats.get('bucket_name', '—') }}</div>
+        </div>
+        <div class="stat">
+            <div class="label">Scheduler</div>
+            <div class="value {{ 'ok' if scheduler_state.get('activo') else 'warn' }}">
+                {{ 'Activo' if scheduler_state.get('activo') else 'Inactivo' }}
+            </div>
+            <div class="muted">intervalo: {{ scheduler_state.get('intervalo_minutos', '—') }} min</div>
+        </div>
+        <div class="stat">
+            <div class="label">Keepalive</div>
+            <div class="value {{ 'ok' if keepalive.get('is_running') else 'warn' }}">
+                {{ 'Activo' if keepalive.get('is_running') else 'Inactivo' }}
+            </div>
+            <div class="muted">{{ keepalive.get('total_pings', '—') }} pings</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h1>Empresas</h1>
+    <p class="subtitle">Resumen de tenants registrados en el SaaS</p>
+
+    <div class="stat-grid">
+        <div class="stat">
+            <div class="label">Total</div>
+            <div class="value">{{ summary.total }}</div>
+        </div>
+        <div class="stat">
+            <div class="label">Activas</div>
+            <div class="value ok">{{ summary.activas }}</div>
+        </div>
+        {% for plan, count in summary.por_plan.items() %}
+        <div class="stat">
+            <div class="label">Plan {{ plan }}</div>
+            <div class="value">{{ count }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="section-title">Acceso rápido</div>
+    <div class="form-row">
+        <a href="/admin/companies" class="btn btn-primary">Ver empresas</a>
+        <a href="/admin/pricing" class="btn btn-secondary">Ver tarifas</a>
+    </div>
+</div>
+
+{% endblock %}

@@ -253,6 +253,13 @@ def create_app():
     from cotizador.blueprints.company_bp import company_bp
     app.register_blueprint(company_bp)
 
+    from cotizador.blueprints.platform_admin_bp import platform_admin_bp
+    app.register_blueprint(platform_admin_bp)
+
+    from cotizador.blueprints.billing_bp import billing_bp, stripe_webhook_bp
+    app.register_blueprint(billing_bp)
+    app.register_blueprint(stripe_webhook_bp)
+
     # ── Inicializar middleware multi-tenant ──
     from cotizador.middleware import init_middleware
     init_middleware(app, db_manager)

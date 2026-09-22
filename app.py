@@ -889,7 +889,8 @@ from functools import wraps
 from cotizador.middleware import login_required, plan_required
 from cotizador.plans import (
     FEATURE_SIMPLE_PDF, FEATURE_FAST_QUOTE, FEATURE_FULL_FORM, FEATURE_DESGLOSE,
-    PLAN_FAST_QUOTE, PLAN_FULL, get_limit,
+    PLAN_STARTER, get_limit, has_feature, effective_plan,
+    FASTQUOTE_PACK_ESTIMATES,
 )
 
 @app.route("/login")
@@ -1116,11 +1117,6 @@ def _aplicar_filtros_cotizaciones(cotizaciones, filtro_numero, filtro_cliente,
 @login_required
 def home():
     """Página principal - Vista de tabla Excel con todas las cotizaciones paginadas"""
-    # Plan fast_quote no tiene listado/storage: redirige directo a Fast Quote
-    if request.method == "GET":
-        plan = (g.get("company") or {}).get("plan")
-        if plan == PLAN_FAST_QUOTE:
-            return redirect(url_for("fast_quote_page"))
 
     if request.method == "POST":
         try:
@@ -1269,6 +1265,19 @@ def home():
         )
         print(f"[HOME] Después de filtros avanzados: {len(cotizaciones)} cotizaciones")
 
+        # ── Lock-in: retención de historial en plan Starter (freemium) ──
+        # Starter solo ve sus 5 cotizaciones más recientes; el resto permanece
+        # en la BD y se desbloquea al mejorar a Pro (no se borra nada).
+        plan_efectivo = effective_plan(g.get("company"))
+        history_limited = False
+        if plan_efectivo == PLAN_STARTER:
+            def _fecha_key(r):
+                f = str(r.get('fecha') or '').strip()
+                return f if f and f != 'N/A' else '0000-00-00'
+            cotizaciones = sorted(cotizaciones, key=_fecha_key, reverse=True)
+            history_limited = len(cotizaciones) > 5
+            cotizaciones = cotizaciones[:5]
+
         # APLICAR PAGINACIÓN
         total_cotizaciones = len(cotizaciones)
         total_pages = (total_cotizaciones + page_size - 1) // page_size
@@ -1292,6 +1301,7 @@ def home():
             total_pages=total_pages,
             total_cotizaciones=total_cotizaciones,
             page_size=page_size,
+            history_limited=history_limited,
             # Filtros actuales para repoblar el formulario
             filtro_numero=filtro_numero,
             filtro_cliente=filtro_cliente,
@@ -1315,6 +1325,7 @@ def home():
                              total_pages=0,
                              total_cotizaciones=0,
                              page_size=50,
+                             history_limited=False,
                              error=str(e))
 
 @app.route("/formulario", methods=["GET", "POST"])
@@ -2321,6 +2332,21 @@ def buscar():
             filtro_revision, filtro_moneda, filtro_tipo
         )
 
+        # ── Lock-in: retención de historial en plan Starter (freemium) ──
+        # Starter solo ve sus 5 cotizaciones más recientes; el resto permanece
+        # en la BD y se desbloquea al mejorar a Pro (no se borra nada).
+        plan_efectivo = effective_plan(g.get("company"))
+        history_limited = False
+        history_limit = 0
+        if plan_efectivo == PLAN_STARTER:
+            def _fecha_key(r):
+                f = str(r.get('fecha') or '').strip()
+                return f if f and f != 'N/A' else '0000-00-00'
+            resultados.sort(key=_fecha_key, reverse=True)
+            history_limit = 5
+            history_limited = len(resultados) > history_limit
+            resultados = resultados[:history_limit]
+
         # PAGINACIÓN
         total = len(resultados)
         total_pages = (total + per_page - 1) // per_page if per_page > 0 else 0
@@ -2343,6 +2369,8 @@ def buscar():
             "page_size": per_page,
             "total_paginas": total_pages,
             "total_pages": total_pages,
+            "history_limited": history_limited,
+            "history_limit": history_limit,
             "modo": "busqueda_unificada"
         }
         return jsonify(respuesta)
@@ -3432,9 +3460,13 @@ def fast_quote_estimate():
 
         # 1.5 Límite de plan (cuota mensual). No aplica a recálculo por feedback.
         is_feedback = bool(feedback and previous_estimate)
-        plan = (g.get("company") or {}).get("plan", "full")
+        plan = effective_plan(g.get("company"))
         if not is_feedback:
             max_estimates = get_limit(plan, "max_estimates")
+            # Paquete Fast Quote extra: suma créditos comprados (one-time).
+            if max_estimates is not None:
+                pack_count = int((g.get("company") or {}).get("fast_quote_pack_count") or 0)
+                max_estimates = max_estimates + pack_count * FASTQUOTE_PACK_ESTIMATES
             if max_estimates is not None and company_id:
                 try:
                     usadas = db_manager.contar_estimaciones_fast_quote_mes(company_id)
@@ -3442,9 +3474,11 @@ def fast_quote_estimate():
                         return jsonify({
                             "success": False,
                             "tipo_error": "plan_limit",
+                            "plan_limit": True,
+                            "upgrade_url": "/billing",
                             "error": (
                                 f"Alcanzaste el límite de {max_estimates} estimaciones "
-                                "de tu plan este mes. Contacta a soporte para ampliarlo."
+                                "de tu plan este mes. Actualiza tu plan para seguir estimando."
                             ),
                         }), 403
                 except Exception as e:
@@ -3871,7 +3905,7 @@ def cotizacion_pdf():
         draft_edit = None
         numero_edit = request.args.get("numero", "").strip()
         draft_id = request.args.get("draft", "").strip()
-        if draft_id and company.get("plan", "full") == PLAN_FULL:
+        if draft_id and has_feature(company, FEATURE_FULL_FORM):
             try:
                 d = db_manager.obtener_draft(draft_id)
                 if d and (d.get("datos") or {}).get("tipo") == "simple":
@@ -3944,10 +3978,10 @@ def cotizacion_pdf():
     total = round(subtotal + iva, 2)
 
     # ── Número de cotización (nombre elegido por el usuario o automático) ──
-    plan = company.get("plan", "full")
+    plan = effective_plan(company)
 
-    # Proyecto obligatorio en plan Full: forma parte del folio consecutivo.
-    if plan == PLAN_FULL:
+    # Proyecto obligatorio en planes con formulario completo: forma parte del folio consecutivo.
+    if has_feature(plan, FEATURE_FULL_FORM):
         proyecto_val = (datos_generales.get("proyecto") or "").strip() if isinstance(datos_generales, dict) else ""
         if not proyecto_val:
             return jsonify({
@@ -3957,8 +3991,8 @@ def cotizacion_pdf():
 
     if numero_existente:
         numero = numero_existente  # edición: número fijo
-    elif plan == PLAN_FULL:
-        # Plan Full → numeración consecutiva idéntica al formulario completo.
+    elif has_feature(plan, FEATURE_FULL_FORM):
+        # Planes con formulario completo → numeración consecutiva idéntica al formulario completo.
         # Reusa _resolve_company_code para compartir EXACTAMENTE la misma secuencia
         # (patrón {cliente}-{codigo}-{iniciales}) que /formulario.
         numero = db_manager.generar_numero_cotizacion(
@@ -3994,9 +4028,11 @@ def cotizacion_pdf():
                 return jsonify({
                     "success": False,
                     "tipo_error": "plan_limit",
+                    "plan_limit": True,
+                    "upgrade_url": "/billing",
                     "error": (
-                        f"Alcanzaste el límite de {max_pdfs} PDFs de tu plan. "
-                        "Contacta a soporte para ampliarlo."
+                        f"Alcanzaste el límite de {max_pdfs} PDFs de tu plan gratuito. "
+                        "Actualiza a Pro para crear cotizaciones ilimitadas."
                     ),
                 }), 403
 
@@ -4030,7 +4066,7 @@ def cotizacion_pdf():
             "revision": str(datos_generales.get("revision") or "1"),
             "actualizacionRevision": (datos_generales.get("actualizacionRevision") or "").strip(),
             "comentariosInternos": (datos_generales.get("comentariosInternos") or "").strip()
-                                   if plan == PLAN_FULL else "",
+                                   if has_feature(plan, FEATURE_FULL_FORM) else "",
             "textoIntroductorio": texto_personalizado,
             "condiciones": condiciones_guardar,
         },
