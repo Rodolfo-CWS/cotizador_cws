@@ -4129,10 +4129,14 @@ function calcularPesoAproximadoItem(itemBlock) {
     }
 }
 
-function formatearMoneda(valor) {
+function formatearNumero(valor) {
     const num = parseFloat(valor);
-    if (isNaN(num)) return '$0.00';
-    return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (isNaN(num)) return '0.00';
+    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatearMoneda(valor) {
+    return '$' + formatearNumero(valor);
 }
 
 function actualizarDisplayMoneda(itemElement) {
@@ -4202,10 +4206,10 @@ function actualizarTodosLosCalculos() {
                 <div class="flex justify-between items-center">
                     <div>
                         <h4 class="font-semibold text-gray-800">${descripcion}</h4>
-                        <p class="text-sm text-gray-600">${cantidad} ${uom} \u00d7 $${(totalItem/cantidad || 0).toFixed(2)} c/u</p>
+                        <p class="text-sm text-gray-600">${cantidad} ${uom} \u00d7 $${formatearNumero(totalItem/cantidad || 0)} c/u</p>
                     </div>
                     <div class="text-right">
-                        <p class="text-lg font-bold text-indigo-600 item-total-display">$${totalItem.toFixed(2)}</p>
+                        <p class="text-lg font-bold text-indigo-600 item-total-display">$${formatearNumero(totalItem)}</p>
                     </div>
                 </div>
             `;
@@ -4249,9 +4253,9 @@ function actualizarTodosLosCalculos() {
     const ivaElement = document.getElementById('iva-total');
     const granTotalElement = document.getElementById('gran-total');
     
-    if (subtotalElement) subtotalElement.textContent = `${simboloMoneda}${subtotalMostrar.toFixed(2)}`;
-    if (ivaElement) ivaElement.textContent = `${simboloMoneda}${ivaMostrar.toFixed(2)}`;
-    if (granTotalElement) granTotalElement.textContent = `${simboloMoneda}${granTotalMostrar.toFixed(2)}`;
+    if (subtotalElement) subtotalElement.textContent = `${simboloMoneda}${formatearNumero(subtotalMostrar)}`;
+    if (ivaElement) ivaElement.textContent = `${simboloMoneda}${formatearNumero(ivaMostrar)}`;
+    if (granTotalElement) granTotalElement.textContent = `${simboloMoneda}${formatearNumero(granTotalMostrar)}`;
     
     // Actualizar totales de items individuales en el resumen si es USD
     if (esUSD && tipoCambio > 0 && tipoCambio != 1.0) {
@@ -4281,10 +4285,10 @@ function actualizarTodosLosCalculos() {
                         <div class="flex justify-between items-center">
                             <div>
                                 <h4 class="font-semibold text-gray-800">${descripcion}</h4>
-                                <p class="text-sm text-gray-600">${cantidad} ${uom} × USD $${precioUnitarioUSD.toFixed(2)} c/u</p>
+                                <p class="text-sm text-gray-600">${cantidad} ${uom} × USD $${formatearNumero(precioUnitarioUSD)} c/u</p>
                             </div>
                             <div class="text-right">
-                                <p class="text-lg font-bold text-indigo-600">USD $${totalItemUSD.toFixed(2)}</p>
+                                <p class="text-lg font-bold text-indigo-600">USD $${formatearNumero(totalItemUSD)}</p>
                             </div>
                         </div>
                     `;
