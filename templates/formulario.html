@@ -40,6 +40,206 @@
         .descripcion-item[contenteditable]:empty::before { content: attr(data-placeholder); color: #9ca3af; pointer-events: none; }
         .descripcion-item[contenteditable]:focus { outline: none; box-shadow: 0 0 0 2px #3b82f6; }
         .descripcion-item[contenteditable] ul { list-style: disc; padding-left: 18px; margin: 2px 0; }
+
+        /* ===== Items de Cotización — jerarquía visual ===== */
+        .item-block {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid var(--primary);
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        .item-block:hover { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); }
+
+        /* Encabezado del item (franja de color, claramente distinta a las sub-secciones) */
+        .item-block > summary {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+            border-bottom: 1px solid #c7d2fe;
+            cursor: pointer;
+            user-select: none;
+        }
+        .item-block > summary::-webkit-details-marker { display: none; }
+        .item-block > summary::before {
+            content: '▸';
+            font-size: 13px;
+            color: var(--primary);
+            transition: transform .2s ease;
+        }
+        .item-block[open] > summary::before { transform: rotate(90deg); }
+
+        .item-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--primary);
+            color: #ffffff;
+            font-weight: 700;
+            font-size: .9rem;
+            line-height: 1;
+            padding: 7px 14px;
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .item-actions { margin-left: auto; display: flex; gap: 8px; }
+        .item-action-btn {
+            font-size: .75rem;
+            font-weight: 600;
+            line-height: 1;
+            padding: 7px 12px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all .15s ease;
+            white-space: nowrap;
+        }
+        .item-action-btn.clone { background: #ffffff; border-color: #d1d5db; color: #374151; }
+        .item-action-btn.clone:hover { background: #f3f4f6; }
+        .item-action-btn.delete { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+        .item-action-btn.delete:hover { background: #fee2e2; }
+
+        .item-body { padding: 16px; }
+
+        /* Sub-secciones (Materiales / Otros Materiales / Costos y Totales) */
+        .item-subsection {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            background: #f9fafb;
+            padding: 14px 16px;
+        }
+        .item-subsection + .item-subsection { margin-top: 14px; }
+
+        .item-subsection-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .item-subsection-title {
+            font-size: .72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: #6b7280;
+        }
+        .item-subsection-hint { margin-left: auto; font-size: .7rem; color: #9ca3af; }
+
+        /* Etiquetas y campos uniformes dentro de los items */
+        .item-label {
+            display: block;
+            font-size: .7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+        .item-input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: .875rem;
+            background: #ffffff;
+            color: #111827;
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .item-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, .15); }
+        .item-input[readonly] { background: #f3f4f6; color: #6b7280; }
+        .item-input.input-total { font-weight: 600; }
+
+        /* Tabla de materiales / otros materiales */
+        .materiales-container,
+        .otros-materiales-container {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            background: #ffffff;
+            overflow: hidden;
+        }
+        .materiales-container > .material-row,
+        .otros-materiales-container > .otro-material-row {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .materiales-container > .material-row:last-child,
+        .otros-materiales-container > .otro-material-row:last-child {
+            border-bottom: none;
+        }
+        .tabla-head {
+            display: none;
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            gap: 0.75rem;
+            background: #f3f4f6;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 8px 12px;
+        }
+        .tabla-head .th-col {
+            font-size: .66rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #6b7280;
+            white-space: nowrap;
+        }
+        .tabla-head .head-c1 { grid-column: span 1 / span 1; }
+        .tabla-head .head-c2 { grid-column: span 2 / span 2; }
+        .tabla-head .head-c3 { grid-column: span 3 / span 3; }
+        .tabla-head .head-c5 { grid-column: span 5 / span 5; }
+        .tabla-head .head-fields {
+            grid-column: span 8 / span 8;
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+        @media (min-width: 768px) {
+            .tabla-head { display: grid; }
+            .materiales-container .material-row .item-label,
+            .otros-materiales-container .otro-material-row .item-label {
+                display: none;
+            }
+            /* En modo "cotizar por peso" las etiquetas se mantienen porque no
+               corresponden a las columnas del encabezado */
+            .materiales-container .material-campos-peso .item-label {
+                display: block;
+            }
+        }
+
+        /* Costo por Unidad / Total del Item: bloque alineado a la derecha */
+        .moneda-block {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .moneda-field {
+            width: 100%;
+            max-width: 320px;
+            text-align: right;
+        }
+        .moneda-field + .moneda-field { margin-top: 12px; }
+        .moneda-display {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: .875rem;
+            font-weight: 600;
+            text-align: right;
+            background: #ffffff;
+            color: #111827;
+            box-sizing: border-box;
+        }
+        .moneda-display.costo { background: #ecfdf5; color: #065f46; }
+        .moneda-display.total { background: #eef2ff; color: #3730a3; }
+
         details[open] summary ~ * { animation: slideDown 0.3s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -2214,6 +2414,20 @@ function cargarDatosFastQuote() {
                 // Limpiar fila vacía por defecto
                 materialesContainer.innerHTML = '';
 
+                // Re-agregar el encabezado de la tabla
+                var headHtml = '<div class="tabla-head">' +
+                    '<div class="th-col head-c3">Material</div>' +
+                    '<div class="head-fields">' +
+                        '<div class="th-col">Peso/Kg</div>' +
+                        '<div class="th-col">Cantidad</div>' +
+                        '<div class="th-col">Unidad</div>' +
+                        '<div class="th-col">$/Kg</div>' +
+                        '<div class="th-col">Subtotal</div>' +
+                    '</div>' +
+                    '<div class="head-c1"></div>' +
+                '</div>';
+                materialesContainer.insertAdjacentHTML('beforeend', headHtml);
+
                 materialesItems.forEach(function(row, idx) {
                     // Usar agregarFila para crear la fila con selects correctos
                     // Le pasamos el botón (que ya no está en el DOM, pero la función usa closest)
@@ -2234,23 +2448,23 @@ function cargarDatosFastQuote() {
                         });
                     }
 
-                    var html = '<div class="material-row flex gap-2 items-end" style="margin-top:8px;">' +
-                        '<div class="w-1/4">' +
-                            (idx === 0 ? '<label class="block text-xs mb-1">Material:</label>' : '') +
-                            '<select class="material-select w-full p-2 border rounded text-sm">' + opciones + '</select>' +
+                    var html = '<div class="material-row grid grid-cols-12 gap-3 items-end">' +
+                        '<div class="col-span-12 md:col-span-3">' +
+                            '<label class="item-label">Material</label>' +
+                            '<select class="material-select item-input">' + opciones + '</select>' +
                         '</div>' +
-                        '<div class="material-campos-normales flex-1 grid grid-cols-5 gap-2">' +
+                        '<div class="material-campos-normales col-span-12 md:col-span-8 grid grid-cols-2 sm:grid-cols-5 gap-3 items-end">' +
                             '<div>' +
-                                (idx === 0 ? '<label class="block text-xs mb-1">Peso/Kg:</label>' : '') +
-                                '<input type="number" step="0.01" class="peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly value="' + pesoUnitario.toFixed(2) + '">' +
+                                '<label class="item-label">Peso/Kg</label>' +
+                                '<input type="number" step="0.01" class="peso-input item-input" readonly value="' + pesoUnitario.toFixed(2) + '">' +
                             '</div>' +
                             '<div>' +
-                                (idx === 0 ? '<label class="block text-xs mb-1">Cantidad:</label>' : '') +
-                                '<input type="number" step="0.01" class="cantidad-input w-full p-2 border rounded text-sm" value="' + cantidad + '">' +
+                                '<label class="item-label">Cantidad</label>' +
+                                '<input type="number" step="0.01" class="cantidad-input item-input" value="' + cantidad + '">' +
                             '</div>' +
                             '<div>' +
-                                (idx === 0 ? '<label class="block text-xs mb-1">Unidad:</label>' : '') +
-                                '<select class="unidad-select w-full p-2 border rounded text-sm">' +
+                                '<label class="item-label">Unidad</label>' +
+                                '<select class="unidad-select item-input">' +
                                     '<option value="metros" selected>Metros</option>' +
                                     '<option value="centimetros">Centímetros</option>' +
                                     '<option value="pulgadas">Pulgadas</option>' +
@@ -2260,20 +2474,20 @@ function cargarDatosFastQuote() {
                                 '</select>' +
                             '</div>' +
                             '<div>' +
-                                (idx === 0 ? '<label class="block text-xs mb-1">$/Kg:</label>' : '') +
-                                '<input type="number" step="0.01" class="precio-input w-full p-2 border rounded text-sm" value="' + precioKg.toFixed(2) + '">' +
+                                '<label class="item-label">$/Kg</label>' +
+                                '<input type="number" step="0.01" class="precio-input item-input" value="' + precioKg.toFixed(2) + '">' +
                             '</div>' +
                             '<div>' +
-                                (idx === 0 ? '<label class="block text-xs mb-1">Subtotal ($):</label>' : '') +
-                                '<input type="number" step="0.01" class="subtotal-input w-full p-2 border rounded text-sm bg-gray-100" readonly value="' + subtotalCalculado.toFixed(2) + '">' +
+                                '<label class="item-label">Subtotal</label>' +
+                                '<input type="number" step="0.01" class="subtotal-input item-input input-total" readonly value="' + subtotalCalculado.toFixed(2) + '">' +
                             '</div>' +
                         '</div>' +
-                        '<div class="material-campos-peso flex-1 grid grid-cols-3 gap-2" style="display:none;">' +
-                            '<div><label class="block text-xs mb-1">Peso total (kg):</label><input type="number" step="0.01" class="peso-estructura-input w-full p-2 border rounded text-sm"></div>' +
-                            '<div><label class="block text-xs mb-1">$/Kg:</label><input type="number" step="0.01" class="precio-kg-input w-full p-2 border rounded text-sm"></div>' +
-                            '<div><label class="block text-xs mb-1">Subtotal:</label><input type="number" step="0.01" class="subtotal-peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly></div>' +
+                        '<div class="material-campos-peso col-span-12 md:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end" style="display:none;">' +
+                            '<div><label class="item-label">Peso estructura (KG)</label><input type="number" step="0.01" class="peso-estructura-input item-input"></div>' +
+                            '<div><label class="item-label">$/Kg</label><input type="number" step="0.01" class="precio-kg-input item-input"></div>' +
+                            '<div><label class="item-label">Subtotal</label><input type="number" step="0.01" class="subtotal-peso-input item-input input-total" readonly></div>' +
                         '</div>' +
-                        '<div class="w-10 flex justify-center">' +
+                        '<div class="col-span-12 md:col-span-1 flex md:justify-center justify-end">' +
                             '<button type="button" onclick="eliminarFila(this, \'material\')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>' +
                         '</div>' +
                     '</div>';
@@ -2296,30 +2510,40 @@ function cargarDatosFastQuote() {
                 // Limpiar la fila vacía por defecto
                 otrosContainer.innerHTML = '';
 
+                // Re-agregar el encabezado de la tabla
+                var headOtrosHtml = '<div class="tabla-head">' +
+                    '<div class="th-col head-c5">Descripción</div>' +
+                    '<div class="th-col head-c2">Precio ($)</div>' +
+                    '<div class="th-col head-c2">Cantidad</div>' +
+                    '<div class="th-col head-c2">Subtotal</div>' +
+                    '<div class="head-c1"></div>' +
+                '</div>';
+                otrosContainer.insertAdjacentHTML('beforeend', headOtrosHtml);
+
                 otrosItems.forEach(function(row, idx) {
                     var concepto = (row.concepto || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
                     var precio = row.precio_unitario || 0;
                     var cantidad = row.cantidad || 1;
                     var subtotal = row.subtotal || (precio * cantidad) || 0;
 
-                    var html = '<div class="otro-material-row grid grid-cols-12 gap-2 items-end">' +
-                        '<div class="col-span-5">' +
-                            (idx === 0 ? '<label class="block text-xs mb-1">Descripción:</label>' : '') +
-                            '<input type="text" class="descripcion-otro w-full p-2 border rounded text-sm" value="' + concepto + '">' +
+                    var html = '<div class="otro-material-row grid grid-cols-12 gap-3 items-end">' +
+                        '<div class="col-span-12 md:col-span-5">' +
+                            '<label class="item-label">Descripción</label>' +
+                            '<input type="text" class="descripcion-otro item-input" value="' + concepto + '">' +
                         '</div>' +
-                        '<div class="col-span-2">' +
-                            (idx === 0 ? '<label class="block text-xs mb-1">Precio ($):</label>' : '') +
-                            '<input type="number" step="0.01" class="precio-otro w-full p-2 border rounded text-sm" value="' + precio + '">' +
+                        '<div class="col-span-4 md:col-span-2">' +
+                            '<label class="item-label">Precio ($)</label>' +
+                            '<input type="number" step="0.01" class="precio-otro item-input" value="' + precio + '">' +
                         '</div>' +
-                        '<div class="col-span-2">' +
-                            (idx === 0 ? '<label class="block text-xs mb-1">Cantidad:</label>' : '') +
-                            '<input type="number" step="0.01" class="cantidad-otro w-full p-2 border rounded text-sm" value="' + cantidad + '">' +
+                        '<div class="col-span-4 md:col-span-2">' +
+                            '<label class="item-label">Cantidad</label>' +
+                            '<input type="number" step="0.01" class="cantidad-otro item-input" value="' + cantidad + '">' +
                         '</div>' +
-                        '<div class="col-span-2">' +
-                            (idx === 0 ? '<label class="block text-xs mb-1">Subtotal ($):</label>' : '') +
-                            '<input type="number" step="0.01" class="subtotal-otro w-full p-2 border rounded text-sm bg-gray-100" readonly value="' + subtotal + '">' +
+                        '<div class="col-span-3 md:col-span-2">' +
+                            '<label class="item-label">Subtotal</label>' +
+                            '<input type="number" step="0.01" class="subtotal-otro item-input input-total" readonly value="' + subtotal + '">' +
                         '</div>' +
-                        '<div class="col-span-1 flex justify-center">' +
+                        '<div class="col-span-1 flex md:justify-center justify-end">' +
                             '<button type="button" onclick="eliminarFila(this, \'otro\')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>' +
                         '</div>' +
                     '</div>';
@@ -2655,6 +2879,7 @@ function cargarDatosItem(itemData, index) {
             totalItem.value = valorTotal;
             console.log(`[CARGAR_ITEM] ✅ Total item cargado: ${valorTotal}`);
         }
+        actualizarDisplayMoneda(item);
 
         // Cargar notas del item
         const notas = item.querySelector('[name="notas[]"]');
@@ -3280,25 +3505,20 @@ async function eliminarItem(button) {
 
 function crearTemplateItem(numero) {
     return `
-    <details class="item-block border rounded-lg p-4 bg-gray-50" open>
-        <summary class="cursor-pointer font-semibold text-lg text-indigo-700 hover:text-indigo-800 flex items-center justify-between">
-            <span>📋 Item ${numero}</span>
-            <div class="flex gap-2 ml-4" onclick="event.stopPropagation()">
-                <button type="button" onclick="clonarItem(this)"
-                        class="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-300 font-normal">
-                    &#8962; Clonar
-                </button>
-                <button type="button" onclick="eliminarItem(this)"
-                        class="text-xs px-2 py-1 bg-red-50 hover:bg-red-100 text-red-500 rounded border border-red-200 font-normal">
-                    &#10005; Borrar
-                </button>
+    <details class="item-block" open>
+        <summary>
+            <span class="item-badge">📋 Item ${numero}</span>
+            <div class="item-actions" onclick="event.stopPropagation()">
+                <button type="button" onclick="clonarItem(this)" class="item-action-btn clone">&#8962; Clonar</button>
+                <button type="button" onclick="eliminarItem(this)" class="item-action-btn delete">&#10005; Borrar</button>
             </div>
         </summary>
-        
-        <div class="mt-4 space-y-4">
+
+        <div class="item-body">
+            <!-- Descripción + UOM + Cantidad -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium mb-1">Descripción:</label>
+                    <label class="item-label">Descripción</label>
                     <div class="descripcion-toolbar flex gap-1 px-1 py-0.5 bg-gray-100 border border-b-0 rounded-t">
                         <button type="button" class="bg-white border rounded font-bold"
                                 onmousedown="event.preventDefault();document.execCommand('bold',false,null);" title="Negrita">B</button>
@@ -3313,28 +3533,42 @@ function crearTemplateItem(numero) {
                          contenteditable="true"
                          data-placeholder="Ej. Rack Metálico"></div>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-3 items-end">
                     <div>
-                        <label class="block text-sm font-medium mb-1">UOM:</label>
-                        <select class="uom-item w-full p-2 border rounded text-sm">
+                        <label class="item-label">UOM</label>
+                        <select class="uom-item item-input">
                             <option value="Pieza">Pieza</option>
                             <option value="Servicio">Servicio</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">Cantidad:</label>
-                        <input type="number" step="0.01" class="cantidad-item w-full p-2 border rounded text-sm">
+                        <label class="item-label">Cantidad</label>
+                        <input type="number" step="0.01" class="cantidad-item item-input">
                     </div>
                 </div>
             </div>
 
-            <div class="border-t pt-4">
-                <h3 class="text-lg font-semibold text-indigo-600 mb-3">🔧 Materiales</h3>
-                <div class="materiales-container space-y-2">
-                    <div class="material-row flex gap-2 items-end">
-                        <div class="w-1/4">
-                            <label class="block text-xs mb-1">Material:</label>
-                            <select class="material-select w-full p-2 border rounded text-sm">
+            <!-- Materiales -->
+            <div class="item-subsection" style="margin-top:16px;">
+                <div class="item-subsection-header">
+                    <span class="item-subsection-title">🔧 Materiales</span>
+                </div>
+                <div class="materiales-container">
+                    <div class="tabla-head">
+                        <div class="th-col head-c3">Material</div>
+                        <div class="head-fields">
+                            <div class="th-col">Peso/Kg</div>
+                            <div class="th-col">Cantidad</div>
+                            <div class="th-col">Unidad</div>
+                            <div class="th-col">$/Kg</div>
+                            <div class="th-col">Subtotal</div>
+                        </div>
+                        <div class="head-c1"></div>
+                    </div>
+                    <div class="material-row grid grid-cols-12 gap-3 items-end">
+                        <div class="col-span-12 md:col-span-3">
+                            <label class="item-label">Material</label>
+                            <select class="material-select item-input">
                                 <option value="" data-peso="0" data-uom="">Seleccione Material</option>
                                 <option value="COTIZAR_POR_PESO" data-peso="0" data-uom="KG">Cotizar por peso</option>
                                 {% for material in materiales %}
@@ -3342,20 +3576,20 @@ function crearTemplateItem(numero) {
                                 {% endfor %}
                             </select>
                         </div>
-                        
+
                         <!-- Campos normales de materiales -->
-                        <div class="material-campos-normales flex-1 grid grid-cols-5 gap-2">
+                        <div class="material-campos-normales col-span-12 md:col-span-8 grid grid-cols-2 sm:grid-cols-5 gap-3 items-end">
                             <div>
-                                <label class="block text-xs mb-1">Peso/Kg:</label>
-                                <input type="number" step="0.01" class="peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+                                <label class="item-label">Peso/Kg</label>
+                                <input type="number" step="0.01" class="peso-input item-input" readonly>
                             </div>
                             <div>
-                                <label class="block text-xs mb-1">Cantidad:</label>
-                                <input type="number" step="0.01" class="cantidad-input w-full p-2 border rounded text-sm">
+                                <label class="item-label">Cantidad</label>
+                                <input type="number" step="0.01" class="cantidad-input item-input">
                             </div>
                             <div>
-                                <label class="block text-xs mb-1">Unidad:</label>
-                                <select class="unidad-select w-full p-2 border rounded text-sm">
+                                <label class="item-label">Unidad</label>
+                                <select class="unidad-select item-input">
                                     <option value="metros">Metros</option>
                                     <option value="centimetros">Centímetros</option>
                                     <option value="pulgadas">Pulgadas</option>
@@ -3365,32 +3599,32 @@ function crearTemplateItem(numero) {
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs mb-1">$/Kg:</label>
-                                <input type="number" step="0.01" class="precio-input w-full p-2 border rounded text-sm">
+                                <label class="item-label">$/Kg</label>
+                                <input type="number" step="0.01" class="precio-input item-input">
                             </div>
                             <div>
-                                <label class="block text-xs mb-1">Subtotal ($):</label>
-                                <input type="number" step="0.01" class="subtotal-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+                                <label class="item-label">Subtotal</label>
+                                <input type="number" step="0.01" class="subtotal-input item-input input-total" readonly>
                             </div>
                         </div>
-                        
+
                         <!-- Campos especiales para cotizar por peso (inicialmente ocultos) -->
-                        <div class="material-campos-peso flex-1 grid grid-cols-3 gap-2" style="display: none;">
+                        <div class="material-campos-peso col-span-12 md:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end" style="display: none;">
                             <div>
-                                <label class="block text-xs mb-1">¿Cuál es el peso de la estructura? (KG):</label>
-                                <input type="number" step="0.01" class="peso-estructura-input w-full p-2 border rounded text-sm" placeholder="Peso en KG">
+                                <label class="item-label">Peso estructura (KG)</label>
+                                <input type="number" step="0.01" class="peso-estructura-input item-input" placeholder="Peso en KG">
                             </div>
                             <div>
-                                <label class="block text-xs mb-1">$/Kg:</label>
-                                <input type="number" step="0.01" class="precio-kg-input w-full p-2 border rounded text-sm" placeholder="Precio por kilogramo">
+                                <label class="item-label">$/Kg</label>
+                                <input type="number" step="0.01" class="precio-kg-input item-input" placeholder="Precio por kg">
                             </div>
                             <div>
-                                <label class="block text-xs mb-1">Subtotal ($):</label>
-                                <input type="number" step="0.01" class="subtotal-peso-input w-full p-2 border rounded text-sm bg-green-50" readonly>
+                                <label class="item-label">Subtotal</label>
+                                <input type="number" step="0.01" class="subtotal-peso-input item-input input-total" readonly>
                             </div>
                         </div>
-                        
-                        <div class="w-10 flex justify-center">
+
+                        <div class="col-span-12 md:col-span-1 flex md:justify-center justify-end">
                             <button type="button" onclick="eliminarFila(this, 'material')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
                         </div>
                     </div>
@@ -3406,27 +3640,37 @@ function crearTemplateItem(numero) {
                 Peso aproximado: <span class="peso-aproximado-valor">0.00</span> kg
             </div>
 
-            <div class="border-t pt-4">
-                <h3 class="text-lg font-semibold text-indigo-600 mb-3">Otros Materiales</h3>
-                <div class="otros-materiales-container space-y-2">
-                    <div class="otro-material-row grid grid-cols-12 gap-2 items-end">
-                        <div class="col-span-5">
-                            <label class="block text-xs mb-1">Descripción:</label>
-                            <input type="text" class="descripcion-otro w-full p-2 border rounded text-sm" placeholder="Descripción del material">
+            <!-- Otros Materiales -->
+            <div class="item-subsection">
+                <div class="item-subsection-header">
+                    <span class="item-subsection-title">Otros Materiales</span>
+                </div>
+                <div class="otros-materiales-container">
+                    <div class="tabla-head">
+                        <div class="th-col head-c5">Descripción</div>
+                        <div class="th-col head-c2">Precio ($)</div>
+                        <div class="th-col head-c2">Cantidad</div>
+                        <div class="th-col head-c2">Subtotal</div>
+                        <div class="head-c1"></div>
+                    </div>
+                    <div class="otro-material-row grid grid-cols-12 gap-3 items-end">
+                        <div class="col-span-12 md:col-span-5">
+                            <label class="item-label">Descripción</label>
+                            <input type="text" class="descripcion-otro item-input" placeholder="Descripción del material">
                         </div>
-                        <div class="col-span-2">
-                            <label class="block text-xs mb-1">Precio ($):</label>
-                            <input type="number" step="0.01" class="precio-otro w-full p-2 border rounded text-sm">
+                        <div class="col-span-4 md:col-span-2">
+                            <label class="item-label">Precio ($)</label>
+                            <input type="number" step="0.01" class="precio-otro item-input">
                         </div>
-                        <div class="col-span-2">
-                            <label class="block text-xs mb-1">Cantidad:</label>
-                            <input type="number" step="0.01" class="cantidad-otro w-full p-2 border rounded text-sm">
+                        <div class="col-span-4 md:col-span-2">
+                            <label class="item-label">Cantidad</label>
+                            <input type="number" step="0.01" class="cantidad-otro item-input">
                         </div>
-                        <div class="col-span-2">
-                            <label class="block text-xs mb-1">Subtotal ($):</label>
-                            <input type="number" step="0.01" class="subtotal-otro w-full p-2 border rounded text-sm bg-gray-100" readonly>
+                        <div class="col-span-3 md:col-span-2">
+                            <label class="item-label">Subtotal</label>
+                            <input type="number" step="0.01" class="subtotal-otro item-input input-total" readonly>
                         </div>
-                        <div class="col-span-1 flex justify-center">
+                        <div class="col-span-1 flex md:justify-center justify-end">
                             <button type="button" onclick="eliminarFila(this, 'otro')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
                         </div>
                     </div>
@@ -3438,38 +3682,45 @@ function crearTemplateItem(numero) {
                 </button>
             </div>
 
-            <div class="border-t pt-4">
-                <h3 class="text-lg font-semibold text-indigo-600 mb-3">Costos y Totales</h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- Costos y Totales -->
+            <div class="item-subsection">
+                <div class="item-subsection-header">
+                    <span class="item-subsection-title">Costos y Totales</span>
+                    <span class="item-subsection-hint">cálculo automático</span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
-                        <label class="block text-sm font-medium mb-1">Transporte ($):</label>
-                        <input type="number" step="0.01" class="transporte w-full p-2 border rounded text-sm">
+                        <label class="item-label">Transporte ($)</label>
+                        <input type="number" step="0.01" class="transporte item-input">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">Instalación ($):</label>
-                        <input type="number" step="0.01" class="instalacion w-full p-2 border rounded text-sm">
+                        <label class="item-label">Instalación ($)</label>
+                        <input type="number" step="0.01" class="instalacion item-input">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">Seguridad (%):</label>
-                        <input type="number" step="0.01" class="seguridad w-full p-2 border rounded text-sm">
+                        <label class="item-label">Seguridad (%)</label>
+                        <input type="number" step="0.01" class="seguridad item-input">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">Descuento (%):</label>
-                        <input type="number" step="0.01" class="descuento w-full p-2 border rounded text-sm">
+                        <label class="item-label">Descuento (%)</label>
+                        <input type="number" step="0.01" class="descuento item-input">
                     </div>
                 </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Costo por Unidad ($):</label>
-                        <input type="number" step="0.01" class="costo-unidad w-full p-2 border rounded text-sm bg-green-50 font-semibold" readonly>
+
+                <div class="moneda-block">
+                    <div class="moneda-field">
+                        <label class="item-label">Costo por Unidad ($)</label>
+                        <div class="costo-unidad-display moneda-display costo">$0.00</div>
+                        <input type="hidden" class="costo-unidad">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Total del Item ($):</label>
-                        <input type="number" step="0.01" class="total-item w-full p-2 border rounded text-sm bg-indigo-50 font-semibold" readonly>
+                    <div class="moneda-field">
+                        <label class="item-label">Total del Item ($)</label>
+                        <div class="total-item-display moneda-display total">$0.00</div>
+                        <input type="hidden" class="total-item">
                     </div>
                 </div>
             </div>
+
             <!-- Comentarios Internos del Item -->
             <div class="mt-3 p-3 bg-amber-50 border-2 border-dashed border-amber-400 rounded-lg">
                 <label class="text-xs font-semibold text-amber-800 uppercase flex items-center gap-1">
@@ -3491,28 +3742,28 @@ function agregarFila(button, tipo) {
     let nuevaFila = document.createElement('div');
     
     if (tipo === 'material') {
-        nuevaFila.className = 'material-row flex gap-2 items-end';
+        nuevaFila.className = 'material-row grid grid-cols-12 gap-3 items-end';
         nuevaFila.innerHTML = `
-            <div class="w-1/4">
-                <label class="block text-xs mb-1">Material:</label>
-                <select class="material-select w-full p-2 border rounded text-sm">
+            <div class="col-span-12 md:col-span-3">
+                <label class="item-label">Material</label>
+                <select class="material-select item-input">
                     ${generarOpcionesMateriales()}
                 </select>
             </div>
-            
+
             <!-- Campos normales de materiales -->
-            <div class="material-campos-normales flex-1 grid grid-cols-5 gap-2">
+            <div class="material-campos-normales col-span-12 md:col-span-8 grid grid-cols-2 sm:grid-cols-5 gap-3 items-end">
                 <div>
-                    <label class="block text-xs mb-1">Peso/Kg:</label>
-                    <input type="number" step="0.01" class="peso-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+                    <label class="item-label">Peso/Kg</label>
+                    <input type="number" step="0.01" class="peso-input item-input" readonly>
                 </div>
                 <div>
-                    <label class="block text-xs mb-1">Cantidad:</label>
-                    <input type="number" step="0.01" class="cantidad-input w-full p-2 border rounded text-sm">
+                    <label class="item-label">Cantidad</label>
+                    <input type="number" step="0.01" class="cantidad-input item-input">
                 </div>
                 <div>
-                    <label class="block text-xs mb-1">Unidad:</label>
-                    <select class="unidad-select w-full p-2 border rounded text-sm">
+                    <label class="item-label">Unidad</label>
+                    <select class="unidad-select item-input">
                         <option value="metros">Metros</option>
                         <option value="centimetros">Centímetros</option>
                         <option value="pulgadas">Pulgadas</option>
@@ -3522,55 +3773,55 @@ function agregarFila(button, tipo) {
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs mb-1">$/Kg:</label>
-                    <input type="number" step="0.01" class="precio-input w-full p-2 border rounded text-sm">
+                    <label class="item-label">$/Kg</label>
+                    <input type="number" step="0.01" class="precio-input item-input">
                 </div>
                 <div>
-                    <label class="block text-xs mb-1">Subtotal ($):</label>
-                    <input type="number" step="0.01" class="subtotal-input w-full p-2 border rounded text-sm bg-gray-100" readonly>
+                    <label class="item-label">Subtotal</label>
+                    <input type="number" step="0.01" class="subtotal-input item-input input-total" readonly>
                 </div>
             </div>
-            
+
             <!-- Campos especiales para cotizar por peso (inicialmente ocultos) -->
-            <div class="material-campos-peso flex-1 grid grid-cols-3 gap-2" style="display: none;">
+            <div class="material-campos-peso col-span-12 md:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end" style="display: none;">
                 <div>
-                    <label class="block text-xs mb-1">¿Cuál es el peso de la estructura? (KG):</label>
-                    <input type="number" step="0.01" class="peso-estructura-input w-full p-2 border rounded text-sm" placeholder="Peso en KG">
+                    <label class="item-label">Peso estructura (KG)</label>
+                    <input type="number" step="0.01" class="peso-estructura-input item-input" placeholder="Peso en KG">
                 </div>
                 <div>
-                    <label class="block text-xs mb-1">$/Kg:</label>
-                    <input type="number" step="0.01" class="precio-kg-input w-full p-2 border rounded text-sm" placeholder="Precio por kilogramo">
+                    <label class="item-label">$/Kg</label>
+                    <input type="number" step="0.01" class="precio-kg-input item-input" placeholder="Precio por kg">
                 </div>
                 <div>
-                    <label class="block text-xs mb-1">Subtotal ($):</label>
-                    <input type="number" step="0.01" class="subtotal-peso-input w-full p-2 border rounded text-sm bg-green-50" readonly>
+                    <label class="item-label">Subtotal</label>
+                    <input type="number" step="0.01" class="subtotal-peso-input item-input input-total" readonly>
                 </div>
             </div>
-            
-            <div class="w-10 flex justify-center">
+
+            <div class="col-span-12 md:col-span-1 flex md:justify-center justify-end">
                 <button type="button" onclick="eliminarFila(this, 'material')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
             </div>
         `;
     } else {
-        nuevaFila.className = 'otro-material-row grid grid-cols-12 gap-2 items-end';
+        nuevaFila.className = 'otro-material-row grid grid-cols-12 gap-3 items-end';
         nuevaFila.innerHTML = `
-            <div class="col-span-5">
-                <label class="block text-xs mb-1">Descripción:</label>
-                <input type="text" class="descripcion-otro w-full p-2 border rounded text-sm" placeholder="Descripción del material">
+            <div class="col-span-12 md:col-span-5">
+                <label class="item-label">Descripción</label>
+                <input type="text" class="descripcion-otro item-input" placeholder="Descripción del material">
             </div>
-            <div class="col-span-2">
-                <label class="block text-xs mb-1">Precio ($):</label>
-                <input type="number" step="0.01" class="precio-otro w-full p-2 border rounded text-sm">
+            <div class="col-span-4 md:col-span-2">
+                <label class="item-label">Precio ($)</label>
+                <input type="number" step="0.01" class="precio-otro item-input">
             </div>
-            <div class="col-span-2">
-                <label class="block text-xs mb-1">Cantidad:</label>
-                <input type="number" step="0.01" class="cantidad-otro w-full p-2 border rounded text-sm">
+            <div class="col-span-4 md:col-span-2">
+                <label class="item-label">Cantidad</label>
+                <input type="number" step="0.01" class="cantidad-otro item-input">
             </div>
-            <div class="col-span-2">
-                <label class="block text-xs mb-1">Subtotal ($):</label>
-                <input type="number" step="0.01" class="subtotal-otro w-full p-2 border rounded text-sm bg-gray-100" readonly>
+            <div class="col-span-3 md:col-span-2">
+                <label class="item-label">Subtotal</label>
+                <input type="number" step="0.01" class="subtotal-otro item-input input-total" readonly>
             </div>
-            <div class="col-span-1 flex justify-center">
+            <div class="col-span-1 flex md:justify-center justify-end">
                 <button type="button" onclick="eliminarFila(this, 'otro')" class="text-red-500 hover:text-red-700 font-bold text-lg">✕</button>
             </div>
         `;
@@ -3878,6 +4129,26 @@ function calcularPesoAproximadoItem(itemBlock) {
     }
 }
 
+function formatearNumero(valor) {
+    const num = parseFloat(valor);
+    if (isNaN(num)) return '0.00';
+    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatearMoneda(valor) {
+    return '$' + formatearNumero(valor);
+}
+
+function actualizarDisplayMoneda(itemElement) {
+    if (!itemElement) return;
+    const costoInput = itemElement.querySelector('.costo-unidad');
+    const totalInput = itemElement.querySelector('.total-item');
+    const costoDisp = itemElement.querySelector('.costo-unidad-display');
+    const totalDisp = itemElement.querySelector('.total-item-display');
+    if (costoInput && costoDisp) costoDisp.textContent = formatearMoneda(costoInput.value);
+    if (totalInput && totalDisp) totalDisp.textContent = formatearMoneda(totalInput.value);
+}
+
 function calcularCostosItem(itemElement) {
     if (!itemElement) return;
     let totalMateriales = 0;
@@ -3912,6 +4183,7 @@ function calcularCostosItem(itemElement) {
     const totalItemInput = itemElement.querySelector('.total-item');
     if (costoUnidadInput) costoUnidadInput.value = costoUnidad.toFixed(2);
     if (totalItemInput) totalItemInput.value = totalItem.toFixed(2);
+    actualizarDisplayMoneda(itemElement);
 }
 
 function actualizarTodosLosCalculos() {
@@ -3934,10 +4206,10 @@ function actualizarTodosLosCalculos() {
                 <div class="flex justify-between items-center">
                     <div>
                         <h4 class="font-semibold text-gray-800">${descripcion}</h4>
-                        <p class="text-sm text-gray-600">${cantidad} ${uom} \u00d7 $${(totalItem/cantidad || 0).toFixed(2)} c/u</p>
+                        <p class="text-sm text-gray-600">${cantidad} ${uom} \u00d7 $${formatearNumero(totalItem/cantidad || 0)} c/u</p>
                     </div>
                     <div class="text-right">
-                        <p class="text-lg font-bold text-indigo-600 item-total-display">$${totalItem.toFixed(2)}</p>
+                        <p class="text-lg font-bold text-indigo-600 item-total-display">$${formatearNumero(totalItem)}</p>
                     </div>
                 </div>
             `;
@@ -3981,9 +4253,9 @@ function actualizarTodosLosCalculos() {
     const ivaElement = document.getElementById('iva-total');
     const granTotalElement = document.getElementById('gran-total');
     
-    if (subtotalElement) subtotalElement.textContent = `${simboloMoneda}${subtotalMostrar.toFixed(2)}`;
-    if (ivaElement) ivaElement.textContent = `${simboloMoneda}${ivaMostrar.toFixed(2)}`;
-    if (granTotalElement) granTotalElement.textContent = `${simboloMoneda}${granTotalMostrar.toFixed(2)}`;
+    if (subtotalElement) subtotalElement.textContent = `${simboloMoneda}${formatearNumero(subtotalMostrar)}`;
+    if (ivaElement) ivaElement.textContent = `${simboloMoneda}${formatearNumero(ivaMostrar)}`;
+    if (granTotalElement) granTotalElement.textContent = `${simboloMoneda}${formatearNumero(granTotalMostrar)}`;
     
     // Actualizar totales de items individuales en el resumen si es USD
     if (esUSD && tipoCambio > 0 && tipoCambio != 1.0) {
@@ -4013,10 +4285,10 @@ function actualizarTodosLosCalculos() {
                         <div class="flex justify-between items-center">
                             <div>
                                 <h4 class="font-semibold text-gray-800">${descripcion}</h4>
-                                <p class="text-sm text-gray-600">${cantidad} ${uom} × USD $${precioUnitarioUSD.toFixed(2)} c/u</p>
+                                <p class="text-sm text-gray-600">${cantidad} ${uom} × USD $${formatearNumero(precioUnitarioUSD)} c/u</p>
                             </div>
                             <div class="text-right">
-                                <p class="text-lg font-bold text-indigo-600">USD $${totalItemUSD.toFixed(2)}</p>
+                                <p class="text-lg font-bold text-indigo-600">USD $${formatearNumero(totalItemUSD)}</p>
                             </div>
                         </div>
                     `;
