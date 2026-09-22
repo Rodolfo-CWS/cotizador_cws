@@ -36,6 +36,7 @@ def init_middleware(app, supabase_manager):
             '/health',
             '/static/',
             '/stripe/webhook',
+            '/planes',
         ]
 
         # Saltar middleware para rutas públicas

@@ -12,6 +12,7 @@ from flask import (
     url_for, session, flash, current_app, jsonify
 )
 from cotizador.middleware import login_required, admin_required
+from cotizador.plans import effective_plan, get_limit
 import os
 import logging
 
@@ -245,12 +246,14 @@ def invite_user():
         role = 'seller'
 
     company = db.get_company_by_id(company_id) or {}
-    max_users = company.get('max_users') or 10
+    # El límite de asientos se lee del plan (no de la columna suelta companies.max_users).
+    # None (cuenta interna) = sin límite.
+    max_users = get_limit(effective_plan(company), 'max_users')
 
     # Límite de asientos: usuarios activos + invitaciones pendientes
     active_users = db.count_active_users(company_id)
     pending_invites = len(db.list_invitations_by_company(company_id))
-    if active_users + pending_invites >= max_users:
+    if max_users is not None and active_users + pending_invites >= max_users:
         flash(
             f"Límite de usuarios alcanzado ({max_users}). "
             "Actualiza tu plan o libera un asiento.",

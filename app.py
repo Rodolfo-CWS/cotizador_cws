@@ -890,7 +890,7 @@ from cotizador.middleware import login_required, plan_required
 from cotizador.plans import (
     FEATURE_SIMPLE_PDF, FEATURE_FAST_QUOTE, FEATURE_FULL_FORM, FEATURE_DESGLOSE,
     PLAN_STARTER, get_limit, has_feature, effective_plan,
-    FASTQUOTE_PACK_ESTIMATES,
+    FASTQUOTE_PACK_ESTIMATES, STARTER_HISTORY_LIMIT,
 )
 
 @app.route("/login")
@@ -1275,8 +1275,8 @@ def home():
                 f = str(r.get('fecha') or '').strip()
                 return f if f and f != 'N/A' else '0000-00-00'
             cotizaciones = sorted(cotizaciones, key=_fecha_key, reverse=True)
-            history_limited = len(cotizaciones) > 5
-            cotizaciones = cotizaciones[:5]
+            history_limited = len(cotizaciones) > STARTER_HISTORY_LIMIT
+            cotizaciones = cotizaciones[:STARTER_HISTORY_LIMIT]
 
         # APLICAR PAGINACIÓN
         total_cotizaciones = len(cotizaciones)
@@ -2343,7 +2343,7 @@ def buscar():
                 f = str(r.get('fecha') or '').strip()
                 return f if f and f != 'N/A' else '0000-00-00'
             resultados.sort(key=_fecha_key, reverse=True)
-            history_limit = 5
+            history_limit = STARTER_HISTORY_LIMIT
             history_limited = len(resultados) > history_limit
             resultados = resultados[:history_limit]
 
@@ -4023,7 +4023,7 @@ def cotizacion_pdf():
     if not numero_existente:
         max_pdfs = get_limit(plan, "max_pdfs")
         if max_pdfs is not None:
-            usados = db_manager.contar_cotizaciones_company(company_id)
+            usados = db_manager.contar_pdfs_mes(company_id)
             if usados >= max_pdfs:
                 return jsonify({
                     "success": False,
@@ -4102,6 +4102,10 @@ def cotizacion_pdf():
         }), status
 
     numero_final = resultado.get("numeroCotizacion") or numero
+
+    # Registrar uso del mes para la cuota de PDFs (solo cotizaciones nuevas).
+    if not numero_existente:
+        db_manager.registrar_pdf_simple(company_id)
 
     # ── Generar y almacenar el PDF (mismo generador del PDF original) ──
     try:

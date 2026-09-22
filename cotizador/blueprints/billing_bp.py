@@ -31,21 +31,13 @@ from cotizador.plans import (
     PLAN_NAMES, PLAN_PRICES, PLAN_FEATURES, PLAN_LIMITS, VALID_PLANS,
     effective_plan, get_limit,
     FASTQUOTE_PACK_PRICE, FASTQUOTE_PACK_ESTIMATES,
+    FEATURE_LABELS,
 )
 
 logger = logging.getLogger(__name__)
 
 billing_bp = Blueprint('billing', __name__, url_prefix='/billing')
 stripe_webhook_bp = Blueprint('stripe_webhook', __name__)
-
-
-FEATURE_LABELS = {
-    'simple_pdf': 'Formulario simple → PDF',
-    'fast_quote': 'Fast Quote (estimación con IA)',
-    'full_form': 'Formulario completo con desglose de materiales',
-    'desglose': 'Vista de desglose',
-    'storage': 'Historial de cotizaciones',
-}
 
 
 def _get_db():

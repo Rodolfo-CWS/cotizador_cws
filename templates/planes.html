@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planes y precios - Sifra</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        :root { --primary: #4f46e5; }
+        body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #fafaf9; color: #1e293b; }
+        .wrap { max-width: 1040px; margin: 0 auto; padding: 32px 20px 64px; }
+        .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 36px; }
+        .top .brand { display: flex; align-items: center; gap: 12px; }
+        .top .brand img { height: 32px; }
+        .top .brand span { font-size: 18px; font-weight: 700; color: var(--primary); }
+        .top .actions a { margin-left: 16px; font-size: 14px; font-weight: 600; color: var(--primary); text-decoration: none; }
+        .top .actions a.ghost { color: #78716c; }
+        h1 { font-size: 30px; margin: 0 0 8px; }
+        .subtitle { color: #78716c; font-size: 15px; max-width: 640px; margin: 0 0 28px; line-height: 1.5; }
+        .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        @media (max-width: 820px) { .plans { grid-template-columns: 1fr; } }
+        .card { background: white; border: 1.5px solid #e7e5e4; border-radius: 14px; padding: 26px 24px; display: flex; flex-direction: column; }
+        .card.featured { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,70,229,0.08); }
+        .card h2 { margin: 0 0 4px; font-size: 19px; }
+        .price { font-size: 32px; font-weight: 800; margin: 10px 0 2px; }
+        .price small { font-size: 14px; font-weight: 500; color: #78716c; }
+        .card ul { list-style: none; padding: 0; margin: 18px 0; flex: 1; }
+        .card ul li { padding: 6px 0; font-size: 14px; color: #44403c; }
+        .card ul li::before { content: "✓ "; color: var(--primary); font-weight: 700; }
+        .card ul li.sub { color: #78716c; }
+        .card ul li.sub::before { content: "· "; color: #a8a29e; font-weight: 700; }
+        .btn { display: block; text-align: center; padding: 12px 14px; border-radius: 9px; font-size: 14px; font-weight: 600; text-decoration: none; }
+        .btn.primary { background: var(--primary); color: white; }
+        .btn.primary:hover { background: #4338ca; }
+        .btn.outline { background: white; color: var(--primary); border: 1.5px solid var(--primary); }
+        .note { text-align: center; font-size: 12px; color: #78716c; margin-top: 12px; }
+        .pack { margin-top: 22px; background: white; border: 1.5px solid #e7e5e4; border-radius: 14px; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+        .pack h3 { margin: 0 0 4px; font-size: 16px; }
+        .pack p { margin: 0; font-size: 13px; color: #78716c; }
+        .custom { margin-top: 22px; text-align: center; font-size: 14px; color: #57534e; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="top">
+            <div class="brand">
+                <img src="/static/logo.png" alt="Sifra">
+                <span>Sifra</span>
+            </div>
+            <div class="actions">
+                <a href="/auth/login" class="ghost">Iniciar sesión</a>
+                <a href="/auth/register">Crear cuenta gratis</a>
+            </div>
+        </div>
+
+        <h1>Planes y precios</h1>
+        <p class="subtitle">Crea cotizaciones profesionales con PDF de marca y estimaciones con IA. Todos los planes incluyen texto introductorio redactado con IA. Los planes de pago incluyen 14 días de prueba.</p>
+
+        <div class="plans">
+            {% for plan in catalog %}
+            <div class="card {% if plan.id == 'pro' %}featured{% endif %}">
+                <h2>{{ plan.name }}</h2>
+                <div class="price">
+                    {% if plan.price == 0 %}Gratis{% else %}${{ plan.price }} <small>{{ plan.currency }}/mes</small>{% endif %}
+                </div>
+                <ul>
+                    {% for f in plan.features %}
+                    <li>{{ feature_labels.get(f, f) }}</li>
+                    {% endfor %}
+                    {% if plan.limits.get('max_pdfs') %}
+                    <li class="sub">Hasta {{ plan.limits.get('max_pdfs') }} PDFs simples / mes</li>
+                    {% elif plan.id != 'starter' %}
+                    <li class="sub">PDFs simples ilimitados</li>
+                    {% endif %}
+                    {% if plan.limits.get('max_estimates') %}
+                    <li class="sub">{{ plan.limits.get('max_estimates') }} Fast Quote / mes</li>
+                    {% endif %}
+                    {% if plan.limits.get('max_users') %}
+                    <li class="sub">Hasta {{ plan.limits.get('max_users') }} usuario{% if plan.limits.get('max_users') != 1 %}s{% endif %}</li>
+                    {% endif %}
+                </ul>
+                <a href="/auth/register" class="btn primary">Crear cuenta gratis</a>
+                {% if plan.price and plan.price > 0 %}
+                <p class="note">Incluye 14 días de prueba</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="pack">
+            <div>
+                <h3>⚡ Paquete Fast Quote extra</h3>
+                <p>Suma {{ pack_estimates }} estimaciones de IA al mes por ${{ pack_price }} MXN (pago único). Solo disponible en Pro y Business.</p>
+            </div>
+            <a href="/auth/register" class="btn outline">Empezar gratis</a>
+        </div>
+
+        <p class="custom">¿Necesitas más de 20 usuarios? Contáctanos para armar un plan a tu medida.</p>
+    </div>
+</body>
+</html>

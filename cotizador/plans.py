@@ -39,12 +39,24 @@ FEATURE_FAST_QUOTE = 'fast_quote'  # Estimación con IA
 FEATURE_FULL_FORM = 'full_form'    # Formulario completo con desglose de materiales
 FEATURE_DESGLOSE = 'desglose'      # Vista de desglose
 FEATURE_STORAGE = 'storage'        # Storage de PDFs/cotizaciones
+FEATURE_TEXT_IA = 'text_ia'        # Texto introductorio con IA (teaser universal)
+
+# Labels legibles de features (UI: billing y página pública /planes).
+FEATURE_LABELS = {
+    FEATURE_SIMPLE_PDF: 'Formulario simple → PDF',
+    FEATURE_FAST_QUOTE: 'Fast Quote (estimación con IA)',
+    FEATURE_FULL_FORM: 'Formulario completo con desglose de materiales',
+    FEATURE_DESGLOSE: 'Vista de desglose',
+    FEATURE_STORAGE: 'Historial de cotizaciones',
+    FEATURE_TEXT_IA: 'Texto introductorio con IA',
+}
 
 # ── Matriz plan → features ──
 PLAN_FEATURES = {
     PLAN_STARTER: {
         FEATURE_SIMPLE_PDF,
         FEATURE_STORAGE,
+        FEATURE_TEXT_IA,
     },
     PLAN_PRO: {
         FEATURE_SIMPLE_PDF,
@@ -52,6 +64,7 @@ PLAN_FEATURES = {
         FEATURE_FULL_FORM,
         FEATURE_DESGLOSE,
         FEATURE_STORAGE,
+        FEATURE_TEXT_IA,
     },
     PLAN_BUSINESS: {
         FEATURE_SIMPLE_PDF,
@@ -59,6 +72,7 @@ PLAN_FEATURES = {
         FEATURE_FULL_FORM,
         FEATURE_DESGLOSE,
         FEATURE_STORAGE,
+        FEATURE_TEXT_IA,
     },
     PLAN_INTERNAL: {
         FEATURE_SIMPLE_PDF,
@@ -66,22 +80,24 @@ PLAN_FEATURES = {
         FEATURE_FULL_FORM,
         FEATURE_DESGLOSE,
         FEATURE_STORAGE,
+        FEATURE_TEXT_IA,
     },
 }
 
 # ── Límites por plan. None = sin límite. ──
 PLAN_LIMITS = {
     PLAN_STARTER: {
-        'max_pdfs': 5,
+        'max_pdfs': 10,
+        'max_users': 1,
     },
     # Cuota mensual de estimaciones Fast Quote (tabla fast_quote_usage).
     PLAN_PRO: {
-        'max_estimates': 30,
-        'max_users': 10,
+        'max_estimates': 20,
+        'max_users': 5,
     },
     PLAN_BUSINESS: {
-        'max_estimates': 150,
-        'max_users': 50,
+        'max_estimates': 100,
+        'max_users': 20,
     },
     PLAN_INTERNAL: {},   # sin límites
 }
@@ -119,6 +135,10 @@ PLAN_PRICES = {
 # Precio del paquete Fast Quote extra (100 estimaciones).
 FASTQUOTE_PACK_PRICE = 199
 FASTQUOTE_PACK_ESTIMATES = 100
+
+# Cotizaciones visibles en el historial del plan Starter (lock-in: el resto
+# permanece en BD y se desbloquea al subir a Pro).
+STARTER_HISTORY_LIMIT = 10
 
 
 def _normalize_plan(plan):
