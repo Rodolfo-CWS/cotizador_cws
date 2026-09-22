@@ -156,6 +156,62 @@
         .item-input[readonly] { background: #f3f4f6; color: #6b7280; }
         .item-input.input-total { font-weight: 600; }
 
+        /* Tabla de materiales / otros materiales */
+        .materiales-container,
+        .otros-materiales-container {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            background: #ffffff;
+            overflow: hidden;
+        }
+        .materiales-container > .material-row,
+        .otros-materiales-container > .otro-material-row {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .materiales-container > .material-row:last-child,
+        .otros-materiales-container > .otro-material-row:last-child {
+            border-bottom: none;
+        }
+        .tabla-head {
+            display: none;
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            gap: 0.75rem;
+            background: #f3f4f6;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 8px 12px;
+        }
+        .tabla-head .th-col {
+            font-size: .66rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #6b7280;
+            white-space: nowrap;
+        }
+        .tabla-head .head-c1 { grid-column: span 1 / span 1; }
+        .tabla-head .head-c2 { grid-column: span 2 / span 2; }
+        .tabla-head .head-c3 { grid-column: span 3 / span 3; }
+        .tabla-head .head-c5 { grid-column: span 5 / span 5; }
+        .tabla-head .head-fields {
+            grid-column: span 8 / span 8;
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+        @media (min-width: 768px) {
+            .tabla-head { display: grid; }
+            .materiales-container .material-row .item-label,
+            .otros-materiales-container .otro-material-row .item-label {
+                display: none;
+            }
+            /* En modo "cotizar por peso" las etiquetas se mantienen porque no
+               corresponden a las columnas del encabezado */
+            .materiales-container .material-campos-peso .item-label {
+                display: block;
+            }
+        }
+
         details[open] summary ~ * { animation: slideDown 0.3s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -2330,6 +2386,20 @@ function cargarDatosFastQuote() {
                 // Limpiar fila vacía por defecto
                 materialesContainer.innerHTML = '';
 
+                // Re-agregar el encabezado de la tabla
+                var headHtml = '<div class="tabla-head">' +
+                    '<div class="th-col head-c3">Material</div>' +
+                    '<div class="head-fields">' +
+                        '<div class="th-col">Peso/Kg</div>' +
+                        '<div class="th-col">Cantidad</div>' +
+                        '<div class="th-col">Unidad</div>' +
+                        '<div class="th-col">$/Kg</div>' +
+                        '<div class="th-col">Subtotal</div>' +
+                    '</div>' +
+                    '<div class="head-c1"></div>' +
+                '</div>';
+                materialesContainer.insertAdjacentHTML('beforeend', headHtml);
+
                 materialesItems.forEach(function(row, idx) {
                     // Usar agregarFila para crear la fila con selects correctos
                     // Le pasamos el botón (que ya no está en el DOM, pero la función usa closest)
@@ -2350,7 +2420,7 @@ function cargarDatosFastQuote() {
                         });
                     }
 
-                    var html = '<div class="material-row grid grid-cols-12 gap-3 items-end" style="margin-top:8px;">' +
+                    var html = '<div class="material-row grid grid-cols-12 gap-3 items-end">' +
                         '<div class="col-span-12 md:col-span-3">' +
                             '<label class="item-label">Material</label>' +
                             '<select class="material-select item-input">' + opciones + '</select>' +
@@ -2411,6 +2481,16 @@ function cargarDatosFastQuote() {
             if (otrosContainer) {
                 // Limpiar la fila vacía por defecto
                 otrosContainer.innerHTML = '';
+
+                // Re-agregar el encabezado de la tabla
+                var headOtrosHtml = '<div class="tabla-head">' +
+                    '<div class="th-col head-c5">Descripción</div>' +
+                    '<div class="th-col head-c2">Precio ($)</div>' +
+                    '<div class="th-col head-c2">Cantidad</div>' +
+                    '<div class="th-col head-c2">Subtotal</div>' +
+                    '<div class="head-c1"></div>' +
+                '</div>';
+                otrosContainer.insertAdjacentHTML('beforeend', headOtrosHtml);
 
                 otrosItems.forEach(function(row, idx) {
                     var concepto = (row.concepto || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -3444,7 +3524,18 @@ function crearTemplateItem(numero) {
                 <div class="item-subsection-header">
                     <span class="item-subsection-title">🔧 Materiales</span>
                 </div>
-                <div class="materiales-container space-y-2">
+                <div class="materiales-container">
+                    <div class="tabla-head">
+                        <div class="th-col head-c3">Material</div>
+                        <div class="head-fields">
+                            <div class="th-col">Peso/Kg</div>
+                            <div class="th-col">Cantidad</div>
+                            <div class="th-col">Unidad</div>
+                            <div class="th-col">$/Kg</div>
+                            <div class="th-col">Subtotal</div>
+                        </div>
+                        <div class="head-c1"></div>
+                    </div>
                     <div class="material-row grid grid-cols-12 gap-3 items-end">
                         <div class="col-span-12 md:col-span-3">
                             <label class="item-label">Material</label>
@@ -3525,7 +3616,14 @@ function crearTemplateItem(numero) {
                 <div class="item-subsection-header">
                     <span class="item-subsection-title">Otros Materiales</span>
                 </div>
-                <div class="otros-materiales-container space-y-2">
+                <div class="otros-materiales-container">
+                    <div class="tabla-head">
+                        <div class="th-col head-c5">Descripción</div>
+                        <div class="th-col head-c2">Precio ($)</div>
+                        <div class="th-col head-c2">Cantidad</div>
+                        <div class="th-col head-c2">Subtotal</div>
+                        <div class="head-c1"></div>
+                    </div>
                     <div class="otro-material-row grid grid-cols-12 gap-3 items-end">
                         <div class="col-span-12 md:col-span-5">
                             <label class="item-label">Descripción</label>
