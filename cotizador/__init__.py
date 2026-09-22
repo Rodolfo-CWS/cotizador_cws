@@ -260,6 +260,9 @@ def create_app():
     app.register_blueprint(billing_bp)
     app.register_blueprint(stripe_webhook_bp)
 
+    from cotizador.blueprints.plans_bp import plans_bp
+    app.register_blueprint(plans_bp)
+
     # ── Inicializar middleware multi-tenant ──
     from cotizador.middleware import init_middleware
     init_middleware(app, db_manager)
