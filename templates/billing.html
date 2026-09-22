@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Suscripción - {{ company.name if company else 'Sifra' }}{% endblock %}
+
+{% block content %}
+<style>
+    .billing-wrap { max-width: 1080px; margin: 24px auto; padding: 0 20px; }
+    .billing-header { margin-bottom: 24px; }
+    .billing-header h1 { font-size: 24px; margin: 0 0 6px; color: #1e293b; }
+    .billing-header .subtitle { color: #78716c; font-size: 14px; }
+
+    .status-banner {
+        background: #eef2ff; border: 1px solid #c7d2fe; color: #3730a3;
+        padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;
+    }
+    .status-banner.internal { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+    .status-banner.alert { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
+    .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    @media (max-width: 860px) { .plans { grid-template-columns: 1fr; } }
+
+    .plan-card {
+        background: white; border: 1.5px solid #e7e5e4; border-radius: 12px;
+        padding: 24px; display: flex; flex-direction: column; position: relative;
+    }
+    .plan-card.current { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.08); }
+    .plan-card .badge-current {
+        position: absolute; top: -11px; right: 16px; background: #4f46e5; color: white;
+        font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+    }
+    .plan-card h2 { margin: 0 0 4px; font-size: 18px; color: #1e293b; }
+    .plan-card .price { font-size: 30px; font-weight: 700; color: #1e293b; margin: 8px 0 2px; }
+    .plan-card .price small { font-size: 13px; font-weight: 500; color: #78716c; }
+    .plan-card ul { list-style: none; padding: 0; margin: 16px 0; flex: 1; }
+    .plan-card ul li { padding: 5px 0; font-size: 14px; color: #44403c; }
+    .plan-card ul li::before { content: "✓ "; color: #4f46e5; font-weight: 700; }
+    .plan-card ul li.limit::before { content: "· "; color: #78716c; }
+
+    .btn { display: inline-block; width: 100%; text-align: center; padding: 11px 14px;
+        border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+        border: none; text-decoration: none; box-sizing: border-box; }
+    .btn-primary { background: #4f46e5; color: white; }
+    .btn-primary:hover { background: #4338ca; }
+    .btn-outline { background: white; color: #4f46e5; border: 1.5px solid #4f46e5; }
+    .btn-outline:hover { background: #eef2ff; }
+    .btn-row { display: flex; gap: 8px; }
+    .btn-row .btn { width: auto; flex: 1; }
+
+    .pack-card { margin-top: 20px; background: white; border: 1.5px solid #e7e5e4;
+        border-radius: 12px; padding: 20px 24px; display: flex; align-items: center;
+        justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .pack-card .info h3 { margin: 0 0 4px; font-size: 15px; color: #1e293b; }
+    .pack-card .info p { margin: 0; font-size: 13px; color: #78716c; }
+    .muted { color: #78716c; font-size: 13px; }
+    .trial-note { margin-top: 16px; font-size: 13px; color: #78716c; text-align: center; }
+</style>
+
+<div class="billing-wrap">
+    <div class="billing-header">
+        <h1>Tu plan</h1>
+        <p class="subtitle">Plan actual: <strong>{{ plan_names.get(current_plan, current_plan) }}</strong></p>
+    </div>
+
+    {% if is_internal %}
+    <div class="status-banner internal">
+        ✅ <strong>Acceso interno completo (sin cobro).</strong> Esta cuenta del desarrollador tiene todas las features y sin límites.
+    </div>
+    {% elif subscription_status in ['active', 'trialing', 'past_due'] %}
+    <div class="status-banner">
+        Suscripción <strong>{{ subscription_status }}</strong>.
+        {% if trial_ends_at %}Prueba activa hasta {{ trial_ends_at | timestamp_to_date }}.{% endif %}
+        {% if current_period_end %}Renovación: {{ current_period_end | timestamp_to_date }}.{% endif %}
+    </div>
+    {% else %}
+    <div class="status-banner alert">
+        Estás en el plan gratuito. Prueba Pro <strong>14 días gratis</strong> y cancela cuando quieras.
+    </div>
+    {% endif %}
+
+    {% if not stripe_enabled %}
+    <div class="status-banner alert">
+        ⚠️ El cobro no está configurado en este entorno (faltan claves de Stripe). Contacta a Sifra para activar los pagos.
+    </div>
+    {% endif %}
+
+    <div class="plans">
+        {% for plan in catalog %}
+        <div class="plan-card {% if plan.id == current_plan %}current{% endif %}">
+            {% if plan.id == current_plan %}<span class="badge-current">Actual</span>{% endif %}
+            <h2>{{ plan.name }}</h2>
+            <div class="price">
+                {% if plan.price == 0 %}Gratis{% else %}${{ plan.price }} <small>{{ plan.currency }}/mes</small>{% endif %}
+            </div>
+            <ul>
+                {% for f in plan.features %}
+                <li>{{ feature_labels.get(f, f) }}</li>
+                {% endfor %}
+                {% if plan.limits.get('max_pdfs') %}<li class="limit">Hasta {{ plan.limits.get('max_pdfs') }} PDFs</li>{% endif %}
+                {% if plan.limits.get('max_estimates') %}<li class="limit">{{ plan.limits.get('max_estimates') }} Fast Quote / mes</li>{% endif %}
+                {% if plan.limits.get('max_users') %}<li class="limit">Hasta {{ plan.limits.get('max_users') }} usuarios</li>{% endif %}
+            </ul>
+
+            {% if plan.id == 'starter' %}
+                {% if current_plan != 'starter' and not is_internal %}
+                <form method="POST" action="/billing/portal">
+                    <button type="submit" class="btn btn-outline">Gestionar suscripción</button>
+                </form>
+                {% endif %}
+            {% elif plan.price and not is_internal %}
+                {% if current_plan == plan.id %}
+                <form method="POST" action="/billing/portal">
+                    <button type="submit" class="btn btn-outline">Gestionar suscripción</button>
+                </form>
+                {% else %}
+                <div class="btn-row">
+                    <form method="POST" action="/billing/checkout" style="flex:1; display:flex;">
+                        <input type="hidden" name="plan" value="{{ plan.id }}">
+                        <input type="hidden" name="interval" value="month">
+                        <button type="submit" class="btn btn-primary">Probar / Suscribirme</button>
+                    </form>
+                    {% if annual_enabled %}
+                    <form method="POST" action="/billing/checkout" style="flex:1; display:flex;">
+                        <input type="hidden" name="plan" value="{{ plan.id }}">
+                        <input type="hidden" name="interval" value="year">
+                        <button type="submit" class="btn btn-outline">Anual</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not is_internal and pack_enabled %}
+    <div class="pack-card">
+        <div class="info">
+            <h3>⚡ Paquete Fast Quote extra</h3>
+            <p>{{ fastquote_pack_estimates }} estimaciones adicionales por ${{ fastquote_pack_price }} {{ 'MXN' }}</p>
+        </div>
+        <form method="POST" action="/billing/checkout/fastquote-pack">
+            <button type="submit" class="btn btn-primary" style="width:auto;">Comprar paquete</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <p class="trial-note">Todos los planes de pago incluyen una prueba gratuita de 14 días. Los precios no incluyen impuestos.</p>
+</div>
+{% endblock %}

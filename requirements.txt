@@ -48,6 +48,9 @@ google-auth==2.48.0
 # Se verifica que model/max_tokens/system/messages sí existen en esta versión.
 anthropic==1.3.0
 
+# Stripe (cobro de suscripciones SaaS)
+stripe>=9.0.0
+
 # Cloudinary eliminado - migrado a Supabase Storage
 
 # Scheduler para sincronización automática

@@ -319,9 +319,7 @@
             ⚡ {{ company.name if company else 'Sifra' }} <span>Fast Quote</span>
         </div>
         <div style="display:flex; align-items:center; gap:16px;">
-            {% if company_plan != 'fast_quote' %}
             <a href="/">← Inicio</a>
-            {% endif %}
             <a href="/auth/logout" style="color:#dc2626;">Cerrar sesión</a>
         </div>
     </div>
@@ -347,11 +345,9 @@
                 <div class="spinner"></div>
             </button>
 
-            {% if company_plan != 'fast_quote' %}
             <div style="text-align: center; margin-top: 12px;">
                 <a href="/" style="color: #78716c; font-size: 14px; text-decoration: none;">🏠 Volver al Inicio</a>
             </div>
-            {% endif %}
 
             <div id="errorBox" class="error-box"></div>
         </div>
@@ -450,9 +446,7 @@
                 </div>
 
                 <div class="btn-row">
-                    {% if company_plan != 'fast_quote' %}
                     <a href="/" class="btn btn-outline">🏠 Inicio</a>
-                    {% endif %}
                     {% if plan_has_feature(company_plan, 'full_form') %}
                     <a href="/formulario" class="btn btn-primary" onclick="precargarCotizacionFormal(event)">📄 Ir a Cotización Formal</a>
                     {% endif %}
@@ -547,7 +541,11 @@
                 const data = await response.json();
 
                 if (!data.success) {
-                    showError(data.error || 'Error al generar la estimación. Intenta de nuevo.');
+                    if (data.plan_limit) {
+                        showUpgrade(data.error || 'Alcanzaste el límite de tu plan.');
+                    } else {
+                        showError(data.error || 'Error al generar la estimación. Intenta de nuevo.');
+                    }
                     return;
                 }
 
@@ -616,6 +614,12 @@
             errorBox.textContent = msg;
             errorBox.style.display = 'block';
             errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function showUpgrade(msg) {
+            const modal = document.getElementById('upgradeModal');
+            document.getElementById('upgradeMsg').textContent = msg || '';
+            modal.style.display = 'flex';
         }
 
         function renderResults(data) {
@@ -831,5 +835,15 @@
         // Calculadora flotante global (botón fijo + popup)
         initFloatingCalculator();
     </script>
+
+    <div id="upgradeModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.55); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:12px; padding:28px; max-width:420px; width:90%; text-align:center; box-shadow:0 20px 50px rgba(0,0,0,0.3);">
+            <div style="font-size:40px; margin-bottom:8px;">🔒</div>
+            <h3 style="margin:0 0 8px; color:#1e293b;">Llegaste al límite de tu plan</h3>
+            <p id="upgradeMsg" style="color:#78716c; font-size:14px; margin:0 0 20px;"></p>
+            <a href="/billing" style="display:inline-block; background:#4f46e5; color:white; padding:11px 22px; border-radius:8px; text-decoration:none; font-weight:600;">Mejorar plan</a>
+            <button onclick="document.getElementById('upgradeModal').style.display='none';" style="display:block; width:100%; margin-top:12px; background:none; border:none; color:#78716c; cursor:pointer; font-size:13px;">Cerrar</button>
+        </div>
+    </div>
 </body>
 </html>

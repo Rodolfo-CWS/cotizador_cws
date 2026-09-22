@@ -24,7 +24,6 @@ from urllib.parse import urlparse, urljoin
 import os
 import logging
 
-from cotizador.plans import is_valid_plan
 
 logger = logging.getLogger(__name__)
 
@@ -195,9 +194,10 @@ def register():
         full_name = request.form.get('full_name', '').strip()
         company_name = request.form.get('company_name', '').strip()
         company_slug = request.form.get('company_slug', '').strip().lower()
-        plan = request.form.get('plan', 'full').strip()
-        if not is_valid_plan(plan):
-            plan = 'full'
+        # Registro = freemium. Toda cuenta nueva arranca en Starter; el upgrade
+        # es post-login vía /billing (Stripe). Se ignora cualquier plan del form
+        # para evitar que un POST forjado asigne un plan de pago.
+        plan = 'starter'
 
         # Validaciones
         if not all([email, password, full_name, company_name, company_slug]):
@@ -404,7 +404,7 @@ def _resolve_pending_invitation(user):
         return None
 
 
-def _create_company(supabase_client: Client, name: str, slug: str, plan: str = 'full') -> dict:
+def _create_company(supabase_client: Client, name: str, slug: str, plan: str = 'starter') -> dict:
     """Crea una nueva compañía usando el cliente admin (bypass RLS)."""
     response = supabase_client.table('companies').insert({
         "name": name,

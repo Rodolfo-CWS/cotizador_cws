@@ -12,7 +12,7 @@ import os
 from flask import g, session, redirect, url_for, request, flash
 from functools import wraps
 
-from cotizador.plans import has_feature, PLAN_FULL
+from cotizador.plans import has_feature, effective_plan
 
 
 def init_middleware(app, supabase_manager):
@@ -35,6 +35,7 @@ def init_middleware(app, supabase_manager):
             '/auth/callback',
             '/health',
             '/static/',
+            '/stripe/webhook',
         ]
 
         # Saltar middleware para rutas públicas
@@ -122,11 +123,13 @@ def init_middleware(app, supabase_manager):
     @app.context_processor
     def inject_company_context():
         """Inyectar compañía, usuario y plan en todos los templates."""
+        company = g.get('company')
         return {
-            'company': g.get('company'),
+            'company': company,
             'user': g.get('user'),
-            'company_plan': (g.get('company') or {}).get('plan', PLAN_FULL),
+            'company_plan': effective_plan(company),
             'plan_has_feature': has_feature,
+            'is_internal': bool((company or {}).get('is_internal')),
             'is_superadmin': is_superadmin(),
         }
 
@@ -159,7 +162,10 @@ def _load_company_from_db(supabase_manager, company_id):
             cursor.execute(
                 """SELECT id, name, slug, tax_id, address, phone, email,
                    logo_url, primary_color, secondary_color, footer_text,
-                   iva_rate, is_active, plan, codigo, legacy_drive_import
+                   iva_rate, is_active, plan, codigo, legacy_drive_import,
+                   is_internal, stripe_customer_id, stripe_subscription_id,
+                   subscription_status, trial_ends_at, current_period_end,
+                   fast_quote_pack_count
                 FROM public.companies WHERE id = %s AND is_active = true""",
                 (company_id,)
             )
@@ -261,11 +267,11 @@ def plan_required(*features):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            plan = (g.get('company') or {}).get('plan', PLAN_FULL)
+            plan = effective_plan(g.get('company'))
             if not all(has_feature(plan, feature) for feature in features):
                 flash(
                     "Tu plan no incluye esta función. "
-                    "Actualiza tu plan o contacta a soporte.",
+                    "Actualiza tu plan desde la página de suscripción.",
                     "error"
                 )
                 return redirect(url_for('home'))

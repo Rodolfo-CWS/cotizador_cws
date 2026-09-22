@@ -30,6 +30,7 @@
             <span style="font-size: 13px; color: #78716c;">{{ user.name }}</span>
             {% if user.role == 'admin' %}
             <a href="/admin/company/profile" style="font-size: 13px; color: var(--primary); text-decoration: none;">Admin</a>
+            <a href="/billing" style="font-size: 13px; color: var(--primary); text-decoration: none;">Suscripción</a>
             {% endif %}
             {% if is_superadmin %}
             <a href="/admin/" style="font-size: 13px; color: var(--primary); text-decoration: none;">Plataforma</a>

@@ -17,6 +17,7 @@ from flask import (
 from cotizador.middleware import login_required, superadmin_required
 from cotizador.plans import (
     PLAN_NAMES, PLAN_PRICES, PLAN_LIMITS, VALID_PLANS, get_limit, is_valid_plan,
+    effective_plan, _normalize_plan,
 )
 
 platform_admin_bp = Blueprint('platform_admin', __name__, url_prefix='/admin')
@@ -86,7 +87,7 @@ def dashboard():
         for c in companies:
             if c.get('is_active'):
                 summary['activas'] += 1
-            plan = c.get('plan', 'full')
+            plan = effective_plan(c)
             summary['por_plan'][plan] = summary['por_plan'].get(plan, 0) + 1
     except Exception as e:
         companies = []
@@ -147,7 +148,7 @@ def company_detail(company_id):
     except Exception:
         usage = {}
 
-    plan = company.get('plan', 'full')
+    plan = effective_plan(company)
     limits = PLAN_LIMITS.get(plan, {})
     price = PLAN_PRICES.get(plan, {})
 
@@ -175,6 +176,8 @@ def company_change_plan(company_id):
         flash("Plan inválido", "error")
         return redirect(url_for('platform_admin.company_detail', company_id=company_id))
 
+    # Normalizar a canonical (legacy 'pdf'/'fast_quote'/'full' → nuevo tier).
+    plan = _normalize_plan(plan)
     result = db.update_company(company_id, {'plan': plan})
     if result:
         flash(f"Plan actualizado a {PLAN_NAMES.get(plan, plan)}", "success")

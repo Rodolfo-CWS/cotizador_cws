@@ -726,6 +726,26 @@ GOOGLE_DRIVE_FOLDER_NUEVAS=1h4DF0bdInRU5GUh9n7g8aXgZA4Kyt2Nf
 GOOGLE_DRIVE_FOLDER_ANTIGUAS=1GqM9yfwUKd9n8nN97IUiBSUrWUZ1Vida
 ```
 
+### Stripe (Billing) — Suscripciones SaaS
+```env
+# Claves de Stripe (modo test en dev, live en prod)
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Price IDs (creados en el dashboard de Stripe)
+STRIPE_PRICE_PRO=price_...
+STRIPE_PRICE_BUSINESS=price_...
+STRIPE_PRICE_PRO_ANNUAL=price_...        # opcional (frecuencia anual)
+STRIPE_PRICE_BUSINESS_ANNUAL=price_...   # opcional (frecuencia anual)
+STRIPE_PRICE_FASTQUOTE_PACK=price_...    # paquete Fast Quote extra (one-time)
+
+# Trial de suscripciones (días)
+STRIPE_TRIAL_DAYS=14
+```
+
+Los precios de referencia están en `cotizador/plans.py` (`PLAN_PRICES`): Starter $0, Pro $499, Business $999 MXN/mes + paquete Fast Quote $199. Los `STRIPE_PRICE_*` son los Price IDs reales de Stripe; las migraciones `migrations/v7`…`v9` se aplican en Supabase al momento del merge.
+
 ### ✅ SUPABASE UNIFIED SYSTEM BENEFITS (August 25, 2025)
 - **Database**: Supabase PostgreSQL + JSON fallback = Enterprise-grade database + Zero downtime
 - **PDF Storage**: Supabase Storage + Google Drive fallback = Integrated ecosystem + Reliability
