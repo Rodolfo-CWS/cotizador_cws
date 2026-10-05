@@ -1,0 +1,59 @@
+{% extends "admin/platform/_platform.html" %}
+{% block title %}Logs y performance - Plataforma Sifra{% endblock %}
+{% block content %}
+
+<div class="card">
+    <h1>Performance del SaaS</h1>
+    <p class="subtitle">Salud de la infraestructura en tiempo real</p>
+
+    <div class="stat-grid">
+        <div class="stat">
+            <div class="label">Base de datos</div>
+            <div class="value {{ 'ok' if health and health.get('online') else 'err' }}">
+                {{ 'Online' if health and health.get('online') else 'Offline' }}
+            </div>
+            <div class="muted">{{ health.get('estado_actual', '—') if health else '—' }}</div>
+        </div>
+        <div class="stat">
+            <div class="label">Storage</div>
+            <div class="value">{{ storage_stats.get('total_pdfs', '—') }}</div>
+            <div class="muted">bucket: {{ storage_stats.get('bucket_name', '—') }}</div>
+        </div>
+        <div class="stat">
+            <div class="label">Scheduler</div>
+            <div class="value {{ 'ok' if scheduler_state.get('activo') else 'warn' }}">
+                {{ 'Activo' if scheduler_state.get('activo') else 'Inactivo' }}
+            </div>
+            <div class="muted">{{ scheduler_state.get('intervalo_minutos', '—') }} min</div>
+        </div>
+        <div class="stat">
+            <div class="label">Keepalive</div>
+            <div class="value {{ 'ok' if keepalive.get('is_running') else 'warn' }}">
+                {{ 'Activo' if keepalive.get('is_running') else 'Inactivo' }}
+            </div>
+            <div class="muted">{{ keepalive.get('total_pings', '—') }} pings</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h1>Fallos críticos</h1>
+    <p class="subtitle">Últimas líneas de <code>logs/cotizador_fallos_criticos.log</code></p>
+    {% if log_fallos %}
+    <div class="log-box">{{ log_fallos }}</div>
+    {% else %}
+    <p class="log-empty">Sin logs disponibles (archivo no encontrado o vacío).</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h1>Fallos silenciosos detectados</h1>
+    <p class="subtitle">Últimas líneas de <code>logs/fallos_silenciosos_detectados.log</code></p>
+    {% if log_silenciosos %}
+    <div class="log-box">{{ log_silenciosos }}</div>
+    {% else %}
+    <p class="log-empty">Sin logs disponibles (archivo no encontrado o vacío).</p>
+    {% endif %}
+</div>
+
+{% endblock %}

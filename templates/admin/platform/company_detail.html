@@ -12,9 +12,46 @@
         <div class="k">Plan</div><div>{{ plan_names.get(plan, plan) }}</div>
         <div class="k">Estado</div>
         <div>{% if company.get('is_active') %}<span class="badge badge-active">Activa</span>{% else %}<span class="badge badge-inactive">Inactiva</span>{% endif %}</div>
+        <div class="k">Email de contacto</div>
+        <div>{% if company.get('email') %}<a href="mailto:{{ company.get('email') }}">{{ company.get('email') }}</a>{% else %}<span class="muted">—</span>{% endif %}</div>
+        <div class="k">Suscripción</div>
+        <div>{% if company.get('is_internal') %}<span class="muted">Interna (sin cobro)</span>{% else %}{{ company.get('subscription_status') or 'ninguna' }}{% endif %}</div>
+        <div class="k">MRR estimado</div>
+        <div>{% if mrr > 0 %}${{ '%.0f'|format(mrr) }} <span class="muted">MXN/mes</span>{% else %}<span class="muted">$0</span>{% endif %}</div>
         <div class="k">Usuarios máx.</div><div>{{ company.get('max_users', '—') }}</div>
         <div class="k">Creada</div><div>{{ company.get('created_at', '—') }}</div>
     </div>
+</div>
+
+<div class="card">
+    <h1>Contacto y usuarios</h1>
+    <p class="subtitle">Emails de los miembros del tenant (lectura)</p>
+
+    {% if users %}
+    <table>
+        <thead>
+            <tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th></tr>
+        </thead>
+        <tbody>
+        {% for u in users %}
+            <tr>
+                <td>{{ u.get('full_name', '—') }}</td>
+                <td>
+                    {% if u.get('email') %}
+                    <a href="mailto:{{ u.get('email') }}">{{ u.get('email') }}</a>
+                    {% else %}
+                    <span class="muted">sin email</span>
+                    {% endif %}
+                </td>
+                <td>{{ u.get('role', '—') }}</td>
+                <td>{% if u.get('is_active') %}<span class="badge badge-active">Activo</span>{% else %}<span class="badge badge-inactive">Inactivo</span>{% endif %}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No se pudieron listar los usuarios de este tenant.</p>
+    {% endif %}
 </div>
 
 <div class="card">

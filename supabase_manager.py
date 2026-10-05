@@ -3578,6 +3578,110 @@ class SupabaseManager:
         """Número de usuarios activos de la compañía (perfiles con is_active=true)."""
         return self._contar_usuarios_company(company_id)
 
+    def update_profile_role(self, user_id: str, role: str) -> bool:
+        """Actualiza el rol de un perfil (admin/manager/seller)."""
+        if role not in ('admin', 'manager', 'seller'):
+            return False
+        # Intento 1: SDK con service key
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                client.table('profiles').update({'role': role}).eq('id', user_id).execute()
+                return True
+        except Exception as e:
+            print(f"[TENANT] SDK update_profile_role: {e}")
+
+        # Intento 2: PostgreSQL directo
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "UPDATE public.profiles SET role = %s WHERE id = %s",
+                    (role, user_id)
+                )
+                self.pg_connection.commit()
+                cursor.close()
+                return True
+        except Exception as e:
+            print(f"[TENANT] Error update_profile_role: {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+        return False
+
+    def list_users_with_email(self, company_id: str) -> List[Dict]:
+        """Lista usuarios de una compañía con su email (join auth.users).
+
+        El email vive en auth.users (Supabase Auth), no en public.profiles.
+        Se intenta el join directo en PostgreSQL; si el rol de conexión no puede
+        leer auth.users, se cae a Supabase Auth admin y luego a profiles sin email.
+        """
+        # Intento 1: PostgreSQL directo (join con auth.users)
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """SELECT p.id, p.full_name, p.role, p.is_active, p.created_at,
+                              u.email
+                       FROM public.profiles p
+                       LEFT JOIN auth.users u ON u.id = p.id
+                       WHERE p.company_id = %s
+                       ORDER BY p.full_name""",
+                    (company_id,)
+                )
+                rows = cursor.fetchall()
+                cursor.close()
+                colnames = [desc[0] for desc in cursor.description]
+                return [dict(zip(colnames, row)) for row in rows]
+        except Exception as e:
+            print(f"[PLATFORM] Error list_users_with_email (PG): {e}")
+
+        # Intento 2: Supabase Auth admin (listar usuarios y cruzar por id)
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                profiles = self.get_profiles_by_company(company_id)
+                profile_map = {str(p['id']): p for p in profiles}
+                auth_users = client.auth.admin.list_users()
+                # compatibilidad: .users (UserList) o lista directa
+                if hasattr(auth_users, 'users'):
+                    auth_users = auth_users.users
+                result = []
+                for u in auth_users:
+                    uid = getattr(u, 'id', None) or u.get('id')
+                    if uid and str(uid) in profile_map:
+                        p = profile_map[str(uid)]
+                        email = getattr(u, 'email', None) or u.get('email')
+                        result.append({
+                            'id': uid,
+                            'full_name': p.get('full_name'),
+                            'role': p.get('role'),
+                            'is_active': p.get('is_active'),
+                            'created_at': p.get('created_at'),
+                            'email': email,
+                        })
+                return result
+        except Exception as e:
+            print(f"[PLATFORM] Error list_users_with_email (auth): {e}")
+
+        # Fallback: perfiles sin email
+        return self.get_profiles_by_company(company_id)
+
     def list_companies(self) -> List[Dict]:
         """Lista todas las compañías (panel de plataforma). SDK service key primero."""
         # Intento 1: SDK con service key (bypass RLS)
@@ -3588,7 +3692,9 @@ class SupabaseManager:
             if url and key:
                 client = create_client(url, key)
                 resp = client.table('companies').select(
-                    'id,name,slug,codigo,plan,is_active,max_users,created_at'
+                    'id,name,slug,codigo,plan,is_active,max_users,created_at,'
+                    'email,phone,subscription_status,current_period_end,trial_ends_at,'
+                    'is_internal,fast_quote_pack_count'
                 ).order('name').execute()
                 if resp.data is not None:
                     return resp.data
@@ -3604,7 +3710,9 @@ class SupabaseManager:
                     pass
                 cursor = self.pg_connection.cursor()
                 cursor.execute(
-                    """SELECT id, name, slug, codigo, plan, is_active, max_users, created_at
+                    """SELECT id, name, slug, codigo, plan, is_active, max_users, created_at,
+                              email, phone, subscription_status, current_period_end,
+                              trial_ends_at, is_internal, fast_quote_pack_count
                        FROM public.companies ORDER BY name"""
                 )
                 rows = cursor.fetchall()

@@ -1,168 +1,123 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ company.name }} - Gestión de Usuarios</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        body { background: #f5f4f1; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .card { background: white; border-radius: 12px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 20px; }
-        .card h1 { font-size: 20px; color: #1e293b; margin: 0 0 4px 0; }
-        .card .subtitle { color: #78716c; font-size: 14px; margin: 0 0 24px 0; }
-        .nav { display: flex; gap: 4px; margin-bottom: 20px; background: white; border-radius: 12px; padding: 6px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
-        .nav a { padding: 10px 16px; border-radius: 8px; font-size: 14px; color: #44403c; text-decoration: none; }
-        .nav a.active { background: #4f46e5; color: white; }
-        .nav a:hover:not(.active) { background: #f5f4f1; }
-        .flash { padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
-        .flash-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
-        .flash-error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 10px 12px; font-size: 12px; text-transform: uppercase; color: #78716c; border-bottom: 1px solid #e7e5e4; }
-        td { padding: 12px; font-size: 14px; color: #1e293b; border-bottom: 1px solid #f5f4f1; }
-        .role-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
-        .role-badge-admin { background: #ede9fe; color: #6d28d9; }
-        .role-badge-manager { background: #dbeafe; color: #2563eb; }
-        .role-badge-seller { background: #f0fdf4; color: #16a34a; }
-        .role-badge-inactive { background: #fef2f2; color: #dc2626; }
-        .empty { text-align: center; padding: 48px 20px; color: #78716c; }
-        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
-        .btn-primary { background: #4f46e5; color: white; }
-        .btn-primary:hover { background: #4338ca; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="nav">
-            <a href="/admin/company/profile">Perfil</a>
-            <a href="/admin/company/branding">Branding</a>
-            <a href="/admin/company/users" class="active">Usuarios</a>
-            <a href="/admin/company/fast-quote-criteria">Criterios Fast Quote</a>
-            <a href="/">← Volver</a>
+{% extends "admin/_tenant_admin.html" %}
+{% block title %}{{ company.name if company else 'Tu empresa' }} - Usuarios{% endblock %}
+{% block admin_content %}
+
+<div class="card">
+    <h1>Usuarios de {{ company.name if company else 'tu empresa' }}</h1>
+    <p class="subtitle">Personas que pueden acceder a esta cuenta</p>
+
+    <div style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <span style="font-size:14px;color:#44403c;font-weight:600;">Invitar usuario</span>
+            <span style="font-size:13px;color:#78716c;">Asientos: <strong>{{ active_users if active_users is not none else 0 }} de {{ company.get('max_users') if company and company.get('max_users') else 10 }}</strong></span>
         </div>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        {% for category, message in messages %}
-        <div class="flash flash-{{ category }}">{{ message }}</div>
-        {% endfor %}
-        {% endif %}
-        {% endwith %}
-
-        <div class="card">
-            <h1>Usuarios de {{ company.name if company else 'tu empresa' }}</h1>
-            <p class="subtitle">Personas que pueden acceder a esta cuenta</p>
-
-            <div style="margin-bottom:20px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                    <span style="font-size:14px;color:#44403c;font-weight:600;">Invitar usuario</span>
-                    <span style="font-size:13px;color:#78716c;">Asientos: <strong>{{ active_users if active_users is not none else 0 }} de {{ company['max_users'] if company and company.get('max_users') else 10 }}</strong></span>
-                </div>
-                <form method="POST" action="/admin/company/users/invite" style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <input type="email" name="email" placeholder="correo@ejemplo.com" required style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #d6d3d1;border-radius:6px;font-size:14px;background:#faf9f7;">
-                    <select name="role" style="padding:8px 12px;border:1px solid #d6d3d1;border-radius:6px;font-size:14px;background:#faf9f7;">
-                        <option value="seller">Vendedor</option>
-                        <option value="manager">Manager</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                    <button type="submit" style="padding:8px 16px;background:#4f46e5;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px;">Invitar</button>
-                </form>
-                <p style="font-size:12px;color:#78716c;margin-top:6px;">La persona recibirá un email para completar su cuenta y unirse a {{ company['name'] if company else 'tu empresa' }}.</p>
-            </div>
-
-            {% if invitations %}
-            <div style="margin-bottom:20px;">
-                <h2 style="font-size:13px;color:#4f46e5;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8px 0;">Invitaciones pendientes</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Email</th>
-                            <th>Rol</th>
-                            <th>Enviada</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for inv in invitations %}
-                        <tr>
-                            <td>{{ inv['email'] }}</td>
-                            <td>
-                                {% if inv['role'] == 'admin' %}<span class="role-badge role-badge-admin">Admin</span>
-                                {% elif inv['role'] == 'manager' %}<span class="role-badge role-badge-manager">Manager</span>
-                                {% else %}<span class="role-badge role-badge-seller">Vendedor</span>{% endif %}
-                            </td>
-                            <td>{{ (inv['created_at']|string)[:10] if inv['created_at'] else 'N/A' }}</td>
-                            <td style="text-align:right;">
-                                <form method="POST" action="/admin/company/users/{{ inv['id'] }}/revoke" style="display:inline;" onsubmit="return confirm('Revocar invitación de {{ inv['email'] }}?')">
-                                    <button type="submit" style="background:none;border:1px solid #fecaca;color:#dc2626;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;">Revocar</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% endif %}
-
-            {% if users %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nombre</th>
-                        <th>Rol</th>
-                        <th>Estado</th>
-                        <th>Desde</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in users %}
-                    <!-- DEBUG: {{ user }} -->
-                    <tr>
-                        <td>{{ user['full_name'] }}</td>
-                        <td>
-                            {% if user['role'] == 'admin' %}
-                            <span class="role-badge role-badge-admin">Admin</span>
-                            {% elif user['role'] == 'manager' %}
-                            <span class="role-badge role-badge-manager">Manager</span>
-                            {% else %}
-                            <span class="role-badge role-badge-seller">Vendedor</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if user['is_active'] %}
-                            <span class="role-badge role-badge-seller">Activo</span>
-                            {% else %}
-                            <span class="role-badge role-badge-inactive">Inactivo</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ user['created_at'][:10] if user['created_at'] else 'N/A' }}</td>
-                        <td style="text-align:right;">
-                            {% if user['role'] != 'admin' and user['is_active'] %}
-                            <form method="POST" action="/admin/company/users/{{ user['id'] }}/deactivate" style="display:inline;" onsubmit="return confirm('Desactivar a {{ user['full_name'] }}?')">
-                                <button type="submit" style="background:none;border:1px solid #fecaca;color:#dc2626;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;">Desactivar</button>
-                            </form>
-                            {% else %}
-                            <span style="font-size:12px;color:#a8a29e;">—</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="empty">
-                <p>No hay usuarios registrados aún.</p>
-                <p style="font-size:13px;">Comparte el enlace de registro con tu equipo para que creen sus cuentas.</p>
-            </div>
-            {% endif %}
-
-            <div style="margin-top:24px;display:flex;gap:10px;">
-                <a href="/admin/company/branding" class="btn btn-secondary" style="background:#e7e5e4;color:#44403c;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px;">← Branding</a>
-                <a href="/" class="btn btn-primary" style="background:#4f46e5;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px;">Ir al inicio</a>
-            </div>
-        </div>
+        <form method="POST" action="/admin/company/users/invite" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="email" name="email" placeholder="correo@ejemplo.com" required style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #d6d3d1;border-radius:6px;font-size:14px;background:#faf9f7;">
+            <select name="role" style="padding:8px 12px;border:1px solid #d6d3d1;border-radius:6px;font-size:14px;background:#faf9f7;">
+                <option value="seller">Vendedor</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+            </select>
+            <button type="submit" class="btn btn-primary">Invitar</button>
+        </form>
+        <p class="hint">La persona recibirá un email para completar su cuenta y unirse a {{ company.get('name') if company else 'tu empresa' }}.</p>
     </div>
-</body>
-</html>
+
+    {% if invitations %}
+    <div style="margin-bottom:20px;">
+        <h2>Invitaciones pendientes</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Rol</th>
+                    <th>Enviada</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in invitations %}
+                <tr>
+                    <td>{{ inv.get('email') }}</td>
+                    <td>
+                        {% if inv.get('role') == 'admin' %}<span class="role-badge role-badge-admin">Admin</span>
+                        {% elif inv.get('role') == 'manager' %}<span class="role-badge role-badge-manager">Manager</span>
+                        {% else %}<span class="role-badge role-badge-seller">Vendedor</span>{% endif %}
+                    </td>
+                    <td>{{ (inv.get('created_at')|string)[:10] if inv.get('created_at') else 'N/A' }}</td>
+                    <td style="text-align:right;">
+                        <form method="POST" action="/admin/company/users/{{ inv.get('id') }}/resend" style="display:inline;">
+                            <button type="submit" class="btn btn-secondary btn-sm" title="Reenviar email de invitación">Reenviar</button>
+                        </form>
+                        <form method="POST" action="/admin/company/users/{{ inv.get('id') }}/revoke" style="display:inline;" onsubmit="return confirm('Revocar invitación de {{ inv.get('email') }}?')">
+                            <button type="submit" class="btn btn-danger btn-sm">Revocar</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if users %}
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Rol</th>
+                <th>Estado</th>
+                <th>Desde</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.get('full_name') }}</td>
+                <td>
+                    {% if user.get('is_active') %}
+                    <form method="POST" action="/admin/company/users/{{ user.get('id') }}/role" style="display:inline-flex;gap:6px;align-items:center;">
+                        <select name="role" style="padding:4px 8px;border:1px solid #d6d3d1;border-radius:6px;font-size:13px;background:#faf9f7;">
+                            <option value="seller" {% if user.get('role') == 'seller' %}selected{% endif %}>Vendedor</option>
+                            <option value="manager" {% if user.get('role') == 'manager' %}selected{% endif %}>Manager</option>
+                            <option value="admin" {% if user.get('role') == 'admin' %}selected{% endif %}>Admin</option>
+                        </select>
+                        <button type="submit" class="btn btn-secondary btn-sm">Guardar</button>
+                    </form>
+                    {% else %}
+                        {% if user.get('role') == 'admin' %}<span class="role-badge role-badge-admin">Admin</span>
+                        {% elif user.get('role') == 'manager' %}<span class="role-badge role-badge-manager">Manager</span>
+                        {% else %}<span class="role-badge role-badge-seller">Vendedor</span>{% endif %}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if user.get('is_active') %}
+                    <span class="role-badge role-badge-seller">Activo</span>
+                    {% else %}
+                    <span class="role-badge role-badge-inactive">Inactivo</span>
+                    {% endif %}
+                </td>
+                <td>{{ (user.get('created_at')|string)[:10] if user.get('created_at') else 'N/A' }}</td>
+                <td style="text-align:right;">
+                    {% if user.get('role') != 'admin' and user.get('is_active') %}
+                    <form method="POST" action="/admin/company/users/{{ user.get('id') }}/deactivate" style="display:inline;" onsubmit="return confirm('Desactivar a {{ user.get('full_name') }}?')">
+                        <button type="submit" class="btn btn-danger btn-sm">Desactivar</button>
+                    </form>
+                    {% else %}
+                    <span style="font-size:12px;color:#a8a29e;">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <p>No hay usuarios registrados aún.</p>
+        <p style="font-size:13px;">Comparte el enlace de registro con tu equipo para que creen sus cuentas.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

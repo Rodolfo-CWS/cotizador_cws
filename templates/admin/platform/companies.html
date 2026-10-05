@@ -4,29 +4,60 @@
 
 <div class="card">
     <h1>Empresas</h1>
-    <p class="subtitle">Todos los tenants del SaaS y su consumo</p>
+    <p class="subtitle">Todos los tenants del SaaS, su contacto y su MRR estimado</p>
 
-    <table>
+    <div class="form-row" style="margin-bottom:16px;">
+        <input type="text" id="company-search" class="search-input" placeholder="Buscar por nombre, código, plan o email…">
+    </div>
+
+    <table id="companies-table">
         <thead>
             <tr>
                 <th>Nombre</th>
                 <th>Código</th>
                 <th>Plan</th>
-                <th>Estado</th>
+                <th>Email</th>
+                <th>Suscripción</th>
+                <th class="num">MRR</th>
                 <th>Usuarios</th>
-                <th>Cotizaciones</th>
-                <th>PDFs</th>
-                <th>FQ mes</th>
+                <th>Estado</th>
                 <th></th>
             </tr>
         </thead>
         <tbody>
         {% for company in companies %}
             {% set usage = company.get('usage', {}) %}
-            <tr>
+            {% set status = (company.get('subscription_status') or 'none')|string|lower %}
+            <tr data-search="{{ (company.get('name','') ~ ' ' ~ company.get('codigo','') ~ ' ' ~ company.get('slug','') ~ ' ' ~ company.get('plan','') ~ ' ' ~ company.get('email',''))|lower }}">
                 <td>{{ company.get('name', '—') }}</td>
                 <td>{{ company.get('codigo', company.get('slug', '—')) }}</td>
                 <td>{{ plan_names.get(company.get('plan'), company.get('plan', '—')) }}</td>
+                <td>
+                    {% if company.get('email') %}
+                    <a href="mailto:{{ company.get('email') }}">{{ company.get('email') }}</a>
+                    {% else %}
+                    <span class="muted">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if status == 'active' %}
+                    <span class="badge badge-active">Activa</span>
+                    {% elif status == 'trialing' %}
+                    <span class="badge badge-active">Trial</span>
+                    {% elif company.get('is_internal') %}
+                    <span class="muted">Interna</span>
+                    {% else %}
+                    <span class="badge badge-inactive">{{ status or 'ninguna' }}</span>
+                    {% endif %}
+                </td>
+                <td class="num">
+                    {% if company.get('mrr', 0) > 0 %}
+                    ${{ '%.0f'|format(company.get('mrr', 0)) }}
+                    {% else %}
+                    <span class="muted">$0</span>
+                    {% endif %}
+                </td>
+                <td>{{ usage.get('usuarios', '—') }}</td>
                 <td>
                     {% if company.get('is_active') %}
                     <span class="badge badge-active">Activa</span>
@@ -34,11 +65,9 @@
                     <span class="badge badge-inactive">Inactiva</span>
                     {% endif %}
                 </td>
-                <td>{{ usage.get('usuarios', '—') }}</td>
-                <td>{{ usage.get('cotizaciones', '—') }}</td>
-                <td>{{ usage.get('pdfs', '—') }}</td>
-                <td>{{ usage.get('fast_quote_estimates_month', '—') }}</td>
-                <td><a href="/admin/companies/{{ company.get('id') }}" class="btn btn-secondary btn-sm">Ver</a></td>
+                <td>
+                    <a href="/admin/companies/{{ company.get('id') }}" class="btn btn-secondary btn-sm">Ver</a>
+                </td>
             </tr>
         {% else %}
             <tr><td colspan="9" class="muted">No hay empresas registradas.</td></tr>
@@ -46,5 +75,21 @@
         </tbody>
     </table>
 </div>
+
+<script>
+(function () {
+    var input = document.getElementById('company-search');
+    var table = document.getElementById('companies-table');
+    if (!input || !table) return;
+    input.addEventListener('input', function () {
+        var q = input.value.trim().toLowerCase();
+        var rows = table.querySelectorAll('tbody tr[data-search]');
+        rows.forEach(function (row) {
+            var hay = row.getAttribute('data-search').indexOf(q) !== -1;
+            row.style.display = hay ? '' : 'none';
+        });
+    });
+})();
+</script>
 
 {% endblock %}

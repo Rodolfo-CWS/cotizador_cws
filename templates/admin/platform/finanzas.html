@@ -1,0 +1,90 @@
+{% extends "admin/platform/_platform.html" %}
+{% block title %}Finanzas - Plataforma Sifra{% endblock %}
+{% block content %}
+
+<div class="card">
+    <h1>Resumen financiero</h1>
+    <p class="subtitle">Estimado a partir de planes y estado de suscripción (no incluye Stripe)</p>
+
+    <div class="stat-grid">
+        <div class="stat">
+            <div class="label">MRR estimado</div>
+            <div class="value ok">${{ '%.0f'|format(financiero.mrr) }} <span class="muted">MXN</span></div>
+        </div>
+        <div class="stat">
+            <div class="label">ARR estimado</div>
+            <div class="value">${{ '%.0f'|format(financiero.arr) }} <span class="muted">MXN</span></div>
+        </div>
+        <div class="stat">
+            <div class="label">Tenants que pagan</div>
+            <div class="value">{{ financiero.pagos }} / {{ financiero.total }}</div>
+        </div>
+        <div class="stat">
+            <div class="label">Packs Fast Quote</div>
+            <div class="value">{{ financiero.packs }}</div>
+            <div class="muted">${{ financiero.pack_revenue }} one-time ({{ pack_price }} c/u)</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h1>MRR por plan</h1>
+    <p class="subtitle">Suma del precio del plan de cada tenant con suscripción activa o en trial</p>
+
+    <table>
+        <thead>
+            <tr><th>Plan</th><th>Precio / mes</th><th class="num">MRR acumulado</th></tr>
+        </thead>
+        <tbody>
+        {% for plan, m in financiero.por_plan.items() %}
+            {% set price = plan_prices.get(plan, {}) %}
+            <tr>
+                <td>{{ plan_names.get(plan, plan) }}</td>
+                <td>{% if price.get('precio') %}{{ price.get('moneda', '') }} {{ price.get('precio') }}{% else %}<span class="muted">$0</span>{% endif %}</td>
+                <td class="num">${{ '%.0f'|format(m) }}</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="3" class="muted">Sin datos de facturación.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h1>Tenants por MRR estimado</h1>
+    <p class="subtitle">Ordenado de mayor a menor ingreso estimado</p>
+
+    <table>
+        <thead>
+            <tr><th>Empresa</th><th>Plan</th><th>Suscripción</th><th class="num">MRR</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for company in companies %}
+            {% set status = (company.get('subscription_status') or 'none')|string|lower %}
+            <tr>
+                <td>{{ company.get('name', '—') }}</td>
+                <td>{{ plan_names.get(company.get('plan'), company.get('plan', '—')) }}</td>
+                <td>
+                    {% if company.get('is_internal') %}
+                    <span class="muted">Interna</span>
+                    {% elif status in ('active', 'trialing') %}
+                    <span class="badge badge-active">{{ status }}</span>
+                    {% else %}
+                    <span class="badge badge-inactive">{{ status or 'ninguna' }}</span>
+                    {% endif %}
+                </td>
+                <td class="num">
+                    {% if company.get('mrr', 0) > 0 %}${{ '%.0f'|format(company.get('mrr', 0)) }}{% else %}<span class="muted">$0</span>{% endif %}
+                </td>
+                <td><a href="/admin/companies/{{ company.get('id') }}" class="btn btn-secondary btn-sm">Ver</a></td>
+            </tr>
+        {% else %}
+            <tr><td colspan="5" class="muted">No hay tenants.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <p class="muted" style="margin-top:16px;">Los montos son estimados; el MRR real requiere integrar Stripe (fase futura).</p>
+</div>
+
+{% endblock %}
