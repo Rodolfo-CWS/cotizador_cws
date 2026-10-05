@@ -10,6 +10,8 @@ Mezcla:
 - Tarifas por plan (cotizador/plans.PLAN_PRICES)
 """
 
+import os
+
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, current_app,
 )
@@ -17,10 +19,17 @@ from flask import (
 from cotizador.middleware import login_required, superadmin_required
 from cotizador.plans import (
     PLAN_NAMES, PLAN_PRICES, PLAN_LIMITS, VALID_PLANS, get_limit, is_valid_plan,
-    effective_plan, _normalize_plan,
+    effective_plan, _normalize_plan, FASTQUOTE_PACK_PRICE,
 )
 
 platform_admin_bp = Blueprint('platform_admin', __name__, url_prefix='/admin')
+
+# Archivos de log rotativos (rutas relativas a la raíz del proyecto, igual que
+# en cotizador/__init__.py).
+LOG_FILES = {
+    'fallos_criticos': 'logs/cotizador_fallos_criticos.log',
+    'fallos_silenciosos': 'logs/fallos_silenciosos_detectados.log',
+}
 
 
 def _get_db():
@@ -33,6 +42,58 @@ def _get_pdf_manager():
 
 def _get_scheduler():
     return current_app.extensions.get('sync_scheduler')
+
+
+def _mrr_estimado(company):
+    """MRR estimado (MXN/mes) de una compañía, sin consultar Stripe.
+
+    Suma el precio del plan (PLAN_PRICES) solo cuando la suscripción está
+    activa o en trial. Las cuentas internas no facturan (0).
+    """
+    if company.get('is_internal') or effective_plan(company) == 'internal':
+        return 0
+    status = (company.get('subscription_status') or '').strip().lower()
+    if status in ('active', 'trialing'):
+        plan = effective_plan(company)
+        return PLAN_PRICES.get(plan, {}).get('precio', 0)
+    return 0
+
+
+def _resumen_financiero(companies):
+    """Resumen financiero estimado: MRR, ARR, desglose por plan y packs."""
+    mrr = 0.0
+    por_plan = {}
+    pagos = 0
+    packs = 0
+    for c in companies:
+        plan = effective_plan(c)
+        m = _mrr_estimado(c)
+        mrr += m
+        por_plan[plan] = por_plan.get(plan, 0) + m
+        if m > 0:
+            pagos += 1
+        packs += int(c.get('fast_quote_pack_count') or 0)
+    return {
+        'mrr': mrr,
+        'arr': mrr * 12,
+        'por_plan': por_plan,
+        'pagos': pagos,
+        'total': len(companies),
+        'packs': packs,
+        'pack_revenue': packs * FASTQUOTE_PACK_PRICE,
+    }
+
+
+def _read_log_tail(path, lines=200):
+    """Lee las últimas `lines` líneas de un archivo de log, o '' si no existe."""
+    if not path or not os.path.exists(path):
+        return ''
+    try:
+        with open(path, 'r', errors='replace') as f:
+            data = f.readlines()
+        return ''.join(data[-lines:])
+    except Exception:
+        return ''
 
 
 @platform_admin_bp.route('/')
@@ -101,6 +162,9 @@ def dashboard():
         keepalive=keepalive,
         companies=companies,
         summary=summary,
+        financiero=_resumen_financiero(companies),
+        plan_prices=PLAN_PRICES,
+        plan_names=PLAN_NAMES,
     )
 
 
@@ -119,6 +183,7 @@ def companies():
             except Exception:
                 usage = {}
             company['usage'] = usage
+            company['mrr'] = _mrr_estimado(company)
             rows.append(company)
     except Exception as e:
         flash(f"Error listando empresas: {e}", "error")
@@ -127,6 +192,7 @@ def companies():
         'admin/platform/companies.html',
         companies=rows,
         plan_names=PLAN_NAMES,
+        plan_prices=PLAN_PRICES,
         plan_limits=PLAN_LIMITS,
     )
 
@@ -152,6 +218,12 @@ def company_detail(company_id):
     limits = PLAN_LIMITS.get(plan, {})
     price = PLAN_PRICES.get(plan, {})
 
+    users = []
+    try:
+        users = db.list_users_with_email(company_id) or []
+    except Exception:
+        users = []
+
     return render_template(
         'admin/platform/company_detail.html',
         company=company,
@@ -159,6 +231,8 @@ def company_detail(company_id):
         plan=plan,
         limits=limits,
         price=price,
+        mrr=_mrr_estimado(company),
+        users=users,
         plan_names=PLAN_NAMES,
         valid_plans=VALID_PLANS,
         get_limit=get_limit,
@@ -221,4 +295,77 @@ def pricing():
         plan_prices=PLAN_PRICES,
         plan_limits=PLAN_LIMITS,
         valid_plans=VALID_PLANS,
+    )
+
+
+@platform_admin_bp.route('/finanzas')
+@login_required
+@superadmin_required
+def finanzas():
+    """Resumen financiero estimado (MRR/ARR por plan, sin Stripe)."""
+    db = _get_db()
+    companies = db.list_companies() or []
+    financiero = _resumen_financiero(companies)
+    for c in companies:
+        c['mrr'] = _mrr_estimado(c)
+    companies.sort(key=lambda c: c.get('mrr', 0), reverse=True)
+    return render_template(
+        'admin/platform/finanzas.html',
+        financiero=financiero,
+        companies=companies,
+        plan_names=PLAN_NAMES,
+        plan_prices=PLAN_PRICES,
+        pack_price=FASTQUOTE_PACK_PRICE,
+    )
+
+
+@platform_admin_bp.route('/logs')
+@login_required
+@superadmin_required
+def logs():
+    """Logs de fallos (archivo) + métricas de performance del SaaS."""
+    db = _get_db()
+    pdf_manager = _get_pdf_manager()
+    scheduler = _get_scheduler()
+
+    log_fallos = _read_log_tail(LOG_FILES['fallos_criticos'])
+    log_silenciosos = _read_log_tail(LOG_FILES['fallos_silenciosos'])
+
+    health = {}
+    try:
+        health = db.health_check() or {}
+    except Exception as e:
+        health = {'error': str(e)}
+
+    storage_stats = {}
+    if pdf_manager is not None and getattr(pdf_manager, 'supabase_storage', None) is not None:
+        try:
+            storage_stats = pdf_manager.supabase_storage.obtener_estadisticas() or {}
+        except Exception as e:
+            storage_stats = {'error': str(e)}
+
+    scheduler_state = {}
+    if scheduler is not None:
+        try:
+            scheduler_state = scheduler.obtener_estado() or {}
+        except Exception as e:
+            scheduler_state = {'error': str(e)}
+
+    keepalive = {}
+    try:
+        from render_keepalive import get_keepalive_instance
+        instance = get_keepalive_instance()
+        if instance is not None:
+            keepalive = instance.get_stats() or {}
+    except Exception as e:
+        keepalive = {'error': str(e)}
+
+    return render_template(
+        'admin/platform/logs.html',
+        log_fallos=log_fallos,
+        log_silenciosos=log_silenciosos,
+        health=health,
+        storage_stats=storage_stats,
+        scheduler_state=scheduler_state,
+        keepalive=keepalive,
     )

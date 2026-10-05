@@ -65,8 +65,49 @@
     <div class="section-title">Acceso rápido</div>
     <div class="form-row">
         <a href="/admin/companies" class="btn btn-primary">Ver empresas</a>
+        <a href="/admin/finanzas" class="btn btn-secondary">Ver finanzas</a>
         <a href="/admin/pricing" class="btn btn-secondary">Ver tarifas</a>
     </div>
+</div>
+
+<div class="card">
+    <h1>Resumen financiero</h1>
+    <p class="subtitle">MRR estimado a partir de planes y estado de suscripción (sin Stripe)</p>
+
+    <div class="stat-grid">
+        <div class="stat">
+            <div class="label">MRR estimado</div>
+            <div class="value ok">${{ '%.0f'|format(financiero.mrr) }} <span class="muted">MXN</span></div>
+        </div>
+        <div class="stat">
+            <div class="label">ARR estimado</div>
+            <div class="value">${{ '%.0f'|format(financiero.arr) }} <span class="muted">MXN</span></div>
+        </div>
+        <div class="stat">
+            <div class="label">Tenants que pagan</div>
+            <div class="value">{{ financiero.pagos }} / {{ financiero.total }}</div>
+        </div>
+        <div class="stat">
+            <div class="label">Packs Fast Quote</div>
+            <div class="value">{{ financiero.packs }}</div>
+            <div class="muted">${{ financiero.pack_revenue }} one-time</div>
+        </div>
+    </div>
+
+    {% if financiero.por_plan %}
+    <div class="section-title">MRR por plan</div>
+    <table>
+        <thead><tr><th>Plan</th><th class="num">MRR</th></tr></thead>
+        <tbody>
+        {% for plan, m in financiero.por_plan.items() %}
+            <tr>
+                <td>{{ plan_names.get(plan, plan) }}</td>
+                <td class="num">${{ '%.0f'|format(m) }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
 </div>
 
 {% endblock %}

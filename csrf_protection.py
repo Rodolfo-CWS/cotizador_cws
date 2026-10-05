@@ -130,8 +130,6 @@ def apply_csrf_to_routes(app):
         '/',
         '/formulario',
         '/generar_pdf',
-        '/admin/migrar-a-mongodb',
-        '/admin/sincronizar-offline',
         '/admin/importar-pdf'
     ]
     

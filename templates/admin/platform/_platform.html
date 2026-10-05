@@ -41,6 +41,10 @@
         .kv { display: grid; grid-template-columns: 200px 1fr; gap: 8px 12px; font-size: 14px; }
         .kv .k { color: #78716c; }
         .section-title { font-size: 15px; font-weight: 600; color: #1e293b; margin: 20px 0 10px 0; }
+        .log-box { background: #1e293b; color: #e2e8f0; border-radius: 10px; padding: 16px; font-family: 'SF Mono', ui-monospace, Menlo, monospace; font-size: 12px; line-height: 1.5; overflow-x: auto; max-height: 420px; overflow-y: auto; white-space: pre; }
+        .log-empty { color: #78716c; font-style: italic; }
+        .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .search-input { flex: 1; min-width: 240px; }
     </style>
 </head>
 <body>
@@ -48,6 +52,8 @@
         <div class="nav">
             <a href="/admin/" class="{{ 'active' if request.path.rstrip('/') == '/admin' else '' }}">Dashboard</a>
             <a href="/admin/companies" class="{{ 'active' if request.path.startswith('/admin/companies') else '' }}">Empresas</a>
+            <a href="/admin/finanzas" class="{{ 'active' if request.path.startswith('/admin/finanzas') else '' }}">Finanzas</a>
+            <a href="/admin/logs" class="{{ 'active' if request.path.startswith('/admin/logs') else '' }}">Logs</a>
             <a href="/admin/pricing" class="{{ 'active' if request.path.startswith('/admin/pricing') else '' }}">Tarifas</a>
             <a href="/">Volver</a>
         </div>

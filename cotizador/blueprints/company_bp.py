@@ -223,6 +223,33 @@ def deactivate_user(user_id):
     return redirect(url_for('company.users'))
 
 
+@company_bp.route('/users/<user_id>/role', methods=['POST'])
+@login_required
+@admin_required
+def change_user_role(user_id):
+    """Cambiar el rol de un usuario de la misma compañía."""
+    db = _get_db()
+    company_id = _get_company_id()
+
+    role = (request.form.get('role') or '').strip()
+    if role not in ('admin', 'manager', 'seller'):
+        flash("Rol inválido", "error")
+        return redirect(url_for('company.users'))
+
+    # Solo cambiar el rol de usuarios de tu misma compañía.
+    profiles = db.get_profiles_by_company(company_id) or []
+    if not any(str(p.get('id')) == str(user_id) for p in profiles):
+        flash("No tienes permiso para modificar este usuario", "error")
+        return redirect(url_for('company.users'))
+
+    if db.update_profile_role(user_id, role):
+        flash("Rol actualizado correctamente", "success")
+    else:
+        flash("No se pudo actualizar el rol", "error")
+
+    return redirect(url_for('company.users'))
+
+
 @company_bp.route('/users/invite', methods=['POST'])
 @login_required
 @admin_required
@@ -327,6 +354,50 @@ def revoke_invitation(invitation_id):
             flash("No se pudo revocar la invitación", "error")
     except Exception as e:
         flash(f"Error: {e}", "error")
+
+    return redirect(url_for('company.users'))
+
+
+@company_bp.route('/users/<invitation_id>/resend', methods=['POST'])
+@login_required
+@admin_required
+def resend_invitation(invitation_id):
+    """Reenviar el email de una invitación pendiente."""
+    db = _get_db()
+    company_id = _get_company_id()
+
+    invitation = None
+    for inv in (db.list_invitations_by_company(company_id) or []):
+        if str(inv.get('id')) == str(invitation_id):
+            invitation = inv
+            break
+
+    if not invitation:
+        flash("No tienes permiso para reenviar esta invitación", "error")
+        return redirect(url_for('company.users'))
+
+    email = invitation.get('email')
+    role = invitation.get('role', 'seller')
+    company = db.get_company_by_id(company_id) or {}
+
+    try:
+        from supabase import create_client
+        url = os.getenv('SUPABASE_URL')
+        key = os.getenv('SUPABASE_SERVICE_KEY')
+        client = create_client(url, key)
+        redirect_to = request.host_url.rstrip('/') + '/auth/reset-password?invite=1'
+        data = {
+            "company_name": company.get('name', ''),
+            "inviter_name": session.get('user_name', ''),
+        }
+        _admin_invite_user(client, email, redirect_to, data)
+        flash(f"Invitación reenviada a {email} (rol: {role})", "success")
+    except Exception as e:
+        error_msg = str(e).lower()
+        if 'already registered' in error_msg or 'already exists' in error_msg:
+            flash(f"{email} ya tiene cuenta. Se vinculará automáticamente al iniciar sesión.", "success")
+        else:
+            flash(f"Error al reenviar la invitación: {e}", "error")
 
     return redirect(url_for('company.users'))
 

@@ -886,7 +886,7 @@ def timestamp_to_date(timestamp):
 # ============================================
 
 from functools import wraps
-from cotizador.middleware import login_required, plan_required
+from cotizador.middleware import login_required, plan_required, superadmin_required
 from cotizador.plans import (
     FEATURE_SIMPLE_PDF, FEATURE_FAST_QUOTE, FEATURE_FULL_FORM, FEATURE_DESGLOSE,
     PLAN_STARTER, get_limit, has_feature, effective_plan,
@@ -1745,18 +1745,6 @@ def debug_materiales():
         "primeros_5": LISTA_MATERIALES[:5],
         "ultimos_5": LISTA_MATERIALES[-5:] if len(LISTA_MATERIALES) > 5 else LISTA_MATERIALES
     })
-
-@app.route("/admin/sincronizacion")
-def admin_sincronizacion():
-    """Panel administrativo de sincronización"""
-    estado = db_manager.obtener_estado_sincronizacion()
-    return jsonify(estado)
-
-@app.route("/admin/forzar-sincronizacion", methods=["POST"])
-def admin_forzar_sincronizacion():
-    """Fuerza sincronización manual"""
-    resultado = db_manager.forzar_sincronizacion()
-    return jsonify(resultado)
 
 # ========================================
 # ENDPOINTS DE GESTIÓN DE DRAFTS
@@ -4953,315 +4941,11 @@ def descargar_desglose_pdf(numero_cotizacion):
 
 
 # ============================================
-# RUTA DE INFORMACIÓN DEL SISTEMA
-# ============================================
-
-@app.route("/admin")
-def panel_admin():
-    """Panel de administración para migración y sincronización"""
-    return f"""
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Sifra - Panel de Administración</title>
-        <style>
-            body {{
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background: #f8f9fa;
-                margin: 0;
-                padding: 20px;
-            }}
-            .container {{
-                max-width: 1000px;
-                margin: 0 auto;
-                background: white;
-                padding: 30px;
-                border-radius: 12px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            }}
-            h1 {{
-                color: #333;
-                text-align: center;
-                margin-bottom: 30px;
-            }}
-            .section {{
-                margin: 20px 0;
-                padding: 20px;
-                border: 1px solid #e0e0e0;
-                border-radius: 8px;
-                background: #fafafa;
-            }}
-            .section h3 {{
-                color: #007bff;
-                margin-top: 0;
-            }}
-            .btn {{
-                padding: 12px 24px;
-                border: none;
-                border-radius: 6px;
-                cursor: pointer;
-                font-size: 16px;
-                margin: 5px;
-                transition: all 0.3s ease;
-                text-decoration: none;
-                display: inline-block;
-            }}
-            .btn-primary {{ background: #007bff; color: white; }}
-            .btn-success {{ background: #28a745; color: white; }}
-            .btn-warning {{ background: #ffc107; color: #212529; }}
-            .btn-danger {{ background: #dc3545; color: white; }}
-            .btn-secondary {{ background: #6c757d; color: white; }}
-            .btn:hover {{ opacity: 0.9; transform: translateY(-2px); }}
-            .btn:disabled {{ opacity: 0.6; cursor: not-allowed; transform: none; }}
-            .status {{
-                padding: 15px;
-                border-radius: 6px;
-                margin: 10px 0;
-                font-weight: bold;
-            }}
-            .status.online {{ background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }}
-            .status.offline {{ background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }}
-            .status.hybrid {{ background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }}
-            .result {{
-                margin: 15px 0;
-                padding: 15px;
-                border-radius: 6px;
-                font-family: monospace;
-                white-space: pre-wrap;
-                overflow-x: auto;
-            }}
-            .result.success {{ background: #d4edda; color: #155724; }}
-            .result.error {{ background: #f8d7da; color: #721c24; }}
-            .result.info {{ background: #cce7ff; color: #004085; }}
-            .warning {{
-                background: #fff3cd;
-                color: #856404;
-                padding: 15px;
-                border-radius: 6px;
-                margin: 10px 0;
-                border-left: 4px solid #ffc107;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>🔧 Sifra - Panel de Administración</h1>
-            
-            <div class="section">
-                <h3>Estado del Sistema</h3>
-                <button class="btn btn-primary" onclick="verificarEstado()">Verificar Estado</button>
-                <div id="estado-sistema"></div>
-            </div>
-            
-            <div class="section">
-                <h3>Migracion de Datos</h3>
-                <div class="warning">
-                    <strong>Atencion:</strong> La migracion movera todas las cotizaciones del archivo offline a MongoDB. 
-                    Se creará un respaldo automático antes de la migración.
-                </div>
-                <button class="btn btn-success" onclick="migrarAMongoDB()">Migrar Offline -> MongoDB</button>
-                <button class="btn btn-warning" onclick="sincronizarOffline()">Sincronizar MongoDB -> Offline</button>
-                <div id="resultado-migracion"></div>
-            </div>
-            
-            <div class="section">
-                <h3>Estadisticas</h3>
-                <button class="btn btn-primary" onclick="verEstadisticas()">Ver Estadisticas Detalladas</button>
-                <div id="estadisticas"></div>
-            </div>
-            
-            <div class="section">
-                <h3>🔧 Herramientas de Diagnóstico</h3>
-                <a href="/admin/pdfs" class="btn btn-warning">📄 Administrar PDFs</a>
-                <a href="/admin/actualizar-timestamps" class="btn btn-secondary">Actualizar Timestamps</a>
-                <a href="/verificar-ultima" class="btn btn-secondary">Verificar Ultima Cotizacion</a>
-                <a href="/" class="btn btn-primary">🏠 Volver al Home</a>
-            </div>
-        </div>
-        
-        <script>
-            function mostrarResultado(elementId, data, tipo = 'info') {{
-                const elemento = document.getElementById(elementId);
-                elemento.innerHTML = `<div class="result ${{tipo}}">${{JSON.stringify(data, null, 2)}}</div>`;
-            }}
-            
-            function mostrarError(elementId, error) {{
-                const elemento = document.getElementById(elementId);
-                elemento.innerHTML = `<div class="result error">Error: ${{error}}</div>`;
-            }}
-            
-            async function verificarEstado() {{
-                try {{
-                    const response = await fetch('/stats');
-                    const data = await response.json();
-                    
-                    let estadoHtml = `<div class="status ${{data.modo.toLowerCase()}}">`;
-                    estadoHtml += `<strong>Modo:</strong> ${{data.modo}}<br>`;
-                    estadoHtml += `<strong>Total Cotizaciones:</strong> ${{data.total_cotizaciones}}<br>`;
-                    estadoHtml += `<strong>Clientes Únicos:</strong> ${{data.clientes_unicos}}<br>`;
-                    estadoHtml += `<strong>Vendedores Únicos:</strong> ${{data.vendedores_unicos}}`;
-                    estadoHtml += `</div>`;
-                    
-                    document.getElementById('estado-sistema').innerHTML = estadoHtml;
-                }} catch (error) {{
-                    mostrarError('estado-sistema', error.message);
-                }}
-            }}
-            
-            async function migrarAMongoDB() {{
-                if (!confirm('¿Estás seguro de migrar todas las cotizaciones offline a MongoDB?')) {{
-                    return;
-                }}
-                
-                try {{
-                    const response = await fetch('/admin/migrar-a-mongodb');
-                    const data = await response.json();
-                    
-                    if (data.exito) {{
-                        mostrarResultado('resultado-migracion', data, 'success');
-                    }} else {{
-                        mostrarResultado('resultado-migracion', data, 'error');
-                    }}
-                }} catch (error) {{
-                    mostrarError('resultado-migracion', error.message);
-                }}
-            }}
-            
-            async function sincronizarOffline() {{
-                try {{
-                    const response = await fetch('/admin/sincronizar-offline');
-                    const data = await response.json();
-                    
-                    if (data.exito) {{
-                        mostrarResultado('resultado-migracion', data, 'success');
-                    }} else {{
-                        mostrarResultado('resultado-migracion', data, 'error');
-                    }}
-                }} catch (error) {{
-                    mostrarError('resultado-migracion', error.message);
-                }}
-            }}
-            
-            async function verEstadisticas() {{
-                try {{
-                    const response = await fetch('/stats');
-                    const data = await response.json();
-                    mostrarResultado('estadisticas', data, 'info');
-                }} catch (error) {{
-                    mostrarError('estadisticas', error.message);
-                }}
-            }}
-            
-            // Verificar estado al cargar
-            document.addEventListener('DOMContentLoaded', verificarEstado);
-        </script>
-    </body>
-    </html>
-    """
-
-@app.route("/admin/migrar-a-mongodb")
-def migrar_a_mongodb():
-    """Ruta obsoleta - MongoDB fue reemplazado por Supabase PostgreSQL en Septiembre 2025"""
-    return jsonify({
-        "error": "MongoDB ya no está disponible",
-        "mensaje": "El sistema migró completamente a Supabase PostgreSQL. "
-                   "Todas las cotizaciones se guardan directamente en Supabase "
-                   "con respaldo JSON offline. No se requiere migración.",
-        "estado": "migracion_completada",
-        "fecha_migracion": "2025-09-08",
-        "nueva_arquitectura": "Supabase PostgreSQL + SDK REST + JSON offline"
-    }), 410  # Gone
-
-@app.route("/admin/sincronizar-offline")
-def sincronizar_offline():
-    """Sincroniza PostgreSQL → archivo offline como respaldo"""
-    try:
-        if db_manager.modo_offline:
-            return jsonify({
-                "error": "En modo offline, no se puede sincronizar desde la base de datos"
-            }), 503
-
-        # Obtener todas las cotizaciones (prioridad: PostgreSQL directo → SDK REST → offline JSON)
-        cotizaciones_supabase = []
-        try:
-            if hasattr(db_manager, 'pg_connection') and db_manager.pg_connection:
-                cursor = db_manager.pg_connection.cursor()
-                cursor.execute(
-                    "SELECT numero_cotizacion, datos_generales, items, condiciones, "
-                    "revision, version, fecha_creacion, timestamp, usuario, observaciones, created_at "
-                    "FROM cotizaciones ORDER BY created_at DESC;"
-                )
-                rows = cursor.fetchall()
-                for row in rows:
-                    cot_data = {
-                        "numeroCotizacion": row["numero_cotizacion"],
-                        "datosGenerales": row["datos_generales"],
-                        "items": row["items"],
-                        "condiciones": row["condiciones"],
-                        "revision": row["revision"],
-                        "version": row["version"],
-                        "fechaCreacion": str(row["fecha_creacion"]) if row["fecha_creacion"] else None,
-                        "timestamp": row["timestamp"],
-                        "usuario": row["usuario"],
-                        "observaciones": row["observaciones"],
-                        "created_at": str(row["created_at"]) if row["created_at"] else None
-                    }
-                    cotizaciones_supabase.append(cot_data)
-                cursor.close()
-        except Exception as e:
-            # Fallback: intentar via SDK REST (solo columnas básicas)
-            try:
-                resp = db_manager.supabase_client.table('cotizaciones') \
-                    .select('numero_cotizacion, datos_generales, items, condiciones, revision, version, fecha_creacion, timestamp') \
-                    .order('created_at', desc=True) \
-                    .limit(1000) \
-                    .execute()
-                cotizaciones_supabase = resp.data if resp.data else []
-            except Exception as e2:
-                # Último recurso: datos ya guardados en JSON offline
-                datos_offline = db_manager._cargar_datos_offline()
-                cotizaciones_supabase = datos_offline.get("cotizaciones", [])
-                if not cotizaciones_supabase:
-                    return jsonify({
-                        "error": f"No se pudo obtener cotizaciones. PG: {str(e)[:100]}, SDK: {str(e2)[:100]}"
-                    }), 500
-
-        # Crear estructura offline
-        datos_offline = {
-            "cotizaciones": cotizaciones_supabase,
-            "metadata": {
-                "sincronizado_desde_supabase": datetime.datetime.now().isoformat(),
-                "total_cotizaciones": len(cotizaciones_supabase),
-                "version": os.getenv('APP_VERSION', '1.0.0'),
-                "modo": "respaldo_supabase"
-            }
-        }
-
-        # Guardar archivo offline actualizado
-        if db_manager._guardar_datos_offline(datos_offline):
-            return jsonify({
-                "exito": True,
-                "total_sincronizadas": len(cotizaciones_supabase),
-                "archivo": getattr(db_manager, 'archivo_offline', 'cotizaciones_offline.json'),
-                "mensaje": f"{len(cotizaciones_supabase)} cotizaciones sincronizadas a archivo offline"
-            })
-        else:
-            return jsonify({
-                "error": "Error guardando archivo offline"
-            }), 500
-
-    except Exception as e:
-        return jsonify({
-            "error": f"Error durante sincronización: {str(e)}"
-        }), 500
-
-# ============================================
 # RUTAS DE ADMINISTRACIÓN DE PDFs
 # ============================================
 
 @app.route("/admin/pdfs")
+@superadmin_required
 def admin_pdfs():
     """Panel de administración de PDFs"""
     try:
@@ -5523,6 +5207,7 @@ def admin_pdfs():
         return f"Error en panel de PDFs: {str(e)}", 500
 
 @app.route("/admin/listar-pdfs")
+@superadmin_required
 def admin_listar_pdfs():
     """Lista todos los PDFs para administración"""
     try:
@@ -5532,6 +5217,7 @@ def admin_listar_pdfs():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/verificar-integridad-pdfs")
+@superadmin_required
 def admin_verificar_integridad():
     """Verifica integridad del sistema de PDFs"""
     try:
@@ -5541,6 +5227,7 @@ def admin_verificar_integridad():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/importar-pdf", methods=["POST"])
+@superadmin_required
 def admin_importar_pdf():
     """Importa un PDF antiguo al sistema"""
     try:
@@ -5578,6 +5265,7 @@ def admin_importar_pdf():
 
 
 @app.route("/admin/normalizar-terminos")
+@superadmin_required
 @login_required
 def admin_normalizar_terminos():
     """
@@ -5719,6 +5407,7 @@ def admin_normalizar_terminos():
 
 
 @app.route("/admin/actualizar-rutas-pdf")
+@superadmin_required
 def actualizar_rutas_pdf():
     """Actualiza las rutas de PDFs existentes a la nueva ubicación"""
     try:
@@ -5787,6 +5476,7 @@ def actualizar_rutas_pdf():
         return jsonify({"error": f"Error actualizando rutas: {str(e)}"}), 500
 
 @app.route("/admin/escanear-pdfs-existentes")
+@superadmin_required
 def escanear_pdfs_existentes():
     """Escanea las carpetas de PDFs y registra archivos no indexados"""
     try:
@@ -5898,6 +5588,7 @@ def escanear_pdfs_existentes():
         return jsonify({"error": f"Error escaneando PDFs: {str(e)}"}), 500
 
 @app.route("/admin/regenerar-pdfs-faltantes", methods=["POST"])
+@superadmin_required
 def regenerar_pdfs_faltantes():
     """Regenera PDFs para todas las cotizaciones que no tienen PDF en ningún storage."""
     try:
@@ -5958,6 +5649,7 @@ def regenerar_pdfs_faltantes():
         return jsonify({"error": f"Error en regeneración masiva: {str(e)}"}), 500
 
 @app.route("/admin/debug-pdf/<path:numero_cotizacion>")
+@superadmin_required
 def debug_pdf_especifico(numero_cotizacion):
     """Debug específico para un PDF que no se encuentra"""
     try:
@@ -6884,6 +6576,7 @@ def internal_error(error):
     return render_template('error.html', error="Error interno del servidor. Intenta recargar la página."), 500
 
 @app.route("/admin/actualizar-timestamps")
+@superadmin_required
 def actualizar_timestamps():
     """Actualiza cotizaciones existentes con timestamps faltantes (Supabase)"""
     try:
@@ -7331,6 +7024,7 @@ def verificar_ultima():
 # ============================================
 
 @app.route("/admin/scheduler/estado")
+@superadmin_required
 def scheduler_estado():
     """Obtiene el estado del scheduler de sincronización"""
     try:
@@ -7352,6 +7046,7 @@ def scheduler_estado():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/scheduler/sync-manual", methods=["POST"])
+@superadmin_required
 def scheduler_sync_manual():
     """Ejecuta una sincronización manual inmediata"""
     try:
@@ -7376,6 +7071,7 @@ def scheduler_sync_manual():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/supabase-storage/estado")
+@superadmin_required
 def supabase_storage_estado():
     """Obtiene el estado de Supabase Storage"""
     try:
@@ -7393,6 +7089,7 @@ def supabase_storage_estado():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/admin/storage-diagnostic")
+@superadmin_required
 def storage_diagnostic():
     """Diagnóstico completo del Storage para producción"""
     try:
