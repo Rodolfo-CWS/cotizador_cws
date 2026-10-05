@@ -3367,15 +3367,25 @@ def fast_quote_page():
     )
 
 
-def _build_criteria_context(prompt_text: str) -> str:
-    """Devuelve el prompt de criterios tal cual lo escribió el admin, o un fallback genérico."""
-    if prompt_text and prompt_text.strip():
-        return prompt_text.strip()
-    return (
-        "No hay criterios de precios configurados para esta empresa. "
-        "Usa tarifas estándar del mercado mexicano para materiales, "
-        "mano de obra, transporte e instalación."
-    )
+def _build_criteria_context(global_text: str, tenant_text: str) -> str:
+    """Combina los criterios globales (base) con las instrucciones del tenant.
+
+    El criterio global aplica a todas las empresas; las instrucciones del tenant
+    son personalización opcional que se agrega al final. Si no hay nada, se usa
+    un fallback genérico.
+    """
+    parts = []
+    if global_text and global_text.strip():
+        parts.append(global_text.strip())
+    if tenant_text and tenant_text.strip():
+        parts.append("INSTRUCCIONES ADICIONALES DE ESTA EMPRESA:\n" + tenant_text.strip())
+    if not parts:
+        return (
+            "No hay criterios de precios configurados. "
+            "Usa tarifas estándar del mercado mexicano para materiales, "
+            "mano de obra, transporte e instalación."
+        )
+    return "\n\n".join(parts)
 
 
 def _build_materials_context() -> str:
@@ -3436,15 +3446,20 @@ def fast_quote_estimate():
                          "Incluye dimensiones, materiales, capacidad de carga, cantidades, etc."
             }), 400
 
-        # 1. Obtener prompt de criterios de la compañía
+        # 1. Obtener criterios globales + instrucciones personales del tenant
         company_id = session.get("company_id")
-        prompt_text = ""
+        global_text = ""
+        tenant_text = ""
+        try:
+            global_text = db_manager.get_fast_quote_global_prompt()
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error cargando criterios globales: {e}")
         if company_id:
             try:
-                prompt_text = db_manager.get_fast_quote_prompt(company_id)
-                print(f"[FAST_QUOTE] Prompt cargado: {len(prompt_text)} chars para company_id={company_id}")
+                tenant_text = db_manager.get_fast_quote_prompt(company_id)
+                print(f"[FAST_QUOTE] Instrucciones del tenant: {len(tenant_text)} chars para company_id={company_id}")
             except Exception as e:
-                print(f"[FAST_QUOTE] Error cargando prompt: {e}")
+                print(f"[FAST_QUOTE] Error cargando instrucciones: {e}")
 
         # 1.5 Límite de plan (cuota mensual). No aplica a recálculo por feedback.
         is_feedback = bool(feedback and previous_estimate)
@@ -3481,7 +3496,7 @@ def fast_quote_estimate():
             }), 503
 
         # 3. Construir contexto de criterios y materiales
-        criteria_context = _build_criteria_context(prompt_text)
+        criteria_context = _build_criteria_context(global_text, tenant_text)
         materials_context = _build_materials_context()
 
         # 4. Llamar a Claude
