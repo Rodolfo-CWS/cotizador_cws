@@ -104,6 +104,29 @@
         .item-action-btn.delete { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
         .item-action-btn.delete:hover { background: #fee2e2; }
 
+        .item-summary-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: .82rem;
+            color: #4b5563;
+            overflow: hidden;
+        }
+        .item-summary-info .sum-desc {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .item-summary-info .sum-precio { color: #065f46; white-space: nowrap; }
+        .item-summary-info .sum-cantidad { color: #6b7280; white-space: nowrap; }
+        .item-summary-info .sum-total { font-weight: 700; color: #3730a3; white-space: nowrap; }
+
         .item-body { padding: 16px; }
 
         /* Sub-secciones (Materiales / Otros Materiales / Costos y Totales) */
@@ -131,6 +154,17 @@
             color: #6b7280;
         }
         .item-subsection-hint { margin-left: auto; font-size: .7rem; color: #9ca3af; }
+
+        .nivel-precio-select {
+            margin-left: auto;
+            font-size: .72rem;
+            padding: 4px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: #fff;
+            color: #374151;
+            max-width: 220px;
+        }
 
         /* Etiquetas y campos uniformes dentro de los items */
         .item-label {
@@ -803,6 +837,22 @@ function generarOpcionesMateriales() {
     return opciones;
 }
 
+// Niveles de precio predefinidos ($/kg) para la sección de Materiales
+const NIVELES_PRECIO = [
+    { label: 'Precio estándar', precio: 80 },
+    { label: 'Precio competitivo', precio: 75 },
+    { label: 'Precio muy bajo', precio: 72 },
+    { label: 'Precio por complejidad', precio: 95 },
+    { label: 'Precio por ensamble ligero', precio: 120 },
+    { label: 'Precio por exceso de maquinados', precio: 180 },
+];
+
+function generarOpcionesNivelPrecio() {
+    return NIVELES_PRECIO.map(n =>
+        `<option value="${n.precio}" data-precio="${n.precio}">${n.label} — $${n.precio}/kg</option>`
+    ).join('');
+}
+
 let cotizacionGuardada = false;
 let estadoInicialFormulario = null; // Para detectar cambios en revisiones
 
@@ -1251,6 +1301,7 @@ function recopilarItems() {
             seguridad: itemBlock.querySelector('.seguridad')?.value || '',
             descuento: itemBlock.querySelector('.descuento')?.value || '',
             comentariosInternos: itemBlock.querySelector('[name="comentariosItem[]"]')?.value || '',
+            nivelPrecio: itemBlock.querySelector('.nivel-precio-select')?.value || '',
 
             // Materiales
             materiales: [],
@@ -2029,6 +2080,7 @@ function capturarEstadoFormulario() {
             seguridad: itemBlock.querySelector('.seguridad')?.value || '',
             descuento: itemBlock.querySelector('.descuento')?.value || '',
             comentariosInternos: itemBlock.querySelector('[name="comentariosItem[]"]')?.value || '',
+            nivelPrecio: itemBlock.querySelector('.nivel-precio-select')?.value || '',
 
             // Materiales
             materiales: [],
@@ -2172,6 +2224,9 @@ function configurarEventListeners() {
             }
             if (e.target.matches('.precio-otro, .cantidad-otro')) {
                 calcularSubtotalOtro(e.target);
+            }
+            if (e.target.closest('.descripcion-item')) {
+                actualizarResumenItem(itemElement);
             }
         }
     });
@@ -2881,6 +2936,13 @@ function cargarDatosItem(itemData, index) {
         }
         actualizarDisplayMoneda(item);
 
+        // Cargar nivel de precio
+        const nivelPrecioSelect = item.querySelector('.nivel-precio-select');
+        if (nivelPrecioSelect && itemData.nivelPrecio) nivelPrecioSelect.value = itemData.nivelPrecio;
+
+        // Reflejar el resumen colapsado con los datos cargados
+        actualizarResumenItem(item);
+
         // Cargar notas del item
         const notas = item.querySelector('[name="notas[]"]');
         if (notas && itemData.notas) {
@@ -3476,7 +3538,7 @@ function clonarItem(button) {
 
     // Actualizar número en el summary del clon
     const nuevoNumero = container.children.length + 1;
-    const spanNumero  = itemClonado.querySelector('summary span');
+    const spanNumero  = itemClonado.querySelector('summary .item-badge');
     if (spanNumero) spanNumero.textContent = '📋 Item ' + nuevoNumero;
 
     itemClonado.open = true;
@@ -3496,7 +3558,7 @@ async function eliminarItem(button) {
     // Re-numerar ítems restantes (solo visual)
     const container = document.getElementById('items-container');
     container.querySelectorAll('.item-block').forEach((bloque, index) => {
-        const span = bloque.querySelector('summary span');
+        const span = bloque.querySelector('summary .item-badge');
         if (span) span.textContent = '📋 Item ' + (index + 1);
     });
 
@@ -3508,6 +3570,12 @@ function crearTemplateItem(numero) {
     <details class="item-block" open>
         <summary>
             <span class="item-badge">📋 Item ${numero}</span>
+            <div class="item-summary-info">
+                <span class="sum-desc">Sin descripción</span>
+                <span class="sum-precio">$0.00 c/u</span>
+                <span class="sum-cantidad">× 1</span>
+                <span class="sum-total">$0.00</span>
+            </div>
             <div class="item-actions" onclick="event.stopPropagation()">
                 <button type="button" onclick="clonarItem(this)" class="item-action-btn clone">&#8962; Clonar</button>
                 <button type="button" onclick="eliminarItem(this)" class="item-action-btn delete">&#10005; Borrar</button>
@@ -3552,6 +3620,10 @@ function crearTemplateItem(numero) {
             <div class="item-subsection" style="margin-top:16px;">
                 <div class="item-subsection-header">
                     <span class="item-subsection-title">🔧 Materiales</span>
+                    <select class="nivel-precio-select item-input" onchange="aplicarNivelPrecio(this)">
+                        <option value="">— Sin nivel de precio —</option>
+                        ${generarOpcionesNivelPrecio()}
+                    </select>
                 </div>
                 <div class="materiales-container">
                     <div class="tabla-head">
@@ -3828,6 +3900,18 @@ function agregarFila(button, tipo) {
     }
     
     container.appendChild(nuevaFila);
+
+    // Pre-llenar el $/Kg si el item tiene un nivel de precio seleccionado
+    if (tipo === 'material') {
+        const nivelSelect = itemBlock.querySelector('.nivel-precio-select');
+        const precio = nivelSelect?.value;
+        if (precio) {
+            const p1 = nuevaFila.querySelector('.precio-input');
+            if (p1) p1.value = precio;
+            const p2 = nuevaFila.querySelector('.precio-kg-input');
+            if (p2) p2.value = precio;
+        }
+    }
 }
 
 function eliminarFila(button, tipo) {
@@ -4149,6 +4233,40 @@ function actualizarDisplayMoneda(itemElement) {
     if (totalInput && totalDisp) totalDisp.textContent = formatearMoneda(totalInput.value);
 }
 
+function actualizarResumenItem(itemElement) {
+    if (!itemElement) return;
+    const info = itemElement.querySelector('.item-summary-info');
+    if (!info) return;
+    const desc = itemElement.querySelector('.descripcion-item')?.textContent?.trim() || 'Sin descripción';
+    const precio = parseFloat(itemElement.querySelector('.costo-unidad')?.value || 0);
+    const cantidadRaw = parseFloat(itemElement.querySelector('.cantidad-item')?.value || 0);
+    const cantidad = isNaN(cantidadRaw) ? 1 : cantidadRaw;
+    const total = parseFloat(itemElement.querySelector('.total-item')?.value || 0);
+    info.querySelector('.sum-desc').textContent = desc;
+    info.querySelector('.sum-precio').textContent = formatearMoneda(precio) + ' c/u';
+    info.querySelector('.sum-cantidad').textContent = '× ' + cantidad;
+    info.querySelector('.sum-total').textContent = formatearMoneda(total);
+}
+
+function aplicarNivelPrecio(select) {
+    const itemElement = select.closest('.item-block');
+    const precio = select.value;
+    if (!precio || !itemElement) return;
+    itemElement.querySelectorAll('.materiales-container .material-row').forEach(row => {
+        const precioInput = row.querySelector('.precio-input');
+        if (precioInput) {
+            precioInput.value = precio;
+            calcularSubtotalMaterial(precioInput);
+        }
+        const precioKgInput = row.querySelector('.precio-kg-input');
+        if (precioKgInput) {
+            precioKgInput.value = precio;
+            calcularSubtotalPeso(precioKgInput);
+        }
+    });
+    actualizarTodosLosCalculos();
+}
+
 function calcularCostosItem(itemElement) {
     if (!itemElement) return;
     let totalMateriales = 0;
@@ -4184,6 +4302,7 @@ function calcularCostosItem(itemElement) {
     if (costoUnidadInput) costoUnidadInput.value = costoUnidad.toFixed(2);
     if (totalItemInput) totalItemInput.value = totalItem.toFixed(2);
     actualizarDisplayMoneda(itemElement);
+    actualizarResumenItem(itemElement);
 }
 
 function actualizarTodosLosCalculos() {
