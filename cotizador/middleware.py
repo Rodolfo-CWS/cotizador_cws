@@ -7,8 +7,6 @@ Antes de cada request:
 3. Carga los datos de la compañía en g.company para templates
 """
 
-import os
-
 from flask import g, session, redirect, url_for, request, flash
 from functools import wraps
 
@@ -37,6 +35,8 @@ def init_middleware(app, supabase_manager):
             '/static/',
             '/stripe/webhook',
             '/planes',
+            '/admin/login',
+            '/admin/logout',
         ]
 
         # Saltar middleware para rutas públicas
@@ -226,35 +226,21 @@ def admin_required(f):
 
 
 def is_superadmin():
-    """True si el email de la sesión está en SUPERADMIN_EMAILS.
+    """True si la sesión actual pasó el login de superadmin (/admin/login).
 
-    El acceso al panel de plataforma (/admin) se restringe a un set fijo de
-    personas (desarrollador + administrador de Sifra), definido por env var
-    separada por comas. No depende del rol del tenant.
+    El panel de plataforma (/admin) es de uso exclusivo del administrador de
+    Sifra. Se accede con una contraseña propia (env var SUPERADMIN_PASSWORD),
+    independiente del login de Supabase Auth y del rol del tenant.
     """
-    if 'user_id' not in session:
-        return False
-    email = (session.get('user_email') or '').strip().lower()
-    if not email:
-        return False
-    allowed = os.getenv('SUPERADMIN_EMAILS', '')
-    return email in {e.strip().lower() for e in allowed.split(',') if e.strip()}
+    return session.get('superadmin_ok') is True
 
 
 def superadmin_required(f):
-    """Decorador: requiere login + email en SUPERADMIN_EMAILS."""
+    """Decorador: requiere sesión de superadmin (login por contraseña)."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            if request.method == 'GET':
-                session['next_url'] = request.full_path
-            return redirect(url_for('auth.login'))
         if not is_superadmin():
-            from flask import render_template
-            return render_template(
-                'error.html',
-                error="No tienes permisos para acceder a esta página"
-            ), 403
+            return redirect(url_for('platform_admin.login'))
         return f(*args, **kwargs)
     return decorated_function
 

@@ -55,7 +55,7 @@
             <a href="/admin/finanzas" class="{{ 'active' if request.path.startswith('/admin/finanzas') else '' }}">Finanzas</a>
             <a href="/admin/logs" class="{{ 'active' if request.path.startswith('/admin/logs') else '' }}">Logs</a>
             <a href="/admin/pricing" class="{{ 'active' if request.path.startswith('/admin/pricing') else '' }}">Tarifas</a>
-            <a href="/">Volver</a>
+            <a href="/admin/logout">Salir</a>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
