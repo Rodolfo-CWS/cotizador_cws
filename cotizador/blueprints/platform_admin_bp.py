@@ -1,8 +1,10 @@
 """
 Panel de plataforma (superadmin Sifra).
 
-Acceso restringido al desarrollador y administrador de Sifra (no a los tenants),
-vía la env var SUPERADMIN_EMAILS (ver cotizador/middleware.superadmin_required).
+Acceso restringido al administrador de Sifra (no a los tenants), vía un login
+propio por contraseña en /admin/login (env var SUPERADMIN_PASSWORD; ver
+cotizador/middleware.superadmin_required). Es independiente del login de
+Supabase Auth y del rol del tenant.
 
 Mezcla:
 - Estatus del sistema (Supabase, Storage, Scheduler, Keepalive, estadísticas globales)
@@ -11,12 +13,14 @@ Mezcla:
 """
 
 import os
+import secrets
 
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, current_app,
+    session,
 )
 
-from cotizador.middleware import login_required, superadmin_required
+from cotizador.middleware import superadmin_required, is_superadmin
 from cotizador.plans import (
     PLAN_NAMES, PLAN_PRICES, PLAN_LIMITS, VALID_PLANS, get_limit, is_valid_plan,
     effective_plan, _normalize_plan, FASTQUOTE_PACK_PRICE,
@@ -96,8 +100,33 @@ def _read_log_tail(path, lines=200):
         return ''
 
 
+@platform_admin_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login simple del panel de Sifra (solo contraseña, sin Supabase Auth)."""
+    if is_superadmin():
+        return redirect(url_for('platform_admin.dashboard'))
+
+    error = None
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        expected = os.getenv('SUPERADMIN_PASSWORD', '')
+        if expected and secrets.compare_digest(password, expected):
+            session['superadmin_ok'] = True
+            session.permanent = True
+            return redirect(url_for('platform_admin.dashboard'))
+        error = "Contraseña incorrecta"
+
+    return render_template('admin/platform/login.html', error=error)
+
+
+@platform_admin_bp.route('/logout')
+def logout():
+    """Cierra la sesión de superadmin."""
+    session.pop('superadmin_ok', None)
+    return redirect(url_for('platform_admin.login'))
+
+
 @platform_admin_bp.route('/')
-@login_required
 @superadmin_required
 def dashboard():
     """Estatus del sistema + resumen de empresas."""
@@ -169,7 +198,6 @@ def dashboard():
 
 
 @platform_admin_bp.route('/companies')
-@login_required
 @superadmin_required
 def companies():
     """Listado de empresas con uso compacto."""
@@ -198,7 +226,6 @@ def companies():
 
 
 @platform_admin_bp.route('/companies/<company_id>')
-@login_required
 @superadmin_required
 def company_detail(company_id):
     """Detalle de una empresa: uso vs límites y acciones."""
@@ -240,7 +267,6 @@ def company_detail(company_id):
 
 
 @platform_admin_bp.route('/companies/<company_id>/plan', methods=['POST'])
-@login_required
 @superadmin_required
 def company_change_plan(company_id):
     """Cambia el plan de una empresa."""
@@ -261,7 +287,6 @@ def company_change_plan(company_id):
 
 
 @platform_admin_bp.route('/companies/<company_id>/activate', methods=['POST'])
-@login_required
 @superadmin_required
 def company_activate(company_id):
     """Activa una empresa (is_active = true)."""
@@ -273,7 +298,6 @@ def company_activate(company_id):
 
 
 @platform_admin_bp.route('/companies/<company_id>/deactivate', methods=['POST'])
-@login_required
 @superadmin_required
 def company_deactivate(company_id):
     """Desactiva una empresa (is_active = false)."""
@@ -285,7 +309,6 @@ def company_deactivate(company_id):
 
 
 @platform_admin_bp.route('/pricing')
-@login_required
 @superadmin_required
 def pricing():
     """Tarifas y límites por plan."""
@@ -299,7 +322,6 @@ def pricing():
 
 
 @platform_admin_bp.route('/finanzas')
-@login_required
 @superadmin_required
 def finanzas():
     """Resumen financiero estimado (MRR/ARR por plan, sin Stripe)."""
@@ -320,7 +342,6 @@ def finanzas():
 
 
 @platform_admin_bp.route('/logs')
-@login_required
 @superadmin_required
 def logs():
     """Logs de fallos (archivo) + métricas de performance del SaaS."""
