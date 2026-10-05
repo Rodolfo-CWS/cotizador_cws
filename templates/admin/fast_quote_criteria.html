@@ -1,29 +1,30 @@
 {% extends "admin/_tenant_admin.html" %}
-{% block title %}{{ company.name if company else 'Tu empresa' }} - Criterios Fast Quote{% endblock %}
+{% block title %}{{ company.name if company else 'Tu empresa' }} - Instrucciones Fast Quote{% endblock %}
 {% block admin_content %}
 
 <div class="info-box">
-    <strong>⚡ ¿Cómo funciona?</strong><br>
-    Escribe en texto libre tus criterios de precios. Este prompt se envía a la IA
-    cada vez que un usuario pide una Cotización Rápida. La IA usará esta información
-    como referencia para estimar precios.<br><br>
-    <strong>Sé específico:</strong> precios por kg, por hora de mano de obra, márgenes,
-    costos de transporte, etc. Mientras más detallado, mejores serán las estimaciones.
+    <strong>⚡ Instrucciones adicionales</strong><br>
+    Los criterios base de precios de Fast Quote ya están definidos de forma global
+    y aplican a todas las empresas. Aquí puedes escribir instrucciones
+    <strong>personales de tu empresa</strong> que complementen la estimación:
+    tiempos de entrega, marcas preferidas, condiciones particulares, etc.<br><br>
+    Este texto se agrega a los criterios globales cada vez que se pide una
+    Cotización Rápida.
 </div>
 
 <div class="card">
-    <h1>Prompt de Criterios</h1>
-    <p class="subtitle">Este texto guía a la IA al estimar cotizaciones para {{ company.name }}</p>
+    <h1>Instrucciones adicionales</h1>
+    <p class="subtitle">Personalización opcional para {{ company.name }}</p>
 
     <form method="POST">
         <div class="form-group">
-            <label for="prompt_text">Escribe tus criterios de precios y reglas para la IA:</label>
-            <textarea id="prompt_text" name="prompt_text" style="font-family: 'Courier New', monospace; line-height: 1.7; min-height: 350px;"
-                placeholder="Ejemplo:&#10;&#10;Precios de materiales:&#10;- Acero estructural A-36: $35 MXN por kg&#10;- Acero inoxidable 304: $85 MXN por kg&#10;- Aluminio 6061: $120 MXN por kg&#10;- Lámina galvanizada calibre 18: $28 MXN por kg&#10;&#10;Mano de obra:&#10;- Soldadura certificada: $250 MXN por hora&#10;- Fabricación general: $180 MXN por hora&#10;- Pintura y acabado: $80 MXN por m²&#10;&#10;Costos adicionales:&#10;- Transporte local dentro de la ciudad: $2,500 MXN por lote&#10;- Instalación en sitio: $350 MXN por hora&#10;&#10;Márgenes:&#10;- Margen de utilidad: 20% sobre costo total&#10;- En proyectos pequeños (menos de $50k): margen mínimo 25%&#10;&#10;Reglas:&#10;- Siempre considera un 5% extra por desperdicio de material&#10;- Si el producto requiere acabado especial, suma 15% al costo de fabricación&#10;- Para estructuras que soportan carga, usa acero A-36 como default">{% if prompt_text %}{{ prompt_text }}{% endif %}</textarea>
-            <p class="hint">💡 Escribe en formato libre. La IA interpretará este texto como guía para sus estimaciones.</p>
+            <label for="prompt_text">Instrucciones personales de tu empresa:</label>
+            <textarea id="prompt_text" name="prompt_text" style="font-family: 'Courier New', monospace; line-height: 1.7; min-height: 200px;"
+                placeholder="Ej.: Entregas en 2-3 semanas. Solo trabajamos con acero nacional.">{% if prompt_text %}{{ prompt_text }}{% endif %}</textarea>
+            <p class="hint">💡 Déjalo vacío para usar solo los criterios globales.</p>
         </div>
 
-        <button type="submit" class="btn btn-primary">💾 Guardar Prompt</button>
+        <button type="submit" class="btn btn-primary">💾 Guardar instrucciones</button>
         {% if updated_at %}
         <p class="hint">Última actualización: {{ updated_at }}</p>
         {% endif %}

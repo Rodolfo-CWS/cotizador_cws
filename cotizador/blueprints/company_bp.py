@@ -425,7 +425,11 @@ def _admin_invite_user(client, email, redirect_to, data=None):
 @login_required
 @admin_required
 def fast_quote_criteria():
-    """Configurar el prompt de criterios para estimaciones con IA."""
+    """Configurar las instrucciones adicionales personales para Fast Quote.
+
+    Los criterios base son globales (tabla fast_quote_global_prompt, editados por
+    el superadmin); aquí el admin solo escribe la personalización de su empresa.
+    """
     db = _get_db()
     company_id = _get_company_id()
 
@@ -439,7 +443,7 @@ def fast_quote_criteria():
         try:
             result = db.save_fast_quote_prompt(company_id, prompt_text)
             if result:
-                flash("Prompt guardado correctamente ✅", "success")
+                flash("Instrucciones guardadas correctamente ✅", "success")
             else:
                 flash("Error al guardar. Verifica la conexión a la base de datos.", "error")
         except Exception as e:
@@ -448,7 +452,7 @@ def fast_quote_criteria():
 
         return redirect(url_for('company.fast_quote_criteria'))
 
-    # GET: mostrar prompt actual
+    # GET: mostrar instrucciones actuales
     company = db.get_company_by_id(company_id)
     prompt_text = db.get_fast_quote_prompt(company_id)
 

@@ -3874,6 +3874,82 @@ class SupabaseManager:
         return False
 
     # ================================================================
+    # FAST QUOTE — CRITERIOS GLOBALES (v11, singleton)
+    # ================================================================
+
+    def get_fast_quote_global_prompt(self) -> str:
+        """Obtiene los criterios globales de Fast Quote (una sola fila, id=1)."""
+        # Intento 1: PostgreSQL directo
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "SELECT prompt_text FROM public.fast_quote_global_prompt WHERE id = 1"
+                )
+                row = cursor.fetchone()
+                cursor.close()
+                if row:
+                    return row[0] or ''
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error PG get_fast_quote_global_prompt: {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+
+        # Intento 2: SDK con service key
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if url and key:
+                client = create_client(url, key)
+                resp = client.table('fast_quote_global_prompt') \
+                    .select('prompt_text') \
+                    .eq('id', 1) \
+                    .execute()
+                if resp.data and len(resp.data) > 0:
+                    return resp.data[0].get('prompt_text', '') or ''
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error SDK get_fast_quote_global_prompt: {e}")
+
+        return ''
+
+    def save_fast_quote_global_prompt(self, prompt_text: str) -> bool:
+        """Guarda o actualiza los criterios globales (upsert del singleton id=1)."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """INSERT INTO public.fast_quote_global_prompt (id, prompt_text)
+                       VALUES (1, %s)
+                       ON CONFLICT (id)
+                       DO UPDATE SET prompt_text = EXCLUDED.prompt_text,
+                                     updated_at = NOW()
+                       RETURNING prompt_text""",
+                    (prompt_text,)
+                )
+                row = cursor.fetchone()
+                self.pg_connection.commit()
+                cursor.close()
+                return row is not None
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error save_fast_quote_global_prompt: {e}")
+            try:
+                self.pg_connection.rollback()
+            except:
+                pass
+        return False
+
+    # ================================================================
     # FAST QUOTE — CUOTA MENSUAL (para límites del plan)
     # ================================================================
 

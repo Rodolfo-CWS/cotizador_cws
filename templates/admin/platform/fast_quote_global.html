@@ -1,0 +1,25 @@
+{% extends "admin/platform/_platform.html" %}
+{% block title %}Criterios Fast Quote - Plataforma Sifra{% endblock %}
+{% block content %}
+
+<div class="card">
+    <h1>Criterios globales de Fast Quote</h1>
+    <p class="subtitle">
+        Un solo conjunto de criterios de precios, igual para todos los tenants.
+        No es visible para los usuarios; cada empresa solo agrega sus propias
+        instrucciones adicionales encima de este texto.
+    </p>
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="prompt_text">Criterios de precios y reglas para la IA:</label>
+            <textarea id="prompt_text" name="prompt_text"
+                style="font-family: 'Courier New', monospace; line-height: 1.7; min-height: 420px; width: 100%; box-sizing: border-box; padding: 12px; border: 1.5px solid #d6d3d1; border-radius: 8px;">{{ prompt_text if prompt_text else '' }}</textarea>
+            <p class="muted" style="margin-top:8px;">Este texto se envía a la IA como referencia base en cada Cotización Rápida, para todas las empresas.</p>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Guardar criterios</button>
+    </form>
+</div>
+
+{% endblock %}

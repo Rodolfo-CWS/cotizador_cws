@@ -390,3 +390,22 @@ def logs():
         scheduler_state=scheduler_state,
         keepalive=keepalive,
     )
+
+
+@platform_admin_bp.route('/fast-quote', methods=['GET', 'POST'])
+@superadmin_required
+def fast_quote_global():
+    """Criterios GLOBALES de Fast Quote (singleton). No visibles para tenants."""
+    db = _get_db()
+
+    if request.method == 'POST':
+        prompt_text = request.form.get('prompt_text', '').strip()
+        try:
+            result = db.save_fast_quote_global_prompt(prompt_text)
+            flash("Criterios globales guardados", "success" if result else "error")
+        except Exception as e:
+            flash(f"Error guardando: {e}", "error")
+        return redirect(url_for('platform_admin.fast_quote_global'))
+
+    prompt_text = db.get_fast_quote_global_prompt() or ''
+    return render_template('admin/platform/fast_quote_global.html', prompt_text=prompt_text)
