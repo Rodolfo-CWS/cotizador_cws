@@ -127,33 +127,13 @@ def upload_logo():
         return redirect(url_for('company.branding'))
 
     try:
-        # Usar cliente Supabase con service key para bypass RLS
-        from supabase import create_client
-        import os
-        supabase_url = os.getenv('SUPABASE_URL')
-        service_key = os.getenv('SUPABASE_SERVICE_KEY')
+        file_data = file.read()
+        logo_url = db.upload_company_logo(company_id, file_data)
 
-        if not supabase_url or not service_key:
-            flash("Error: Configuración de Supabase incompleta", "error")
+        if not logo_url:
+            flash("Error al subir el logo. Intenta de nuevo.", "error")
             return redirect(url_for('company.branding'))
 
-        admin_client = create_client(supabase_url, service_key)
-
-        file_data = file.read()
-        file_path = f"company-assets/{company_id}/logo.png"
-
-        # Subir a bucket company-assets (debe existir en Supabase Storage)
-        bucket = admin_client.storage.from_('company-assets')
-        bucket.upload(
-            path=file_path,
-            file=file_data,
-            file_options={"content-type": "image/png", "upsert": "true"}
-        )
-
-        # Obtener URL pública
-        logo_url = bucket.get_public_url(file_path)
-
-        # Actualizar company con la URL
         db.update_company(company_id, {"logo_url": logo_url})
         flash("Logo subido correctamente", "success")
     except Exception as e:
