@@ -96,6 +96,70 @@
             background: white;
         }
 
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid #d6d3d1;
+            border-radius: 8px;
+            font-size: 15px;
+            color: #1e293b;
+            background: #faf9f7;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            background: white;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .form-group input[type="file"] {
+            padding: 8px;
+            background: white;
+        }
+
+        .form-group input[type="color"] {
+            width: 60px;
+            height: 40px;
+            padding: 2px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .form-row-colors {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .optional-tag {
+            font-size: 11px;
+            font-weight: 500;
+            color: #a8a29e;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .logo-banner {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
         .form-group .hint {
             font-size: 12px;
             color: #78716c;
@@ -161,7 +225,7 @@
         <div class="error-message">{{ error }}</div>
         {% endif %}
 
-        <form id="registerForm" method="POST" action="/auth/register">
+        <form id="registerForm" method="POST" action="/auth/register" enctype="multipart/form-data">
             <!-- Datos del usuario -->
             <div class="form-section">
                 <h2>Tus datos</h2>
@@ -239,6 +303,112 @@
                         pattern="[a-z0-9-]+"
                     >
                     <p class="hint">Solo minúsculas, números y guiones. Se usa en la URL de tu cuenta.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="address">Dirección</label>
+                    <input
+                        type="text"
+                        name="address"
+                        id="address"
+                        placeholder="Ej: Av. Insurgentes 123, CDMX"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Teléfono</label>
+                    <input
+                        type="tel"
+                        name="phone"
+                        id="phone"
+                        placeholder="Ej: +52 55 1234 5678"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="iva_rate">IVA</label>
+                    <select name="iva_rate" id="iva_rate" required>
+                        <option value="16.00" selected>16%</option>
+                        <option value="0.00">0% (exento)</option>
+                    </select>
+                    <p class="hint">Porcentaje de IVA que se aplica en tus cotizaciones.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="footer_text">Texto al pie de tus cotizaciones</label>
+                    <textarea
+                        name="footer_text"
+                        id="footer_text"
+                        rows="2"
+                        placeholder="Ej: Gracias por tu preferencia. Esta cotización es válida por 30 días."
+                        required
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="tax_id">RFC <span class="optional-tag">opcional</span></label>
+                    <input
+                        type="text"
+                        name="tax_id"
+                        id="tax_id"
+                        placeholder="Ej: ACM123456XXX"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="company_email">Email de contacto de la empresa <span class="optional-tag">opcional</span></label>
+                    <input
+                        type="email"
+                        name="company_email"
+                        id="company_email"
+                        placeholder="contacto@tuempresa.com"
+                    >
+                    <p class="hint">Distinto de tu email de acceso. Aparece en tus cotizaciones.</p>
+                </div>
+
+                <div class="form-row-colors">
+                    <div class="form-group">
+                        <label for="primary_color">Color principal <span class="optional-tag">opcional</span></label>
+                        <input
+                            type="color"
+                            name="primary_color"
+                            id="primary_color"
+                            value="#4f46e5"
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="secondary_color">Color secundario <span class="optional-tag">opcional</span></label>
+                        <input
+                            type="color"
+                            name="secondary_color"
+                            id="secondary_color"
+                            value="#1e293b"
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logo -->
+            <div class="form-section">
+                <h2>Logo</h2>
+
+                <div class="logo-banner">
+                    ⚠️ <strong>Sube tu logo — es muy importante.</strong><br>
+                    Aparece en tus cotizaciones y le da identidad profesional a tu empresa.
+                    Puedes subirlo ahora o después, desde el panel de administración.
+                </div>
+
+                <div class="form-group">
+                    <label for="logo">Logo de tu empresa <span class="optional-tag">opcional</span></label>
+                    <input
+                        type="file"
+                        name="logo"
+                        id="logo"
+                        accept="image/png,image/jpeg,image/svg+xml"
+                    >
+                    <p class="hint">Formatos: PNG, JPG o SVG.</p>
                 </div>
             </div>
 

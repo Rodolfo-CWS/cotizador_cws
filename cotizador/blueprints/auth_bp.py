@@ -194,14 +194,33 @@ def register():
         full_name = request.form.get('full_name', '').strip()
         company_name = request.form.get('company_name', '').strip()
         company_slug = request.form.get('company_slug', '').strip().lower()
+
+        # Datos de la empresa — obligatorios en el alta
+        address = request.form.get('address', '').strip()
+        phone = request.form.get('phone', '').strip()
+        footer_text = request.form.get('footer_text', '').strip()
+
+        # Datos de la empresa — opcionales
+        tax_id = request.form.get('tax_id', '').strip()
+        company_email = request.form.get('company_email', '').strip()
+        primary_color = request.form.get('primary_color', '').strip()
+        secondary_color = request.form.get('secondary_color', '').strip()
+
+        # IVA: siempre viene del select; parse seguro con default 16.00
+        try:
+            iva_rate = float(request.form.get('iva_rate', '16.00') or '16.00')
+        except (TypeError, ValueError):
+            iva_rate = 16.00
+
         # Registro = freemium. Toda cuenta nueva arranca en Starter; el upgrade
         # es post-login vía /billing (Stripe). Se ignora cualquier plan del form
         # para evitar que un POST forjado asigne un plan de pago.
         plan = 'starter'
 
         # Validaciones
-        if not all([email, password, full_name, company_name, company_slug]):
-            error = "Todos los campos son requeridos"
+        if not all([email, password, full_name, company_name, company_slug,
+                    address, phone, footer_text]):
+            error = "Completa los campos obligatorios"
             return render_template('register.html', error=error)
 
         if len(password) < 8:
@@ -241,10 +260,26 @@ def register():
 
             user = auth_response.user
 
-            # 2. Crear compañía
+            # 2. Crear compañía (con los datos de alta obligatorios + opcionales)
+            company_fields = {
+                "address": address,
+                "phone": phone,
+                "footer_text": footer_text,
+                "iva_rate": iva_rate,
+            }
+            if tax_id:
+                company_fields["tax_id"] = tax_id
+            if company_email:
+                company_fields["email"] = company_email
+            if primary_color:
+                company_fields["primary_color"] = primary_color
+            if secondary_color:
+                company_fields["secondary_color"] = secondary_color
+
             admin_client = get_supabase_admin_client()
             company_data = _create_company(
-                admin_client, company_name, company_slug, plan
+                admin_client, company_name, company_slug, plan,
+                extra=company_fields
             )
             company_id = company_data['id']
 
@@ -253,7 +288,21 @@ def register():
                 admin_client, user.id, company_id, full_name, 'admin'
             )
 
-            # 4. Guardar en sesión
+            # 4. Subir logo (opcional, no bloqueante). Se sube después de crear la
+            #    compañía porque necesita el company_id.
+            logo_file = request.files.get('logo') if request.files else None
+            if logo_file and logo_file.filename:
+                try:
+                    from flask import current_app
+                    db = current_app.extensions.get('db_manager')
+                    if db:
+                        logo_url = db.upload_company_logo(company_id, logo_file.read())
+                        if logo_url:
+                            db.update_company(company_id, {"logo_url": logo_url})
+                except Exception as e:
+                    logger.warning(f"[AUTH] No se pudo subir el logo (no bloqueante): {e}")
+
+            # 5. Guardar en sesión
             session['user_id'] = user.id
             session['user_email'] = user.email
             session['user_name'] = ' '.join(full_name.split())
@@ -266,7 +315,7 @@ def register():
             )
 
             flash(
-                "¡Cuenta creada exitosamente! Configura el perfil de tu empresa.",
+                "¡Cuenta creada exitosamente! Revisa o completa los datos de tu empresa.",
                 "success"
             )
             return redirect(url_for('company.profile'))
@@ -404,14 +453,33 @@ def _resolve_pending_invitation(user):
         return None
 
 
-def _create_company(supabase_client: Client, name: str, slug: str, plan: str = 'starter') -> dict:
-    """Crea una nueva compañía usando el cliente admin (bypass RLS)."""
-    response = supabase_client.table('companies').insert({
+def _create_company(
+    supabase_client: Client,
+    name: str,
+    slug: str,
+    plan: str = 'starter',
+    extra: dict = None
+) -> dict:
+    """Crea una nueva compañía usando el cliente admin (bypass RLS).
+
+    `extra` permite inyectar campos adicionales (dirección, teléfono, IVA, footer,
+    RFC, colores, email de contacto, etc.) capturados en el formulario de alta.
+    """
+    data = {
         "name": name,
         "slug": slug,
         "plan": plan,
         "footer_text": f"{name} | Esta cotización es válida por 30 días",
-    }).execute()
+    }
+    if extra:
+        # El footer del formulario es obligatorio; si viniera vacío (no debería),
+        # conservamos el default como red de seguridad.
+        footer = extra.pop("footer_text", None)
+        if footer:
+            data["footer_text"] = footer
+        data.update(extra)
+
+    response = supabase_client.table('companies').insert(data).execute()
 
     if not response.data:
         raise Exception("No se pudo crear la compañía")

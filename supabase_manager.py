@@ -3272,6 +3272,41 @@ class SupabaseManager:
                 pass
         return None
 
+    def upload_company_logo(self, company_id: str, file_bytes: bytes) -> Optional[str]:
+        """Sube el logo de la compañía a Supabase Storage (bucket company-assets).
+
+        Usa el cliente Supabase con service key para bypassear RLS. Sube el archivo
+        a `company-assets/{company_id}/logo.png` con content-type `image/png` y
+        `upsert`. Devuelve la URL pública del logo, o None si falla (no lanza).
+        """
+        try:
+            from supabase import create_client
+            supabase_url = os.getenv('SUPABASE_URL')
+            service_key = os.getenv('SUPABASE_SERVICE_KEY')
+
+            if not supabase_url or not service_key:
+                print("[TENANT] upload_company_logo: Configuración de Supabase incompleta")
+                return None
+
+            if not file_bytes:
+                print("[TENANT] upload_company_logo: archivo vacío")
+                return None
+
+            admin_client = create_client(supabase_url, service_key)
+            file_path = f"company-assets/{company_id}/logo.png"
+
+            bucket = admin_client.storage.from_('company-assets')
+            bucket.upload(
+                path=file_path,
+                file=file_bytes,
+                file_options={"content-type": "image/png", "upsert": "true"}
+            )
+
+            return bucket.get_public_url(file_path)
+        except Exception as e:
+            print(f"[TENANT] Error upload_company_logo: {e}")
+            return None
+
     def get_user_profile(self, user_id: str) -> Optional[Dict]:
         """Obtiene el perfil de usuario con datos de su compañía."""
         try:
