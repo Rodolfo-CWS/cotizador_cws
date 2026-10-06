@@ -308,6 +308,30 @@ def company_deactivate(company_id):
     return redirect(url_for('platform_admin.company_detail', company_id=company_id))
 
 
+@platform_admin_bp.route('/companies/<company_id>/delete', methods=['POST'])
+@superadmin_required
+def company_delete(company_id):
+    """Elimina definitivamente una empresa y todos sus datos."""
+    db = _get_db()
+    result = db.delete_company(company_id)
+    if result:
+        flash("Empresa eliminada definitivamente", "success")
+        return redirect(url_for('platform_admin.companies'))
+    flash("No se pudo eliminar la empresa", "error")
+    return redirect(url_for('platform_admin.company_detail', company_id=company_id))
+
+
+@platform_admin_bp.route('/companies/<company_id>/users/<user_id>/delete', methods=['POST'])
+@superadmin_required
+def company_user_delete(company_id, user_id):
+    """Elimina definitivamente un usuario (de cualquier tenant)."""
+    db = _get_db()
+    result = db.delete_user(user_id)
+    flash("Usuario eliminado definitivamente" if result else "No se pudo eliminar el usuario",
+          "success" if result else "error")
+    return redirect(url_for('platform_admin.company_detail', company_id=company_id))
+
+
 @platform_admin_bp.route('/pricing')
 @superadmin_required
 def pricing():

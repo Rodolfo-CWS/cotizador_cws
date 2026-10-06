@@ -3392,8 +3392,8 @@ class SupabaseManager:
                 )
                 rows = cursor.fetchall()
                 cursor.close()
-                colnames = [desc[0] for desc in cursor.description]
-                return [dict(zip(colnames, row)) for row in rows]
+                # RealDictCursor: cada row ya es un dict.
+                return [dict(row) for row in rows]
         except Exception as e:
             print(f"[TENANT] Error get_profiles_by_company: {e}")
         return []
@@ -3678,8 +3678,11 @@ class SupabaseManager:
                 )
                 rows = cursor.fetchall()
                 cursor.close()
-                colnames = [desc[0] for desc in cursor.description]
-                return [dict(zip(colnames, row)) for row in rows]
+                # La conexión usa RealDictCursor: cada row YA es un dict. Convertir
+                # con dict(row) evita que zip(colnames, row) itere las KEYS (nombres
+                # de columna) en vez de los valores (bug que mostraba 'full_name',
+                # 'email', 'role' como valores).
+                return [dict(row) for row in rows]
         except Exception as e:
             print(f"[PLATFORM] Error list_users_with_email (PG): {e}")
 
@@ -3752,11 +3755,98 @@ class SupabaseManager:
                 )
                 rows = cursor.fetchall()
                 cursor.close()
-                colnames = [desc[0] for desc in cursor.description]
-                return [dict(zip(colnames, row)) for row in rows]
+                # RealDictCursor: cada row ya es un dict.
+                return [dict(row) for row in rows]
         except Exception as e:
             print(f"[PLATFORM] Error list_companies: {e}")
         return []
+
+    def delete_company(self, company_id: str) -> bool:
+        """Elimina una compañía y todos sus datos (usuarios, cotizaciones, PDFs, drafts).
+
+        Usa el cliente Supabase con service key (bypass RLS). Orden de borrado:
+        1. Usuarios de auth.users (el cascade de profiles NO borra auth.users).
+        2. Tablas con FK a companies SIN ON DELETE CASCADE (cotizaciones,
+           pdf_storage, drafts).
+        3. La compañía (el cascade borra profiles, invitations, fast_quote_prompt,
+           fast_quote_usage y simple_pdf_usage).
+
+        Devuelve True si la compañía se borró, False si algo falló.
+        """
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if not url or not key:
+                print("[PLATFORM] delete_company: faltan SUPABASE_URL/SERVICE_KEY")
+                return False
+            client = create_client(url, key)
+
+            # 1. Borrar auth.users de los miembros (no se borran por cascade).
+            for p in (self.get_profiles_by_company(company_id) or []):
+                uid = p.get('id')
+                if not uid:
+                    continue
+                try:
+                    client.auth.admin.delete_user(uid)
+                except Exception as e:
+                    print(f"[PLATFORM] delete_company: no se pudo borrar auth.user {uid}: {e}")
+
+            # 2. Borrar tablas sin ON DELETE CASCADE.
+            for table in ('cotizaciones', 'pdf_storage', 'drafts'):
+                try:
+                    client.table(table).delete().eq('company_id', company_id).execute()
+                except Exception as e:
+                    print(f"[PLATFORM] delete_company: error borrando {table}: {e}")
+
+            # 3. Borrar la compañía (cascade sobre el resto).
+            resp = client.table('companies').delete().eq('id', company_id).execute()
+            return bool(resp.data)
+        except Exception as e:
+            print(f"[PLATFORM] delete_company: {e}")
+            return False
+
+    def delete_user(self, user_id: str) -> bool:
+        """Elimina un usuario (perfil + auth.users), sea o no del tenant.
+
+        Usa el cliente Supabase con service key (bypass RLS). Antes de borrar el
+        perfil se desvinculan las invitaciones que lo referencian como `invited_by`
+        (FK sin ON DELETE). Devuelve True si el perfil se borró.
+        """
+        try:
+            from supabase import create_client
+            url = os.getenv('SUPABASE_URL')
+            key = os.getenv('SUPABASE_SERVICE_KEY')
+            if not url or not key:
+                print("[PLATFORM] delete_user: faltan SUPABASE_URL/SERVICE_KEY")
+                return False
+            client = create_client(url, key)
+
+            # 1. Desvincular invitaciones que lo referencian como inviter.
+            try:
+                client.table('invitations').update({'invited_by': None}).eq(
+                    'invited_by', user_id
+                ).execute()
+            except Exception as e:
+                print(f"[PLATFORM] delete_user: error desvinculando invitaciones: {e}")
+
+            # 2. Borrar perfil (y luego auth.user).
+            deleted = False
+            try:
+                resp = client.table('profiles').delete().eq('id', user_id).execute()
+                deleted = bool(resp.data)
+            except Exception as e:
+                print(f"[PLATFORM] delete_user: error borrando perfil {user_id}: {e}")
+
+            try:
+                client.auth.admin.delete_user(user_id)
+            except Exception as e:
+                print(f"[PLATFORM] delete_user: error borrando auth.user {user_id}: {e}")
+
+            return deleted
+        except Exception as e:
+            print(f"[PLATFORM] delete_user: {e}")
+            return False
 
     def get_company_usage(self, company_id: str) -> Dict:
         """Métricas de consumo de una compañía (panel de plataforma)."""

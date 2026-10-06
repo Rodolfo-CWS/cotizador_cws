@@ -30,7 +30,7 @@
     {% if users %}
     <table>
         <thead>
-            <tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th></tr>
+            <tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th></th></tr>
         </thead>
         <tbody>
         {% for u in users %}
@@ -45,6 +45,11 @@
                 </td>
                 <td>{{ u.get('role', '—') }}</td>
                 <td>{% if u.get('is_active') %}<span class="badge badge-active">Activo</span>{% else %}<span class="badge badge-inactive">Inactivo</span>{% endif %}</td>
+                <td style="text-align:right;">
+                    <form method="POST" action="/admin/companies/{{ company.get('id') }}/users/{{ u.get('id') }}/delete" style="display:inline;">
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar definitivamente a este usuario? Esta acción no se puede deshacer.');">Eliminar</button>
+                    </form>
+                </td>
             </tr>
         {% endfor %}
         </tbody>
@@ -112,6 +117,12 @@
         </form>
         {% endif %}
         <a href="/admin/companies" class="btn btn-secondary">Volver a empresas</a>
+    </div>
+    <div class="form-row" style="margin-top:12px; padding-top:12px; border-top:1px solid #e7e5e4;">
+        <form method="POST" action="/admin/companies/{{ company.get('id') }}/delete">
+            <button type="submit" class="btn btn-danger" style="background:#7f1d1d;"
+                onclick="return confirm('⚠️ ¿Eliminar DEFINITIVAMENTE esta empresa y TODOS sus datos (usuarios, cotizaciones, PDFs)? Esta acción no se puede deshacer.');">Eliminar empresa (definitivo)</button>
+        </form>
     </div>
 </div>
 
