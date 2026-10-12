@@ -143,16 +143,36 @@ def _query_company(where_sql, params):
     return None
 
 
+def _company_via_sdk(column, value):
+    """Lectura de fallback con service key (bypassea RLS) para el webhook sin sesión."""
+    db = _get_db()
+    if not db:
+        return None
+    try:
+        supabase_url = (os.getenv('SUPABASE_URL') or '').strip()
+        service_key = (os.getenv('SUPABASE_SERVICE_KEY') or '').strip()
+        if not (supabase_url and service_key):
+            return None
+        from supabase import create_client
+        admin_client = create_client(supabase_url, service_key)
+        resp = admin_client.table('companies').select(_COMPANY_COLS).eq(column, value).limit(1).execute()
+        if getattr(resp, 'data', None):
+            return resp.data[0]
+    except Exception as e:
+        logger.warning(f"[BILLING] Error _company_via_sdk({column}): {e}")
+    return None
+
+
 def _company_by_id(cid):
-    return _query_company("id = %s", (cid,))
+    return _query_company("id = %s", (cid,)) or _company_via_sdk('id', cid)
 
 
 def _company_by_subscription(sub_id):
-    return _query_company("stripe_subscription_id = %s", (sub_id,))
+    return _query_company("stripe_subscription_id = %s", (sub_id,)) or _company_via_sdk('stripe_subscription_id', sub_id)
 
 
 def _company_by_customer(customer_id):
-    return _query_company("stripe_customer_id = %s", (customer_id,))
+    return _query_company("stripe_customer_id = %s", (customer_id,)) or _company_via_sdk('stripe_customer_id', customer_id)
 
 
 def _ts(epoch):
@@ -370,12 +390,26 @@ def webhook():
         plan = metadata.get('plan')
         if plan not in VALID_PLANS:
             plan = PLAN_PRO
-        db.update_company(company['id'], {
+        updates = {
             'plan': plan,
             'stripe_customer_id': obj.get('customer'),
             'stripe_subscription_id': obj.get('subscription'),
             'subscription_status': 'active',
-        })
+        }
+        # Estado real de la suscripción: con trial es 'trialing' (no 'active'),
+        # y queremos guardar trial_ends_at / current_period_end.
+        sub_id = obj.get('subscription')
+        if sub_id:
+            try:
+                sub = stripe.Subscription.retrieve(sub_id)
+                updates['subscription_status'] = sub.get('status') or 'active'
+                if sub.get('trial_end'):
+                    updates['trial_ends_at'] = _ts(sub['trial_end'])
+                if sub.get('current_period_end'):
+                    updates['current_period_end'] = _ts(sub['current_period_end'])
+            except Exception as e:
+                logger.warning(f"[BILLING] No se pudo leer subscription {sub_id}: {e}")
+        db.update_company(company['id'], updates)
         return jsonify({'received': True}), 200
 
     if event_type == 'customer.subscription.updated':
