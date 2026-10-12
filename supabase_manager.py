@@ -3247,7 +3247,11 @@ class SupabaseManager:
         return None
 
     def update_company(self, company_id: str, data: Dict) -> Optional[Dict]:
-        """Actualiza datos de una compañía usando PostgreSQL directo."""
+        """Actualiza datos de una compañía usando PostgreSQL directo, con fallback SDK (service key).
+
+        El fallback es importante para el webhook de Stripe: si PostgreSQL está caído,
+        el cobro debe seguir activando el plan (el SDK con service key bypassea RLS).
+        """
         try:
             if self.pg_connection and not self.pg_connection.closed:
                 self.pg_connection.rollback()
@@ -3265,11 +3269,22 @@ class SupabaseManager:
                     colnames = [desc[0] for desc in cursor.description]
                     return dict(zip(colnames, row))
         except Exception as e:
-            print(f"[TENANT] Error update_company: {e}")
+            print(f"[TENANT] Error update_company (PG): {e}")
             try:
                 self.pg_connection.rollback()
             except:
                 pass
+
+        # Fallback: Supabase SDK con service key.
+        try:
+            service_key = os.getenv('SUPABASE_SERVICE_KEY')
+            if self.supabase_url and service_key:
+                admin_client = create_client(self.supabase_url, service_key)
+                resp = admin_client.table('companies').update(data).eq('id', company_id).execute()
+                if getattr(resp, 'data', None):
+                    return resp.data[0]
+        except Exception as e:
+            print(f"[TENANT] Error update_company (SDK): {e}")
         return None
 
     def upload_company_logo(self, company_id: str, file_bytes: bytes) -> Optional[str]:
