@@ -822,6 +822,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+                if (resp.redirected || resp.status === 401) {
+                    window.location.href = '/auth/login';
+                    return;
+                }
                 const data = await resp.json();
                 if (!data.success) throw new Error(data.error || 'Error en la búsqueda');
                 if (stats) stats.textContent = data.total;

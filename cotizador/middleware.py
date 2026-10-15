@@ -7,7 +7,7 @@ Antes de cada request:
 3. Carga los datos de la compañía en g.company para templates
 """
 
-from flask import g, session, redirect, url_for, request, flash
+from flask import g, session, redirect, url_for, request, flash, jsonify
 from functools import wraps
 
 from cotizador.plans import has_feature, effective_plan
@@ -186,6 +186,11 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
+            # Peticiones AJAX/JSON: responder 401 en vez de redirigir a HTML,
+            # para que el frontend detecte la sesión expirada sin romper con
+            # un error de parseo críptico.
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({"success": False, "error": "Sesión expirada"}), 401
             # Guardar URL actual (relativa) para redirigir después del login
             if request.method == 'GET':
                 session['next_url'] = request.full_path
