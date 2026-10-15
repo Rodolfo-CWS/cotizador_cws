@@ -1596,13 +1596,31 @@ def formulario():
         print(f"[FORM_GET] datos_precargados keys: {list(datos_precargados.keys())[:10]}")
     print(f"[FORM_GET] ===== FIN RENDERIZANDO =====")
 
+    # Vendedores disponibles del tenant para el dropdown (combobox) del formulario.
+    # Se listan los miembros activos (cualquier rol: admin/manager/seller), ya que
+    # cualquiera del equipo puede emitir una cotización.
+    vendedores = []
+    try:
+        perfiles = db_manager.get_profiles_by_company(session.get("company_id")) or []
+        nombres = set()
+        for p in perfiles:
+            if p.get("is_active") is False:
+                continue
+            nombre = (p.get("full_name") or "").strip()
+            if nombre:
+                nombres.add(nombre)
+        vendedores = sorted(nombres)
+    except Exception as e:
+        print(f"[FORM_GET] No se pudieron cargar vendedores: {e}")
+
     return render_template("formulario.html",
                          materiales=LISTA_MATERIALES,
                          datos_precargados=datos_precargados,
                          info_bloqueo_revision=info_bloqueo_revision,
                          user_name=session.get('user_name', ''),
                          modo_edicion_menor=modo_edicion_menor,
-                         datos_edicion_menor=datos_edicion_menor)
+                         datos_edicion_menor=datos_edicion_menor,
+                         vendedores=vendedores)
 
 
 @app.route("/debug/test-obtener-cotizacion/<path:item_id>")
