@@ -613,16 +613,28 @@ def preparar_datos_nueva_revision(cotizacion_original):
         # Copiar datos originales
         datos = copy.deepcopy(cotizacion_original)
         
-        # Incrementar revisión
-        revision_actual = datos.get('datosGenerales', {}).get('revision', '1')
-        try:
-            nueva_revision = str(int(revision_actual) + 1)
-        except (ValueError, TypeError):
-            nueva_revision = '2'
-        
-        # Actualizar datos generales
+        # Incrementar revisión.
+        # Fuente de verdad: el folio (-R#- dentro de numeroCotizacion), NO el
+        # campo 'revision' (históricamente se desincroniza; p. ej. la R2 de
+        # BMW-CWS-FM-019 quedó con revision=1). Derivar del folio evita generar
+        # un folio duplicado que colisionaría con el UNIQUE de numero_cotizacion.
         if 'datosGenerales' not in datos:
             datos['datosGenerales'] = {}
+
+        numero_actual = (datos.get('datosGenerales', {}).get('numeroCotizacion')
+                         or datos.get('numeroCotizacion') or '')
+
+        import re
+        match_rev = re.search(r'-R(\d+)(?:-|$)', numero_actual or '')
+        if match_rev:
+            nueva_revision = str(int(match_rev.group(1)) + 1)
+        else:
+            # Fallback defensivo al campo (folio sin -R#- reconocible)
+            revision_actual = datos.get('datosGenerales', {}).get('revision', '1')
+            try:
+                nueva_revision = str(int(revision_actual) + 1)
+            except (ValueError, TypeError):
+                nueva_revision = '2'
 
         datos['datosGenerales']['revision'] = nueva_revision
         datos['datosGenerales']['fecha'] = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -633,7 +645,7 @@ def preparar_datos_nueva_revision(cotizacion_original):
             datos['datosGenerales']['textoIntroductorio'] = texto_anterior
         
         # Generar nuevo número de cotización con revisión usando el sistema automático
-        numero_original = datos['datosGenerales'].get('numeroCotizacion', '')
+        numero_original = numero_actual
         print(f"[REVISION] Número original: '{numero_original}' -> Nueva revisión: {nueva_revision}")
         
         if numero_original:
@@ -1686,13 +1698,31 @@ def formulario():
         print(f"[FORM_GET] datos_precargados keys: {list(datos_precargados.keys())[:10]}")
     print(f"[FORM_GET] ===== FIN RENDERIZANDO =====")
 
+    # Vendedores disponibles del tenant para el dropdown (combobox) del formulario.
+    # Se listan los miembros activos (cualquier rol: admin/manager/seller), ya que
+    # cualquiera del equipo puede emitir una cotización.
+    vendedores = []
+    try:
+        perfiles = db_manager.get_profiles_by_company(session.get("company_id")) or []
+        nombres = set()
+        for p in perfiles:
+            if p.get("is_active") is False:
+                continue
+            nombre = (p.get("full_name") or "").strip()
+            if nombre:
+                nombres.add(nombre)
+        vendedores = sorted(nombres)
+    except Exception as e:
+        print(f"[FORM_GET] No se pudieron cargar vendedores: {e}")
+
     return render_template("formulario.html",
                          materiales=LISTA_MATERIALES,
                          datos_precargados=datos_precargados,
                          info_bloqueo_revision=info_bloqueo_revision,
                          user_name=session.get('user_name', ''),
                          modo_edicion_menor=modo_edicion_menor,
-                         datos_edicion_menor=datos_edicion_menor)
+                         datos_edicion_menor=datos_edicion_menor,
+                         vendedores=vendedores)
 
 
 @app.route("/debug/test-obtener-cotizacion/<path:item_id>")
