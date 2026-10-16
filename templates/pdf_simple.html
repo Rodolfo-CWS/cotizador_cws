@@ -35,6 +35,13 @@
         .ia-row { display: flex; gap: 10px; align-items: flex-start; }
         .ia-row textarea { flex: 1; }
         .ia-row .btn { flex-shrink: 0; margin-top: 22px; }
+        .desc-toolbar { display: flex; gap: 2px; padding: 2px 4px; background: #f1f5f9; border: 1px solid #d6d3d1; border-bottom: none; border-radius: 8px 8px 0 0; }
+        .desc-toolbar button { font-size: 11px; padding: 1px 7px; cursor: pointer; line-height: 1.4; background: #fff; border: 1px solid #d6d3d1; border-radius: 4px; }
+        .desc-toolbar button:hover { background: #e2e8f0; }
+        .item-desc { width: 100%; min-height: 36px; padding: 8px 10px; border: 1px solid #d6d3d1; border-radius: 0 0 8px 8px; font-size: 14px; background: #fff; box-sizing: border-box; }
+        .item-desc:focus { outline: none; border-color: #4f46e5; }
+        .item-desc:empty::before { content: attr(data-placeholder); color: #9ca3af; }
+        .item-desc ul { list-style: disc; padding-left: 18px; margin: 2px 0; }
         .hidden { display: none; }
     </style>
 </head>
@@ -156,7 +163,7 @@
                 </div>
                 <div>
                     <label>Comentarios</label>
-                    <input type="text" name="comentarios" id="comentarios" placeholder="Comentarios adicionales">
+                    <textarea name="comentarios" id="comentarios" rows="3" placeholder="Comentarios adicionales"></textarea>
                 </div>
             </div>
         </div>
@@ -213,13 +220,23 @@
                 return `<option value="${o}"${sel}>${o}</option>`;
             }).join('');
             tr.innerHTML = `
-                <td><input type="text" class="item-desc" value="${esc(desc)}" placeholder="Descripción del concepto"></td>
+                <td>
+                    <div class="desc-toolbar">
+                        <button type="button" onmousedown="event.preventDefault();document.execCommand('bold',false,null);" title="Negrita"><b>B</b></button>
+                        <button type="button" onmousedown="event.preventDefault();document.execCommand('italic',false,null);" title="Cursiva"><i>I</i></button>
+                        <button type="button" onmousedown="event.preventDefault();document.execCommand('underline',false,null);" title="Subrayado"><u>U</u></button>
+                        <button type="button" onmousedown="event.preventDefault();document.execCommand('insertUnorderedList',false,null);" title="Lista de viñetas">• Lista</button>
+                    </div>
+                    <div class="item-desc" contenteditable="true" data-placeholder="Descripción del concepto"></div>
+                </td>
                 <td><input type="number" class="item-cant" min="0" step="any" value="${cant}" placeholder="0" oninput="recalcular()" onchange="recalcular()"></td>
                 <td><select class="item-uom">${opcionesUom}</select></td>
                 <td><input type="number" class="item-precio" min="0" step="any" value="${precio}" placeholder="0.00" oninput="recalcular()" onchange="recalcular()"></td>
                 <td><button type="button" class="btn btn-danger btn-sm" onclick="eliminarFila(${filaId})">✕</button></td>
             `;
             tbody.appendChild(tr);
+            const descEl = tr.querySelector('.item-desc');
+            if (descEl) descEl.innerHTML = desc || '';
             recalcular();
         }
 
@@ -305,11 +322,13 @@
         function recolectarItems() {
             const items = [];
             document.querySelectorAll('#itemsBody tr').forEach(function(tr){
-                const desc = tr.querySelector('.item-desc').value.trim();
+                const descEl = tr.querySelector('.item-desc');
+                const desc = descEl ? descEl.innerHTML.trim() : '';
+                const descTexto = descEl ? descEl.textContent.trim() : '';
                 const cant = tr.querySelector('.item-cant').value;
                 const precio = tr.querySelector('.item-precio').value;
                 const uom = tr.querySelector('.item-uom').value;
-                if (desc || cant || precio) {
+                if (descTexto || cant || precio) {
                     items.push({
                         descripcion: desc,
                         cantidad: parseFloat(cant) || 0,
