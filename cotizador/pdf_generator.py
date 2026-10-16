@@ -484,6 +484,8 @@ def generar_pdf_reportlab(datos_cotizacion, company_branding=None, texto_persona
     entrega_val = condiciones.get('entregaEn', '') if condiciones else ''
     pago_val = (condiciones.get('terminos') or condiciones.get('condicionesPago', '')) if condiciones else ''
     comentarios_val = (condiciones.get('comentarios') or condiciones.get('comentariosAdicionales', '')) if condiciones else ''
+    if comentarios_val:
+        comentarios_val = comentarios_val.replace('\n', '<br/>')
 
     # Pares en 2 filas: layout 4 columnas
     terminos_data = [
