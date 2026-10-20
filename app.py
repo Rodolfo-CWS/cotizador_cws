@@ -1469,7 +1469,7 @@ def formulario():
                 try:
                     if numero_cotizacion:
                         print(f"[DRAFT] Intentando eliminar drafts asociados a: {numero_cotizacion}")
-                        resultado_limpieza = db_manager.eliminar_drafts_por_numero_cotizacion(numero_cotizacion)
+                        resultado_limpieza = db_manager.eliminar_drafts_por_numero_cotizacion(numero_cotizacion, company_id=session.get("company_id"))
                         if resultado_limpieza.get('success'):
                             print(f"[DRAFT] ✅ {resultado_limpieza.get('mensaje')}")
                         else:
@@ -1781,6 +1781,7 @@ def debug_materiales():
 # ========================================
 
 @app.route("/api/draft/save", methods=["POST"])
+@login_required
 def guardar_draft():
     """
     Guarda o actualiza un draft (borrador) de cotización
@@ -1835,6 +1836,7 @@ def guardar_draft():
 
 
 @app.route("/api/draft/list", methods=["GET"])
+@login_required
 def listar_drafts():
     """
     Lista todos los drafts, opcionalmente filtrados por vendedor
@@ -1878,6 +1880,7 @@ def listar_drafts():
 
 
 @app.route("/api/draft/load/<draft_id>", methods=["GET"])
+@login_required
 def cargar_draft(draft_id):
     """
     Obtiene los datos completos de un draft específico
@@ -1904,7 +1907,7 @@ def cargar_draft(draft_id):
         }
     """
     try:
-        draft = db_manager.obtener_draft(draft_id)
+        draft = db_manager.obtener_draft(draft_id, company_id=session.get("company_id"))
 
         if draft:
             print(f"[API] Draft cargado: {draft_id}")
@@ -1926,6 +1929,7 @@ def cargar_draft(draft_id):
 
 
 @app.route("/api/draft/debug/<draft_id>", methods=["GET"])
+@login_required
 def debug_draft(draft_id):
     """
     Diagnóstico: devuelve estructura detallada de un draft para verificar integridad.
@@ -1953,7 +1957,7 @@ def debug_draft(draft_id):
         }
     """
     try:
-        draft = db_manager.obtener_draft(draft_id)
+        draft = db_manager.obtener_draft(draft_id, company_id=session.get("company_id"))
 
         if not draft:
             return jsonify({
@@ -2036,6 +2040,7 @@ def debug_draft(draft_id):
 
 
 @app.route("/api/draft/delete/<draft_id>", methods=["DELETE"])
+@login_required
 def eliminar_draft(draft_id):
     """
     Elimina un draft
@@ -2050,7 +2055,7 @@ def eliminar_draft(draft_id):
         }
     """
     try:
-        resultado = db_manager.eliminar_draft(draft_id)
+        resultado = db_manager.eliminar_draft(draft_id, company_id=session.get("company_id"))
 
         if resultado.get('success'):
             print(f"[API] Draft eliminado: {draft_id}")
