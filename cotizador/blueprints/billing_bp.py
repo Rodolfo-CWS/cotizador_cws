@@ -54,6 +54,23 @@ def _stripe():
     return stripe
 
 
+def _to_dict(obj):
+    """Convierte un StripeObject (o dict) a dict nativo.
+
+    stripe-python >=15 ya no hace que StripeObject herede de dict, así que
+    .get() deja de existir. Normalizamos a dict para que el webhook funcione
+    igual en stripe<15 y >=15.
+    """
+    if obj is None:
+        return {}
+    if isinstance(obj, dict):
+        return obj
+    to_dict = getattr(obj, 'to_dict', None)
+    if callable(to_dict):
+        return to_dict()
+    return obj
+
+
 def _int_env(name, default):
     try:
         return int((os.getenv(name) or '').strip() or default)
@@ -359,7 +376,7 @@ def webhook():
     sig = request.headers.get('Stripe-Signature', '')
 
     try:
-        event = stripe.Webhook.construct_event(payload, sig, webhook_secret)
+        event = _to_dict(stripe.Webhook.construct_event(payload, sig, webhook_secret))
     except ValueError:
         return jsonify({'error': 'Invalid payload'}), 400
     except stripe.SignatureVerificationError:
@@ -401,7 +418,7 @@ def webhook():
         sub_id = obj.get('subscription')
         if sub_id:
             try:
-                sub = stripe.Subscription.retrieve(sub_id)
+                sub = _to_dict(stripe.Subscription.retrieve(sub_id))
                 updates['subscription_status'] = sub.get('status') or 'active'
                 if sub.get('trial_end'):
                     updates['trial_ends_at'] = _ts(sub['trial_end'])

@@ -49,7 +49,9 @@ google-auth==2.48.0
 anthropic==1.3.0
 
 # Stripe (cobro de suscripciones SaaS)
-stripe>=9.0.0
+# Tope <15: stripe-python 15.0.0 dejó de hacer que StripeObject herede de dict,
+# rompiendo .get() en el webhook. Ver cotizador/blueprints/billing_bp.py (_to_dict).
+stripe>=9,<15
 
 # Cloudinary eliminado - migrado a Supabase Storage
 
