@@ -2816,18 +2816,24 @@ class SupabaseManager:
                 try:
                     print(f"[DRAFT] Guardando draft en Supabase: {draft_id}")
 
-                    # Verificar si el draft ya existe
-                    existing = self.supabase_client.table('drafts').select('id').eq('id', draft_id).execute()
+                    # Verificar si el draft ya existe (solo para esta compañía)
+                    existing_query = self.supabase_client.table('drafts').select('id').eq('id', draft_id)
+                    if company_id:
+                        existing_query = existing_query.eq('company_id', company_id)
+                    existing = existing_query.execute()
 
                     if existing.data:
-                        # Actualizar draft existente
-                        self.supabase_client.table('drafts').update({
+                        # Actualizar draft existente (solo si pertenece a esta compañía)
+                        update_query = self.supabase_client.table('drafts').update({
                             'nombre': nombre_draft,
                             'datos': datos_draft,
                             'company_id': company_id,
                             'ultima_modificacion': fecha_actual,
                             'timestamp': timestamp
-                        }).eq('id', draft_id).execute()
+                        }).eq('id', draft_id)
+                        if company_id:
+                            update_query = update_query.eq('company_id', company_id)
+                        update_query.execute()
                         print(f"[DRAFT] Draft actualizado en Supabase: {draft_id}")
                     else:
                         # Insertar nuevo draft
