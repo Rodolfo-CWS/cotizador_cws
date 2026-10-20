@@ -2783,6 +2783,7 @@ class SupabaseManager:
             vendedor = datos.get('vendedor', 'UNKNOWN')
             datos_draft = datos.get('datos', {})
             draft_id = datos.get('draft_id') or f"draft_{int(time.time() * 1000)}"
+            company_id = datos.get('company_id')
 
             # Generar nombre automático para el draft
             datos_generales = datos_draft.get('datosGenerales', {})
@@ -2804,6 +2805,7 @@ class SupabaseManager:
                 'vendedor': vendedor,
                 'nombre': nombre_draft,
                 'datos': datos_draft,
+                'company_id': company_id,
                 'timestamp': timestamp,
                 'fecha_creacion': fecha_actual,
                 'ultima_modificacion': fecha_actual
@@ -2822,6 +2824,7 @@ class SupabaseManager:
                         self.supabase_client.table('drafts').update({
                             'nombre': nombre_draft,
                             'datos': datos_draft,
+                            'company_id': company_id,
                             'ultima_modificacion': fecha_actual,
                             'timestamp': timestamp
                         }).eq('id', draft_id).execute()
@@ -2928,11 +2931,12 @@ class SupabaseManager:
 
             all_drafts = drafts_data.get("drafts", [])
 
-            # Filtrar por vendedor si se especifica
+            # Filtrar por vendedor y company_id si se especifican
+            drafts = all_drafts
             if vendedor:
-                drafts = [d for d in all_drafts if d.get('vendedor') == vendedor]
-            else:
-                drafts = all_drafts
+                drafts = [d for d in drafts if d.get('vendedor') == vendedor]
+            if company_id:
+                drafts = [d for d in drafts if d.get('company_id') == company_id]
 
             # Ordenar por timestamp descendente
             drafts.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
@@ -2955,7 +2959,7 @@ class SupabaseManager:
             print(f"[DRAFT] Error listando drafts: {error_msg}")
             return []
 
-    def obtener_draft(self, draft_id: str) -> Optional[Dict]:
+    def obtener_draft(self, draft_id: str, company_id: Optional[str] = None) -> Optional[Dict]:
         """
         Obtiene los datos completos de un draft específico
 
@@ -2970,7 +2974,10 @@ class SupabaseManager:
             if not self.modo_offline and self.supabase_client:
                 try:
                     print(f"[DRAFT] Obteniendo draft desde Supabase: {draft_id}")
-                    response = self.supabase_client.table('drafts').select('*').eq('id', draft_id).execute()
+                    query = self.supabase_client.table('drafts').select('*').eq('id', draft_id)
+                    if company_id:
+                        query = query.eq('company_id', company_id)
+                    response = query.execute()
 
                     if response.data:
                         draft = response.data[0]
@@ -2994,7 +3001,7 @@ class SupabaseManager:
             all_drafts = drafts_data.get("drafts", [])
 
             for draft in all_drafts:
-                if draft.get('id') == draft_id:
+                if draft.get('id') == draft_id and (not company_id or draft.get('company_id') == company_id):
                     print(f"[DRAFT] Draft encontrado en JSON local: {draft_id}")
                     return draft
 
@@ -3006,7 +3013,7 @@ class SupabaseManager:
             print(f"[DRAFT] Error obteniendo draft: {error_msg}")
             return None
 
-    def eliminar_drafts_por_numero_cotizacion(self, numero_cotizacion: str) -> Dict:
+    def eliminar_drafts_por_numero_cotizacion(self, numero_cotizacion: str, company_id: Optional[str] = None) -> Dict:
         """
         Elimina todos los drafts asociados a un número de cotización
 
@@ -3026,7 +3033,10 @@ class SupabaseManager:
             if not self.modo_offline and self.supabase_client:
                 try:
                     # Buscar drafts que contengan este número de cotización
-                    response = self.supabase_client.table('drafts').select('*').execute()
+                    query = self.supabase_client.table('drafts').select('*')
+                    if company_id:
+                        query = query.eq('company_id', company_id)
+                    response = query.execute()
 
                     if response.data:
                         for draft in response.data:
@@ -3060,7 +3070,7 @@ class SupabaseManager:
                     datos_generales = datos.get('datosGenerales', {})
                     numero_draft = datos_generales.get('numeroCotizacion', '')
 
-                    if numero_draft != numero_cotizacion:
+                    if numero_draft != numero_cotizacion or (company_id and d.get('company_id') != company_id):
                         drafts_filtrados.append(d)
                     else:
                         print(f"[DRAFT] Draft eliminado de JSON: {d.get('id')}")
@@ -3081,7 +3091,7 @@ class SupabaseManager:
             print(f"[DRAFT] Error eliminando drafts por número: {error_msg}")
             return {"success": False, "error": error_msg}
 
-    def eliminar_draft(self, draft_id: str) -> Dict:
+    def eliminar_draft(self, draft_id: str, company_id: Optional[str] = None) -> Dict:
         """
         Elimina un draft
 
@@ -3096,7 +3106,10 @@ class SupabaseManager:
             if not self.modo_offline and self.supabase_client:
                 try:
                     print(f"[DRAFT] Eliminando draft de Supabase: {draft_id}")
-                    self.supabase_client.table('drafts').delete().eq('id', draft_id).execute()
+                    query = self.supabase_client.table('drafts').delete().eq('id', draft_id)
+                    if company_id:
+                        query = query.eq('company_id', company_id)
+                    query.execute()
                     print(f"[DRAFT] Draft eliminado de Supabase: {draft_id}")
 
                 except Exception as supabase_error:
@@ -3111,7 +3124,10 @@ class SupabaseManager:
                     drafts_data = json.load(f)
 
                 all_drafts = drafts_data.get("drafts", [])
-                drafts_filtrados = [d for d in all_drafts if d.get('id') != draft_id]
+                drafts_filtrados = [
+                    d for d in all_drafts
+                    if not (d.get('id') == draft_id and (not company_id or d.get('company_id') == company_id))
+                ]
 
                 if len(drafts_filtrados) < len(all_drafts):
                     drafts_data["drafts"] = drafts_filtrados

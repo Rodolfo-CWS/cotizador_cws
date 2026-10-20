@@ -601,7 +601,7 @@ function generarOpcionesMateriales() {
     let opciones = '<option value="" data-peso="0" data-uom="">Seleccione Material</option>';
     opciones += '<option value="COTIZAR_POR_PESO" data-peso="0" data-uom="KG">Cotizar por peso</option>';
     LISTA_MATERIALES.forEach(material => {
-        opciones += `<option value="${material.descripcion}" data-peso="${material.peso}" data-uom="${material.uom}">${material.descripcion}</option>`;
+        opciones += `<option value="${material.descripcion.replace(/"/g, '&quot;').replace(/</g, '&lt;')}" data-peso="${material.peso}" data-uom="${material.uom}">${material.descripcion}</option>`;
     });
     return opciones;
 }
