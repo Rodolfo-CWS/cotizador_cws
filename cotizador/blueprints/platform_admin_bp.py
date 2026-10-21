@@ -12,6 +12,7 @@ Mezcla:
 - Tarifas por plan (cotizador/plans.PLAN_PRICES)
 """
 
+import logging
 import os
 import secrets
 
@@ -27,6 +28,8 @@ from cotizador.plans import (
 )
 
 platform_admin_bp = Blueprint('platform_admin', __name__, url_prefix='/admin')
+
+logger = logging.getLogger(__name__)
 
 # Archivos de log rotativos (rutas relativas a la raíz del proyecto, igual que
 # en cotizador/__init__.py).
@@ -313,6 +316,27 @@ def company_deactivate(company_id):
 def company_delete(company_id):
     """Elimina definitivamente una empresa y todos sus datos."""
     db = _get_db()
+
+    # Cancelar la suscripción de Stripe antes de borrar la empresa (evita que
+    # Stripe siga cobrando a un cliente ya inexistente). Mejor esfuerzo: si
+    # falla, se loguea y se sigue con el borrado.
+    try:
+        company = db.get_company_by_id(company_id)
+    except Exception as e:
+        logger.warning(f"[PLATFORM] No se pudo leer empresa {company_id} antes de borrar: {e}")
+        company = None
+    if company:
+        sub_id = company.get('stripe_subscription_id')
+        if sub_id:
+            try:
+                import stripe
+                stripe.api_key = (os.getenv('STRIPE_SECRET_KEY') or '').strip()
+                if stripe.api_key:
+                    stripe.Subscription.delete(sub_id)
+                    logger.info(f"[PLATFORM] Suscripción Stripe {sub_id} cancelada antes de borrar {company_id}")
+            except Exception as e:
+                logger.warning(f"[PLATFORM] No se pudo cancelar suscripción Stripe {sub_id}: {e}")
+
     result = db.delete_company(company_id)
     if result:
         flash("Empresa eliminada definitivamente", "success")

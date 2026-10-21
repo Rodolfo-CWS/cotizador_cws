@@ -142,14 +142,14 @@ STARTER_HISTORY_LIMIT = 10
 
 
 def _normalize_plan(plan):
-    """Mapea un plan legacy/None a su plan canónico. Desconocidos → PLAN_PRO."""
+    """Mapea un plan legacy/None a su plan canónico. Desconocidos → PLAN_STARTER."""
     if not plan:
-        return PLAN_PRO
+        return PLAN_STARTER
     if plan in LEGACY_PLAN_MAP:
         return LEGACY_PLAN_MAP[plan]
     if plan in _ALL_PLANS:
         return plan
-    return PLAN_PRO
+    return PLAN_STARTER
 
 
 def effective_plan(company):

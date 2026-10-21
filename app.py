@@ -902,7 +902,7 @@ from cotizador.middleware import login_required, plan_required, superadmin_requi
 from cotizador.plans import (
     FEATURE_SIMPLE_PDF, FEATURE_FAST_QUOTE, FEATURE_FULL_FORM, FEATURE_DESGLOSE,
     PLAN_STARTER, get_limit, has_feature, effective_plan,
-    FASTQUOTE_PACK_ESTIMATES, STARTER_HISTORY_LIMIT,
+    STARTER_HISTORY_LIMIT,
 )
 
 @app.route("/login")
@@ -3501,10 +3501,11 @@ def fast_quote_estimate():
         plan = effective_plan(g.get("company"))
         if not is_feedback:
             max_estimates = get_limit(plan, "max_estimates")
-            # Paquete Fast Quote extra: suma créditos comprados (one-time).
+            # Paquete Fast Quote extra: suma los créditos one-time restantes
+            # (se gastan; no son cuota mensual permanente).
             if max_estimates is not None:
-                pack_count = int((g.get("company") or {}).get("fast_quote_pack_count") or 0)
-                max_estimates = max_estimates + pack_count * FASTQUOTE_PACK_ESTIMATES
+                credits = int((g.get("company") or {}).get("fast_quote_credits_remaining") or 0)
+                max_estimates = max_estimates + credits
             if max_estimates is not None and company_id:
                 try:
                     usadas = db_manager.contar_estimaciones_fast_quote_mes(company_id)
@@ -3821,6 +3822,15 @@ REGLAS:
         if not is_feedback and company_id:
             try:
                 db_manager.registrar_estimacion_fast_quote(company_id)
+                # Consumir un crédito one-time si se superó la cuota base del plan.
+                base = get_limit(plan, "max_estimates")
+                if base is not None:
+                    usadas = db_manager.contar_estimaciones_fast_quote_mes(company_id)
+                    if usadas > base:
+                        credits = int((g.get("company") or {}).get("fast_quote_credits_remaining") or 0)
+                        db_manager.update_company(company_id, {
+                            "fast_quote_credits_remaining": max(0, credits - 1)
+                        })
             except Exception as e:
                 print(f"[FAST_QUOTE] Error registrando uso: {e}")
 

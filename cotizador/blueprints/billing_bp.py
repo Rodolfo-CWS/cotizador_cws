@@ -99,6 +99,36 @@ def _price_id(plan, interval):
     return (os.getenv(key) or '').strip() or None
 
 
+def _plan_from_price(price_id):
+    """Devuelve el plan correspondiente a un Price ID de Stripe, o None.
+
+    Es la lógica inversa de `_price_id()`: compara el id contra los cuatro
+    Price IDs configurados (Pro/Business × mes/año).
+    """
+    if not price_id:
+        return None
+    for plan in (PLAN_PRO, PLAN_BUSINESS):
+        for interval in ('month', 'year'):
+            if _price_id(plan, interval) == price_id:
+                return plan
+    return None
+
+
+def _sub_item(sub):
+    """Primer item de una suscripción (o {}): de ahí salen price.id y
+    current_period_end / trial_end en versiones nuevas de stripe."""
+    items = ((sub or {}).get('items') or {}).get('data') or []
+    return items[0] if items else {}
+
+
+def _sub_item_price_id(sub_item):
+    """Price id del item, tolerando `price` como string id o como objeto."""
+    price = (sub_item or {}).get('price')
+    if isinstance(price, dict):
+        return price.get('id')
+    return price or None
+
+
 def _is_internal():
     return bool((g.get('company') or {}).get('is_internal'))
 
@@ -125,8 +155,17 @@ def _plan_catalog():
 
 _COMPANY_COLS = (
     "id, plan, is_internal, stripe_customer_id, stripe_subscription_id, "
-    "fast_quote_pack_count"
+    "fast_quote_pack_count, fast_quote_credits_remaining"
 )
+
+
+class _BillingDBError(Exception):
+    """Fallo de base de datos en el webhook: no hay que tragar el error.
+
+    El webhook responde 500 para que Stripe reintente, en vez de devolver 200
+    y perder la activación (el lookup de empresa no debe confundirse con
+    "no hay fila").
+    """
 
 
 def _query_company(where_sql, params):
@@ -157,6 +196,7 @@ def _query_company(where_sql, params):
             conn.rollback()
         except Exception:
             pass
+        raise _BillingDBError(f"Error querying company: {e}") from e
     return None
 
 
@@ -177,6 +217,7 @@ def _company_via_sdk(column, value):
             return resp.data[0]
     except Exception as e:
         logger.warning(f"[BILLING] Error _company_via_sdk({column}): {e}")
+        raise _BillingDBError(f"Error _company_via_sdk({column}): {e}") from e
     return None
 
 
@@ -190,6 +231,72 @@ def _company_by_subscription(sub_id):
 
 def _company_by_customer(customer_id):
     return _query_company("stripe_customer_id = %s", (customer_id,)) or _company_via_sdk('stripe_customer_id', customer_id)
+
+
+def _aplicar_paquete_fast_quote(metadata, company_id):
+    """Acredita un paquete Fast Quote (créditos one-time) a la cuenta.
+
+    Incrementa fast_quote_pack_count (contador de compras, revenue del panel)
+    y fast_quote_credits_remaining (+100 créditos por paquete). No-op si la
+    empresa no existe o no hay db.
+    """
+    if not company_id:
+        return
+    db = _get_db()
+    if not db:
+        return
+    company = _company_by_id(company_id)
+    if not company:
+        return
+    packs = int(company.get('fast_quote_pack_count') or 0) + 1
+    credits = int(company.get('fast_quote_credits_remaining') or 0) + FASTQUOTE_PACK_ESTIMATES
+    updated = db.update_company(company['id'], {
+        'fast_quote_pack_count': packs,
+        'fast_quote_credits_remaining': credits,
+    })
+    if not updated:
+        raise _BillingDBError(f"No se pudo acreditar el paquete Fast Quote a {company_id}")
+    logger.info(f"[BILLING] Pack Fast Quote aplicado a {company_id}")
+
+
+def _stripe_admin_client():
+    """Cliente Supabase con service key (bypass RLS) para la tabla stripe_events."""
+    supabase_url = (os.getenv('SUPABASE_URL') or '').strip()
+    service_key = (os.getenv('SUPABASE_SERVICE_KEY') or '').strip()
+    if not (supabase_url and service_key):
+        return None
+    from supabase import create_client
+    return create_client(supabase_url, service_key)
+
+
+def _stripe_event_seen(event_id):
+    """True si el evento ya fue procesado (deduplicación del webhook)."""
+    if not event_id:
+        return False
+    client = _stripe_admin_client()
+    if not client:
+        return False
+    try:
+        resp = client.table('stripe_events').select('id').eq('id', event_id).limit(1).execute()
+        return bool(getattr(resp, 'data', None))
+    except Exception as e:
+        logger.warning(f"[BILLING] Error _stripe_event_seen({event_id}): {e}")
+        return False
+
+
+def _stripe_event_record(event_id):
+    """Registra un evento procesado. Devuelve True si se registró."""
+    if not event_id:
+        return False
+    client = _stripe_admin_client()
+    if not client:
+        return False
+    try:
+        client.table('stripe_events').insert({'id': event_id}).execute()
+        return True
+    except Exception as e:
+        logger.warning(f"[BILLING] Error _stripe_event_record({event_id}): {e}")
+        return False
 
 
 def _ts(epoch):
@@ -257,25 +364,51 @@ def checkout():
         flash("No hay precio configurado para ese plan/frecuencia.", "error")
         return redirect(url_for('billing.page'))
 
+    company = g.get('company') or {}
     company_id = session.get('company_id')
     email = session.get('user_email')
-    trial_days = _int_env('STRIPE_TRIAL_DAYS', 14)
+
+    # Guard: si ya hay suscripción viva, el cambio de plan va por el Customer
+    # Portal (Stripe prorratea); el checkout queda solo para la primera
+    # suscripción o re-suscripción tras cancelar. `incomplete` no bloquea:
+    # quien falló el primer pago puede reintentar el checkout al momento.
+    status = (company.get('subscription_status') or '').strip().lower()
+    if status in ('active', 'trialing', 'past_due', 'unpaid'):
+        flash("Ya tienes una suscripción activa; cámbiala desde el portal de facturación.", "info")
+        return redirect(url_for('billing.page'))
 
     sub_data = {'metadata': {'company_id': company_id, 'plan': plan}}
-    if trial_days > 0:
-        sub_data['trial_period_days'] = trial_days
+    # Trial solo la primera vez (no al re-suscribirse tras cancelar).
+    if not company.get('stripe_subscription_id'):
+        trial_days = _int_env('STRIPE_TRIAL_DAYS', 14)
+        if trial_days > 0:
+            sub_data['trial_period_days'] = trial_days
+
+    # customer= si ya existe; si no, customer_email=. Nunca ambos (Stripe
+    # rechaza la sesión si van juntos).
+    checkout_kwargs = {
+        'mode': 'subscription',
+        'line_items': [{'price': price_id, 'quantity': 1}],
+        'subscription_data': sub_data,
+        'metadata': {'company_id': company_id, 'plan': plan},
+        'success_url': _abs('/billing/success?session_id={CHECKOUT_SESSION_ID}'),
+        'cancel_url': _abs('/billing/cancel'),
+        'allow_promotion_codes': True,
+        # Idempotencia del doble clic con componente de tiempo (cambia cada
+        # minuto): solo deduplica el doble clic, sin que Stripe rechace la
+        # llave a las 24 h por llegar con parámetros distintos.
+        'idempotency_key': (
+            f"checkout:{company_id}:{plan}:{interval}:"
+            f"{datetime.utcnow().strftime('%Y%m%d%H%M')}"
+        ),
+    }
+    if company.get('stripe_customer_id'):
+        checkout_kwargs['customer'] = company.get('stripe_customer_id')
+    else:
+        checkout_kwargs['customer_email'] = email
 
     try:
-        checkout_session = stripe.checkout.Session.create(
-            mode='subscription',
-            customer_email=email,
-            line_items=[{'price': price_id, 'quantity': 1}],
-            subscription_data=sub_data,
-            metadata={'company_id': company_id, 'plan': plan},
-            success_url=_abs('/billing/success?session_id={CHECKOUT_SESSION_ID}'),
-            cancel_url=_abs('/billing/cancel'),
-            allow_promotion_codes=True,
-        )
+        checkout_session = stripe.checkout.Session.create(**checkout_kwargs)
     except Exception as e:
         logger.error(f"[BILLING] Error creando checkout: {e}")
         flash("No se pudo iniciar el pago. Intenta de nuevo.", "error")
@@ -290,6 +423,11 @@ def checkout():
 def checkout_pack():
     if _is_internal():
         flash("Tu cuenta es interna: no requiere paquetes extra.", "info")
+        return redirect(url_for('billing.page'))
+
+    # El paquete Fast Quote es para planes Pro/Business (que tienen Fast Quote).
+    if effective_plan(g.get('company')) == PLAN_STARTER:
+        flash("El paquete Fast Quote es para planes Pro o Business.", "error")
         return redirect(url_for('billing.page'))
 
     stripe = _stripe()
@@ -383,84 +521,156 @@ def webhook():
         return jsonify({'error': 'Invalid signature'}), 400
 
     db = _get_db()
-    event_type = event['type']
-    obj = event['data']['object']
+    if db is None:
+        # Sin acceso a BD no podemos activar nada: 500 para que Stripe reintente.
+        return jsonify({'error': 'db unavailable'}), 500
 
-    if event_type == 'checkout.session.completed':
-        metadata = obj.get('metadata') or {}
-        company_id = metadata.get('company_id')
-        company = _company_by_id(company_id) if company_id else None
-        if not company:
-            return jsonify({'received': True}), 200
+    event_id = event.get('id')
+    event_type = event.get('type')
+    obj = event.get('data', {}).get('object', {})
 
-        # Paquete Fast Quote (one-time): suma un paquete a la cuenta.
-        if metadata.get('type') == 'fastquote_pack':
-            current = int(company.get('fast_quote_pack_count') or 0)
-            db.update_company(company['id'], {'fast_quote_pack_count': current + 1})
-            logger.info(f"[BILLING] Pack Fast Quote aplicado a {company_id}")
-            return jsonify({'received': True}), 200
-
-        # Suscripción: actualiza plan + ids de Stripe.
-        if company.get('is_internal'):
-            return jsonify({'received': True}), 200
-
-        plan = metadata.get('plan')
-        if plan not in VALID_PLANS:
-            plan = PLAN_PRO
-        updates = {
-            'plan': plan,
-            'stripe_customer_id': obj.get('customer'),
-            'stripe_subscription_id': obj.get('subscription'),
-            'subscription_status': 'active',
-        }
-        # Estado real de la suscripción: con trial es 'trialing' (no 'active'),
-        # y queremos guardar trial_ends_at / current_period_end.
-        sub_id = obj.get('subscription')
-        if sub_id:
-            try:
-                sub = _to_dict(stripe.Subscription.retrieve(sub_id))
-                updates['subscription_status'] = sub.get('status') or 'active'
-                if sub.get('trial_end'):
-                    updates['trial_ends_at'] = _ts(sub['trial_end'])
-                if sub.get('current_period_end'):
-                    updates['current_period_end'] = _ts(sub['current_period_end'])
-            except Exception as e:
-                logger.warning(f"[BILLING] No se pudo leer subscription {sub_id}: {e}")
-        db.update_company(company['id'], updates)
+    # Dedup: un evento ya procesado no se vuelve a procesar (replay de Stripe).
+    if event_id and _stripe_event_seen(event_id):
         return jsonify({'received': True}), 200
 
-    if event_type == 'customer.subscription.updated':
-        sub_id = obj.get('id')
-        company = _company_by_subscription(sub_id)
-        if not company:
-            company = _company_by_customer(obj.get('customer'))
-        if not company or company.get('is_internal'):
-            return jsonify({'received': True}), 200
+    try:
+        if event_type == 'checkout.session.completed':
+            metadata = obj.get('metadata') or {}
+            company_id = metadata.get('company_id')
+            company = _company_by_id(company_id) if company_id else None
+            if company:
+                if metadata.get('type') == 'fastquote_pack':
+                    # Paquete Fast Quote: acreditar solo si el pago está
+                    # confirmado (tarjeta). OXXO/offline lo acredita
+                    # checkout.session.async_payment_succeeded.
+                    if obj.get('payment_status') == 'paid':
+                        _aplicar_paquete_fast_quote(metadata, company_id)
+                elif not company.get('is_internal'):
+                    # Suscripción: actualiza plan + ids de Stripe desde el
+                    # precio (no de la metadata, que queda congelada).
+                    sub_id = obj.get('subscription')
+                    sub = {}
+                    if sub_id:
+                        try:
+                            sub = _to_dict(stripe.Subscription.retrieve(sub_id))
+                        except Exception as e:
+                            logger.warning(f"[BILLING] No se pudo leer subscription {sub_id}: {e}")
+                    sub_item = _sub_item(sub)
+                    price_id = _sub_item_price_id(sub_item)
+                    plan = _plan_from_price(price_id) or metadata.get('plan') or PLAN_STARTER
+                    if plan not in VALID_PLANS:
+                        plan = PLAN_STARTER
+                    updates = {
+                        'plan': plan,
+                        'stripe_customer_id': obj.get('customer'),
+                        'stripe_subscription_id': obj.get('subscription'),
+                        'subscription_status': sub.get('status') or 'active',
+                    }
+                    trial_end = sub_item.get('trial_end') or sub.get('trial_end')
+                    if trial_end:
+                        updates['trial_ends_at'] = _ts(trial_end)
+                    period_end = sub_item.get('current_period_end') or sub.get('current_period_end')
+                    if period_end:
+                        updates['current_period_end'] = _ts(period_end)
+                    if not db.update_company(company['id'], updates):
+                        raise _BillingDBError("update_company falló en checkout.session.completed")
 
-        updates = {'subscription_status': obj.get('status')}
-        if obj.get('current_period_end'):
-            updates['current_period_end'] = _ts(obj['current_period_end'])
-        if obj.get('trial_end'):
-            updates['trial_ends_at'] = _ts(obj['trial_end'])
+        elif event_type == 'checkout.session.async_payment_succeeded':
+            # Paquete Fast Quote con medios offline (OXXO): el pago se confirma
+            # después; este evento acredita el paquete.
+            metadata = obj.get('metadata') or {}
+            if metadata.get('type') == 'fastquote_pack':
+                _aplicar_paquete_fast_quote(metadata, metadata.get('company_id'))
 
-        meta_plan = (obj.get('metadata') or {}).get('plan')
-        if meta_plan in VALID_PLANS:
-            updates['plan'] = meta_plan
+        elif event_type == 'customer.subscription.updated':
+            sub_id = obj.get('id')
+            company = _company_by_subscription(sub_id)
+            if not company:
+                company = _company_by_customer(obj.get('customer'))
+            if company and not company.get('is_internal'):
+                status = obj.get('status')
+                updates = {'subscription_status': status}
+                sub_item = _sub_item(obj)
+                period_end = sub_item.get('current_period_end') or obj.get('current_period_end')
+                if period_end:
+                    updates['current_period_end'] = _ts(period_end)
+                trial_end = sub_item.get('trial_end') or obj.get('trial_end')
+                if trial_end:
+                    updates['trial_ends_at'] = _ts(trial_end)
 
-        db.update_company(company['id'], updates)
-        return jsonify({'received': True}), 200
+                # Plan derivado del precio (la metadata queda congelada si
+                # cambian de plan en el portal).
+                price_id = _sub_item_price_id(sub_item)
+                plan = _plan_from_price(price_id) or (obj.get('metadata') or {}).get('plan')
+                if plan in VALID_PLANS:
+                    updates['plan'] = plan
 
-    if event_type == 'customer.subscription.deleted':
-        sub_id = obj.get('id')
-        company = _company_by_subscription(sub_id)
-        if not company or company.get('is_internal'):
-            return jsonify({'received': True}), 200
+                # Impago: past_due es gracia (Stripe reintenta); el resto baja
+                # a Starter.
+                if status in ('unpaid', 'paused', 'incomplete_expired'):
+                    updates['plan'] = PLAN_STARTER
 
-        # Downgrade a Starter: revoca features de pago pero conserva la data.
-        db.update_company(company['id'], {
-            'subscription_status': 'canceled',
-            'plan': PLAN_STARTER,
-        })
-        return jsonify({'received': True}), 200
+                if not db.update_company(company['id'], updates):
+                    raise _BillingDBError("update_company falló en customer.subscription.updated")
+
+        elif event_type == 'customer.subscription.deleted':
+            sub_id = obj.get('id')
+            company = _company_by_subscription(sub_id)
+            if company and not company.get('is_internal'):
+                # Solo degrada si es la suscripción que la empresa tiene
+                # guardada (el borrado de una sub vieja/sustituida no degrada
+                # a quien acaba de subir de plan).
+                if company.get('stripe_subscription_id') == sub_id:
+                    if not db.update_company(company['id'], {
+                        'subscription_status': 'canceled',
+                        'plan': PLAN_STARTER,
+                    }):
+                        raise _BillingDBError("update_company falló en customer.subscription.deleted")
+
+        elif event_type == 'invoice.paid':
+            # Restaura el plan tomando el estado real de la suscripción (no
+            # fuerza 'active': durante el trial llega una factura de $0).
+            parent = obj.get('parent') or {}
+            sub_details = parent.get('subscription_details') or {}
+            sub_id = sub_details.get('subscription') or obj.get('subscription')
+            company = _company_by_subscription(sub_id) if sub_id else None
+            if company and not company.get('is_internal'):
+                sub = {}
+                try:
+                    sub = _to_dict(stripe.Subscription.retrieve(sub_id))
+                except Exception as e:
+                    logger.warning(f"[BILLING] No se pudo leer subscription {sub_id}: {e}")
+                sub_item = _sub_item(sub)
+                price_id = _sub_item_price_id(sub_item)
+                plan = _plan_from_price(price_id) or (sub.get('metadata') or {}).get('plan')
+                updates = {'subscription_status': sub.get('status') or 'active'}
+                if plan in VALID_PLANS:
+                    updates['plan'] = plan
+                period_end = sub_item.get('current_period_end') or sub.get('current_period_end')
+                if period_end:
+                    updates['current_period_end'] = _ts(period_end)
+                trial_end = sub_item.get('trial_end') or sub.get('trial_end')
+                if trial_end:
+                    updates['trial_ends_at'] = _ts(trial_end)
+                if not db.update_company(company['id'], updates):
+                    raise _BillingDBError("update_company falló en invoice.paid")
+
+        elif event_type == 'invoice.payment_failed':
+            # No degradar: Stripe reintenta el cobro varios días. Solo log.
+            parent = obj.get('parent') or {}
+            sub_details = parent.get('subscription_details') or {}
+            sub_id = sub_details.get('subscription') or obj.get('subscription')
+            logger.info(f"[BILLING] invoice.payment_failed para sub {sub_id}: no se degrada")
+
+        # Otros tipos de evento se ignoran (respondemos 200).
+    except _BillingDBError as e:
+        logger.error(f"[BILLING] Error de BD procesando {event_type}: {e}")
+        return jsonify({'error': 'db error'}), 500
+
+    # Solo si todo salió bien se registra el evento (idempotencia). Si falla el
+    # registro, respondemos 500 para que Stripe reintente sin perderlo.
+    if event_id and not _stripe_event_record(event_id):
+        logger.error(f"[BILLING] No se pudo registrar evento {event_id}")
+        return jsonify({'error': 'db error'}), 500
 
     return jsonify({'received': True}), 200

@@ -166,7 +166,7 @@ def _load_company_from_db(supabase_manager, company_id):
                    iva_rate, is_active, plan, codigo, legacy_drive_import,
                    is_internal, stripe_customer_id, stripe_subscription_id,
                    subscription_status, trial_ends_at, current_period_end,
-                   fast_quote_pack_count
+                   fast_quote_pack_count, fast_quote_credits_remaining
                 FROM public.companies WHERE id = %s AND is_active = true""",
                 (company_id,)
             )
