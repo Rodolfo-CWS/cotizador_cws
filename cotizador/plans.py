@@ -190,3 +190,30 @@ def get_limit(plan, key):
     else:
         plan = _normalize_plan(plan)
     return PLAN_LIMITS.get(plan, {}).get(key)
+
+
+def fast_quote_quota_blocked(usadas, base, credits):
+    """True solo cuando la cuota mensual base ya se usó y no quedan créditos.
+
+    La cuota base del plan se gasta primero. Los créditos one-time del paquete
+    no se suman al tope: solo importan cuando ``usadas >= base``. Bloquear
+    con ``usadas >= base + credits`` y además descontar un crédito por cada
+    uso extra cuenta el paquete dos veces (un Pro con base 20 y 100 créditos
+    se queda sin cupo alrededor del uso 70).
+
+    ``base is None`` significa sin límite (no bloquea).
+    """
+    if base is None:
+        return False
+    return int(usadas or 0) >= int(base) and int(credits or 0) <= 0
+
+
+def fast_quote_consumes_credit(usadas_despues, base):
+    """True si esta estimación ya rebasó la cuota base y debe gastar un crédito.
+
+    ``usadas_despues`` es el conteo del mes DESPUÉS de registrar la estimación.
+    Con base 20, las primeras 20 no consumen crédito; la 21 en adelante sí.
+    """
+    if base is None:
+        return False
+    return int(usadas_despues or 0) > int(base)

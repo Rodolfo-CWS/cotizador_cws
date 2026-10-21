@@ -25,6 +25,7 @@ from flask import (
     url_for, session, flash, current_app, jsonify, g,
 )
 
+from cotizador.db_rows import row_to_dict
 from cotizador.middleware import login_required, admin_required
 from cotizador.plans import (
     PLAN_STARTER, PLAN_PRO, PLAN_BUSINESS,
@@ -186,10 +187,12 @@ def _query_company(where_sql, params):
             params,
         )
         row = cur.fetchone()
-        colnames = [d[0] for d in cur.description]
+        colnames = [d[0] for d in cur.description] if cur.description else None
         cur.close()
         if row:
-            return dict(zip(colnames, row))
+            # RealDictCursor devuelve un mapping: zip(colnames, row) iteraría
+            # las llaves y dejaría is_internal = 'is_internal' (siempre truthy).
+            return row_to_dict(row, colnames)
     except Exception as e:
         logger.warning(f"[BILLING] Error querying company: {e}")
         try:
@@ -236,24 +239,20 @@ def _company_by_customer(customer_id):
 def _aplicar_paquete_fast_quote(metadata, company_id):
     """Acredita un paquete Fast Quote (créditos one-time) a la cuenta.
 
-    Incrementa fast_quote_pack_count (contador de compras, revenue del panel)
-    y fast_quote_credits_remaining (+100 créditos por paquete). No-op si la
-    empresa no existe o no hay db.
+    El incremento es atómico en SQL (``col + 100``), no un read-modify-write
+    del saldo leído en Python. No-op si la empresa no existe. Si existe y el
+    UPDATE falla, lanza ``_BillingDBError`` para que Stripe reintente.
     """
     if not company_id:
         return
     db = _get_db()
     if not db:
-        return
+        raise _BillingDBError("db unavailable al acreditar paquete Fast Quote")
     company = _company_by_id(company_id)
     if not company:
+        logger.warning(f"[BILLING] Pack Fast Quote sin empresa {company_id}")
         return
-    packs = int(company.get('fast_quote_pack_count') or 0) + 1
-    credits = int(company.get('fast_quote_credits_remaining') or 0) + FASTQUOTE_PACK_ESTIMATES
-    updated = db.update_company(company['id'], {
-        'fast_quote_pack_count': packs,
-        'fast_quote_credits_remaining': credits,
-    })
+    updated = db.acreditar_paquete_fast_quote(company['id'], FASTQUOTE_PACK_ESTIMATES)
     if not updated:
         raise _BillingDBError(f"No se pudo acreditar el paquete Fast Quote a {company_id}")
     logger.info(f"[BILLING] Pack Fast Quote aplicado a {company_id}")
@@ -269,34 +268,147 @@ def _stripe_admin_client():
     return create_client(supabase_url, service_key)
 
 
-def _stripe_event_seen(event_id):
-    """True si el evento ya fue procesado (deduplicación del webhook)."""
-    if not event_id:
-        return False
-    client = _stripe_admin_client()
-    if not client:
-        return False
-    try:
-        resp = client.table('stripe_events').select('id').eq('id', event_id).limit(1).execute()
-        return bool(getattr(resp, 'data', None))
-    except Exception as e:
-        logger.warning(f"[BILLING] Error _stripe_event_seen({event_id}): {e}")
-        return False
-
-
-def _stripe_event_record(event_id):
-    """Registra un evento procesado. Devuelve True si se registró."""
-    if not event_id:
-        return False
-    client = _stripe_admin_client()
-    if not client:
-        return False
-    try:
-        client.table('stripe_events').insert({'id': event_id}).execute()
+def _is_unique_violation(exc):
+    """True si el error es un duplicado de clave (SQLSTATE 23505)."""
+    code = getattr(exc, 'pgcode', None) or getattr(exc, 'code', None)
+    if str(code) == '23505':
         return True
+    for arg in getattr(exc, 'args', ()) or ():
+        if isinstance(arg, dict) and str(arg.get('code')) == '23505':
+            return True
+        if isinstance(arg, str) and ('23505' in arg or 'duplicate key' in arg.lower()):
+            return True
+    text = str(exc).lower()
+    return '23505' in text or 'duplicate key' in text
+
+
+def _claim_stripe_event(event_id):
+    """Reclama el evento para procesarlo una sola vez.
+
+    ``INSERT ... ON CONFLICT DO NOTHING RETURNING`` (o, en el fallback SDK, un
+    INSERT cuya violación de unicidad se trata como "ya existía").
+
+    Returns:
+        True  — esta entrega insertó la fila; hay que procesar el evento.
+        False — otra entrega ya lo reclamó; responder 200 sin reprocesar.
+        None  — no hay dónde deduplicar (sin PG ni service key). Se procesa
+                igual y NO se responde 500: sin service key el camino viejo
+                fallaba el registro y Stripe reintentaba cada evento.
+
+    Lanza ``_BillingDBError`` si había base de datos y el INSERT falló por
+    algo distinto de una clave duplicada (Stripe debe reintentar).
+    """
+    if not event_id:
+        return None
+
+    pg_error = None
+    db = _get_db()
+    conn = getattr(db, 'pg_connection', None) if db else None
+    if conn is not None and not getattr(conn, 'closed', 1):
+        try:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            cur = conn.cursor()
+            cur.execute(
+                """INSERT INTO public.stripe_events (id)
+                   VALUES (%s)
+                   ON CONFLICT (id) DO NOTHING
+                   RETURNING id""",
+                (event_id,),
+            )
+            row = cur.fetchone()
+            conn.commit()
+            cur.close()
+            # RETURNING vacío = conflicto. No se acredita de nuevo.
+            return row is not None
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            if _is_unique_violation(e):
+                return False
+            pg_error = e
+            logger.warning(f"[BILLING] Claim PG falló ({event_id}): {e}")
+
+    client = None
+    try:
+        client = _stripe_admin_client()
     except Exception as e:
-        logger.warning(f"[BILLING] Error _stripe_event_record({event_id}): {e}")
-        return False
+        logger.warning(f"[BILLING] No se pudo crear cliente admin de stripe_events: {e}")
+        client = None
+
+    if client is not None:
+        try:
+            client.table('stripe_events').insert({'id': event_id}).execute()
+            return True
+        except Exception as e:
+            if _is_unique_violation(e):
+                return False
+            logger.warning(f"[BILLING] Claim SDK falló ({event_id}): {e}")
+            raise _BillingDBError(f"No se pudo registrar evento {event_id}: {e}") from e
+
+    if pg_error is not None:
+        raise _BillingDBError(
+            f"No se pudo registrar evento {event_id}: {pg_error}"
+        ) from pg_error
+
+    logger.error(
+        "[BILLING] Dedup de webhooks no disponible "
+        "(sin conexión PG ni SUPABASE_SERVICE_KEY); "
+        f"se procesa {event_id} sin idempotencia"
+    )
+    return None
+
+
+def _release_stripe_event(event_id):
+    """Borra el claim si el procesamiento falló, para que Stripe pueda reintentar.
+
+    Mejor esfuerzo: si el DELETE falla, el reintento verá el evento como ya
+    procesado y no volverá a aplicar el cambio. Se loguea como error.
+    """
+    if not event_id:
+        return
+    db = _get_db()
+    conn = getattr(db, 'pg_connection', None) if db else None
+    if conn is not None and not getattr(conn, 'closed', 1):
+        try:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            cur = conn.cursor()
+            cur.execute("DELETE FROM public.stripe_events WHERE id = %s", (event_id,))
+            conn.commit()
+            cur.close()
+            return
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            logger.warning(f"[BILLING] No se pudo liberar evento {event_id} por PG: {e}")
+
+    try:
+        client = _stripe_admin_client()
+    except Exception:
+        client = None
+    if client is not None:
+        try:
+            client.table('stripe_events').delete().eq('id', event_id).execute()
+            return
+        except Exception as e:
+            logger.error(
+                f"[BILLING] No se pudo liberar evento {event_id}; "
+                f"un reintento de Stripe no lo volverá a procesar: {e}"
+            )
+            return
+    logger.error(
+        f"[BILLING] No se pudo liberar evento {event_id}; "
+        "un reintento de Stripe no lo volverá a procesar"
+    )
 
 
 def _ts(epoch):
@@ -399,7 +511,7 @@ def checkout():
         # llave a las 24 h por llegar con parámetros distintos.
         'idempotency_key': (
             f"checkout:{company_id}:{plan}:{interval}:"
-            f"{datetime.utcnow().strftime('%Y%m%d%H%M')}"
+            f"{datetime.now(timezone.utc).strftime('%Y%m%d%H%M')}"
         ),
     }
     if company.get('stripe_customer_id'):
@@ -529,9 +641,19 @@ def webhook():
     event_type = event.get('type')
     obj = event.get('data', {}).get('object', {})
 
-    # Dedup: un evento ya procesado no se vuelve a procesar (replay de Stripe).
-    if event_id and _stripe_event_seen(event_id):
-        return jsonify({'received': True}), 200
+    # Reclamar el evento ANTES de procesarlo. Dos entregas concurrentes no
+    # pueden pasar las dos: solo quien inserta la fila acredita el paquete.
+    # False = ya procesado (200). Un error real de BD es 500 para que Stripe
+    # reintente. None = no hay dedup configurado: se procesa igual, sin 500.
+    claimed = None
+    if event_id:
+        try:
+            claimed = _claim_stripe_event(event_id)
+        except _BillingDBError as e:
+            logger.error(f"[BILLING] No se pudo reclamar evento {event_id}: {e}")
+            return jsonify({'error': 'db error'}), 500
+        if claimed is False:
+            return jsonify({'received': True}), 200
 
     try:
         if event_type == 'checkout.session.completed':
@@ -560,18 +682,23 @@ def webhook():
                     plan = _plan_from_price(price_id) or metadata.get('plan') or PLAN_STARTER
                     if plan not in VALID_PLANS:
                         plan = PLAN_STARTER
+                    status = sub.get('status') or 'active'
                     updates = {
-                        'plan': plan,
                         'stripe_customer_id': obj.get('customer'),
                         'stripe_subscription_id': obj.get('subscription'),
-                        'subscription_status': sub.get('status') or 'active',
+                        'subscription_status': status,
                     }
-                    trial_end = sub_item.get('trial_end') or sub.get('trial_end')
-                    if trial_end:
-                        updates['trial_ends_at'] = _ts(trial_end)
-                    period_end = sub_item.get('current_period_end') or sub.get('current_period_end')
-                    if period_end:
-                        updates['current_period_end'] = _ts(period_end)
+                    # incomplete / incomplete_expired: el cobro no se confirmó.
+                    # No activar el plan; invoice.paid o subscription.updated
+                    # lo harán cuando el estado sea real.
+                    if status not in ('incomplete', 'incomplete_expired'):
+                        updates['plan'] = plan
+                        trial_end = sub_item.get('trial_end') or sub.get('trial_end')
+                        if trial_end:
+                            updates['trial_ends_at'] = _ts(trial_end)
+                        period_end = sub_item.get('current_period_end') or sub.get('current_period_end')
+                        if period_end:
+                            updates['current_period_end'] = _ts(period_end)
                     if not db.update_company(company['id'], updates):
                         raise _BillingDBError("update_company falló en checkout.session.completed")
 
@@ -587,7 +714,16 @@ def webhook():
             company = _company_by_subscription(sub_id)
             if not company:
                 company = _company_by_customer(obj.get('customer'))
-            if company and not company.get('is_internal'):
+            stored_sub = (company or {}).get('stripe_subscription_id')
+            # Una sub vieja (incomplete → incomplete_expired, o la anterior a
+            # un cambio de plan) no debe degradar a quien ya tiene otra sub
+            # guardada. Sin id guardado sí se aplica (primera suscripción).
+            if company and stored_sub and stored_sub != sub_id:
+                logger.info(
+                    f"[BILLING] Ignorando customer.subscription.updated {sub_id}: "
+                    f"la empresa {company.get('id')} tiene stripe_subscription_id={stored_sub}"
+                )
+            elif company and not company.get('is_internal'):
                 status = obj.get('status')
                 updates = {'subscription_status': status}
                 sub_item = _sub_item(obj)
@@ -630,20 +766,28 @@ def webhook():
         elif event_type == 'invoice.paid':
             # Restaura el plan tomando el estado real de la suscripción (no
             # fuerza 'active': durante el trial llega una factura de $0).
+            # Si no se puede leer la suscripción, 500 para que Stripe reintente:
+            # escribir 'active' sin plan dejaría el cobro a medias.
             parent = obj.get('parent') or {}
             sub_details = parent.get('subscription_details') or {}
             sub_id = sub_details.get('subscription') or obj.get('subscription')
             company = _company_by_subscription(sub_id) if sub_id else None
             if company and not company.get('is_internal'):
-                sub = {}
                 try:
                     sub = _to_dict(stripe.Subscription.retrieve(sub_id))
                 except Exception as e:
                     logger.warning(f"[BILLING] No se pudo leer subscription {sub_id}: {e}")
+                    raise _BillingDBError(
+                        f"No se pudo leer subscription {sub_id} en invoice.paid"
+                    ) from e
+                if not sub.get('status'):
+                    raise _BillingDBError(
+                        f"Subscription {sub_id} sin status en invoice.paid"
+                    )
                 sub_item = _sub_item(sub)
                 price_id = _sub_item_price_id(sub_item)
                 plan = _plan_from_price(price_id) or (sub.get('metadata') or {}).get('plan')
-                updates = {'subscription_status': sub.get('status') or 'active'}
+                updates = {'subscription_status': sub.get('status')}
                 if plan in VALID_PLANS:
                     updates['plan'] = plan
                 period_end = sub_item.get('current_period_end') or sub.get('current_period_end')
@@ -662,15 +806,19 @@ def webhook():
             sub_id = sub_details.get('subscription') or obj.get('subscription')
             logger.info(f"[BILLING] invoice.payment_failed para sub {sub_id}: no se degrada")
 
-        # Otros tipos de evento se ignoran (respondemos 200).
+        # Otros tipos de evento se ignoran (respondemos 200). El claim ya
+        # quedó registrado, así que un replay no vuelve a entrar.
     except _BillingDBError as e:
         logger.error(f"[BILLING] Error de BD procesando {event_type}: {e}")
+        # Soltar el claim para que el reintento de Stripe pueda volver a
+        # procesar (si no, el evento quedaría marcado y el cobro se perdería).
+        if claimed is True:
+            _release_stripe_event(event_id)
         return jsonify({'error': 'db error'}), 500
-
-    # Solo si todo salió bien se registra el evento (idempotencia). Si falla el
-    # registro, respondemos 500 para que Stripe reintente sin perderlo.
-    if event_id and not _stripe_event_record(event_id):
-        logger.error(f"[BILLING] No se pudo registrar evento {event_id}")
+    except Exception as e:
+        logger.exception(f"[BILLING] Error procesando {event_type}: {e}")
+        if claimed is True:
+            _release_stripe_event(event_id)
         return jsonify({'error': 'db error'}), 500
 
     return jsonify({'received': True}), 200
