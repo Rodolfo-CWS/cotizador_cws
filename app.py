@@ -902,7 +902,8 @@ from cotizador.middleware import login_required, plan_required, superadmin_requi
 from cotizador.plans import (
     FEATURE_SIMPLE_PDF, FEATURE_FAST_QUOTE, FEATURE_FULL_FORM, FEATURE_DESGLOSE,
     PLAN_STARTER, get_limit, has_feature, effective_plan,
-    FASTQUOTE_PACK_ESTIMATES, STARTER_HISTORY_LIMIT,
+    STARTER_HISTORY_LIMIT,
+    fast_quote_quota_blocked, fast_quote_consumes_credit,
 )
 
 @app.route("/login")
@@ -3497,26 +3498,27 @@ def fast_quote_estimate():
                 print(f"[FAST_QUOTE] Error cargando instrucciones: {e}")
 
         # 1.5 Límite de plan (cuota mensual). No aplica a recálculo por feedback.
+        # La cuota base se gasta primero. Los créditos del paquete solo se
+        # exigen cuando el mes ya superó la base; no se suman al tope (eso
+        # los contaba dos veces, porque cada uso extra también los descuenta).
         is_feedback = bool(feedback and previous_estimate)
         plan = effective_plan(g.get("company"))
         if not is_feedback:
             max_estimates = get_limit(plan, "max_estimates")
-            # Paquete Fast Quote extra: suma créditos comprados (one-time).
-            if max_estimates is not None:
-                pack_count = int((g.get("company") or {}).get("fast_quote_pack_count") or 0)
-                max_estimates = max_estimates + pack_count * FASTQUOTE_PACK_ESTIMATES
             if max_estimates is not None and company_id:
+                credits = int((g.get("company") or {}).get("fast_quote_credits_remaining") or 0)
                 try:
                     usadas = db_manager.contar_estimaciones_fast_quote_mes(company_id)
-                    if usadas >= max_estimates:
+                    if fast_quote_quota_blocked(usadas, max_estimates, credits):
                         return jsonify({
                             "success": False,
                             "tipo_error": "plan_limit",
                             "plan_limit": True,
                             "upgrade_url": "/billing",
                             "error": (
-                                f"Alcanzaste el límite de {max_estimates} estimaciones "
-                                "de tu plan este mes. Actualiza tu plan para seguir estimando."
+                                f"Alcanzaste las {max_estimates} estimaciones de tu plan "
+                                "este mes y no te quedan créditos de paquete. "
+                                "Actualiza tu plan o compra un paquete para seguir estimando."
                             ),
                         }), 403
                 except Exception as e:
@@ -3821,6 +3823,14 @@ REGLAS:
         if not is_feedback and company_id:
             try:
                 db_manager.registrar_estimacion_fast_quote(company_id)
+                # Pasada la cuota base, cada estimación gasta un crédito one-time.
+                # El descuento es atómico en SQL (no se resta una copia leída aquí).
+                base = get_limit(plan, "max_estimates")
+                if base is not None:
+                    usadas = db_manager.contar_estimaciones_fast_quote_mes(company_id)
+                    if fast_quote_consumes_credit(usadas, base):
+                        if not db_manager.consumir_credito_fast_quote(company_id):
+                            print(f"[FAST_QUOTE] No se descontó crédito one-time para {company_id}")
             except Exception as e:
                 print(f"[FAST_QUOTE] Error registrando uso: {e}")
 

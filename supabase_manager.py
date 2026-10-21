@@ -21,7 +21,7 @@ import sys
 import time
 import re
 import unicodedata
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional, Tuple
 import psycopg2
 from psycopg2.extras import Json, RealDictCursor
@@ -36,6 +36,18 @@ def safe_str(value, default=""):
     if value is None:
         return default
     return str(value).strip()
+
+
+def _row_to_dict(row, colnames=None):
+    """Fila de psycopg2 → dict, sea tupla o RealDictRow. Ver cotizador.db_rows."""
+    from cotizador.db_rows import row_to_dict
+    return row_to_dict(row, colnames)
+
+
+def _row_scalar(row):
+    """Primer valor de una fila. RealDictCursor no acepta row[0]."""
+    from cotizador.db_rows import row_scalar
+    return row_scalar(row)
 
 class SupabaseManager:
     """
@@ -3207,15 +3219,16 @@ class SupabaseManager:
                     """SELECT id, name, slug, codigo, legacy_drive_import, tax_id,
                               address, phone, email,
                               logo_url, primary_color, secondary_color, footer_text,
-                              iva_rate, is_active, plan, max_users
+                              iva_rate, is_active, plan, max_users,
+                              stripe_subscription_id
                        FROM public.companies WHERE id = %s""",
                     (company_id,)
                 )
                 row = cursor.fetchone()
+                colnames = [desc[0] for desc in cursor.description] if cursor.description else None
                 cursor.close()
                 if row:
-                    colnames = [desc[0] for desc in cursor.description]
-                    return dict(zip(colnames, row))
+                    return _row_to_dict(row, colnames)
         except Exception as e:
             print(f"[TENANT] Error get_company_by_id: {e}")
             try:
@@ -3285,11 +3298,11 @@ class SupabaseManager:
                     values
                 )
                 row = cursor.fetchone()
+                colnames = [desc[0] for desc in cursor.description] if cursor.description else None
                 self.pg_connection.commit()
                 cursor.close()
                 if row:
-                    colnames = [desc[0] for desc in cursor.description]
-                    return dict(zip(colnames, row))
+                    return _row_to_dict(row, colnames)
         except Exception as e:
             print(f"[TENANT] Error update_company (PG): {e}")
             try:
@@ -3307,6 +3320,124 @@ class SupabaseManager:
                     return resp.data[0]
         except Exception as e:
             print(f"[TENANT] Error update_company (SDK): {e}")
+        return None
+
+    def consumir_credito_fast_quote(self, company_id: str) -> bool:
+        """Descuenta un crédito one-time de Fast Quote de forma atómica.
+
+        ``GREATEST(col - 1, 0)`` y solo si el saldo es > 0, para no bajar de
+        cero ni pisar un saldo que otra request ya descontó. Devuelve True si
+        se descontó un crédito.
+
+        El SQL vive también en ``migrations/v12_billing_hardening.sql``
+        (función ``consumir_credito_fast_quote``) para el fallback por SDK.
+        """
+        if not company_id:
+            return False
+        sql = """
+            UPDATE public.companies
+            SET fast_quote_credits_remaining = GREATEST(
+                COALESCE(fast_quote_credits_remaining, 0) - 1, 0
+            )
+            WHERE id = %s
+              AND COALESCE(fast_quote_credits_remaining, 0) > 0
+            RETURNING fast_quote_credits_remaining
+        """
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except Exception:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(sql, (company_id,))
+                row = cursor.fetchone()
+                self.pg_connection.commit()
+                cursor.close()
+                # 0 filas = saldo ya en 0. No caer al SDK: no hay nada que descontar.
+                return row is not None
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error consumir crédito (PG): {e}")
+            try:
+                self.pg_connection.rollback()
+            except Exception:
+                pass
+
+        try:
+            service_key = os.getenv('SUPABASE_SERVICE_KEY')
+            if self.supabase_url and service_key:
+                admin_client = create_client(self.supabase_url, service_key)
+                resp = admin_client.rpc(
+                    'consumir_credito_fast_quote',
+                    {'p_company_id': str(company_id)},
+                ).execute()
+                return getattr(resp, 'data', None) is not None
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error consumir crédito (SDK): {e}")
+        return False
+
+    def acreditar_paquete_fast_quote(self, company_id: str, credits: int):
+        """Suma un paquete Fast Quote de forma atómica (contador + créditos).
+
+        No lee el saldo en Python: ``pack_count + 1`` y ``credits + N`` corren
+        en un solo UPDATE. Devuelve la fila actualizada, o None si falla.
+
+        El mismo incremento está en ``migrations/v12_billing_hardening.sql``
+        (función ``acreditar_paquete_fast_quote``) para el fallback por SDK.
+        """
+        if not company_id:
+            return None
+        try:
+            credits = int(credits)
+        except (TypeError, ValueError):
+            return None
+        if credits < 0:
+            return None
+        sql = """
+            UPDATE public.companies
+            SET fast_quote_pack_count = COALESCE(fast_quote_pack_count, 0) + 1,
+                fast_quote_credits_remaining = COALESCE(fast_quote_credits_remaining, 0) + %s
+            WHERE id = %s
+            RETURNING id, fast_quote_pack_count, fast_quote_credits_remaining
+        """
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except Exception:
+                    pass
+                cursor = self.pg_connection.cursor()
+                cursor.execute(sql, (credits, company_id))
+                row = cursor.fetchone()
+                colnames = [desc[0] for desc in cursor.description] if cursor.description else None
+                self.pg_connection.commit()
+                cursor.close()
+                if row:
+                    return _row_to_dict(row, colnames)
+                # El UPDATE corrió y no había fila: no reintentar por SDK.
+                return None
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error acreditar paquete (PG): {e}")
+            try:
+                self.pg_connection.rollback()
+            except Exception:
+                pass
+
+        try:
+            service_key = os.getenv('SUPABASE_SERVICE_KEY')
+            if self.supabase_url and service_key:
+                admin_client = create_client(self.supabase_url, service_key)
+                resp = admin_client.rpc(
+                    'acreditar_paquete_fast_quote',
+                    {'p_company_id': str(company_id), 'p_credits': credits},
+                ).execute()
+                data = getattr(resp, 'data', None)
+                if isinstance(data, list):
+                    return data[0] if data else None
+                if isinstance(data, dict):
+                    return data
+        except Exception as e:
+            print(f"[FAST_QUOTE] Error acreditar paquete (SDK): {e}")
         return None
 
     def upload_company_logo(self, company_id: str, file_bytes: bytes) -> Optional[str]:
@@ -4175,9 +4306,9 @@ class SupabaseManager:
                          AND created_at >= date_trunc('month', NOW())""",
                     (company_id,)
                 )
-                count = cursor.fetchone()[0]
+                count = _row_scalar(cursor.fetchone())
                 cursor.close()
-                return int(count)
+                return int(count or 0)
         except Exception as e:
             print(f"[FAST_QUOTE] Error contando uso (PG): {e}")
             try:
@@ -4191,7 +4322,7 @@ class SupabaseManager:
             key = os.getenv('SUPABASE_SERVICE_KEY')
             if url and key:
                 client = create_client(url, key)
-                month_start = datetime.utcnow().replace(
+                month_start = datetime.now(timezone.utc).replace(
                     day=1, hour=0, minute=0, second=0, microsecond=0
                 ).isoformat()
                 resp = client.table('fast_quote_usage') \
@@ -4265,9 +4396,9 @@ class SupabaseManager:
                          AND created_at >= date_trunc('month', NOW())""",
                     (company_id,)
                 )
-                count = cursor.fetchone()[0]
+                count = _row_scalar(cursor.fetchone())
                 cursor.close()
-                return int(count)
+                return int(count or 0)
         except Exception as e:
             print(f"[PDF_SIMPLE] Error contando uso (PG): {e}")
             try:
@@ -4281,7 +4412,7 @@ class SupabaseManager:
             key = os.getenv('SUPABASE_SERVICE_KEY')
             if url and key:
                 client = create_client(url, key)
-                month_start = datetime.utcnow().replace(
+                month_start = datetime.now(timezone.utc).replace(
                     day=1, hour=0, minute=0, second=0, microsecond=0
                 ).isoformat()
                 resp = client.table('simple_pdf_usage') \

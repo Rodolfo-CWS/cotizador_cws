@@ -10,6 +10,7 @@ Antes de cada request:
 from flask import g, session, redirect, url_for, request, flash, jsonify
 from functools import wraps
 
+from cotizador.db_rows import row_to_dict
 from cotizador.plans import has_feature, effective_plan
 
 
@@ -166,15 +167,17 @@ def _load_company_from_db(supabase_manager, company_id):
                    iva_rate, is_active, plan, codigo, legacy_drive_import,
                    is_internal, stripe_customer_id, stripe_subscription_id,
                    subscription_status, trial_ends_at, current_period_end,
-                   fast_quote_pack_count
+                   fast_quote_pack_count, fast_quote_credits_remaining
                 FROM public.companies WHERE id = %s AND is_active = true""",
                 (company_id,)
             )
             row = cursor.fetchone()
+            colnames = [desc[0] for desc in cursor.description] if cursor.description else None
             cursor.close()
             if row:
-                colnames = [desc[0] for desc in cursor.description]
-                return dict(zip(colnames, row))
+                # Misma trampa que en el webhook: con RealDictCursor, zip
+                # copia los nombres de columna y is_internal queda truthy.
+                return row_to_dict(row, colnames)
     except Exception:
         pass
 
