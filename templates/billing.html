@@ -52,12 +52,28 @@
     .pack-card .info p { margin: 0; font-size: 13px; color: #78716c; }
     .muted { color: #78716c; font-size: 13px; }
     .trial-note { margin-top: 16px; font-size: 13px; color: #78716c; text-align: center; }
+
+    .flash { padding: 10px 16px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
+    .flash-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
+    .flash-error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+    .flash-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
 </style>
 
 <div class="billing-wrap">
-    <div class="billing-header">
-        <h1>Tu plan</h1>
-        <p class="subtitle">Plan actual: <strong>{{ plan_names.get(current_plan, current_plan) }}</strong></p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="billing-header" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+        <div>
+            <h1>Tu plan</h1>
+            <p class="subtitle">Plan actual: <strong>{{ plan_names.get(current_plan, current_plan) }}</strong></p>
+        </div>
+        <a href="/" class="btn btn-primary" style="width: auto; padding: 11px 18px;">Ir al cotizador</a>
     </div>
 
     {% if is_internal %}

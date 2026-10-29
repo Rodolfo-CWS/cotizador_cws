@@ -102,7 +102,7 @@ def branding():
         result = db.update_company(company_id, data)
         if result:
             flash("Branding actualizado correctamente", "success")
-            company = db.get_company_by_id(company_id)
+            return redirect(url_for('company.users'))
         else:
             flash("Error al actualizar branding", "error")
 
