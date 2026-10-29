@@ -28,6 +28,7 @@
         <div style="display: flex; align-items: center; gap: 16px;">
             <a href="/planes" style="font-size: 13px; color: var(--primary); text-decoration: none;">Planes</a>
             {% if user %}
+            <a href="/" style="font-size: 13px; color: var(--primary); text-decoration: none;">Inicio</a>
             <span style="font-size: 13px; color: #78716c;">{{ user.name }}</span>
             {% if user.role == 'admin' %}
             <a href="/admin/company/profile" style="font-size: 13px; color: var(--primary); text-decoration: none;">Admin</a>
