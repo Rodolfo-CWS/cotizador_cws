@@ -30,6 +30,13 @@ logger = logging.getLogger(__name__)
 # Crear blueprint sin url_prefix — las rutas se registran con /auth/
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
+# Alta de un correo que ya existe en auth.users. Con la protección contra
+# enumeración, Supabase no lanza error: responde 200 con un usuario ficticio.
+EMAIL_YA_REGISTRADO = (
+    "Este correo ya está registrado. "
+    "Inicia sesión o recupera tu contraseña."
+)
+
 
 def get_supabase_auth_client() -> Client:
     """Obtiene un cliente Supabase configurado para operaciones auth."""
@@ -260,6 +267,40 @@ def register():
 
             user = auth_response.user
 
+            # Alta repetida con protección contra enumeración: Supabase responde
+            # 200, no crea el usuario y no cambia la contraseña. El cuerpo trae
+            # identities vacío y un id que no existe en auth.users.
+            if _identities_vacias(user):
+                logger.info(
+                    "[AUTH] Alta rechazada, correo ya registrado "
+                    "(identities vacío): %s",
+                    email,
+                )
+                error = EMAIL_YA_REGISTRADO
+                return render_template('register.html', error=error)
+
+            admin_client = get_supabase_admin_client()
+
+            # El id ficticio del paso anterior no está en auth.users. Tampoco
+            # creamos compañía si el cliente no devolvió identities.
+            if not _auth_user_exists(admin_client, user.id):
+                logger.info(
+                    "[AUTH] Alta rechazada, el id devuelto no existe en "
+                    "auth.users: %s (%s)",
+                    email,
+                    user.id,
+                )
+                error = EMAIL_YA_REGISTRADO
+                return render_template('register.html', error=error)
+
+            if _profile_exists(admin_client, user.id):
+                logger.info(
+                    "[AUTH] Alta rechazada, el usuario ya tiene perfil: %s",
+                    email,
+                )
+                error = EMAIL_YA_REGISTRADO
+                return render_template('register.html', error=error)
+
             # 2. Crear compañía (con los datos de alta obligatorios + opcionales)
             company_fields = {
                 "address": address,
@@ -276,20 +317,37 @@ def register():
             if secondary_color:
                 company_fields["secondary_color"] = secondary_color
 
-            admin_client = get_supabase_admin_client()
-            company_data = _create_company(
-                admin_client, company_name, company_slug, plan,
-                extra=company_fields
-            )
-            company_id = company_data['id']
+            company_id = None
+            try:
+                company_data = _create_company(
+                    admin_client, company_name, company_slug, plan,
+                    extra=company_fields
+                )
+                company_id = company_data['id']
 
-            # 3. Crear perfil (admin de la compañía)
-            _create_profile(
-                admin_client, user.id, company_id, full_name, 'admin'
-            )
+                # 3. Crear perfil (admin de la compañía)
+                _create_profile(
+                    admin_client, user.id, company_id, full_name, 'admin'
+                )
 
-            # 4. Subir logo (opcional, no bloqueante). Se sube después de crear la
-            #    compañía porque necesita el company_id.
+                # 4. Guardar en sesión solo si compañía y perfil quedaron creados
+                session['user_id'] = user.id
+                session['user_email'] = user.email
+                session['user_name'] = ' '.join(full_name.split())
+                session['user_role'] = 'admin'
+                session['company_id'] = company_id
+            except Exception:
+                logger.exception(
+                    "[AUTH] Registro incompleto para %s; revirtiendo", email
+                )
+                _cleanup_partial_signup(
+                    admin_client, company_id=company_id, user_id=user.id
+                )
+                raise
+
+            # 5. Subir logo (opcional, no bloqueante). Se sube después de crear la
+            #    compañía porque necesita el company_id. Un fallo aquí no borra
+            #    la cuenta: el usuario ya puede entrar y subir el logo después.
             logo_file = request.files.get('logo') if request.files else None
             if logo_file and logo_file.filename:
                 try:
@@ -301,13 +359,6 @@ def register():
                             db.update_company(company_id, {"logo_url": logo_url})
                 except Exception as e:
                     logger.warning(f"[AUTH] No se pudo subir el logo (no bloqueante): {e}")
-
-            # 5. Guardar en sesión
-            session['user_id'] = user.id
-            session['user_email'] = user.email
-            session['user_name'] = ' '.join(full_name.split())
-            session['user_role'] = 'admin'
-            session['company_id'] = company_id
 
             logger.info(
                 f"[AUTH] Nueva compañía registrada: {company_name} "
@@ -323,17 +374,7 @@ def register():
         except Exception as e:
             error_msg = str(e)
             logger.error(f"[AUTH] Error en registro: {error_msg}")
-
-            if "already registered" in error_msg.lower() or \
-               "duplicate" in error_msg.lower():
-                error = "Este email ya está registrado"
-            elif "slug" in error_msg.lower() and "unique" in error_msg.lower():
-                error = (
-                    f"El identificador '{company_slug}' ya está en uso. "
-                    "Elige otro."
-                )
-            else:
-                error = f"Error al registrarse: {error_msg}"
+            error = _register_error_message(e, company_slug)
 
     return render_template('register.html', error=error)
 
@@ -504,3 +545,132 @@ def _create_profile(
 
     if not response.data:
         raise Exception("No se pudo crear el perfil")
+
+
+def _attr(obj, name, default=None):
+    """Lee un campo de un modelo de Supabase o de un dict."""
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(name, default)
+    return getattr(obj, name, default)
+
+
+def _identities_vacias(user) -> bool:
+    """True si Supabase señaló un alta repetida con `identities` vacío.
+
+    GoTrue, con confirmación de email activa, no devuelve error cuando el
+    correo ya está confirmado (`user_repeated_signup`). `sanitizeUser` sustituye
+    el id por uno nuevo y deja `identities` en vacío. Ese id no existe en
+    auth.users y la contraseña no cambia. Un alta nueva siempre trae al menos
+    una identity.
+    """
+    identities = _attr(user, "identities", None)
+    if identities is None:
+        return False
+    try:
+        return len(identities) == 0
+    except TypeError:
+        return False
+
+
+def _is_auth_user_missing(exc: Exception) -> bool:
+    """True solo si el admin API dijo que ese usuario no existe.
+
+    Un 404 genérico (URL mal formada, proyecto caído) no cuenta: si no
+    podemos afirmar que el id es ficticio, el alta se aborta sin decir
+    que el correo ya está registrado.
+    """
+    code = str(getattr(exc, "code", "") or "").lower()
+    if code == "user_not_found":
+        return True
+    message = str(exc).lower()
+    return "user not found" in message or "user does not exist" in message
+
+
+def _auth_user_exists(admin_client: Client, user_id) -> bool:
+    """Comprueba con la service role que el id está en auth.users.
+
+    El alta repetida devuelve un UUID que `get_user_by_id` no encuentra.
+    Un fallo distinto de «no existe» se propaga: no hay que crear compañía
+    si no pudimos verificar el usuario.
+    """
+    if not user_id:
+        return False
+    try:
+        resp = admin_client.auth.admin.get_user_by_id(str(user_id))
+    except Exception as exc:
+        if _is_auth_user_missing(exc):
+            return False
+        raise
+    found = _attr(resp, "user")
+    if not found:
+        return False
+    return str(_attr(found, "id", "")) == str(user_id)
+
+
+def _profile_exists(admin_client: Client, user_id) -> bool:
+    """True si ya hay una fila en public.profiles para ese usuario."""
+    resp = (
+        admin_client.table("profiles")
+        .select("id")
+        .eq("id", str(user_id))
+        .limit(1)
+        .execute()
+    )
+    return bool(getattr(resp, "data", None))
+
+
+def _cleanup_partial_signup(admin_client: Client, company_id, user_id):
+    """Borra compañía, perfil y el usuario de Auth de un alta que no terminó.
+
+    public.profiles.id no tiene FK hacia auth.users, así que un perfil a medias
+    no se cae solo. También se borra el usuario de Auth creado en este intento.
+    Con autoconfirm, un segundo sign_up del mismo correo responde
+    «User already registered» y la persona no podría terminar el alta.
+    """
+    if user_id:
+        try:
+            admin_client.table("profiles").delete().eq("id", str(user_id)).execute()
+        except Exception as exc:
+            logger.error("[AUTH] No se pudo revertir el perfil %s: %s", user_id, exc)
+    if company_id:
+        try:
+            admin_client.table("companies").delete().eq(
+                "id", str(company_id)
+            ).execute()
+        except Exception as exc:
+            logger.error(
+                "[AUTH] No se pudo revertir la compañía %s: %s", company_id, exc
+            )
+    if user_id:
+        try:
+            admin_client.auth.admin.delete_user(str(user_id))
+        except Exception as exc:
+            logger.error(
+                "[AUTH] No se pudo revertir el usuario de Auth %s: %s",
+                user_id,
+                exc,
+            )
+
+
+def _register_error_message(exc: Exception, company_slug: str) -> str:
+    """Texto en español para un fallo de alta. El slug se distingue del correo."""
+    error_msg = str(exc)
+    low = error_msg.lower()
+    # El error de Postgres por slug contiene "duplicate" y "unique". Hay que
+    # mirarlo antes que cualquier texto genérico de duplicado.
+    if "slug" in low and (
+        "unique" in low or "duplicate" in low or "already exists" in low
+    ):
+        return (
+            f"El identificador '{company_slug}' ya está en uso. "
+            "Elige otro."
+        )
+    if (
+        "already registered" in low
+        or "user already exists" in low
+        or "user_already_exists" in low
+    ):
+        return EMAIL_YA_REGISTRADO
+    return f"Error al registrarse: {error_msg}"
