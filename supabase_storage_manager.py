@@ -263,15 +263,13 @@ class SupabaseStorageManager:
         try:
             print(f"SUPABASE_STORAGE: Subiendo archivo: {storage_path} ({len(file_bytes)} bytes, {content_type})")
 
-            # Forzar upsert como string (requerido por ciertas versiones del SDK)
-            import io
-            file_obj = io.BytesIO(file_bytes)
-
+            # Pasar los bytes directamente: el SDK storage3 NO acepta io.BytesIO
+            # (lo trata como path y hace open() → TypeError).
             # Función interna para la subida (para usar con retry)
             def _upload_operation():
                 return self.supabase.storage.from_(self.bucket_name).upload(
                     path=storage_path,
-                    file=file_obj,
+                    file=file_bytes,
                     file_options={
                         "content-type": content_type,
                         "upsert": "true"
@@ -462,13 +460,11 @@ class SupabaseStorageManager:
 
         storage_path = f"{company_id}/antiguas/{hash_contenido}.pdf"
         try:
-            import io
-            file_obj = io.BytesIO(file_bytes)
-
+            # Pasar bytes directamente (el SDK storage3 no acepta io.BytesIO).
             def _upload_operation():
                 return self.supabase.storage.from_(self.IMPORTED_BUCKET).upload(
                     path=storage_path,
-                    file=file_obj,
+                    file=file_bytes,
                     file_options={
                         "content-type": "application/pdf",
                         "upsert": "true",

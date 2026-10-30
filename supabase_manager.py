@@ -3560,6 +3560,9 @@ class SupabaseManager:
 
     def _buscar_importados_pg(self, query, company_id, page, per_page, metodo):
         """Búsqueda PG de imported_pdfs. metodo: 'fts' (full-text) o 'trgm' (trigram)."""
+        # Empezar siempre desde una transacción limpia (el respaldo llama a este
+        # método tras un fallo; sin rollback la transacción queda abortada).
+        self.pg_connection.rollback()
         cursor = self.pg_connection.cursor()
         offset = (page - 1) * per_page
         q = (query or '').strip()
@@ -3574,7 +3577,7 @@ class SupabaseManager:
             order = "ts_rank(tsv, websearch_to_tsquery('spanish', public.f_unaccent(%s))) DESC, created_at DESC"
             params = [company_id, q]
             count_params = [company_id, q]
-            search_params = [q, q, company_id, q, per_page, offset]
+            search_params = [q, company_id, q, q, per_page, offset]
         else:
             where = ("company_id = %s AND public.f_unaccent(coalesce(contenido_texto,'') || ' ' || nombre_archivo) "
                      "ILIKE '%%' || public.f_unaccent(%s) || '%%'")
@@ -3622,6 +3625,32 @@ class SupabaseManager:
                   "pages": int, "modo": str}. Nunca selecciona contenido_texto completo.
         """
         query = (query or '').strip()
+
+        # Sin texto de búsqueda → listado simple (sin full-text ni ts_headline).
+        if not query:
+            rows = self.listar_pdfs_importados(company_id)
+            total = len(rows)
+            resultados = [
+                {
+                    'id': r['id'],
+                    'nombre_archivo': r.get('nombre_archivo'),
+                    'num_paginas': r.get('num_paginas'),
+                    'tamanio_bytes': r.get('tamanio_bytes'),
+                    'created_at': r.get('created_at'),
+                    'snippet': '',
+                }
+                for r in rows
+            ]
+            total_pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+            return {
+                "resultados": resultados,
+                "total": total,
+                "page": page,
+                "per_page": per_page,
+                "pages": total_pages,
+                "modo": "online" if not self.modo_offline else "offline",
+            }
+
         resultados = []
         total = 0
         modo = "offline"

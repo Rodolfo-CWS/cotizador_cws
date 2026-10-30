@@ -69,7 +69,7 @@
     <p class="subtitle">Sube PDFs digitales y búscalos por contenido en el cotizador</p>
 
     <div class="usage-bar">
-        <span class="usage-label">
+        <span class="usage-label" id="usageLabel">
             {% if max_imported_pdfs is not none %}
                 {{ total_importados }} de {{ max_imported_pdfs }} PDFs
             {% else %}
@@ -78,7 +78,7 @@
         </span>
         <div class="usage-track">
             {% set pct = (total_importados / max_imported_pdfs * 100) if max_imported_pdfs else 0 %}
-            <div class="usage-fill{{ ' full' if (max_imported_pdfs is not none and total_importados >= max_imported_pdfs) else '' }}"
+            <div class="usage-fill{{ ' full' if (max_imported_pdfs is not none and total_importados >= max_imported_pdfs) else '' }}" id="usageFill"
                  style="width: {{ [pct, 100]|min }}%;"></div>
         </div>
     </div>
@@ -180,6 +180,22 @@
             limitHint.textContent = 'Espacio disponible: ' + remaining + ' PDFs.';
             limitHint.style.color = '#78716c';
             btnUpload.disabled = selectedFiles.length === 0;
+        }
+    }
+
+    function updateUsage() {
+        const label = document.getElementById('usageLabel');
+        const fill = document.getElementById('usageFill');
+        if (maxImportados === null) {
+            if (label) label.textContent = totalImportados + ' PDFs · ilimitado';
+            if (fill) { fill.style.width = '0%'; fill.classList.remove('full'); }
+        } else {
+            if (label) label.textContent = totalImportados + ' de ' + maxImportados + ' PDFs';
+            if (fill) {
+                const pct = Math.min(100, Math.round((totalImportados / maxImportados) * 1000) / 10);
+                fill.style.width = pct + '%';
+                if (totalImportados >= maxImportados) fill.classList.add('full'); else fill.classList.remove('full');
+            }
         }
     }
 
@@ -290,12 +306,13 @@
             }));
         }
 
-        // Resumen
+        // Resumen (no auto-recargamos: dejamos que el usuario descargue el CSV).
         summaryEl.style.display = '';
         let html = imported + ' importados · ' + duplicados + ' duplicados · ' + rechazados + ' rechazados';
         if (rejected.length) {
             html += ' · <a id="csvLink">Descargar lista de rechazados (CSV)</a>';
         }
+        html += ' · <button type="button" class="btn btn-secondary btn-sm" id="btnRefresh">Actualizar lista</button>';
         summaryEl.innerHTML = html;
 
         const csvLink = document.getElementById('csvLink');
@@ -314,12 +331,15 @@
             });
         }
 
+        const refreshBtn = document.getElementById('btnRefresh');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function () { window.location.reload(); });
+        }
+
         selectedFiles = [];
         btnClear.disabled = false;
+        updateUsage();
         refreshLimitHint();
-
-        // Recargar la tabla de PDFs importados
-        setTimeout(function () { window.location.reload(); }, 1200);
     });
 
     // ── Tabla: buscar por nombre + eliminar ──

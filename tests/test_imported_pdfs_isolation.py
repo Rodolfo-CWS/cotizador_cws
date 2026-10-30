@@ -63,11 +63,23 @@ def _manager_with(cursor):
 
 
 def _assert_scoped(executions, expected_company, forbidden_company):
-    """Toda query debe escopar por expected_company y jamás por forbidden_company."""
+    """Toda query debe escopar por expected_company y jamás por forbidden_company.
+
+    Además verifica la POSICIÓN: el %s que sigue a "company_id = " debe recibir
+    expected_company. No basta con que aparezca en algún lugar de la lista, porque
+    un company_id mal colocado (p. ej. en el slot del texto buscado) no lo detecta.
+    """
+    import re as _re
     assert executions, "se esperaba al menos una ejecución SQL"
     for sql, params in executions:
         assert expected_company in params, f"falta company_id en {params!r}"
         assert forbidden_company not in params, f"fuga de company_id en {params!r}"
+        m = _re.search(r'company_id\s*=\s*%s', sql)
+        if m:
+            slot = sql[:m.start()].count('%s')
+            assert params[slot] == expected_company, (
+                f"company_id fuera de lugar: la posición {slot} recibió {params[slot]!r}"
+            )
 
 
 def test_listar_pdfs_importados_esta_escopado():
@@ -128,6 +140,28 @@ def test_buscar_pdfs_importados_usa_trigram_para_codigos():
     assert resultado['total'] == 1
     # La consulta "parece código" → usa trigram (ILIKE en el SQL).
     assert any('ILIKE' in sql for sql, _ in cursor.executions)
+    _assert_scoped(cursor.executions, COMPANY_A, COMPANY_B)
+
+
+def test_buscar_pdfs_importados_vacio_lista_todas():
+    """Sin texto de búsqueda debe hacer un listado simple (escopado), sin full-text."""
+    row = {
+        'id': 'dddddddd-1111-2222-3333-444444444444',
+        'nombre_archivo': 'otra.pdf',
+        'num_paginas': 1,
+        'tamanio_bytes': 100,
+        'created_at': None,
+        'uploaded_by': None,
+        'uploaded_by_name': None,
+    }
+    cursor = CapturingCursor(None, [row])
+    mgr = _manager_with(cursor)
+
+    resultado = mgr.buscar_pdfs_importados("", COMPANY_A)
+
+    assert resultado['total'] == 1
+    assert resultado['resultados'][0]['id'] == row['id']
+    assert resultado['resultados'][0]['snippet'] == ''
     _assert_scoped(cursor.executions, COMPANY_A, COMPANY_B)
 
 

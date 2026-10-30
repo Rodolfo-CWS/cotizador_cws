@@ -593,7 +593,9 @@ def importar_pdfs():
                                         item["estado"] = "duplicado"
                                         item["motivo"] = "ya estaba importado"
                                         duplicados += 1
-                                        storage.eliminar_objeto_importado(storage_path)
+                                        # No borrar el objeto: el path es por hash y lo
+                                        # comparte la fila ya existente (borrarlo rompería
+                                        # el PDF del que sí quedó guardado).
                                     elif insertado.get('success'):
                                         item["estado"] = "importado"
                                         importados += 1
