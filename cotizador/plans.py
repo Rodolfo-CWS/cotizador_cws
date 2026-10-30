@@ -40,6 +40,7 @@ FEATURE_FULL_FORM = 'full_form'    # Formulario completo con desglose de materia
 FEATURE_DESGLOSE = 'desglose'      # Vista de desglose
 FEATURE_STORAGE = 'storage'        # Storage de PDFs/cotizaciones
 FEATURE_TEXT_IA = 'text_ia'        # Texto introductorio con IA (teaser universal)
+FEATURE_IMPORT_PDFS = 'import_pdfs'  # Importar cotizaciones antiguas (PDFs digitales) y buscarlas
 
 # Labels legibles de features (UI: billing y página pública /planes).
 FEATURE_LABELS = {
@@ -49,6 +50,7 @@ FEATURE_LABELS = {
     FEATURE_DESGLOSE: 'Vista de desglose',
     FEATURE_STORAGE: 'Historial de cotizaciones',
     FEATURE_TEXT_IA: 'Texto introductorio con IA',
+    FEATURE_IMPORT_PDFS: 'Importar cotizaciones antiguas (PDF)',
 }
 
 # ── Matriz plan → features ──
@@ -65,6 +67,7 @@ PLAN_FEATURES = {
         FEATURE_DESGLOSE,
         FEATURE_STORAGE,
         FEATURE_TEXT_IA,
+        FEATURE_IMPORT_PDFS,
     },
     PLAN_BUSINESS: {
         FEATURE_SIMPLE_PDF,
@@ -73,6 +76,7 @@ PLAN_FEATURES = {
         FEATURE_DESGLOSE,
         FEATURE_STORAGE,
         FEATURE_TEXT_IA,
+        FEATURE_IMPORT_PDFS,
     },
     PLAN_INTERNAL: {
         FEATURE_SIMPLE_PDF,
@@ -81,6 +85,7 @@ PLAN_FEATURES = {
         FEATURE_DESGLOSE,
         FEATURE_STORAGE,
         FEATURE_TEXT_IA,
+        FEATURE_IMPORT_PDFS,
     },
 }
 
@@ -89,17 +94,21 @@ PLAN_LIMITS = {
     PLAN_STARTER: {
         'max_pdfs': 10,
         'max_users': 1,
+        # Starter no importa PDFs antiguos (feature con candado).
+        'max_imported_pdfs': 0,
     },
     # Cuota mensual de estimaciones Fast Quote (tabla fast_quote_usage).
     PLAN_PRO: {
         'max_estimates': 20,
         'max_users': 5,
+        'max_imported_pdfs': 500,
     },
     PLAN_BUSINESS: {
         'max_estimates': 100,
         'max_users': 20,
+        'max_imported_pdfs': 2500,
     },
-    PLAN_INTERNAL: {},   # sin límites
+    PLAN_INTERNAL: {},   # sin límites (None → ilimitado)
 }
 
 # ── Nombres legibles (UI) ──
@@ -138,7 +147,7 @@ FASTQUOTE_PACK_ESTIMATES = 100
 
 # Cotizaciones visibles en el historial del plan Starter (lock-in: el resto
 # permanece en BD y se desbloquea al subir a Pro).
-STARTER_HISTORY_LIMIT = 10
+STARTER_HISTORY_LIMIT = 5
 
 
 def _normalize_plan(plan):

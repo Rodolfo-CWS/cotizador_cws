@@ -410,6 +410,52 @@ def _es_legacy_drive_import():
     return bool(company.get('legacy_drive_import'))
 
 
+def _buscar_pdfs_importados_flat(query):
+    """PDFs importados (tabla imported_pdfs) de la compañía en forma plana.
+
+    Escopado por company_id y gateado por FEATURE_IMPORT_PDFS (downgrade a
+    Starter oculta sin borrar). Devuelve filas con es_antigua/es_importado para
+    el listado del home y el endpoint /buscar. `query` filtra por contenido.
+    """
+    company_id = session.get("company_id")
+    if not company_id:
+        return []
+    plan = effective_plan(g.get("company"))
+    if not has_feature(plan, FEATURE_IMPORT_PDFS):
+        return []
+
+    try:
+        resultado = db_manager.buscar_pdfs_importados(query, company_id, 1, 10000)
+    except Exception as e:
+        print(f"[IMPORTED_PDFS] Error buscando importados: {e}")
+        return []
+
+    flat = []
+    for p in resultado.get("resultados", []):
+        fecha = p.get('created_at') or 'N/A'
+        if isinstance(fecha, str) and len(fecha) >= 10:
+            fecha = fecha[:10]
+        flat.append({
+            "numero": p.get('nombre_archivo') or 'N/A',
+            "cliente": '-',
+            "vendedor": '-',
+            "proyecto": '-',
+            "fecha": fecha,
+            "revision": 0,
+            "total": 0,
+            "moneda": 'N/A',
+            "_id": p.get('id', ''),
+            "tiene_desglose": False,
+            "es_simple": False,
+            "es_antigua": True,
+            "es_importado": True,
+            "tiene_pdf": True,
+            "url_pdf": f"/pdfs-importados/{p.get('id')}/ver",
+            "snippet": p.get('snippet') or '',
+        })
+    return flat
+
+
 def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
     """
     Verifica si una cotización es la revisión más reciente
@@ -901,6 +947,7 @@ from functools import wraps
 from cotizador.middleware import login_required, plan_required, superadmin_required
 from cotizador.plans import (
     FEATURE_SIMPLE_PDF, FEATURE_FAST_QUOTE, FEATURE_FULL_FORM, FEATURE_DESGLOSE,
+    FEATURE_IMPORT_PDFS,
     PLAN_STARTER, get_limit, has_feature, effective_plan,
     STARTER_HISTORY_LIMIT,
     fast_quote_quota_blocked, fast_quote_consumes_credit,
@@ -1255,13 +1302,18 @@ def home():
 
             print(f"[HOME] Total final: {len(cotizaciones)} cotizaciones (BD + antiguas)")
 
+        # AGREGAR PDFs IMPORTADOS (contenido full-text) — todo tenant con feature
+        for imp in _buscar_pdfs_importados_flat(query_general):
+            cotizaciones.append(imp)
+
         # APLICAR BÚSQUEDA RÁPIDA (busca en todos los campos)
         if query_general:
             cotizaciones_busqueda = []
             query_lower = query_general.lower()
             for cot in cotizaciones:
-                # Buscar en número, cliente, vendedor y proyecto
-                if (query_lower in cot.get('numero', '').lower() or
+                # Los importados ya se filtraron por contenido; se conservan tal cual.
+                if cot.get('es_importado') or (
+                    query_lower in cot.get('numero', '').lower() or
                     query_lower in cot.get('cliente', '').lower() or
                     query_lower in cot.get('vendedor', '').lower() or
                     query_lower in cot.get('proyecto', '').lower()):
@@ -1306,6 +1358,9 @@ def home():
 
         print(f"[HOME] Mostrando {len(cotizaciones_pagina)} de {total_cotizaciones} (página {page}/{total_pages})")
 
+        total_importados = db_manager.contar_pdfs_importados(session.get("company_id") or "")
+        plan_has_import = has_feature(plan_efectivo, FEATURE_IMPORT_PDFS)
+
         return render_template(
             "home.html",
             cotizaciones=cotizaciones_pagina,
@@ -1324,7 +1379,9 @@ def home():
             filtro_fecha_hasta=filtro_fecha_hasta,
             filtro_revision=filtro_revision,
             filtro_moneda=filtro_moneda,
-            filtro_tipo=filtro_tipo
+            filtro_tipo=filtro_tipo,
+            total_importados=total_importados,
+            plan_has_import=plan_has_import
         )
 
     except Exception as e:
@@ -1339,6 +1396,8 @@ def home():
                              total_cotizaciones=0,
                              page_size=50,
                              history_limited=False,
+                             total_importados=0,
+                             plan_has_import=False,
                              error=str(e))
 
 @app.route("/formulario", methods=["GET", "POST"])
@@ -2335,15 +2394,25 @@ def buscar():
             import traceback
             traceback.print_exc()
 
+        # PASO 3: PDFs importados (full-text por contenido) — todo tenant con feature
+        try:
+            for imp in _buscar_pdfs_importados_flat(query):
+                key = "importado:" + str(imp.get('_id', ''))
+                resultados_combinados[key] = imp
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error en /buscar: {e}")
+
         resultados = list(resultados_combinados.values())
 
         # Re-filtro defensivo por query (buscar_cotizaciones ya filtra, pero
-        # garantiza consistencia entre las capas PG/SDK/offline)
+        # garantiza consistencia entre las capas PG/SDK/offline). Los importados
+        # ya vienen filtrados por contenido, se conservan.
         if query:
             query_lower = query.lower()
             resultados = [
                 r for r in resultados
-                if (query_lower in str(r.get('numero', '')).lower()
+                if r.get('es_importado')
+                or (query_lower in str(r.get('numero', '')).lower()
                     or query_lower in str(r.get('cliente', '')).lower()
                     or query_lower in str(r.get('vendedor', '')).lower()
                     or query_lower in str(r.get('proyecto', '')).lower())
@@ -2813,6 +2882,10 @@ def todas_cotizaciones():
                     })
 
             print(f"[TODAS-COTIZACIONES] Total final: {len(cotizaciones)} cotizaciones (BD + antiguas)")
+
+        # AGREGAR PDFs IMPORTADOS (contenido full-text) — todo tenant con feature
+        for imp in _buscar_pdfs_importados_flat(""):
+            cotizaciones.append(imp)
 
         # APLICAR FILTROS antes de paginación
         if any([filtro_numero, filtro_cliente, filtro_vendedor, filtro_proyecto,
@@ -4374,6 +4447,36 @@ def buscar_pdfs():
     except Exception as e:
         print(f"Error en búsqueda de PDFs: {e}")
         return jsonify({"error": "Error al buscar PDFs"}), 500
+
+@app.route("/pdfs-importados/<pdf_id>/ver")
+@login_required
+def ver_pdf_importado(pdf_id):
+    """Abre un PDF importado vía URL firmada, validando pertenencia a la compañía.
+
+    El bucket `imported-pdfs` es privado: nunca se expone URL pública. Si el id
+    no pertenece a la compañía de la sesión → 404.
+    """
+    company_id = session.get("company_id")
+    if not company_id:
+        return render_template('error.html', error="PDF no encontrado"), 404
+
+    storage_path = db_manager.obtener_pdf_importado_storage_path(str(pdf_id), company_id)
+    if not storage_path:
+        return render_template('error.html', error="PDF no encontrado"), 404
+
+    try:
+        from supabase_storage_manager import SupabaseStorageManager
+        storage = SupabaseStorageManager()
+        url = storage.url_firmada_pdf_importado(storage_path, expira_seg=300)
+    except Exception as e:
+        print(f"[IMPORTED_PDFS] Error generando URL firmada: {e}")
+        url = ""
+
+    if not url:
+        return render_template('error.html', error="No se pudo generar el enlace del PDF"), 500
+
+    return redirect(url)
+
 
 @app.route("/pdf/<path:numero_cotizacion>")
 def servir_pdf(numero_cotizacion):
