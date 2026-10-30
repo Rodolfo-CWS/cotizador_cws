@@ -1,0 +1,388 @@
+{% extends "admin/_tenant_admin.html" %}
+{% block title %}{{ company.name if company else 'Tu empresa' }} - Cotizaciones antiguas{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<style>
+    .dropzone {
+        border: 2px dashed #c7c3bd;
+        border-radius: 12px;
+        padding: 40px 20px;
+        text-align: center;
+        background: #faf9f7;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .dropzone:hover, .dropzone.dragover {
+        border-color: #4f46e5;
+        background: #eef2ff;
+    }
+    .dropzone .big { font-size: 15px; font-weight: 600; color: #1e293b; }
+    .dropzone .small { font-size: 13px; color: #78716c; margin-top: 6px; }
+    .dropzone .browse { color: #4f46e5; font-weight: 600; text-decoration: underline; }
+
+    .usage-bar { display: flex; align-items: center; gap: 12px; margin: 16px 0; }
+    .usage-track { flex: 1; height: 8px; background: #e7e5e4; border-radius: 6px; overflow: hidden; }
+    .usage-fill { height: 100%; background: #4f46e5; border-radius: 6px; transition: width 0.3s ease; }
+    .usage-fill.full { background: #dc2626; }
+    .usage-label { font-size: 13px; color: #44403c; white-space: nowrap; }
+
+    .upload-list { margin-top: 18px; }
+    .upload-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid #f5f4f1; font-size: 13px; }
+    .upload-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1e293b; }
+    .status-pill { padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+    .status-pending { background: #f5f4f1; color: #78716c; }
+    .status-uploading { background: #fef9c3; color: #a16207; }
+    .status-importado { background: #f0fdf4; color: #16a34a; }
+    .status-duplicado { background: #eff6ff; color: #2563eb; }
+    .status-rechazado { background: #fef2f2; color: #dc2626; }
+    .upload-row .motivo { color: #dc2626; font-size: 12px; }
+
+    .summary { margin-top: 16px; padding: 12px 16px; border-radius: 8px; background: #f0fdf4; font-size: 14px; color: #14532d; }
+    .summary a { color: #4f46e5; cursor: pointer; text-decoration: underline; }
+
+    .table-search { width: 100%; max-width: 320px; padding: 8px 12px; border: 1.5px solid #d6d3d1; border-radius: 8px; font-size: 14px; background: #faf9f7; margin-bottom: 12px; }
+
+    .lock-box { text-align: center; padding: 40px 20px; }
+    .lock-box .emoji { font-size: 40px; }
+    .lock-box h1 { font-size: 18px; color: #1e293b; margin: 12px 0 8px; }
+    .lock-box p { color: #78716c; font-size: 14px; margin: 0 0 20px; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+{% if not plan_has_import %}
+<div class="card">
+    <div class="lock-box">
+        <div class="emoji">🔒</div>
+        <h1>Importar cotizaciones antiguas</h1>
+        <p>Sube tus cotizaciones anteriores en PDF y búscalas por su contenido dentro de Sifra.<br>
+        Esta función está disponible en los planes <strong>Pro</strong> y <strong>Business</strong>.</p>
+        <a href="/billing" class="btn btn-primary">Mejorar plan</a>
+    </div>
+</div>
+{% else %}
+
+<div class="card">
+    <h1>Cotizaciones antiguas</h1>
+    <p class="subtitle">Sube PDFs digitales y búscalos por contenido en el cotizador</p>
+
+    <div class="usage-bar">
+        <span class="usage-label">
+            {% if max_imported_pdfs is not none %}
+                {{ total_importados }} de {{ max_imported_pdfs }} PDFs
+            {% else %}
+                {{ total_importados }} PDFs · ilimitado
+            {% endif %}
+        </span>
+        <div class="usage-track">
+            {% set pct = (total_importados / max_imported_pdfs * 100) if max_imported_pdfs else 0 %}
+            <div class="usage-fill{{ ' full' if (max_imported_pdfs is not none and total_importados >= max_imported_pdfs) else '' }}"
+                 style="width: {{ [pct, 100]|min }}%;"></div>
+        </div>
+    </div>
+
+    <div class="dropzone" id="dropzone">
+        <div class="big">Arrastra tus PDFs aquí</div>
+        <div class="small">o <span class="browse">selecciona archivos</span> · Solo PDF digital · hasta 20 MB por archivo</div>
+    </div>
+    <input type="file" id="fileInput" multiple accept="application/pdf,.pdf" style="display:none;">
+
+    <div class="btn-row" style="margin-top:14px;">
+        <button type="button" class="btn btn-primary" id="btnUpload" disabled>Subir archivos</button>
+        <button type="button" class="btn btn-secondary" id="btnClear">Limpiar</button>
+    </div>
+    <p class="hint" id="limitHint" style="display:none;"></p>
+
+    <div class="upload-list" id="uploadList"></div>
+    <div class="summary" id="summary" style="display:none;"></div>
+</div>
+
+<div class="card">
+    <h1>PDFs importados</h1>
+    <p class="subtitle">Total: {{ total_importados }}</p>
+
+    <input type="text" class="table-search" id="tableSearch" placeholder="Buscar por nombre de archivo...">
+
+    {% if pdfs %}
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <button type="button" class="btn btn-danger btn-sm" id="btnDelete">Eliminar seleccionados</button>
+        <span class="hint" id="deleteCount">0 seleccionados</span>
+    </div>
+    <table id="pdfTable">
+        <thead>
+            <tr>
+                <th style="width:36px;"><input type="checkbox" id="checkAll"></th>
+                <th>Nombre</th>
+                <th>Fecha</th>
+                <th>Tamaño</th>
+                <th>Páginas</th>
+                <th>Subido por</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pdf in pdfs %}
+            <tr data-id="{{ pdf.id }}" data-name="{{ pdf.nombre_archivo|lower }}">
+                <td><input type="checkbox" class="row-check" value="{{ pdf.id }}"></td>
+                <td>{{ pdf.nombre_archivo }}</td>
+                <td>{{ pdf.created_at[:16]|replace('T', ' ') if pdf.created_at else '—' }}</td>
+                <td>{{ (pdf.tamanio_bytes / 1048576)|round(1) }} MB</td>
+                <td>{{ pdf.num_paginas if pdf.num_paginas is not none else '—' }}</td>
+                <td>{{ pdf.uploaded_by_name or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Aún no has importado PDFs. Arrástralos arriba para empezar.</div>
+    {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const isLocked = {{ 'false' if plan_has_import else 'true' }};
+    if (isLocked) return;
+
+    const maxImportados = {{ max_imported_pdfs if max_imported_pdfs is not none else 'null' }};
+    let totalImportados = {{ total_importados }};
+
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const btnUpload = document.getElementById('btnUpload');
+    const btnClear = document.getElementById('btnClear');
+    const uploadList = document.getElementById('uploadList');
+    const summaryEl = document.getElementById('summary');
+    const limitHint = document.getElementById('limitHint');
+
+    let selectedFiles = [];
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+        });
+    }
+
+    function refreshLimitHint() {
+        if (maxImportados === null) return;
+        const remaining = maxImportados - totalImportados;
+        if (selectedFiles.length > remaining) {
+            limitHint.style.display = '';
+            limitHint.textContent = 'Tu selección (' + selectedFiles.length + ') supera el espacio disponible (' + remaining + '). No se subirá nada de esta selección.';
+            limitHint.style.color = '#dc2626';
+            btnUpload.disabled = true;
+        } else {
+            limitHint.style.display = '';
+            limitHint.textContent = 'Espacio disponible: ' + remaining + ' PDFs.';
+            limitHint.style.color = '#78716c';
+            btnUpload.disabled = selectedFiles.length === 0;
+        }
+    }
+
+    function setFiles(files) {
+        selectedFiles = Array.from(files || []);
+        uploadList.innerHTML = '';
+        selectedFiles.forEach(function (f) {
+            const row = document.createElement('div');
+            row.className = 'upload-row';
+            row.innerHTML = '<span class="name">' + esc(f.name) + '</span>'
+                + '<span class="status-pill status-pending">Pendiente</span>';
+            uploadList.appendChild(row);
+        });
+        refreshLimitHint();
+    }
+
+    dropzone.addEventListener('click', function () { fileInput.click(); });
+    dropzone.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+    dropzone.addEventListener('dragleave', function () { dropzone.classList.remove('dragover'); });
+    dropzone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer && e.dataTransfer.files.length) setFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', function () {
+        if (fileInput.files.length) setFiles(fileInput.files);
+        fileInput.value = '';
+    });
+    btnClear.addEventListener('click', function () {
+        selectedFiles = [];
+        uploadList.innerHTML = '';
+        summaryEl.style.display = 'none';
+        refreshLimitHint();
+    });
+
+    function updatePill(row, status, label, motivo) {
+        const pill = row.querySelector('.status-pill');
+        pill.className = 'status-pill status-' + status;
+        pill.textContent = label;
+        if (motivo) {
+            let m = row.querySelector('.motivo');
+            if (!m) { m = document.createElement('span'); m.className = 'motivo'; row.appendChild(m); }
+            m.textContent = motivo;
+        }
+    }
+
+    function fmtBytes(n) {
+        if (!n) return '';
+        if (n < 1024) return n + ' B';
+        if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+        return (n / 1048576).toFixed(1) + ' MB';
+    }
+
+    btnUpload.addEventListener('click', async function () {
+        if (!selectedFiles.length) return;
+        if (maxImportados !== null && selectedFiles.length > (maxImportados - totalImportados)) {
+            refreshLimitHint();
+            return;
+        }
+        btnUpload.disabled = true;
+        btnClear.disabled = true;
+
+        const rows = Array.from(uploadList.children);
+        let imported = 0, duplicados = 0, rechazados = 0;
+        const rejected = [];
+
+        // Subida en tandas de 2 archivos para no exceder el timeout de Render.
+        for (let i = 0; i < selectedFiles.length; i += 2) {
+            const batch = selectedFiles.slice(i, i + 2);
+            const batchRows = batch.map(function (f) { return rows[selectedFiles.indexOf(f)]; });
+            await Promise.all(batch.map(function (f, idx) {
+                const row = rows[selectedFiles.indexOf(f)];
+                return (async function () {
+                    updatePill(row, 'uploading', 'Subiendo…');
+                    const fd = new FormData();
+                    fd.append('files', f);
+                    try {
+                        const resp = await fetch('/admin/company/importar-pdfs', { method: 'POST', body: fd });
+                        const data = await resp.json();
+                        if (data.success && data.resultados && data.resultados.length) {
+                            const r = data.resultados[0];
+                            if (r.estado === 'importado') {
+                                imported++;
+                                totalImportados++;
+                                updatePill(row, 'importado', 'Importado');
+                            } else if (r.estado === 'duplicado') {
+                                duplicados++;
+                                updatePill(row, 'duplicado', 'Ya existía');
+                            } else {
+                                rechazados++;
+                                updatePill(row, 'rechazado', 'Rechazado', r.motivo);
+                                rejected.push({ nombre: r.nombre, motivo: r.motivo });
+                            }
+                        } else {
+                            rechazados++;
+                            updatePill(row, 'rechazado', 'Rechazado', data.error || 'Error de subida');
+                            rejected.push({ nombre: f.name, motivo: data.error || 'Error de subida' });
+                        }
+                    } catch (e) {
+                        rechazados++;
+                        updatePill(row, 'rechazado', 'Rechazado', 'Error de red');
+                        rejected.push({ nombre: f.name, motivo: 'Error de red' });
+                    }
+                })();
+            }));
+        }
+
+        // Resumen
+        summaryEl.style.display = '';
+        let html = imported + ' importados · ' + duplicados + ' duplicados · ' + rechazados + ' rechazados';
+        if (rejected.length) {
+            html += ' · <a id="csvLink">Descargar lista de rechazados (CSV)</a>';
+        }
+        summaryEl.innerHTML = html;
+
+        const csvLink = document.getElementById('csvLink');
+        if (csvLink) {
+            csvLink.addEventListener('click', function () {
+                let csv = 'nombre,motivo\n';
+                rejected.forEach(function (r) {
+                    csv += '"' + String(r.nombre).replace(/"/g, '""') + '","' + String(r.motivo).replace(/"/g, '""') + '"\n';
+                });
+                const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'rechazados.csv';
+                a.click();
+                URL.revokeObjectURL(a.href);
+            });
+        }
+
+        selectedFiles = [];
+        btnClear.disabled = false;
+        refreshLimitHint();
+
+        // Recargar la tabla de PDFs importados
+        setTimeout(function () { window.location.reload(); }, 1200);
+    });
+
+    // ── Tabla: buscar por nombre + eliminar ──
+    const tableSearch = document.getElementById('tableSearch');
+    const pdfTable = document.getElementById('pdfTable');
+    const checkAll = document.getElementById('checkAll');
+    const btnDelete = document.getElementById('btnDelete');
+    const deleteCount = document.getElementById('deleteCount');
+
+    function updateDeleteCount() {
+        if (!pdfTable) return;
+        const checked = pdfTable.querySelectorAll('.row-check:checked');
+        const n = checked.length;
+        deleteCount.textContent = n + ' seleccionado' + (n === 1 ? '' : 's');
+        btnDelete.disabled = n === 0;
+        if (checkAll) {
+            const total = pdfTable.querySelectorAll('.row-check');
+            checkAll.checked = total.length > 0 && n === total.length;
+        }
+    }
+
+    if (tableSearch && pdfTable) {
+        tableSearch.addEventListener('input', function () {
+            const q = tableSearch.value.toLowerCase().trim();
+            pdfTable.querySelectorAll('tbody tr').forEach(function (tr) {
+                tr.style.display = !q || tr.getAttribute('data-name').indexOf(q) !== -1 ? '' : 'none';
+            });
+        });
+
+        pdfTable.addEventListener('change', function (e) {
+            if (e.target.classList.contains('row-check')) updateDeleteCount();
+        });
+
+        if (checkAll) {
+            checkAll.addEventListener('change', function () {
+                pdfTable.querySelectorAll('.row-check').forEach(function (cb) { cb.checked = checkAll.checked; });
+                updateDeleteCount();
+            });
+        }
+
+        btnDelete.addEventListener('click', async function () {
+            const ids = Array.from(pdfTable.querySelectorAll('.row-check:checked')).map(function (cb) { return cb.value; });
+            if (!ids.length) return;
+            if (!confirm('¿Eliminar ' + ids.length + ' PDF' + (ids.length === 1 ? '' : 's') + '? Esta acción no se puede deshacer.')) return;
+            try {
+                const resp = await fetch('/admin/company/importar-pdfs/eliminar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: ids })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'No se pudo eliminar');
+                }
+            } catch (e) {
+                alert('Error de red');
+            }
+        });
+
+        updateDeleteCount();
+    }
+})();
+</script>
+{% endblock %}

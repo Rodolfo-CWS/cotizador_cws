@@ -21,6 +21,12 @@ python-dateutil==2.9.0.post0
 # Generación de PDFs (ReportLab es más estable)
 reportlab==4.4.10
 
+# Extracción de texto de PDFs importados (cotizaciones antiguas)
+# Sucesor mantenido de PyPDF2; API compatible. Se usa en company_bp para leer
+# el texto de los PDFs digitales. El import de PyPDF2 en google_drive_monitor.py
+# se deja como está (se migrará en un PR aparte).
+pypdf==5.6.0
+
 # WeasyPrint como alternativa (opcional - puede tener problemas en algunos servidores)
 weasyprint==68.1
 

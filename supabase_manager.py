@@ -3475,6 +3475,431 @@ class SupabaseManager:
             print(f"[TENANT] Error upload_company_logo: {e}")
             return None
 
+    # ── PDFs importados (cotizaciones antiguas) ──────────────────────────
+    # Tabla public.imported_pdfs (migración v13). Aislamiento por company_id
+    # en cada consulta (la service key bypassea RLS, así que el filtro real es
+    # el .eq('company_id', ...) / AND company_id = %s).
+
+    @staticmethod
+    def _limpiar_snippet(snippet):
+        """Quita etiquetas HTML de ts_headline y recorta a ~200 caracteres.
+
+        El texto proviene de PDFs subidos por el usuario; se escapa en el
+        frontend, aquí solo dejamos texto plano seguro.
+        """
+        if not snippet:
+            return ""
+        import re as _re
+        txt = _re.sub(r'<[^>]+>', '', str(snippet))
+        txt = _re.sub(r'\s+', ' ', txt).strip()
+        return txt[:200]
+
+    def insertar_pdf_importado(self, company_id, nombre_archivo, storage_path,
+                               contenido_texto, num_paginas, hash_contenido,
+                               tamanio_bytes, uploaded_by=None):
+        """Inserta una fila en imported_pdfs.
+
+        Devuelve {"success": True, "id": ..., "duplicado": False} o
+        {"success": True, "duplicado": True} si (company_id, hash) ya existía.
+        """
+        # 1) PostgreSQL directo (ON CONFLICT → duplicado)
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                self.pg_connection.rollback()
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO public.imported_pdfs
+                        (company_id, nombre_archivo, storage_path, contenido_texto,
+                         num_paginas, hash_contenido, tamanio_bytes, uploaded_by)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (company_id, hash_contenido) DO NOTHING
+                    RETURNING id
+                    """,
+                    (company_id, nombre_archivo, storage_path, contenido_texto,
+                     num_paginas, hash_contenido, tamanio_bytes, uploaded_by)
+                )
+                row = cursor.fetchone()
+                self.pg_connection.commit()
+                cursor.close()
+                if row:
+                    return {"success": True, "id": str(row['id']), "duplicado": False}
+                return {"success": True, "duplicado": True}
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error insert (PG): {e}")
+            try:
+                self.pg_connection.rollback()
+            except Exception:
+                pass
+
+        # 2) Fallback SDK con service key (bypass RLS)
+        try:
+            service_key = os.getenv('SUPABASE_SERVICE_KEY')
+            if self.supabase_url and service_key:
+                admin_client = create_client(self.supabase_url, service_key)
+                resp = admin_client.table('imported_pdfs').insert({
+                    'company_id': company_id,
+                    'nombre_archivo': nombre_archivo,
+                    'storage_path': storage_path,
+                    'contenido_texto': contenido_texto,
+                    'num_paginas': num_paginas,
+                    'hash_contenido': hash_contenido,
+                    'tamanio_bytes': tamanio_bytes,
+                    'uploaded_by': uploaded_by,
+                }).execute()
+                if getattr(resp, 'data', None):
+                    return {"success": True, "id": str(resp.data[0]['id']), "duplicado": False}
+                return {"success": True, "duplicado": True}
+        except Exception as e:
+            msg = str(e).lower()
+            if 'duplicate' in msg or 'unique' in msg:
+                return {"success": True, "duplicado": True}
+            print(f"[IMPORTED_PDFS] Error insert (SDK): {e}")
+
+        return {"success": False, "error": "No se pudo guardar el PDF importado"}
+
+    def _buscar_importados_pg(self, query, company_id, page, per_page, metodo):
+        """Búsqueda PG de imported_pdfs. metodo: 'fts' (full-text) o 'trgm' (trigram)."""
+        cursor = self.pg_connection.cursor()
+        offset = (page - 1) * per_page
+        q = (query or '').strip()
+
+        if metodo == 'fts':
+            where = ("company_id = %s AND tsv @@ websearch_to_tsquery('spanish', public.f_unaccent(%s))")
+            snippet_sql = (
+                "ts_headline('spanish', public.f_unaccent(coalesce(contenido_texto,'') || ' ' || nombre_archivo), "
+                "websearch_to_tsquery('spanish', public.f_unaccent(%s)), "
+                "'MaxFragments=2, MinWords=12, MaxWords=35') AS snippet"
+            )
+            order = "ts_rank(tsv, websearch_to_tsquery('spanish', public.f_unaccent(%s))) DESC, created_at DESC"
+            params = [company_id, q]
+            count_params = [company_id, q]
+            search_params = [q, q, company_id, q, per_page, offset]
+        else:
+            where = ("company_id = %s AND public.f_unaccent(coalesce(contenido_texto,'') || ' ' || nombre_archivo) "
+                     "ILIKE '%%' || public.f_unaccent(%s) || '%%'")
+            snippet_sql = (
+                "substring(coalesce(contenido_texto,'') from "
+                "greatest(1, strpos(public.f_unaccent(coalesce(contenido_texto,'')), public.f_unaccent(%s)) - 60) for 160) AS snippet"
+            )
+            order = "created_at DESC"
+            params = [company_id, q]
+            count_params = [company_id, q]
+            search_params = [q, company_id, q, per_page, offset]
+
+        count_query = f"SELECT COUNT(*) AS total FROM public.imported_pdfs WHERE {where}"
+        search_query = f"""
+            SELECT id, nombre_archivo, num_paginas, tamanio_bytes, created_at, {snippet_sql}
+            FROM public.imported_pdfs
+            WHERE {where}
+            ORDER BY {order}
+            LIMIT %s OFFSET %s
+        """
+
+        cursor.execute(count_query, count_params)
+        total = cursor.fetchone()['total']
+
+        cursor.execute(search_query, search_params)
+        rows = cursor.fetchall()
+        cursor.close()
+
+        resultados = []
+        for row in rows:
+            resultados.append({
+                'id': str(row['id']),
+                'nombre_archivo': row['nombre_archivo'],
+                'num_paginas': row['num_paginas'],
+                'tamanio_bytes': row['tamanio_bytes'],
+                'created_at': row['created_at'].isoformat() if row['created_at'] else None,
+                'snippet': self._limpiar_snippet(row.get('snippet')),
+            })
+        return resultados, total
+
+    def buscar_pdfs_importados(self, query, company_id, page=1, per_page=20):
+        """Búsqueda full-text (o trigram para códigos) sobre imported_pdfs.
+
+        Devuelve {"resultados": [...], "total": int, "page": int, "per_page": int,
+                  "pages": int, "modo": str}. Nunca selecciona contenido_texto completo.
+        """
+        query = (query or '').strip()
+        resultados = []
+        total = 0
+        modo = "offline"
+
+        try:
+            if not self.modo_offline and self.pg_connection and not self.pg_connection.closed:
+                self.pg_connection.rollback()
+                # La consulta "parece código" (dígitos/guiones) usa trigram; si no, FTS.
+                metodo = 'trgm' if re.search(r'[0-9/\-_.]', query) else 'fts'
+                try:
+                    resultados, total = self._buscar_importados_pg(query, company_id, page, per_page, metodo)
+                    modo = "online"
+                    if total == 0 and query:
+                        # Respaldo: probar el otro método.
+                        alt = 'fts' if metodo == 'trgm' else 'trgm'
+                        resultados, total = self._buscar_importados_pg(query, company_id, page, per_page, alt)
+                except Exception as pg_error:
+                    print(f"[IMPORTED_PDFS] Error búsqueda PG ({metodo}): {pg_error}")
+                    if metodo == 'fts':
+                        resultados, total = self._buscar_importados_pg(query, company_id, page, per_page, 'trgm')
+                    modo = "online"
+            else:
+                raise Exception("PostgreSQL no disponible")
+
+        except Exception:
+            # Fallback SDK REST (ILIKE sobre nombre y contenido, sin full-text)
+            if self.supabase_client:
+                try:
+                    start = (page - 1) * per_page
+                    end = start + per_page - 1
+                    base = self.supabase_client.table('imported_pdfs').select(
+                        'id, nombre_archivo, num_paginas, tamanio_bytes, created_at'
+                    ).eq('company_id', company_id)
+                    if query:
+                        base = base.or_(
+                            f"nombre_archivo.ilike.%{query}%,contenido_texto.ilike.%{query}%"
+                        )
+                    resp = base.order('created_at', desc=True).range(start, end).execute()
+                    total_resp = self.supabase_client.table('imported_pdfs').select(
+                        'id', count='exact'
+                    ).eq('company_id', company_id)
+                    if query:
+                        total_resp = total_resp.or_(
+                            f"nombre_archivo.ilike.%{query}%,contenido_texto.ilike.%{query}%"
+                        )
+                    total_resp = total_resp.execute()
+                    total = total_resp.count or 0
+                    for row in (resp.data or []):
+                        resultados.append({
+                            'id': str(row['id']),
+                            'nombre_archivo': row.get('nombre_archivo'),
+                            'num_paginas': row.get('num_paginas'),
+                            'tamanio_bytes': row.get('tamanio_bytes'),
+                            'created_at': row.get('created_at'),
+                            'snippet': '',
+                        })
+                    modo = "sdk_rest"
+                except Exception as e:
+                    print(f"[IMPORTED_PDFS] Error búsqueda SDK: {e}")
+
+        total_pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+        return {
+            "resultados": resultados,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "pages": total_pages,
+            "modo": modo,
+        }
+
+    def listar_pdfs_importados(self, company_id):
+        """Lista los PDFs importados de una compañía (admin). Sin contenido."""
+        # 1) PG directo
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                self.pg_connection.rollback()
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    """
+                    SELECT p.id, p.nombre_archivo, p.num_paginas, p.tamanio_bytes,
+                           p.created_at, p.uploaded_by, pr.full_name AS uploaded_by_name
+                    FROM public.imported_pdfs p
+                    LEFT JOIN public.profiles pr ON pr.id = p.uploaded_by
+                    WHERE p.company_id = %s
+                    ORDER BY p.created_at DESC
+                    """,
+                    (company_id,)
+                )
+                rows = cursor.fetchall()
+                cursor.close()
+                return [
+                    {
+                        'id': str(r['id']),
+                        'nombre_archivo': r['nombre_archivo'],
+                        'num_paginas': r['num_paginas'],
+                        'tamanio_bytes': r['tamanio_bytes'],
+                        'created_at': r['created_at'].isoformat() if r['created_at'] else None,
+                        'uploaded_by': str(r['uploaded_by']) if r['uploaded_by'] else None,
+                        'uploaded_by_name': r['uploaded_by_name'],
+                    }
+                    for r in rows
+                ]
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error listar (PG): {e}")
+            try:
+                self.pg_connection.rollback()
+            except Exception:
+                pass
+
+        # 2) SDK REST
+        try:
+            resp = self.supabase_client.table('imported_pdfs').select(
+                'id, nombre_archivo, num_paginas, tamanio_bytes, created_at, uploaded_by'
+            ).eq('company_id', company_id).order('created_at', desc=True).execute()
+            return [
+                {
+                    'id': str(r['id']),
+                    'nombre_archivo': r.get('nombre_archivo'),
+                    'num_paginas': r.get('num_paginas'),
+                    'tamanio_bytes': r.get('tamanio_bytes'),
+                    'created_at': r.get('created_at'),
+                    'uploaded_by': str(r['uploaded_by']) if r.get('uploaded_by') else None,
+                    'uploaded_by_name': None,
+                }
+                for r in (resp.data or [])
+            ]
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error listar (SDK): {e}")
+        return []
+
+    def contar_pdfs_importados(self, company_id):
+        """Número de PDFs importados de una compañía."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                self.pg_connection.rollback()
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "SELECT COUNT(*) AS total FROM public.imported_pdfs WHERE company_id = %s",
+                    (company_id,)
+                )
+                total = cursor.fetchone()['total']
+                cursor.close()
+                return int(total)
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error contar (PG): {e}")
+            try:
+                self.pg_connection.rollback()
+            except Exception:
+                pass
+        try:
+            resp = self.supabase_client.table('imported_pdfs').select(
+                'id', count='exact'
+            ).eq('company_id', company_id).execute()
+            return int(resp.count or 0)
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error contar (SDK): {e}")
+        return 0
+
+    def existe_hash_pdf_importado(self, company_id, hash_contenido):
+        """True si la compañía ya tiene un PDF importado con ese hash."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                self.pg_connection.rollback()
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "SELECT 1 FROM public.imported_pdfs WHERE company_id = %s AND hash_contenido = %s LIMIT 1",
+                    (company_id, hash_contenido)
+                )
+                exists = cursor.fetchone() is not None
+                cursor.close()
+                return exists
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error existe_hash (PG): {e}")
+            try:
+                self.pg_connection.rollback()
+            except Exception:
+                pass
+        try:
+            resp = self.supabase_client.table('imported_pdfs').select('id').eq('company_id', company_id).eq('hash_contenido', hash_contenido).limit(1).execute()
+            return bool(resp.data)
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error existe_hash (SDK): {e}")
+        return False
+
+    def obtener_pdf_importado_storage_path(self, pdf_id, company_id):
+        """Devuelve storage_path si el PDF importado pertenece a la compañía, o None."""
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                self.pg_connection.rollback()
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "SELECT storage_path FROM public.imported_pdfs WHERE id = %s AND company_id = %s",
+                    (pdf_id, company_id)
+                )
+                row = cursor.fetchone()
+                cursor.close()
+                if row:
+                    return row['storage_path']
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error obtener storage_path (PG): {e}")
+            try:
+                self.pg_connection.rollback()
+            except Exception:
+                pass
+        try:
+            resp = self.supabase_client.table('imported_pdfs').select('storage_path').eq('id', pdf_id).eq('company_id', company_id).execute()
+            if resp.data:
+                return resp.data[0].get('storage_path')
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error obtener storage_path (SDK): {e}")
+        return None
+
+    def eliminar_pdf_importado(self, pdf_id, company_id):
+        """Borra la fila (escopada por company_id) y el objeto en Storage."""
+        storage_path = None
+        # 1) Localizar storage_path (con scope company_id)
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                self.pg_connection.rollback()
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "SELECT storage_path FROM public.imported_pdfs WHERE id = %s AND company_id = %s",
+                    (pdf_id, company_id)
+                )
+                row = cursor.fetchone()
+                cursor.close()
+                if row:
+                    storage_path = row['storage_path']
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error localizar (PG): {e}")
+            try:
+                self.pg_connection.rollback()
+            except Exception:
+                pass
+
+        # 2) Borrar fila (PG)
+        deleted = False
+        try:
+            if self.pg_connection and not self.pg_connection.closed:
+                self.pg_connection.rollback()
+                cursor = self.pg_connection.cursor()
+                cursor.execute(
+                    "DELETE FROM public.imported_pdfs WHERE id = %s AND company_id = %s",
+                    (pdf_id, company_id)
+                )
+                deleted = cursor.rowcount > 0
+                self.pg_connection.commit()
+                cursor.close()
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error borrar (PG): {e}")
+            try:
+                self.pg_connection.rollback()
+            except Exception:
+                pass
+
+        # 3) Fallback SDK (service key) si PG no borró nada
+        if not deleted:
+            try:
+                service_key = os.getenv('SUPABASE_SERVICE_KEY')
+                if self.supabase_url and service_key:
+                    admin_client = create_client(self.supabase_url, service_key)
+                    resp = admin_client.table('imported_pdfs').delete().eq('id', pdf_id).eq('company_id', company_id).execute()
+                    deleted = bool(getattr(resp, 'data', None))
+            except Exception as e:
+                print(f"[IMPORTED_PDFS] Error borrar (SDK): {e}")
+
+        # 4) Borrar objeto en Storage (best-effort)
+        if deleted and storage_path:
+            try:
+                service_key = os.getenv('SUPABASE_SERVICE_KEY')
+                if self.supabase_url and service_key:
+                    admin_client = create_client(self.supabase_url, service_key)
+                    admin_client.storage.from_('imported-pdfs').remove([storage_path])
+            except Exception as e:
+                print(f"[IMPORTED_PDFS] Error borrar objeto Storage: {e}")
+
+        return {"success": deleted}
+
     def get_user_profile(self, user_id: str) -> Optional[Dict]:
         """Obtiene el perfil de usuario con datos de su compañía."""
         try:

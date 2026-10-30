@@ -407,7 +407,7 @@
                 <select id="filterTipo">
                     <option value="">Todas</option>
                     <option value="nueva" {% if filtro_tipo == 'nueva' %}selected{% endif %}>Nuevas (BD)</option>
-                    <option value="antigua" {% if filtro_tipo == 'antigua' %}selected{% endif %}>Antiguas (Google Drive)</option>
+                    <option value="antigua" {% if filtro_tipo == 'antigua' %}selected{% endif %}>Antiguas</option>
                 </select>
             </div>
         </div>
@@ -420,6 +420,20 @@
     <div class="stats">
         <strong>{{ total_cotizaciones or 0 }}</strong> cotizaciones encontradas
     </div>
+
+    {% if user and user.role == 'admin' and total_importados == 0 %}
+    <div id="importBanner" style="background:#eef2ff; border:1px solid #c7d2fe; color:#3730a3; padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size:13px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <span>📄 ¿Tienes cotizaciones anteriores en PDF? Súbelas para buscarlas aquí.</span>
+        <span style="display:flex; gap:8px; align-items:center;">
+            {% if plan_has_import %}
+            <a href="/admin/company/importar-pdfs" style="background:#4f46e5; color:#fff; padding:6px 12px; border-radius:6px; text-decoration:none; font-weight:600; white-space:nowrap;">Importar cotizaciones antiguas</a>
+            {% else %}
+            <a href="/billing" style="background:#4f46e5; color:#fff; padding:6px 12px; border-radius:6px; text-decoration:none; font-weight:600; white-space:nowrap;">🔒 Disponible en Pro</a>
+            {% endif %}
+            <button onclick="document.getElementById('importBanner').style.display='none';" style="background:none; border:none; font-size:16px; cursor:pointer; color:#3730a3;" aria-label="Cerrar">&times;</button>
+        </span>
+    </div>
+    {% endif %}
 
     <div id="historyLimitBanner" style="display:{{ 'block' if history_limited else 'none' }}; background:#fffbeb; border:1px solid #fde68a; color:#92400e; padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size:13px;">
         🔒 Tu plan <strong>Starter</strong> muestra solo tus 5 cotizaciones más recientes.
@@ -446,15 +460,17 @@
                 <tbody>
                     {% for cot in cotizaciones %}
                     <tr {% if cot.es_antigua %}style="opacity: 0.7; background: #fff9e6;"{% endif %}>
-                        <td><span class="expand-btn" data-numero="{{ cot.numero }}" onclick="togglePreview(this)">▶</span></td>
+                        <td><span class="expand-btn" data-numero="{{ cot.numero }}" {% if cot.es_importado %}data-importado="1" data-snippet="{{ cot.snippet }}"{% endif %} onclick="togglePreview(this)">▶</span></td>
                         <td class="numero-col" title="{{ cot.numero }}">{{ cot.numero }}</td>
                         <td title="{{ cot.cliente }}">{{ cot.cliente }}</td>
                         <td title="{{ cot.vendedor }}">{{ cot.vendedor }}</td>
                         <td title="{{ cot.proyecto }}">{{ cot.proyecto }}</td>
                         <td>{{ cot.fecha }}</td>
-                        <td class="revision-col">R{{ cot.revision }}</td>
+                        <td class="revision-col">{% if cot.es_importado %}-{% else %}R{{ cot.revision }}{% endif %}</td>
                         <td class="total-col">
-                            {% if cot.moneda != 'N/A' %}
+                            {% if cot.es_importado %}
+                                <span style="color: #999; font-size: 11px;">-</span>
+                            {% elif cot.moneda != 'N/A' %}
                                 {{ cot.moneda }} ${{ "{:,.2f}".format(cot.total|float) if cot.total else '0.00' }}
                             {% else %}
                                 <span style="color: #999; font-size: 11px;">-</span>
@@ -462,6 +478,9 @@
                         </td>
                         <td>
                             <div class="acciones-col">
+                                {% if cot.es_importado %}
+                                <a href="{{ cot.url_pdf }}" target="_blank" class="btn-icon" title="Ver PDF en nueva pestaña">PDF</a>
+                                {% else %}
                                 <a href="/pdf/{{ cot.numero }}" target="_blank" class="btn-icon" title="Ver PDF en nueva pestaña">PDF</a>
                                 {% if cot.es_simple %}
                                 <a href="/cotizacion-pdf?numero={{ cot.numero | urlencode }}" class="btn-icon" title="Editar cotización">Editar</a>
@@ -472,6 +491,7 @@
                                 <a href="/desglose/{{ cot.numero }}" class="btn-icon" title="Ver cotización y comentarios internos">Ver</a>
                                 {% else %}
                                 <span style="font-size: 10px; color: #999;">Sin desglose</span>
+                                {% endif %}
                                 {% endif %}
                             </div>
                         </td>
@@ -866,24 +886,33 @@
             resultados.forEach(cot => {
                 const num = cot.numero || 'N/A';
                 const safeNum = escHtml(num);
+                const importado = !!cot.es_importado;
                 const antigua = cot.es_antigua ? ' style="opacity:0.7;background:#fff9e6;"' : '';
-                const totalFmt = (cot.moneda && cot.moneda !== 'N/A')
-                    ? escHtml(cot.moneda) + ' $' + fmtMoney(cot.total)
-                    : '<span style="color:#999;font-size:11px;">-</span>';
-                const acciones = '<a href="/pdf/' + encodeURIComponent(num) + '" target="_blank" class="btn-icon" title="Ver PDF">PDF</a>'
-                    + (cot.es_simple ? '<a href="/cotizacion-pdf?numero=' + encodeURIComponent(num) + '" class="btn-icon" title="Editar cotización">Editar</a>' : '')
-                    + (cot.tiene_desglose ? '<a href="/desglose/' + encodeURIComponent(num) + '" class="btn-icon" title="Ver desglose">Desglose</a>'
-                        : (cot.es_simple && hasFullForm ? '<a href="/desglose/' + encodeURIComponent(num) + '" class="btn-icon" title="Ver cotización y comentarios internos">Ver</a>'
-                            : '<span style="font-size:10px;color:#999;">Sin desglose</span>'));
+                const totalFmt = importado
+                    ? '<span style="color:#999;font-size:11px;">-</span>'
+                    : ((cot.moneda && cot.moneda !== 'N/A')
+                        ? escHtml(cot.moneda) + ' $' + fmtMoney(cot.total)
+                        : '<span style="color:#999;font-size:11px;">-</span>');
+                const revCol = importado ? '-' : 'R' + escHtml(cot.revision);
+                const acciones = importado
+                    ? '<a href="' + escHtml(cot.url_pdf || '#') + '" target="_blank" class="btn-icon" title="Ver PDF">PDF</a>'
+                    : ('<a href="/pdf/' + encodeURIComponent(num) + '" target="_blank" class="btn-icon" title="Ver PDF">PDF</a>'
+                        + (cot.es_simple ? '<a href="/cotizacion-pdf?numero=' + encodeURIComponent(num) + '" class="btn-icon" title="Editar cotización">Editar</a>' : '')
+                        + (cot.tiene_desglose ? '<a href="/desglose/' + encodeURIComponent(num) + '" class="btn-icon" title="Ver desglose">Desglose</a>'
+                            : (cot.es_simple && hasFullForm ? '<a href="/desglose/' + encodeURIComponent(num) + '" class="btn-icon" title="Ver cotización y comentarios internos">Ver</a>'
+                                : '<span style="font-size:10px;color:#999;">Sin desglose</span>')));
+                const expandAttrs = importado
+                    ? ' data-importado="1" data-snippet="' + escHtml(cot.snippet || '') + '"'
+                    : '';
 
                 html += '<tr' + antigua + '>'
-                    + '<td><span class="expand-btn" data-numero="' + safeNum + '" onclick="togglePreview(this)">▶</span></td>'
+                    + '<td><span class="expand-btn" data-numero="' + safeNum + '"' + expandAttrs + ' onclick="togglePreview(this)">▶</span></td>'
                     + '<td class="numero-col" title="' + safeNum + '">' + safeNum + '</td>'
                     + '<td title="' + escHtml(cot.cliente) + '">' + escHtml(cot.cliente) + '</td>'
                     + '<td title="' + escHtml(cot.vendedor) + '">' + escHtml(cot.vendedor) + '</td>'
                     + '<td title="' + escHtml(cot.proyecto) + '">' + escHtml(cot.proyecto) + '</td>'
                     + '<td>' + escHtml(cot.fecha) + '</td>'
-                    + '<td class="revision-col">R' + escHtml(cot.revision) + '</td>'
+                    + '<td class="revision-col">' + revCol + '</td>'
                     + '<td class="total-col">' + totalFmt + '</td>'
                     + '<td><div class="acciones-col">' + acciones + '</div></td>'
                     + '</tr>';
@@ -941,6 +970,13 @@
             btn.textContent = '▼';
 
             const cell = td.querySelector('.preview-cell');
+            if (btn.getAttribute('data-importado')) {
+                const snippet = btn.getAttribute('data-snippet') || '';
+                cell.innerHTML = '<div class="preview-field"><label>Fragmento del PDF</label><span>'
+                    + escHtml(snippet || 'Sin coincidencia en el contenido')
+                    + '</span></div>';
+                return;
+            }
             try {
                 const resp = await fetch('/cotizacion-resumen/' + encodeURIComponent(numero));
                 const data = await resp.json();

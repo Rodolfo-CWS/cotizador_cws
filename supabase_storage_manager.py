@@ -442,6 +442,73 @@ class SupabaseStorageManager:
             print(f"ERROR: {error_msg}")
             return {"error": error_msg}
 
+    # ── PDFs importados (cotizaciones antiguas) — bucket PRIVADO ──────────
+    # No reutilizan el upload plano ni get_public_url(): el bucket es privado y
+    # el acceso se hace vía URL firmada de corta duración.
+
+    IMPORTED_BUCKET = "imported-pdfs"
+
+    def subir_pdf_importado(self, company_id: str, hash_contenido: str, file_bytes: bytes) -> dict:
+        """Sube un PDF importado al bucket privado `imported-pdfs`.
+
+        Path: `{company_id}/antiguas/{hash}.pdf`. Devuelve dict con
+        `storage_path` (string) o `error`.
+        """
+        if not self.storage_available:
+            return {"error": "Supabase Storage no disponible"}
+
+        if not company_id or not hash_contenido:
+            return {"error": "company_id y hash_contenido son requeridos"}
+
+        storage_path = f"{company_id}/antiguas/{hash_contenido}.pdf"
+        try:
+            import io
+            file_obj = io.BytesIO(file_bytes)
+
+            def _upload_operation():
+                return self.supabase.storage.from_(self.IMPORTED_BUCKET).upload(
+                    path=storage_path,
+                    file=file_obj,
+                    file_options={
+                        "content-type": "application/pdf",
+                        "upsert": "true",
+                    },
+                )
+
+            self._retry_operation(_upload_operation)
+            print(f"[IMPORTED_PDFS] Subido: {storage_path} ({len(file_bytes)} bytes)")
+            return {"storage_path": storage_path}
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error subiendo PDF importado: {e}")
+            return {"error": f"Error subiendo PDF importado: {e}"}
+
+    def url_firmada_pdf_importado(self, storage_path: str, expira_seg: int = 300) -> str:
+        """Devuelve una URL firmada de corta duración para un PDF importado.
+
+        Nunca devolver una URL pública: el bucket `imported-pdfs` es privado.
+        """
+        try:
+            if not self.storage_available:
+                return ""
+            return self.supabase.storage.from_(self.IMPORTED_BUCKET).create_signed_url(
+                storage_path, expira_seg
+            ).get("signedURL", "")
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error create_signed_url: {e}")
+            return ""
+
+    def eliminar_objeto_importado(self, storage_path: str) -> bool:
+        """Elimina el objeto del bucket privado `imported-pdfs`. Devuelve True/False."""
+        try:
+            if not self.storage_available:
+                return False
+            self.supabase.storage.from_(self.IMPORTED_BUCKET).remove([storage_path])
+            print(f"[IMPORTED_PDFS] Eliminado objeto: {storage_path}")
+            return True
+        except Exception as e:
+            print(f"[IMPORTED_PDFS] Error eliminando objeto: {e}")
+            return False
+
     def mover_a_antiguas(self, numero_cotizacion: str) -> dict:
         """
         Mueve un PDF de 'nuevas' a 'antiguas'

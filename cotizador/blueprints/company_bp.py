@@ -9,11 +9,12 @@ Rutas:
 
 from flask import (
     Blueprint, render_template, request, redirect,
-    url_for, session, flash, current_app, jsonify
+    url_for, session, flash, current_app, jsonify, g
 )
 from cotizador.middleware import login_required, admin_required
-from cotizador.plans import effective_plan, get_limit
+from cotizador.plans import effective_plan, get_limit, has_feature, FEATURE_IMPORT_PDFS
 import os
+import hashlib
 import logging
 
 logger = logging.getLogger(__name__)
@@ -442,3 +443,195 @@ def fast_quote_criteria():
         prompt_text=prompt_text,
         updated_at=None  # Se podría obtener de la DB si se necesita
     )
+
+
+#
+# Importar cotizaciones antiguas (PDFs digitales)
+#
+
+# Topes de subida (protección del endpoint; el frontend sube de 1 en 1 o 2 en 2).
+MAX_ARCHIVOS_POR_SUBIDA = 10
+MAX_BYTES_ARCHIVO = 20 * 1024 * 1024      # 20 MB
+MAX_CARACTERES_TEXTO = 500_000            # el tsvector tiene límite de 1 MB
+MIN_CARACTERES_POR_PAGINA = 50            # rechaza PDFs escaneados
+
+_storage_manager = None
+
+
+def _get_storage():
+    """Instancia perezosa de SupabaseStorageManager (bucket privado imported-pdfs)."""
+    global _storage_manager
+    if _storage_manager is None:
+        from supabase_storage_manager import SupabaseStorageManager
+        _storage_manager = SupabaseStorageManager()
+    return _storage_manager
+
+
+def _extraer_texto_pdf(file_bytes):
+    """Extrae texto de un PDF con pypdf. Devuelve (texto, num_paginas, error)."""
+    import io
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        return "", None, "pypdf no está instalado"
+    try:
+        reader = PdfReader(io.BytesIO(file_bytes))
+        num_paginas = len(reader.pages)
+        if reader.is_encrypted:
+            try:
+                reader.decrypt("")
+            except Exception:
+                pass
+        partes = []
+        for page in reader.pages:
+            try:
+                partes.append(page.extract_text() or "")
+            except Exception:
+                partes.append("")
+        return "\n".join(partes), num_paginas, None
+    except Exception as e:
+        return "", None, f"No se pudo leer el PDF: {e}"
+
+
+@company_bp.route('/importar-pdfs', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def importar_pdfs():
+    """Pantalla de importación de cotizaciones antiguas (solo admin)."""
+    db = _get_db()
+    company_id = _get_company_id()
+
+    if not company_id:
+        flash("No se encontró tu compañía", "error")
+        return redirect(url_for('home'))
+
+    company = db.get_company_by_id(company_id) or {}
+    plan = effective_plan(company)
+    plan_has_import = has_feature(plan, FEATURE_IMPORT_PDFS)
+    max_imported = get_limit(plan, 'max_imported_pdfs')
+
+    if request.method == 'GET':
+        pdfs = db.listar_pdfs_importados(company_id) if plan_has_import else []
+        total_importados = db.contar_pdfs_importados(company_id)
+        return render_template(
+            'admin/import_pdfs.html',
+            company=company,
+            pdfs=pdfs,
+            total_importados=total_importados,
+            max_imported_pdfs=max_imported,
+            plan_has_import=plan_has_import,
+        )
+
+    # ── POST: procesar archivos ──
+    if not plan_has_import:
+        return jsonify({"success": False, "error": "Tu plan no incluye la importación de PDFs"}), 403
+
+    files = request.files.getlist('files')
+    if not files or all(not f or not f.filename for f in files):
+        return jsonify({"success": False, "error": "No se recibieron archivos"}), 400
+    if len(files) > MAX_ARCHIVOS_POR_SUBIDA:
+        return jsonify({"success": False, "error": f"Máximo {MAX_ARCHIVOS_POR_SUBIDA} archivos por subida"}), 400
+
+    uploaded_by = session.get('user_id')
+    storage = _get_storage()
+    contar_actual = db.contar_pdfs_importados(company_id)
+
+    resultados = []
+    importados = duplicados = rechazados = 0
+
+    for f in files:
+        nombre = f.filename or 'sin-nombre.pdf'
+        item = {"nombre": nombre, "estado": "rechazado", "motivo": ""}
+        try:
+            # Validación básica: extensión + tamaño
+            if not nombre.lower().endswith('.pdf'):
+                item["motivo"] = "no es PDF"
+            elif f.content_length is not None and f.content_length > MAX_BYTES_ARCHIVO:
+                item["motivo"] = "excede 20 MB"
+            else:
+                file_bytes = f.read()
+                if len(file_bytes) > MAX_BYTES_ARCHIVO:
+                    item["motivo"] = "excede 20 MB"
+                elif not file_bytes.startswith(b'%PDF'):
+                    item["motivo"] = "no es un PDF válido"
+                else:
+                    # Límite del plan
+                    if max_imported is not None and contar_actual >= max_imported:
+                        item["motivo"] = "límite del plan alcanzado"
+                    else:
+                        hash_contenido = hashlib.sha256(file_bytes).hexdigest()
+
+                        if db.existe_hash_pdf_importado(company_id, hash_contenido):
+                            item["estado"] = "duplicado"
+                            item["motivo"] = "ya estaba importado"
+                            duplicados += 1
+                            resultados.append(item)
+                            continue
+
+                        texto, num_paginas, err = _extraer_texto_pdf(file_bytes)
+                        if err:
+                            item["motivo"] = err
+                        else:
+                            import re as _re
+                            caracteres_utiles = len(_re.sub(r'\s', '', texto or ''))
+                            promedio = caracteres_utiles / num_paginas if num_paginas else 0
+                            if promedio < MIN_CARACTERES_POR_PAGINA:
+                                item["motivo"] = "Este PDF parece escaneado; solo se aceptan PDFs digitales"
+                            else:
+                                texto_truncado = (texto or '')[:MAX_CARACTERES_TEXTO]
+                                storage_path = f"{company_id}/antiguas/{hash_contenido}.pdf"
+                                subido = storage.subir_pdf_importado(company_id, hash_contenido, file_bytes)
+                                if 'error' in subido:
+                                    item["motivo"] = subido.get('error')
+                                else:
+                                    storage_path = subido.get('storage_path') or storage_path
+                                    insertado = db.insertar_pdf_importado(
+                                        company_id, nombre, storage_path, texto_truncado,
+                                        num_paginas, hash_contenido, len(file_bytes), uploaded_by
+                                    )
+                                    if insertado.get('duplicado'):
+                                        item["estado"] = "duplicado"
+                                        item["motivo"] = "ya estaba importado"
+                                        duplicados += 1
+                                        storage.eliminar_objeto_importado(storage_path)
+                                    elif insertado.get('success'):
+                                        item["estado"] = "importado"
+                                        importados += 1
+                                        contar_actual += 1
+                                    else:
+                                        item["motivo"] = insertado.get('error') or "no se pudo guardar"
+                                        storage.eliminar_objeto_importado(storage_path)
+        except Exception as e:
+            logger.error(f"[IMPORT_PDFS] Error procesando {nombre}: {e}")
+            item["motivo"] = f"error interno: {e}"
+
+        if item["estado"] == "rechazado":
+            rechazados += 1
+        resultados.append(item)
+
+    return jsonify({
+        "success": True,
+        "resultados": resultados,
+        "resumen": {"importados": importados, "duplicados": duplicados, "rechazados": rechazados},
+    })
+
+
+@company_bp.route('/importar-pdfs/eliminar', methods=['POST'])
+@login_required
+@admin_required
+def eliminar_pdfs_importados():
+    """Elimina uno o varios PDFs importados (fila + objeto en Storage)."""
+    db = _get_db()
+    company_id = _get_company_id()
+    datos = request.get_json(silent=True) or {}
+    ids = datos.get('ids') or []
+
+    if not ids:
+        return jsonify({"success": False, "error": "No se indicaron PDFs"}), 400
+
+    eliminados = 0
+    for pdf_id in ids:
+        if db.eliminar_pdf_importado(str(pdf_id), company_id).get('success'):
+            eliminados += 1
+
+    return jsonify({"success": True, "eliminados": eliminados})
