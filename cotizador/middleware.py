@@ -13,6 +13,19 @@ from functools import wraps
 from cotizador.db_rows import row_to_dict
 from cotizador.plans import has_feature, effective_plan
 
+# Centinela que no coincide con ninguna compañía. La política RLS compara
+# company_id contra current_setting('app.current_company_id') y, si el GUC
+# falta, cae en este mismo UUID nulo (migrations/v2_multi_tenant.sql).
+RLS_DENY_COMPANY_ID = "00000000-0000-0000-0000-000000000000"
+
+
+def _solicitud_quiere_json():
+    """True cuando la respuesta debe ser JSON (401) y no un redirect HTML."""
+    if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return True
+    # GET /api/... no manda Content-Type. Aun así el cliente espera JSON.
+    return (request.path or "").startswith("/api/")
+
 
 def init_middleware(app, supabase_manager):
     """Registra los middlewares en la app Flask."""
@@ -40,32 +53,28 @@ def init_middleware(app, supabase_manager):
             '/admin/logout',
         ]
 
-        # Saltar middleware para rutas públicas
         path = request.path.rstrip('/') or '/'
-        for public in public_routes:
-            if path.startswith(public.rstrip('/')):
-                return
+        is_static = path.startswith('/static')
+        is_public = any(path.startswith(public.rstrip('/')) for public in public_routes)
 
-        # Health check de la conexión PostgreSQL (se muere tras inactividad larga)
-        try:
-            conn = supabase_manager.pg_connection
-            if conn and not conn.closed:
-                try:
-                    conn.rollback()
-                except:
-                    pass
-                cur = conn.cursor()
-                cur.execute("SELECT 1")
-                cur.close()
-            else:
-                app.logger.warning("[MIDDLEWARE] Conexion PG cerrada, reconectando...")
-                supabase_manager._inicializar_conexion()
-        except Exception as e:
-            app.logger.warning(f"[MIDDLEWARE] Reconectando PG: {e}")
-            try:
-                supabase_manager._inicializar_conexion()
-            except:
-                pass
+        # La conexión psycopg2 es única y de larga vida. set_config(..., false)
+        # es de SESIÓN: sobrevive al request. Un request sin sesión (o una ruta
+        # pública como /health o el webhook) debe reescribir el GUC; si no, la
+        # siguiente consulta hereda el company_id del usuario anterior.
+        # is_local=true no alcanza: las rutas hacen commit/rollback por su
+        # cuenta y el valor local moriría antes de la consulta. Por eso el
+        # manager hace SET de sesión y COMMIT (ver set_company_context).
+        # El rol de DATABASE_URL en Supabase es el owner de las tablas y no
+        # tiene FORCE ROW LEVEL SECURITY, así que RLS no filtra esa conexión;
+        # igual hay que limpiar el GUC para no depender de ese accidente.
+        if not is_static:
+            company_id = None
+            if session.get('user_id') and session.get('company_id'):
+                company_id = session.get('company_id')
+            _sincronizar_company_rls(app, supabase_manager, company_id)
+
+        if is_public:
+            return
 
         # Verificar sesión de usuario (Supabase Auth)
         if 'user_id' in session and 'company_id' in session:
@@ -76,34 +85,10 @@ def init_middleware(app, supabase_manager):
                 'role': session.get('user_role', 'seller'),
             }
 
-            # Configurar PostgreSQL para RLS
+            # Cargar datos de la compañía para templates.
+            # El GUC de RLS ya quedó fijado arriba (también si no hay sesión).
             company_id = session.get('company_id')
             if company_id:
-                try:
-                    connection = supabase_manager.pg_connection
-                    if connection and not connection.closed:
-                        # Rollback cualquier transacción fallida antes de seguir
-                        try:
-                            connection.rollback()
-                        except:
-                            pass
-                        cursor = connection.cursor()
-                        cursor.execute(
-                            "SELECT set_config('app.current_company_id', %s, false)",
-                            (company_id,)
-                        )
-                        cursor.close()
-                except Exception as e:
-                    app.logger.warning(
-                        f"[MIDDLEWARE] No se pudo configurar RLS: {e}"
-                    )
-                    # Intentar reconectar si la conexión está muerta
-                    try:
-                        supabase_manager._inicializar_conexion()
-                    except:
-                        pass
-
-                # Cargar datos de la compañía para templates
                 try:
                     company = _load_company_from_db(supabase_manager, company_id)
                     g.company = company
@@ -134,6 +119,22 @@ def init_middleware(app, supabase_manager):
             'is_internal': bool((company or {}).get('is_internal')),
             'is_superadmin': is_superadmin(),
         }
+
+
+def _sincronizar_company_rls(app, supabase_manager, company_id):
+    """Deja app.current_company_id en la compañía de la sesión, o en el centinela."""
+    conn = getattr(supabase_manager, "pg_connection", None)
+    if not conn or getattr(conn, "closed", True):
+        try:
+            supabase_manager._inicializar_conexion()
+        except Exception as e:
+            app.logger.warning(f"[MIDDLEWARE] Reconectando PG: {e}")
+            return
+        conn = getattr(supabase_manager, "pg_connection", None)
+        if not conn or getattr(conn, "closed", True):
+            return
+    if not supabase_manager.set_company_context(company_id):
+        app.logger.warning("[MIDDLEWARE] No se pudo fijar app.current_company_id")
 
 
 def _load_company_from_db(supabase_manager, company_id):
@@ -189,10 +190,9 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            # Peticiones AJAX/JSON: responder 401 en vez de redirigir a HTML,
-            # para que el frontend detecte la sesión expirada sin romper con
-            # un error de parseo críptico.
-            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            # Peticiones AJAX/JSON y toda ruta /api/: 401 JSON, no un redirect
+            # HTML, para que el frontend detecte la sesión expirada.
+            if _solicitud_quiere_json():
                 return jsonify({"success": False, "error": "Sesión expirada"}), 401
             # Guardar URL actual (relativa) para redirigir después del login
             if request.method == 'GET':
