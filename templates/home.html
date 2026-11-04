@@ -482,7 +482,7 @@
                                 <a href="{{ cot.url_pdf }}" target="_blank" class="btn-icon" title="Ver PDF en nueva pestaña">PDF</a>
                                 {% else %}
                                 <a href="/pdf/{{ cot.numero }}" target="_blank" class="btn-icon" title="Ver PDF en nueva pestaña">PDF</a>
-                                {% if cot.es_simple %}
+                                {% if cot.es_simple and not plan_has_feature(company_plan, 'full_form') %}
                                 <a href="/cotizacion-pdf?numero={{ cot.numero | urlencode }}" class="btn-icon" title="Editar cotización">Editar</a>
                                 {% endif %}
                                 {% if cot.tiene_desglose %}
@@ -897,7 +897,7 @@
                 const acciones = importado
                     ? '<a href="' + escHtml(cot.url_pdf || '#') + '" target="_blank" class="btn-icon" title="Ver PDF">PDF</a>'
                     : ('<a href="/pdf/' + encodeURIComponent(num) + '" target="_blank" class="btn-icon" title="Ver PDF">PDF</a>'
-                        + (cot.es_simple ? '<a href="/cotizacion-pdf?numero=' + encodeURIComponent(num) + '" class="btn-icon" title="Editar cotización">Editar</a>' : '')
+                        + ((cot.es_simple && !hasFullForm) ? '<a href="/cotizacion-pdf?numero=' + encodeURIComponent(num) + '" class="btn-icon" title="Editar cotización">Editar</a>' : '')
                         + (cot.tiene_desglose ? '<a href="/desglose/' + encodeURIComponent(num) + '" class="btn-icon" title="Ver desglose">Desglose</a>'
                             : (cot.es_simple && hasFullForm ? '<a href="/desglose/' + encodeURIComponent(num) + '" class="btn-icon" title="Ver cotización y comentarios internos">Ver</a>'
                                 : '<span style="font-size:10px;color:#999;">Sin desglose</span>')));

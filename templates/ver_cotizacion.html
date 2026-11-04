@@ -715,15 +715,18 @@
                 Ver PDF
             </a>
             {% set numero_cotizacion = cotizacion.get('numeroCotizacion') or cotizacion.get('numero_cotizacion') %}
-            {% set es_simple = cotizacion.datosGenerales and cotizacion.datosGenerales.tipo == 'simple' %}
-            {% if numero_cotizacion and not es_simple %}
-            <a href="/formulario?revision={{ numero_cotizacion | urlencode }}" class="btn btn-success" title="Crear nueva revisión">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17,13H13V17H11V13H7V11H11V7H13V11H17M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/></svg>
-                Nueva Revisión
-            </a>
-            <a href="/formulario?edicion_menor={{ numero_cotizacion | urlencode }}" class="btn btn-warning" title="Corregir proyecto, precios, materiales o texto sin generar nueva revisión">
+            {% set es_simple = es_simple if es_simple is defined else (cotizacion.datosGenerales and cotizacion.datosGenerales.tipo == 'simple') %}
+            {% set es_antigua_o_importada = cotizacion.get('es_antigua') or cotizacion.get('es_importado') %}
+            {% if numero_cotizacion and plan_has_feature(company_plan, 'full_form') and not es_antigua_o_importada %}
+            <button type="button" class="btn btn-warning js-editar-cotizacion"
+                    data-numero="{{ numero_cotizacion }}"
+                    data-tipo="{{ 'simple' if es_simple else 'completa' }}"
+                    title="Editar cotización">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                 Editar
+            </button>
+            {% endif %}
+            {% if numero_cotizacion and not es_simple %}
             <a href="/desglose/{{ numero_cotizacion | urlencode }}/pdf" class="btn" title="Exportar desglose compacto en PDF">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
                 Exportar Desglose
@@ -733,6 +736,10 @@
 
 
     </div><!-- /page -->
+
+{% if numero_cotizacion and plan_has_feature(company_plan, 'full_form') and not es_antigua_o_importada %}
+    {% include "partials/_modal_editar.html" %}
+{% endif %}
 
 <script>
 (function() {

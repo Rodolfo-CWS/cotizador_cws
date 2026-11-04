@@ -78,8 +78,8 @@ class FakeDB:
         self.writes.append(("edicion", numero, company_id))
         return {"success": True, "numero_cotizacion": numero}
 
-    def guardar_cotizacion(self, datos, company_id=None):
-        self.writes.append(("guardar", company_id, (datos or {}).get("numeroCotizacion")))
+    def guardar_cotizacion(self, datos, company_id=None, solo_insertar=False):
+        self.writes.append(("guardar", company_id, (datos or {}).get("numeroCotizacion"), solo_insertar))
         numero = (datos or {}).get("numeroCotizacion") or "NUEVO"
         return {
             "success": True,

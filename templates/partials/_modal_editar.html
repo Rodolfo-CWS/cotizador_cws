@@ -1,0 +1,85 @@
+<style>
+    /* Modal de edición compartido (simple y completa). Clases prefijadas `me-`. */
+    #modalEditarCotizacion .me-opcion {
+        display: block;
+        padding: 16px;
+        margin-bottom: 12px;
+        border: 1px solid var(--gray-200, #e9ecef);
+        border-radius: 10px;
+        text-decoration: none;
+        color: var(--gray-900, #212529);
+        background: #fff;
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    #modalEditarCotizacion .me-opcion:hover {
+        border-color: var(--primary, #0d6efd);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    #modalEditarCotizacion .me-opcion-titulo {
+        display: block;
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 4px;
+        min-height: 24px;
+    }
+    #modalEditarCotizacion .me-opcion-desc {
+        display: block;
+        font-size: 13px;
+        color: var(--gray-600, #6c757d);
+        line-height: 1.4;
+    }
+    #modalEditarCotizacion .me-opcion[aria-disabled="true"] {
+        cursor: not-allowed;
+        pointer-events: none;
+        opacity: 0.55;
+        background: #f8f9fa;
+    }
+    #modalEditarCotizacion .me-nota {
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: #fff3cd;
+        color: #856404;
+        font-size: 13px;
+        line-height: 1.4;
+        margin-top: 4px;
+    }
+    #modalEditarCotizacion .me-nota a {
+        color: #664d03;
+        font-weight: 600;
+        text-decoration: underline;
+    }
+    @media (max-width: 600px) {
+        #modalEditarCotizacion .me-opcion {
+            padding: 14px;
+            min-height: 44px;
+        }
+    }
+    @media print {
+        #modalEditarCotizacion { display: none !important; }
+    }
+</style>
+
+<div id="modalEditarCotizacion" class="modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="meTitulo">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="meTitulo">Editar cotización</h2>
+            <button type="button" class="modal-close" id="meCerrar" aria-label="Cerrar">×</button>
+        </div>
+        <div class="modal-body">
+            <a id="meOpcionMenor" class="me-opcion" href="#">
+                <span class="me-opcion-titulo">Edición menor</span>
+                <span class="me-opcion-desc">Mismo folio. Corrige precios, partidas o texto; no cambia cliente, vendedor ni fecha.</span>
+            </a>
+            <a id="meOpcionRevision" class="me-opcion" href="#" aria-disabled="true">
+                <span class="me-opcion-titulo">Nueva revisión</span>
+                <span class="me-opcion-desc" id="meDescRevision">Crea una nueva revisión con justificación obligatoria y conserva la actual intacta.</span>
+            </a>
+            <div id="meNotaBloqueo" class="me-nota" style="display:none"></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="meCerrarFooter">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/modal-editar.js" defer></script>
