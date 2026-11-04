@@ -598,7 +598,7 @@
                         textoPersonalizado: document.getElementById('textoIA').value.trim(),
                         nombre: document.getElementById('nombre').value.trim(),
                         numeroCotizacion: numeroExistente,
-                        modo: (MODO_NUEVA_REVISION ? 'nueva_revision' : (MODO_EDICION_MENOR ? 'edicion_menor' : 'crear')),
+                        modo: (MODO_NUEVA_REVISION ? 'nueva_revision' : (numeroExistente ? 'edicion_menor' : 'crear')),
                         revisionDe: REVISION_DE,
                         imagenReferencia: obtenerImagenReferenciaPayload()
                     })

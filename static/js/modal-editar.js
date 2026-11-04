@@ -103,6 +103,9 @@
                 }
             })
             .catch(function () {
+                // Una petición vieja (abortada por cerrar o por otra apertura)
+                // no debe limpiar el timer ni re-habilitar la opción nueva.
+                if (controller !== abortController) return;
                 if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
                 habilitarRevision(null);
             });

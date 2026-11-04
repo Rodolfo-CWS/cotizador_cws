@@ -413,13 +413,22 @@ def test_pro_get_numero_edicion_menor(client):
 
 
 def test_starter_edicion_no_fuerza_campos(client, monkeypatch, db):
-    """En Starter el servidor no pisa cliente/vendedor con los del original."""
+    """Starter editando desde ?numero=: envía el payload real de la pantalla.
+
+    El modo viene como 'edicion_menor' (porque hay folio), NO 'crear', así que
+    el servidor conserva el mismo folio, no registra PDF (no gasta cuota) y no
+    pisa cliente/vendedor con los del original.
+    """
     monkeypatch.setattr("cotizador.middleware._load_company_from_db", _loader("starter"))
     item = db.items[0]
     item["datosGenerales"].update(cliente="Cliente Original", vendedor="Vend Original")
+    # Cuota llena: si el modo se interpretara como 'crear', respondería 403.
+    db.contar_pdfs_mes = lambda company_id: 999999
     _login(client, COMPANY_A)
     resp = client.post("/cotizacion-pdf", json={
         "numeroCotizacion": FOLIO_A_R1,
+        "modo": "edicion_menor",
+        "revisionDe": "",
         "datosGenerales": {
             "cliente": "NuevoCliente",
             "vendedor": "NuevoVend",
@@ -429,6 +438,8 @@ def test_starter_edicion_no_fuerza_campos(client, monkeypatch, db):
         "items": [{"descripcion": "a", "cantidad": 1, "precio_unitario": 10}],
     })
     assert resp.status_code == 200
+    assert db.last_guardar["numeroCotizacion"] == FOLIO_A_R1
+    assert db.registros_pdf == []
     dg = db.last_guardar["datosGenerales"]
     assert dg["cliente"] == "NuevoCliente"
     assert dg["vendedor"] == "NuevoVend"
