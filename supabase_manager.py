@@ -2573,11 +2573,9 @@ class SupabaseManager:
     def _folio_es_de_otra_compania(self, numero_cotizacion: str, company_id) -> bool:
         """True si el folio ya existe y no es de company_id.
 
-        Un folio inexistente no bloquea el alta. Un folio legado sin
-        company_id tampoco (la migración v2 los asignó; si queda alguno,
-        no se trata como cruce de tenant). Sí bloquea cuando el dueño
-        está definido y no coincide, o cuando hay dueño y la petición
-        no trae compañía.
+        Un folio inexistente no bloquea el alta. Un folio con company_id
+        NULL se trata como ajeno (no se reescribe). También bloquea cuando
+        el dueño no coincide o la petición no trae compañía.
         """
         try:
             existente = self.obtener_cotizacion(numero_cotizacion)
@@ -2587,9 +2585,7 @@ class SupabaseManager:
         if not existente or not existente.get("encontrado"):
             return False
         owner = (existente.get("item") or {}).get("company_id")
-        if not owner:
-            return False
-        if not company_id:
+        if not owner or not company_id:
             return True
         return not _company_ids_iguales(owner, company_id)
 

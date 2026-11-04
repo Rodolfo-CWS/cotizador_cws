@@ -57,24 +57,23 @@ def init_middleware(app, supabase_manager):
         is_static = path.startswith('/static')
         is_public = any(path.startswith(public.rstrip('/')) for public in public_routes)
 
-        # La conexión psycopg2 es única y de larga vida. set_config(..., false)
-        # es de SESIÓN: sobrevive al request. Un request sin sesión (o una ruta
-        # pública como /health o el webhook) debe reescribir el GUC; si no, la
-        # siguiente consulta hereda el company_id del usuario anterior.
-        # is_local=true no alcanza: las rutas hacen commit/rollback por su
-        # cuenta y el valor local moriría antes de la consulta. Por eso el
-        # manager hace SET de sesión y COMMIT (ver set_company_context).
-        # El rol de DATABASE_URL en Supabase es el owner de las tablas y no
-        # tiene FORCE ROW LEVEL SECURITY, así que RLS no filtra esa conexión;
-        # igual hay que limpiar el GUC para no depender de ese accidente.
-        if not is_static:
-            company_id = None
-            if session.get('user_id') and session.get('company_id'):
-                company_id = session.get('company_id')
-            _sincronizar_company_rls(app, supabase_manager, company_id)
-
-        if is_public:
+        # /static no toca Postgres. Las rutas públicas (/health, auth, webhook,
+        # /planes) solo comprueban que la conexión siga viva y reconectan si
+        # el servidor la cerró tras inactividad: no hacen set_config ni COMMIT,
+        # para que el ping de keepalive siga siendo barato.
+        # El GUC se fija en el resto de requests. set_config(..., false) es de
+        # sesión en la conexión compartida; sin reescribirlo, el request
+        # siguiente heredaría el company_id anterior. is_local=true no sirve:
+        # las rutas hacen commit/rollback por su cuenta.
+        if is_static or is_public:
+            if not is_static:
+                _asegurar_conexion_pg(app, supabase_manager)
             return
+
+        company_id = None
+        if session.get('user_id') and session.get('company_id'):
+            company_id = session.get('company_id')
+        _sincronizar_company_rls(app, supabase_manager, company_id)
 
         # Verificar sesión de usuario (Supabase Auth)
         if 'user_id' in session and 'company_id' in session:
@@ -121,20 +120,64 @@ def init_middleware(app, supabase_manager):
         }
 
 
-def _sincronizar_company_rls(app, supabase_manager, company_id):
-    """Deja app.current_company_id en la compañía de la sesión, o en el centinela."""
-    conn = getattr(supabase_manager, "pg_connection", None)
-    if not conn or getattr(conn, "closed", True):
+def _conexion_pg_responde(conn):
+    """True si la conexión acepta un SELECT 1. closed=False no basta: tras
+    un idle largo el socket puede estar muerto y psycopg aún no lo marcó."""
+    try:
+        conn.rollback()
+    except Exception:
+        return False
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.close()
         try:
-            supabase_manager._inicializar_conexion()
-        except Exception as e:
-            app.logger.warning(f"[MIDDLEWARE] Reconectando PG: {e}")
-            return
-        conn = getattr(supabase_manager, "pg_connection", None)
-        if not conn or getattr(conn, "closed", True):
-            return
-    if not supabase_manager.set_company_context(company_id):
-        app.logger.warning("[MIDDLEWARE] No se pudo fijar app.current_company_id")
+            conn.rollback()
+        except Exception:
+            pass
+        return True
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return False
+
+
+def _reconectar_pg(app, supabase_manager):
+    app.logger.warning("[MIDDLEWARE] Conexion PG cerrada o muerta, reconectando...")
+    try:
+        supabase_manager._inicializar_conexion()
+    except Exception as e:
+        app.logger.warning(f"[MIDDLEWARE] Reconectando PG: {e}")
+        return False
+    conn = getattr(supabase_manager, "pg_connection", None)
+    return bool(conn and not getattr(conn, "closed", True))
+
+
+def _asegurar_conexion_pg(app, supabase_manager):
+    """Deja una conexión que responde. No toca app.current_company_id."""
+    conn = getattr(supabase_manager, "pg_connection", None)
+    if conn and not getattr(conn, "closed", True) and _conexion_pg_responde(conn):
+        return True
+    return _reconectar_pg(app, supabase_manager)
+
+
+def _sincronizar_company_rls(app, supabase_manager, company_id):
+    """Deja app.current_company_id en la compañía de la sesión, o en el centinela.
+
+    Si el primer intento falla porque la conexión se cayó entre el probe y
+    el SET, reconecta una vez y reintenta. Así el primer request tras un
+    idle largo no se queda sin contexto.
+    """
+    if not _asegurar_conexion_pg(app, supabase_manager):
+        return
+    if supabase_manager.set_company_context(company_id):
+        return
+    app.logger.warning("[MIDDLEWARE] No se pudo fijar app.current_company_id, reintentando")
+    if _reconectar_pg(app, supabase_manager) and supabase_manager.set_company_context(company_id):
+        return
+    app.logger.warning("[MIDDLEWARE] app.current_company_id quedó sin fijar")
 
 
 def _load_company_from_db(supabase_manager, company_id):

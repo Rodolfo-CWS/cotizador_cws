@@ -944,7 +944,7 @@ def timestamp_to_date(timestamp):
 # ============================================
 
 from functools import wraps
-from cotizador.middleware import login_required, plan_required, superadmin_required
+from cotizador.middleware import login_required, plan_required, superadmin_required, is_superadmin
 from cotizador.plans import (
     FEATURE_SIMPLE_PDF, FEATURE_FAST_QUOTE, FEATURE_FULL_FORM, FEATURE_DESGLOSE,
     FEATURE_IMPORT_PDFS,
@@ -954,16 +954,86 @@ from cotizador.plans import (
 )
 
 
-def _es_de_la_sesion(company_id_registro) -> bool:
-    """True solo si el registro trae company_id y es el de la sesión.
+def _company_id_vacio(company_id_registro) -> bool:
+    return company_id_registro is None or company_id_registro == ""
 
-    Un company_id vacío (legado) no se considera propio: no hay forma de
-    probar el tenant y la respuesta debe ser la misma que 'no existe'.
+
+def _es_de_la_sesion(company_id_registro) -> bool:
+    """True solo si el registro es de la compañía de la sesión.
+
+    company_id NULL o vacío se trata como ajeno (misma respuesta que otra
+    empresa). La única excepción es el superadmin, que puede ver esas filas.
     """
+    if _company_id_vacio(company_id_registro):
+        return is_superadmin()
     sesion = session.get("company_id")
-    if not sesion or company_id_registro is None or company_id_registro == "":
+    if not sesion:
         return False
     return str(company_id_registro) == str(sesion)
+
+
+def _puede_ver_pdf_legado() -> bool:
+    """PDF sin fila en cotizaciones: solo cuentas internas o superadmin.
+
+    El registro es público, así que cualquier cuenta nueva no debe poder
+    adivinar folios viejos de Drive/Storage.
+    """
+    if is_superadmin():
+        return True
+    company = g.get("company") or {}
+    return bool(company.get("is_internal"))
+
+
+def _variantes_folio(numero):
+    """Nombre pedido y el intercambio espacio/guion que usa el fallback de PDF."""
+    numero = str(numero or "").strip().rstrip("/")
+    variantes = []
+    for candidato in (numero, numero.replace(" ", "-"), numero.replace("-", " ")):
+        candidato = (candidato or "").strip()
+        if candidato and candidato not in variantes:
+            variantes.append(candidato)
+    return variantes
+
+
+def _fila_cotizacion(numero):
+    """Item si hay fila; None si no existe. No distingue empresa."""
+    if not numero:
+        return None
+    try:
+        resultado = db_manager.obtener_cotizacion(numero)
+    except Exception as e:
+        print(f"[TENANT] Error leyendo cotización '{numero}': {e}")
+        return None
+    if not resultado or not resultado.get("encontrado"):
+        return None
+    return resultado.get("item") or {}
+
+
+def _autorizar_folios_pdf(numero):
+    """Valida el folio y cada variante espacio/guion antes de tocar Storage.
+
+    Devuelve (autorizados, error). autorizados es una lista de
+    (nombre, item|None). Si alguna variante tiene fila y no es de la sesión
+    (incluida company_id NULL), error es 404 y no se sirve nada.
+    Sin ninguna fila, solo cuentas internas o superadmin reciben las
+    variantes para el PDF legado; el resto, 404.
+    """
+    variantes = _variantes_folio(numero)
+    if not variantes:
+        return None, _respuesta_no_encontrada(numero)
+    propias = []
+    for nombre in variantes:
+        fila = _fila_cotizacion(nombre)
+        if fila is None:
+            continue
+        if not _es_de_la_sesion(fila.get("company_id")):
+            return None, _respuesta_no_encontrada(numero)
+        propias.append((nombre, fila))
+    if propias:
+        return propias, None
+    if not _puede_ver_pdf_legado():
+        return None, _respuesta_no_encontrada(numero)
+    return [(nombre, None) for nombre in variantes], None
 
 
 def _respuesta_no_encontrada(identificador=""):
@@ -1571,7 +1641,13 @@ def formulario():
                 datos['datosGenerales']['numeroCotizacion'] = numero_final
             else:
                 print(f"[NUMERO_DEBUG] ⚠️ Procediendo sin número - será generado automáticamente")
-            
+
+            # Antes de subir la imagen: un folio ajeno (o con company_id NULL)
+            # no debe dejar archivos en Storage.
+            bloqueo_folio = _bloquear_si_folio_ajeno(numero_final)
+            if bloqueo_folio:
+                return bloqueo_folio
+
             # Procesar imagen de referencia (si fue enviada)
             img_ref_resultado = procesar_imagen_referencia(datos, numero_final or 'nueva')
             if img_ref_resultado:
@@ -1582,11 +1658,6 @@ def formulario():
                 datos.pop('imagenReferencia', None)
                 print(f"[FORM] Imagen de referencia procesada: {img_ref_resultado.get('url', 'sin URL')}")
 
-            # Guardar usando DatabaseManager con manejo robusto de errores.
-            # Si el número ya existe y es de otra empresa, no se escribe.
-            bloqueo_folio = _bloquear_si_folio_ajeno(numero_final)
-            if bloqueo_folio:
-                return bloqueo_folio
             print("[FORM] FORMULARIO: Llamando a guardar_cotizacion...")
             resultado = db_manager.guardar_cotizacion(datos, company_id=session.get("company_id"))
             print(f"[FORM] FORMULARIO: Resultado guardado = {json.dumps(resultado, indent=2, ensure_ascii=False)}")
@@ -2633,17 +2704,12 @@ def cotizacion_resumen(numero_cotizacion):
             return jsonify({"success": False, "error": resultado["error"]})
 
         cotizaciones = resultado.get("resultados", [])
-        company_id = session.get("company_id")
 
         # Match exacto y de esta compañía. Un subcadena de otro folio, o un
-        # folio de otra empresa, responde 404 (igual que si no existiera).
+        # folio de otra empresa (o company_id NULL), responde 404.
         cot = None
         for c in cotizaciones:
-            if (
-                c.get('numeroCotizacion') == numero_cotizacion
-                and str(c.get('company_id') or '') == str(company_id or '')
-                and _es_de_la_sesion(c.get('company_id'))
-            ):
+            if c.get('numeroCotizacion') == numero_cotizacion and _es_de_la_sesion(c.get('company_id')):
                 cot = c
                 break
         if cot is None:
@@ -4600,39 +4666,32 @@ def servir_pdf(numero_cotizacion):
         # BUGFIX: Eliminar trailing slash que causa problemas con nombres de archivo
         numero_cotizacion = numero_cotizacion.rstrip('/')
 
-        # Si hay fila en BD, solo se sirve cuando company_id es el de la sesión.
-        # Sin fila (PDF legado en Drive, sin cotización) se sigue sirviendo:
-        # no hay company_id que comparar. Un folio de otra empresa responde
-        # 404, igual que si no existiera, y no se descarga el archivo.
-        try:
-            owner = db_manager.obtener_cotizacion(numero_cotizacion)
-        except Exception:
-            owner = None
-        if owner and owner.get("encontrado"):
-            owner_company = (owner.get("item") or {}).get("company_id")
-            if not _es_de_la_sesion(owner_company):
-                return _respuesta_no_encontrada(numero_cotizacion)
+        # Cada variante (espacios ↔ guiones) se valida contra la BD antes de
+        # pedir el archivo. Si alguna fila es de otra empresa, o no hay fila
+        # y la cuenta no es interna ni superadmin, no se llama a Storage.
+        autorizados, err_pdf_auth = _autorizar_folios_pdf(numero_cotizacion)
+        if err_pdf_auth:
+            return err_pdf_auth
 
         print(f"PDF: Sirviendo PDF:")
         print(f"   URL original: '{numero_original}'")
         print(f"   Después de unquote: '{numero_cotizacion}'")
-        
-        # Si tiene espacios, intentar reemplazar con guiones
-        if ' ' in numero_cotizacion:
-            numero_alternativo = numero_cotizacion.replace(' ', '-')
-            print(f"   Variación con guiones: '{numero_alternativo}'")
-        else:
-            numero_alternativo = None
-        
-        # Obtener información del PDF - intentar versión principal primero
-        resultado = pdf_manager.obtener_pdf(numero_cotizacion)
-        
-        # Si no lo encuentra y hay una versión alternativa, intentar con esa
-        if not resultado.get("encontrado", False) and numero_alternativo:
-            print(f"   No encontrado con espacios, intentando con guiones...")
-            resultado = pdf_manager.obtener_pdf(numero_alternativo)
-            if resultado.get("encontrado", False):
-                numero_cotizacion = numero_alternativo  # Usar la versión que funcionó
+        print(f"   Variantes autorizadas: {[n for n, _ in autorizados]}")
+
+        resultado = {"encontrado": False}
+        item_propio = None
+        for nombre, item in autorizados:
+            if item is not None and item_propio is None:
+                item_propio = item
+            if not pdf_manager:
+                continue
+            candidato = pdf_manager.obtener_pdf(nombre)
+            if candidato.get("encontrado", False):
+                resultado = candidato
+                numero_cotizacion = nombre
+                if item is not None:
+                    item_propio = item
+                break
         
         # Verificar si el PDF fue encontrado. Si no, intentar regenerar al vuelo.
         # IMPORTANTE: verificar "encontrado" ANTES de "error" porque _obtener_pdf_offline
@@ -4644,11 +4703,10 @@ def servir_pdf(numero_cotizacion):
             if not (REPORTLAB_AVAILABLE or WEASYPRINT_AVAILABLE):
                 return jsonify({"error": f"PDF '{numero_cotizacion}' no encontrado y no hay generador disponible"}), 404
 
-            cot_resultado = db_manager.obtener_cotizacion(numero_cotizacion)
-            if not cot_resultado.get('encontrado'):
+            if not item_propio:
                 return jsonify({"error": f"PDF '{numero_cotizacion}' no encontrado en Storage ni en base de datos"}), 404
 
-            cotizacion = cot_resultado["item"]
+            cotizacion = item_propio
             try:
                 pdf_data = generar_pdf_reportlab(cotizacion, company_branding=g.get("company")) if REPORTLAB_AVAILABLE else None
                 if pdf_data is None:
@@ -4782,20 +4840,19 @@ def ver_desglose(numero_cotizacion):
         
         print(f"[DESGLOSE] Viendo: '{numero_cotizacion}'")
         
-        # PASO 1: Intentar obtener cotización completa (con datos de desglose)
-        resultado_cotizacion = db_manager.obtener_cotizacion(numero_cotizacion)
-        
-        folio_ajeno = False
-        if resultado_cotizacion.get("encontrado"):
-            # Fila de otra empresa (o sin company_id): mismo 404 que "no existe"
-            # y sin caer al PDF, para no confirmar que el archivo está.
-            owner_company = (resultado_cotizacion.get("item") or {}).get("company_id")
-            if not _es_de_la_sesion(owner_company):
-                folio_ajeno = True
-            else:
-                pass
+        # PASO 1: Cotización de esta sesión, o 404 si alguna variante
+        # espacio/guion es de otra empresa o el PDF legado no corresponde.
+        autorizados, err_des = _autorizar_folios_pdf(numero_cotizacion)
+        if err_des:
+            return err_des
+        propias = [(n, it) for n, it in autorizados if it]
+        if propias:
+            numero_cotizacion = propias[0][0]
+            resultado_cotizacion = {"encontrado": True, "item": propias[0][1]}
+        else:
+            resultado_cotizacion = {"encontrado": False}
 
-        if resultado_cotizacion.get("encontrado") and not folio_ajeno:
+        if resultado_cotizacion.get("encontrado"):
             # Tenemos datos completos - mostrar desglose normal
             cotizacion = resultado_cotizacion["item"]
             print(f"[DESGLOSE] Cotización encontrada en DB - mostrando desglose completo")
@@ -4886,13 +4943,17 @@ def ver_desglose(numero_cotizacion):
             from flask import render_template
             return render_template("ver_cotizacion.html", cotizacion=cotizacion)
         
-        # PASO 2: No hay datos completos, verificar si existe PDF.
-        # Si la fila existe pero es de otra empresa, no mirar el PDF.
-        if folio_ajeno:
-            resultado_pdf = {"encontrado": False}
-        else:
-            print(f"[DESGLOSE] Cotización no en DB, verificando PDF...")
-            resultado_pdf = pdf_manager.obtener_pdf(numero_cotizacion)
+        # PASO 2: Sin fila. Solo cuentas internas o superadmin llegan aquí,
+        # y solo se busca el PDF de las variantes ya autorizadas.
+        print(f"[DESGLOSE] Cotización no en DB, verificando PDF legado...")
+        resultado_pdf = {"encontrado": False}
+        if pdf_manager:
+            for nombre, _item in autorizados:
+                candidato = pdf_manager.obtener_pdf(nombre)
+                if candidato.get("encontrado"):
+                    resultado_pdf = candidato
+                    numero_cotizacion = nombre
+                    break
         
         if resultado_pdf.get("encontrado"):
             registro_pdf = resultado_pdf.get("registro", {})
@@ -5999,6 +6060,8 @@ def debug_pdf_especifico(numero_cotizacion):
         return jsonify({"error": f"Error en debug: {str(e)}"}), 500
 
 @app.route("/debug-env")
+@login_required
+@superadmin_required
 def debug_env():
     """Diagnostico de variables de entorno para Render"""
     import os
@@ -6249,6 +6312,8 @@ def debug_pdfs_simple():
         })
 
 @app.route("/test-drive")
+@login_required
+@superadmin_required
 def test_drive():
     """Test super simple de Google Drive"""
     try:
@@ -6290,6 +6355,8 @@ def test_drive():
         })
 
 @app.route("/debug/google-drive")
+@login_required
+@superadmin_required
 def debug_google_drive():
     """Debug específico para Google Drive"""
     try:
@@ -6456,16 +6523,18 @@ def handle_error_response(error_msg, item_id):
         """, 500
 
 def handle_not_found_response(item_id):
-    """Maneja respuestas de no encontrado"""
+    """Maneja respuestas de no encontrado. El folio se escapa: llega por la URL."""
+    from markupsafe import escape
+    folio = escape(item_id or "")
     if is_json_request():
         return jsonify({
             "encontrado": False,
-            "mensaje": f"Cotización '{item_id}' no encontrada"
+            "mensaje": f"Cotización '{folio}' no encontrada"
         }), 404
     else:
         return f"""
         <h1>Cotización no encontrada</h1>
-        <p>La cotización '{item_id}' no existe.</p>
+        <p>La cotización '{folio}' no existe.</p>
         <p><a href="/">Volver al inicio</a></p>
         """, 404
 
@@ -7644,33 +7713,27 @@ def servir_pdf_local(numero_cotizacion):
         from flask import send_file
         from urllib.parse import unquote
         
-        numero_cotizacion = unquote(numero_cotizacion)
-
-        # Si hay fila y no es de esta compañía, no servir el archivo local.
-        try:
-            fila = db_manager.obtener_cotizacion(numero_cotizacion[:-4] if numero_cotizacion.endswith('.pdf') else numero_cotizacion)
-        except Exception:
-            fila = None
-        if fila and fila.get("encontrado") and not _es_de_la_sesion((fila.get("item") or {}).get("company_id")):
-            ident = numero_cotizacion[:-4] if numero_cotizacion.endswith('.pdf') else numero_cotizacion
-            return _respuesta_no_encontrada(ident)
-        
-        # Limpiar extensión si viene incluida
+        numero_cotizacion = unquote(numero_cotizacion).rstrip('/')
         if numero_cotizacion.endswith('.pdf'):
             numero_cotizacion = numero_cotizacion[:-4]
-        
-        # Buscar en carpetas locales
+
+        autorizados, err_local = _autorizar_folios_pdf(numero_cotizacion)
+        if err_local:
+            return err_local
+
+        # Buscar en carpetas locales solo nombres ya autorizados
+        # (el folio pedido y su variante espacio/guion).
         base_path = os.path.join(os.getcwd(), "pdfs_cotizaciones")
-        posibles_rutas = [
-            os.path.join(base_path, "nuevas", f"{numero_cotizacion}.pdf"),
-            os.path.join(base_path, "antiguas", f"{numero_cotizacion}.pdf"),
-            os.path.join(base_path, f"{numero_cotizacion}.pdf")
-        ]
-        
-        for ruta in posibles_rutas:
-            if os.path.exists(ruta):
-                print(f"[LOCAL_PDF] Sirviendo: {ruta}")
-                return send_file(ruta, as_attachment=False, mimetype='application/pdf')
+        for nombre, _item in autorizados:
+            posibles_rutas = [
+                os.path.join(base_path, "nuevas", f"{nombre}.pdf"),
+                os.path.join(base_path, "antiguas", f"{nombre}.pdf"),
+                os.path.join(base_path, f"{nombre}.pdf"),
+            ]
+            for ruta in posibles_rutas:
+                if os.path.exists(ruta):
+                    print(f"[LOCAL_PDF] Sirviendo: {ruta}")
+                    return send_file(ruta, as_attachment=False, mimetype='application/pdf')
         
         print(f"[LOCAL_PDF] No encontrado: {numero_cotizacion}")
         print(f"[LOCAL_PDF] Rutas buscadas: {posibles_rutas}")

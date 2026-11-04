@@ -204,12 +204,27 @@ def client(db, monkeypatch, tmp_path):
     return test_client
 
 
-def _login(client, company_id):
+def _login(client, company_id, superadmin=False):
     with client.session_transaction() as sess:
         sess["user_id"] = f"user-{company_id[-2:]}"
         sess["company_id"] = company_id
         sess["user_name"] = "Tester"
         sess["user_role"] = "admin"
+        if superadmin:
+            sess["superadmin_ok"] = True
+
+
+def _company_loader(is_internal):
+    def _load(_mgr, cid):
+        return {
+            "id": cid,
+            "name": "Empresa",
+            "plan": "pro",
+            "is_active": True,
+            "is_internal": is_internal,
+            "iva_rate": 16.0,
+        }
+    return _load
 
 
 def _cuerpo(resp):
@@ -415,7 +430,11 @@ def test_rutas_publicas_siguen_abiertas(client):
 
 
 def test_request_sin_sesion_limpia_company_id_de_rls():
-    """set_config de sesión no debe quedar con la compañía del request anterior."""
+    """set_config de sesión no debe quedar con la compañía del request anterior.
+
+    /health es público: solo hace probe de la conexión, sin set_config.
+    El centinela se escribe en rutas que no son públicas.
+    """
     manager = app_module.app.extensions["db_manager"]
     anterior = manager.pg_connection
     cursor = CapturingCursor()
@@ -426,7 +445,7 @@ def test_request_sin_sesion_limpia_company_id_de_rls():
         with client.session_transaction() as sess:
             sess["user_id"] = "user-a"
             sess["company_id"] = COMPANY_A
-        client.get("/planes")
+        client.get("/ver/algo")
         sets = [p for sql, p in cursor.executions if "set_config" in sql]
         assert sets, cursor.executions
         assert sets[-1][0] == COMPANY_A
@@ -434,15 +453,157 @@ def test_request_sin_sesion_limpia_company_id_de_rls():
         assert conn.commits >= 1
 
         cursor.executions.clear()
+        client.get("/health")
+        assert not any("set_config" in sql for sql, _ in cursor.executions)
+        assert any("SELECT 1" in sql for sql, _ in cursor.executions)
+
+        cursor.executions.clear()
         with client.session_transaction() as sess:
             sess.clear()
-        client.get("/health")
+        client.get("/ver/otro")
         sets = [p for sql, p in cursor.executions if "set_config" in sql]
         assert sets, cursor.executions
         assert sets[-1][0] == RLS_DENY_COMPANY_ID
         assert COMPANY_A not in (sets[-1] or [])
     finally:
         manager.pg_connection = anterior
+
+
+def test_health_reconecta_si_la_conexion_esta_muerta(monkeypatch):
+    manager = app_module.app.extensions["db_manager"]
+    anterior = manager.pg_connection
+
+    class DeadConn(FakeConn):
+        def cursor(self):
+            raise RuntimeError("server closed the connection unexpectedly")
+
+    manager.pg_connection = DeadConn(CapturingCursor())
+    vivo = FakeConn(CapturingCursor())
+    reconecto = {"n": 0}
+
+    def reconectar():
+        reconecto["n"] += 1
+        manager.pg_connection = vivo
+
+    monkeypatch.setattr(manager, "_inicializar_conexion", reconectar)
+    try:
+        resp = app_module.app.test_client().get("/health")
+        assert resp.status_code == 200
+        assert reconecto["n"] >= 1
+        assert not any("set_config" in sql for sql, _ in vivo._cursor.executions)
+    finally:
+        manager.pg_connection = anterior
+
+
+def test_pdf_con_espacios_no_sirve_la_variante_de_otra_empresa(client, db):
+    _login(client, COMPANY_A)
+    resp = client.get("/pdf/ACME B-VEN-001-R1-PROY")
+    assert resp.status_code == 404
+    assert SECRETO_B not in _cuerpo(resp)
+    assert client.fake_pdf.reads == []
+    assert db.writes == []
+
+
+def test_dueno_puede_pedir_su_pdf_con_espacios(client):
+    _login(client, COMPANY_B)
+    resp = client.get("/pdf/ACME B-VEN-001-R1-PROY")
+    assert resp.status_code == 200
+    assert resp.mimetype == "application/pdf"
+    assert "ACME-B-VEN-001-R1-PROY" in client.fake_pdf.reads
+
+
+def test_pdf_sin_fila_solo_interno_o_superadmin(client, monkeypatch):
+    folio = "LEGACY-SIN-FILA"
+    _login(client, COMPANY_A)
+    resp = client.get(f"/pdf/{folio}")
+    assert resp.status_code == 404
+    assert client.fake_pdf.reads == []
+
+    desglose = client.get(f"/desglose/{folio}")
+    assert desglose.status_code == 404
+    assert client.fake_pdf.reads == []
+
+    monkeypatch.setattr(
+        "cotizador.middleware._load_company_from_db", _company_loader(True),
+    )
+    interno = client.get(f"/pdf/{folio}")
+    assert interno.status_code == 200
+    assert folio in client.fake_pdf.reads
+
+    client.fake_pdf.reads.clear()
+    monkeypatch.setattr(
+        "cotizador.middleware._load_company_from_db", _company_loader(False),
+    )
+    _login(client, COMPANY_A, superadmin=True)
+    superadmin = client.get(f"/pdf/{folio}")
+    assert superadmin.status_code == 200
+    assert client.fake_pdf.reads
+
+
+def test_company_id_null_es_ajena_salvo_superadmin(client):
+    folio = "SIN-EMPRESA"
+    # El fixture no trae esta fila: la agregamos al fake de este client.
+    # db_manager del módulo es el mismo objeto que inyecta el fixture `client`.
+    app_module.db_manager.items.append(_item(None, folio, "CLIENTE-NULL", "99"))
+
+    _login(client, COMPANY_A)
+    resp = client.get(f"/ver/{folio}")
+    assert resp.status_code == 404
+    assert "CLIENTE-NULL" not in _cuerpo(resp)
+
+    _login(client, COMPANY_A, superadmin=True)
+    visto = client.get(f"/ver/{folio}")
+    assert visto.status_code == 200
+    assert "CLIENTE-NULL" in _cuerpo(visto)
+
+
+def test_404_escapa_el_folio_en_html(client):
+    _login(client, COMPANY_A)
+    resp = client.get("/ver/%3Cscript%3Ealert(1)%3C/script%3E")
+    assert resp.status_code == 404
+    body = _cuerpo(resp)
+    assert "<script>" not in body
+    assert "&lt;script&gt;" in body
+
+
+def test_debug_de_drive_exige_superadmin(client):
+    anon = client.get("/debug-env")
+    assert anon.status_code in (301, 302)
+    assert "/auth/login" in (anon.headers.get("Location") or "")
+
+    _login(client, COMPANY_A)
+    for path in ("/debug-env", "/test-drive", "/debug/google-drive"):
+        resp = client.get(path)
+        assert resp.status_code in (301, 302), path
+        assert "/admin/login" in (resp.headers.get("Location") or "")
+
+    _login(client, COMPANY_A, superadmin=True)
+    assert client.get("/debug-env").status_code == 200
+
+
+def test_guardar_cotizacion_rechaza_company_id_null():
+    mgr = SupabaseManager.__new__(SupabaseManager)
+    mgr.supabase_client = object()
+    mgr.postgresql_disponible = False
+    mgr.modo_offline = True
+    wrote = []
+    mgr.obtener_cotizacion = lambda numero: {
+        "encontrado": True,
+        "item": {"company_id": None, "numeroCotizacion": numero, "datosGenerales": {}},
+    }
+    mgr._guardar_cotizacion_offline = lambda datos: wrote.append(datos) or {"success": True}
+    mgr._guardar_cotizacion_sdk = lambda datos: wrote.append(("sdk", datos)) or {"success": True}
+
+    resultado = mgr.guardar_cotizacion(
+        {
+            "numeroCotizacion": "SIN-EMPRESA",
+            "datosGenerales": {"numeroCotizacion": "SIN-EMPRESA", "revision": "1"},
+            "items": [],
+        },
+        company_id=COMPANY_A,
+    )
+    assert resultado["success"] is False
+    assert wrote == []
 
 
 def test_guardar_cotizacion_no_reescribe_folio_ajeno():
