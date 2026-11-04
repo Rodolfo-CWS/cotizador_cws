@@ -44,6 +44,9 @@
         .item-desc:empty::before { content: attr(data-placeholder); color: #9ca3af; }
         .item-desc ul { list-style: disc; padding-left: 18px; margin: 2px 0; }
         .hidden { display: none; }
+        .banner-info { background: #eef2ff; border: 1px solid #c7d2fe; color: #3730a3; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+        .banner-warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+        .banner-warning a { color: #92400e; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -59,6 +62,14 @@
     </div>
 
     <div id="errorBox" class="error"></div>
+
+    <div id="bannerEdicionMenor" class="banner-info" style="display:none;">
+        <strong>Edición menor:</strong> mismo folio. Corrige precios, partidas o texto; cliente, vendedor, revisión y fecha no cambian.
+    </div>
+    <div id="bannerNuevaRevision" class="banner-info" style="display:none;">
+        <strong>Nueva revisión:</strong> se creará un folio con la siguiente revisión. La justificación de la actualización es obligatoria (mínimo 10 caracteres).
+    </div>
+    <div id="bannerBloqueoRevision" class="banner-warning" style="display:none;"></div>
 
     <!-- Estado de éxito -->
     <div id="successBox" class="success" style="display:none;">
@@ -224,6 +235,11 @@
         let formModificado = false;
         let cotizacionCompletada = false;
         let autoGuardadoTimer;
+
+        const MODO_NUEVA_REVISION = {{ nueva_revision | tojson }};
+        const MODO_EDICION_MENOR = {{ modo_edicion_menor | tojson }};
+        const REVISION_DE = {{ revision_de | tojson }};
+        const INFO_BLOQUEO_REVISION = {{ info_bloqueo_revision | tojson }};
 
         function agregarFila(desc = '', cant = '', precio = '', uom = 'piezas') {
             filaId++;
@@ -559,6 +575,14 @@
             const items = recolectarItems();
             if (items.length === 0) { mostrarError('Agrega al menos un concepto.'); return; }
 
+            if (MODO_NUEVA_REVISION) {
+                const justif = document.getElementById('actualizacionRevision').value.trim();
+                if (justif.length < 10) {
+                    mostrarError('La justificación de la actualización es obligatoria (mínimo 10 caracteres).');
+                    return;
+                }
+            }
+
             const btn = document.getElementById('btnGenerar');
             btn.disabled = true;
             btn.textContent = 'Generando...';
@@ -574,6 +598,8 @@
                         textoPersonalizado: document.getElementById('textoIA').value.trim(),
                         nombre: document.getElementById('nombre').value.trim(),
                         numeroCotizacion: numeroExistente,
+                        modo: (MODO_NUEVA_REVISION ? 'nueva_revision' : (MODO_EDICION_MENOR ? 'edicion_menor' : 'crear')),
+                        revisionDe: REVISION_DE,
                         imagenReferencia: obtenerImagenReferenciaPayload()
                     })
                 });
@@ -600,13 +626,15 @@
             }
         }
 
-        function precargarEdicion(c) {
+        function precargarEdicion(c, esNuevaRevision) {
             const dg = c.datosGenerales || {};
             const cond = c.condiciones || dg.condiciones || {};
 
-            document.getElementById('nombre').value = c.numeroCotizacion || '';
-            document.getElementById('nombre').readOnly = true;
-            numeroExistente = c.numeroCotizacion || '';
+            if (!esNuevaRevision) {
+                document.getElementById('nombre').value = c.numeroCotizacion || '';
+                document.getElementById('nombre').readOnly = true;
+                numeroExistente = c.numeroCotizacion || '';
+            }
 
             document.getElementById('cliente').value = dg.cliente || '';
             document.getElementById('proyecto').value = dg.proyecto || '';
@@ -649,6 +677,40 @@
             if (!items.length) { agregarFila(); agregarFila(); agregarFila(); }
         }
 
+        function configurarModo() {
+            // Bloqueo: la cotización original ya no es la revisión más reciente.
+            if (INFO_BLOQUEO_REVISION && INFO_BLOQUEO_REVISION.bloqueada) {
+                const b = document.getElementById('bannerBloqueoRevision');
+                const max = INFO_BLOQUEO_REVISION.revision_maxima;
+                let html = 'Ya existe R' + max + '.';
+                if (INFO_BLOQUEO_REVISION.numero_ultima_revision) {
+                    html += ' <a href="/desglose/' + encodeURIComponent(INFO_BLOQUEO_REVISION.numero_ultima_revision) + '">Ver R' + max + '</a>';
+                }
+                b.innerHTML = html;
+                b.style.display = 'block';
+                const btn = document.getElementById('btnGenerar');
+                if (btn) { btn.disabled = true; btn.title = 'Ya existe una revisión más reciente'; }
+                return;
+            }
+
+            if (MODO_NUEVA_REVISION) {
+                document.getElementById('bannerNuevaRevision').style.display = 'block';
+                document.getElementById('revision').readOnly = true;
+                const act = document.getElementById('actualizacionRevision');
+                act.setAttribute('required', 'required');
+                act.setAttribute('minlength', '10');
+                act.placeholder = 'Nota de actualización (obligatoria, mínimo 10 caracteres)';
+            }
+
+            if (MODO_EDICION_MENOR) {
+                document.getElementById('bannerEdicionMenor').style.display = 'block';
+                ['cliente', 'vendedor', 'revision', 'fecha'].forEach(function(id){
+                    var el = document.getElementById(id);
+                    if (el) el.readOnly = true;
+                });
+            }
+        }
+
         // Fecha por defecto hoy + filas iniciales + precarga si es edición
         document.addEventListener('DOMContentLoaded', function(){
             inicializarManejadorImagen();
@@ -658,13 +720,17 @@
             precargarDraft({{ draft_edit | tojson }});
             {% elif cotizacion_edit %}
             precargarEdicion({{ cotizacion_edit | tojson }});
+            {% elif datos_precargados %}
+            precargarEdicion({{ datos_precargados | tojson }}, true);
             {% else %}
             agregarFila();
             agregarFila();
             agregarFila();
             {% endif %}
 
-            {% if plan_has_feature(company_plan, 'full_form') %}
+            configurarModo();
+
+            {% if plan_has_feature(company_plan, 'full_form') and not nueva_revision %}
             inicializarSistemaAutoGuardado();
             {% endif %}
         });

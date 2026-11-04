@@ -539,9 +539,14 @@ class SupabaseManager:
             print(f"[SDK_REST] Error obteniendo estadísticas: {error_msg}")
             raise e
     
-    def guardar_cotizacion(self, datos: Dict, company_id: str = None) -> Dict:
+    def guardar_cotizacion(self, datos: Dict, company_id: str = None, solo_insertar: bool = False) -> Dict:
         """
         Guardar cotización en Supabase (online) o JSON (offline)
+
+        `solo_insertar=True` (nueva revisión): inserta sin update, no regenera
+        el folio y no cae al JSON offline sobre un folio existente. Una colisión
+        con el UNIQUE de `numero_cotizacion` se reporta como `tipo_error=duplicada`
+        para que la ruta responda 409 y la revisión previa quede intacta.
         """
         try:
             # Guardar company_id en los datos para la BD
@@ -550,7 +555,8 @@ class SupabaseManager:
 
             # Límite de plan (defensa en profundidad; la ruta ya pre-chequea).
             # Solo aplica a cotizaciones simples y si la ruta pasó 'plan'.
-            if datos.get('tipo') == 'simple' and datos.get('plan'):
+            # Una nueva revisión no consume cuota, por lo que se omite.
+            if datos.get('tipo') == 'simple' and datos.get('plan') and not solo_insertar:
                 from cotizador.plans import get_limit
                 max_pdfs = get_limit(datos.get('plan'), 'max_pdfs')
                 if max_pdfs is not None:
@@ -649,6 +655,9 @@ class SupabaseManager:
                     "error": "Cotización no encontrada",
                     "tipo_error": "no_encontrada",
                 }
+
+            if solo_insertar:
+                return self._guardar_cotizacion_solo_insertar(datos)
 
             print(f"[GUARDAR] Procesando cotización: {numero_cotizacion}")
 
@@ -784,6 +793,74 @@ class SupabaseManager:
             print(f"[GUARDAR] Error general: {error_msg}")
             return {"success": False, "error": error_msg}
 
+    def _guardar_cotizacion_solo_insertar(self, datos: Dict) -> Dict:
+        """Insert puro (sin update) para una nueva revisión.
+
+        No regenera el folio ni cae al JSON offline sobre un folio existente:
+        una colisión con el UNIQUE de `numero_cotizacion` se reporta como
+        'duplicada' para que la ruta responda 409 y la revisión previa quede
+        intacta.
+        """
+        numero_cotizacion = datos.get('numeroCotizacion')
+
+        # 1. SDK REST (primario)
+        if self.supabase_client:
+            resultado_sdk = self._guardar_cotizacion_sdk(datos, solo_insertar=True)
+            if resultado_sdk.get('success'):
+                self._guardar_cotizacion_offline(datos)
+                return resultado_sdk
+            if resultado_sdk.get('tipo_error') == 'duplicada':
+                return resultado_sdk
+
+        # 2. PostgreSQL directo (fallback)
+        if self.postgresql_disponible:
+            try:
+                resultado_pg = self._guardar_cotizacion_supabase(datos, solo_insertar=True)
+            except Exception as pg_error:
+                print(f"[GUARDAR] Error insert (PG): {safe_str(pg_error)}")
+                resultado_pg = None
+            if resultado_pg:
+                if resultado_pg.get('success'):
+                    self._guardar_cotizacion_offline(datos)
+                    return resultado_pg
+                if resultado_pg.get('tipo_error') == 'duplicada':
+                    return resultado_pg
+
+        # 3. Offline: insert solo si no existe (nunca overwrite).
+        return self._guardar_cotizacion_offline_solo_insertar(datos)
+
+    def _guardar_cotizacion_offline_solo_insertar(self, datos: Dict) -> Dict:
+        """Inserta en el JSON local solo si el folio no existe (sin overwrite)."""
+        try:
+            data = self._cargar_datos_offline()
+            cotizaciones = data.get("cotizaciones", [])
+            numero_cotizacion = datos.get('numeroCotizacion')
+            if any(cot.get('numeroCotizacion') == numero_cotizacion for cot in cotizaciones):
+                return {
+                    "success": False,
+                    "tipo_error": "duplicada",
+                    "error": "Ya existe una cotización con ese número",
+                    "numero_cotizacion": numero_cotizacion,
+                }
+            if 'timestamp' not in datos:
+                datos['timestamp'] = int(time.time() * 1000)
+            if 'fechaCreacion' not in datos:
+                datos['fechaCreacion'] = datetime.now().isoformat()
+            cotizaciones.append(datos)
+            data["cotizaciones"] = cotizaciones
+            if self._guardar_datos_offline(data):
+                return {
+                    "success": True,
+                    "numero_cotizacion": numero_cotizacion,
+                    "modo": "offline",
+                    "total_cotizaciones": len(cotizaciones),
+                    "mensaje": "Guardado en JSON local",
+                }
+            return {"success": False, "error": "Error guardando archivo JSON"}
+        except Exception as e:
+            print(f"[OFFLINE] Error insert (solo_insertar): {safe_str(e)}")
+            return {"success": False, "error": safe_str(e)}
+
     def contar_cotizaciones_company(self, company_id: str = None) -> int:
         """Cuenta las cotizaciones de una compañía (para límites de plan)."""
         if not company_id:
@@ -811,7 +888,7 @@ class SupabaseManager:
             print(f"[LIMITE] Error contando (SDK): {safe_str(e)}")
         return 0
 
-    def _guardar_cotizacion_sdk(self, datos: Dict) -> Dict:
+    def _guardar_cotizacion_sdk(self, datos: Dict, solo_insertar: bool = False) -> Dict:
         """Guardar cotización usando Supabase SDK REST (fallback estable)"""
         try:
             print(f"[SDK_REST] INICIO - Guardando cotización via SDK REST")
@@ -872,38 +949,59 @@ class SupabaseManager:
             }
             
             print(f"[SDK_REST] Datos SDK preparados, verificando si cotización existe...")
-            
-            # Verificar si existe (para UPDATE vs INSERT)
-            try:
-                existing = self.supabase_client.table('cotizaciones').select('id').eq('numero_cotizacion', numero_cotizacion).execute()
-                print(f"[SDK_REST] Verificación existencia: {'Encontrada' if existing.data else 'Nueva'}")
-            except Exception as check_error:
-                print(f"[SDK_REST] Error verificando existencia: {safe_str(check_error)}")
-                raise Exception(f"Error verificando cotización existente: {safe_str(check_error)}")
-            
-            if existing.data:
-                # UPDATE existente: preservar company_id si no viene en los datos
-                if not sdk_data.get('company_id'):
-                    sdk_data.pop('company_id', None)  # no sobreescribir con NULL
-                cotizacion_id = existing.data[0]['id']
-                print(f"[SDK_REST] Ejecutando UPDATE para ID {cotizacion_id}...")
-                try:
-                    response = self.supabase_client.table('cotizaciones').update(sdk_data).eq('id', cotizacion_id).execute()
-                    print(f"[SDK_REST] UPDATE exitoso - Cotización actualizada: {numero_cotizacion}")
-                except Exception as update_error:
-                    print(f"[SDK_REST] Error en UPDATE: {safe_str(update_error)}")
-                    raise Exception(f"Error actualizando cotización: {safe_str(update_error)}")
-            else:
-                # INSERT nueva
-                print(f"[SDK_REST] Ejecutando INSERT nueva cotización...")
+
+            cotizacion_id = None
+            if solo_insertar:
+                # Insert puro: sin select→update. La carrera por el UNIQUE la
+                # frena la BD; un duplicado se reporta como 'duplicada'.
+                print(f"[SDK_REST] solo_insertar: INSERT puro (sin update)")
                 try:
                     response = self.supabase_client.table('cotizaciones').insert(sdk_data).execute()
                     cotizacion_id = response.data[0]['id'] if response.data else None
                     print(f"[SDK_REST] INSERT exitoso - ID asignado: {cotizacion_id}")
                 except Exception as insert_error:
-                    print(f"[SDK_REST] Error en INSERT: {safe_str(insert_error)}")
-                    print(f"[SDK_REST] Datos que causaron error: {json.dumps(sdk_data, default=str, indent=2)}")
-                    raise Exception(f"Error insertando cotización: {safe_str(insert_error)}")
+                    err_str = safe_str(insert_error)
+                    print(f"[SDK_REST] Error en INSERT: {err_str}")
+                    if any(k in err_str.lower() for k in ['23505', 'duplicate', 'unique']):
+                        return {
+                            "success": False,
+                            "tipo_error": "duplicada",
+                            "error": "Ya existe una cotización con ese número",
+                            "numero_cotizacion": numero_cotizacion,
+                        }
+                    raise Exception(f"Error insertando cotización: {err_str}")
+            else:
+                # Verificar si existe (para UPDATE vs INSERT)
+                try:
+                    existing = self.supabase_client.table('cotizaciones').select('id').eq('numero_cotizacion', numero_cotizacion).execute()
+                    print(f"[SDK_REST] Verificación existencia: {'Encontrada' if existing.data else 'Nueva'}")
+                except Exception as check_error:
+                    print(f"[SDK_REST] Error verificando existencia: {safe_str(check_error)}")
+                    raise Exception(f"Error verificando cotización existente: {safe_str(check_error)}")
+
+                if existing.data:
+                    # UPDATE existente: preservar company_id si no viene en los datos
+                    if not sdk_data.get('company_id'):
+                        sdk_data.pop('company_id', None)  # no sobreescribir con NULL
+                    cotizacion_id = existing.data[0]['id']
+                    print(f"[SDK_REST] Ejecutando UPDATE para ID {cotizacion_id}...")
+                    try:
+                        response = self.supabase_client.table('cotizaciones').update(sdk_data).eq('id', cotizacion_id).execute()
+                        print(f"[SDK_REST] UPDATE exitoso - Cotización actualizada: {numero_cotizacion}")
+                    except Exception as update_error:
+                        print(f"[SDK_REST] Error en UPDATE: {safe_str(update_error)}")
+                        raise Exception(f"Error actualizando cotización: {safe_str(update_error)}")
+                else:
+                    # INSERT nueva
+                    print(f"[SDK_REST] Ejecutando INSERT nueva cotización...")
+                    try:
+                        response = self.supabase_client.table('cotizaciones').insert(sdk_data).execute()
+                        cotizacion_id = response.data[0]['id'] if response.data else None
+                        print(f"[SDK_REST] INSERT exitoso - ID asignado: {cotizacion_id}")
+                    except Exception as insert_error:
+                        print(f"[SDK_REST] Error en INSERT: {safe_str(insert_error)}")
+                        print(f"[SDK_REST] Datos que causaron error: {json.dumps(sdk_data, default=str, indent=2)}")
+                        raise Exception(f"Error insertando cotización: {safe_str(insert_error)}")
             
             # Verificar que el guardado fue exitoso
             print(f"[SDK_REST] Verificando guardado exitoso...")
@@ -941,7 +1039,7 @@ class SupabaseManager:
                 "numero_cotizacion": datos.get('numeroCotizacion', 'unknown')
             }
 
-    def _guardar_cotizacion_supabase(self, datos: Dict) -> Dict:
+    def _guardar_cotizacion_supabase(self, datos: Dict, solo_insertar: bool = False) -> Dict:
         """Guardar cotización en Supabase PostgreSQL con reintentos automáticos"""
         
         # Extraer datos fuera del método de reintentos
@@ -982,26 +1080,39 @@ class SupabaseManager:
         def _operacion_guardar():
             """Operación de guardado que será ejecutada con reintentos"""
             cursor = self.pg_connection.cursor()
-            
+
             try:
-                # Query de inserción/actualización
-                query = """
-                    INSERT INTO cotizaciones (
-                        numero_cotizacion, datos_generales, items, revision,
-                        version, fecha_creacion, timestamp, usuario, observaciones, company_id
-                    ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                    ) ON CONFLICT (numero_cotizacion) DO UPDATE SET
-                        datos_generales = EXCLUDED.datos_generales,
-                        items = EXCLUDED.items,
-                        revision = EXCLUDED.revision,
-                        version = EXCLUDED.version,
-                        usuario = EXCLUDED.usuario,
-                        observaciones = EXCLUDED.observaciones,
-                        company_id = COALESCE(EXCLUDED.company_id, cotizaciones.company_id),
-                        updated_at = NOW()
-                    RETURNING id, numero_cotizacion;
-                """
+                # Query de inserción/actualización. En solo_insertar se usa
+                # ON CONFLICT DO NOTHING: si el folio ya existe no se inserta
+                # ni se actualiza (la revisión previa queda intacta).
+                if solo_insertar:
+                    query = """
+                        INSERT INTO cotizaciones (
+                            numero_cotizacion, datos_generales, items, revision,
+                            version, fecha_creacion, timestamp, usuario, observaciones, company_id
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        ) ON CONFLICT (numero_cotizacion) DO NOTHING
+                        RETURNING id, numero_cotizacion;
+                    """
+                else:
+                    query = """
+                        INSERT INTO cotizaciones (
+                            numero_cotizacion, datos_generales, items, revision,
+                            version, fecha_creacion, timestamp, usuario, observaciones, company_id
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        ) ON CONFLICT (numero_cotizacion) DO UPDATE SET
+                            datos_generales = EXCLUDED.datos_generales,
+                            items = EXCLUDED.items,
+                            revision = EXCLUDED.revision,
+                            version = EXCLUDED.version,
+                            usuario = EXCLUDED.usuario,
+                            observaciones = EXCLUDED.observaciones,
+                            company_id = COALESCE(EXCLUDED.company_id, cotizaciones.company_id),
+                            updated_at = NOW()
+                        RETURNING id, numero_cotizacion;
+                    """
 
                 cursor.execute(query, (
                     numero_cotizacion,
@@ -1015,16 +1126,26 @@ class SupabaseManager:
                     observaciones,
                     datos.get('company_id')
                 ))
-                
+
                 resultado = cursor.fetchone()
+                if resultado is None:
+                    # solo_insertar + ON CONFLICT DO NOTHING: colisión, no se insertó.
+                    self.pg_connection.rollback()
+                    cursor.close()
+                    return {
+                        "success": False,
+                        "tipo_error": "duplicada",
+                        "error": "Ya existe una cotización con ese número",
+                        "numero_cotizacion": numero_cotizacion,
+                    }
                 cotizacion_id = resultado['id']
-                
+
                 # Commit
                 self.pg_connection.commit()
                 cursor.close()
-                
+
                 print(f"[SUPABASE] Cotizacion guardada: ID={cotizacion_id}")
-                
+
                 return {
                     "success": True,
                     "id": cotizacion_id,

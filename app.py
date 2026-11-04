@@ -494,7 +494,8 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
                 'es_mas_reciente': True,
                 'revision_actual': 1,
                 'revision_maxima': 1,
-                'numero_ultima_revision': numero_cotizacion
+                'numero_ultima_revision': numero_cotizacion,
+                'verificado': True
             }
 
         # Construir patrón base (sin R#)
@@ -524,7 +525,8 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
                 'es_mas_reciente': True,
                 'revision_actual': revision_actual,
                 'revision_maxima': revision_actual,
-                'numero_ultima_revision': numero_cotizacion
+                'numero_ultima_revision': numero_cotizacion,
+                'verificado': False
             }
 
         print(f"[VERIFICAR_REVISION] Se encontraron {len(items_encontrados)} cotizaciones")
@@ -613,7 +615,8 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
             'revision_actual': revision_actual,
             'revision_maxima': revision_maxima,
             'numero_ultima_revision': numero_ultima_revision,
-            'historial_revisiones': revisiones_encontradas
+            'historial_revisiones': revisiones_encontradas,
+            'verificado': True
         }
 
     except Exception as e:
@@ -626,7 +629,8 @@ def verificar_revision_mas_reciente(numero_cotizacion, db_manager):
             'es_mas_reciente': True,
             'revision_actual': 1,
             'revision_maxima': 1,
-            'numero_ultima_revision': numero_cotizacion
+            'numero_ultima_revision': numero_cotizacion,
+            'verificado': False
         }
 
 def _safe_for_json(obj):
@@ -714,8 +718,10 @@ def preparar_datos_nueva_revision(cotizacion_original):
             datos['datosGenerales']['numeroCotizacion'] = nuevo_numero
             print(f"[REVISION] Número generado: '{nuevo_numero}'")
         
-        # NUEVO: Recalcular subtotales de materiales para asegurar consistencia
-        if 'items' in datos:
+        # NUEVO: Recalcular subtotales de materiales para asegurar consistencia.
+        # En cotización simple NO hay materiales: recalcular aquí pondría el
+        # total de cada línea en 0 (estructura distinta). Se omite para simple.
+        if 'items' in datos and not es_cotizacion_simple(cotizacion_original):
             print("[REVISION] Recalculando subtotales de materiales...")
             for i, item in enumerate(datos['items']):
                 print(f"  Procesando item {i+1}: {item.get('descripcion', 'Sin descripción')}")
@@ -1092,6 +1098,20 @@ def _filtrar_cotizaciones_sesion(cotizaciones):
         return []
     return [c for c in cotizaciones if isinstance(c, dict) and _es_de_la_sesion(c.get("company_id"))]
 
+
+def es_cotizacion_simple(cot):
+    """True si la cotización es simple, revisando AMBOS lugares donde vive 'tipo'.
+
+    Algunas cotizaciones guardan `tipo` a nivel raíz y otras dentro de
+    `datosGenerales`; dependiendo de la ruta de escritura una u otra queda
+    poblada. Revisar ambos evita clasificar mal una simple como completa.
+    """
+    if not isinstance(cot, dict):
+        return False
+    return (cot.get("tipo") == "simple"
+            or (cot.get("datosGenerales") or {}).get("tipo") == "simple")
+
+
 @app.route("/login")
 def login():
     """Redirige al blueprint de autenticación."""
@@ -1224,8 +1244,8 @@ def _transformar_cotizacion(cot):
         "total": _convertir_a_moneda_mostrar(total_calculado, condiciones),
         "moneda": moneda,
         "_id": cot.get('_id', ''),
-        "tiene_desglose": datos_gen.get('tipo') != 'simple',
-        "es_simple": datos_gen.get('tipo') == 'simple',
+        "tiene_desglose": not es_cotizacion_simple(cot),
+        "es_simple": es_cotizacion_simple(cot),
         "es_antigua": False
     }
 
@@ -2288,6 +2308,40 @@ def eliminar_draft(draft_id):
 # ========================================
 # EDICIÓN MENOR (sin nueva revisión)
 # ========================================
+
+@app.route("/api/revision-estado", methods=["GET"])
+@login_required
+def revision_estado():
+    """Estado ligero de la revisión para el modal "Editar" (bajo demanda).
+
+    Responde solo los datos necesarios para habilitar/deshabilitar "Nueva
+    revisión": es_mas_reciente, revision_maxima y la liga a la última.
+    Nunca devuelve el historial (trae justificaciones).
+    """
+    company = g.get("company") or {}
+    if not has_feature(company, FEATURE_FULL_FORM):
+        return jsonify({"success": False, "error": "Tu plan no incluye revisiones."}), 403
+
+    numero = (request.args.get("numero") or "").strip()
+    if not numero:
+        return jsonify({"success": False, "error": "Falta el número de cotización"}), 400
+
+    item, err = _leer_cotizacion_de_sesion(numero)
+    if err:
+        return err
+
+    info = verificar_revision_mas_reciente(
+        item.get("numeroCotizacion") or numero, db_manager
+    )
+    return jsonify({
+        "success": True,
+        "es_mas_reciente": info.get("es_mas_reciente"),
+        "revision_actual": info.get("revision_actual"),
+        "revision_maxima": info.get("revision_maxima"),
+        "numero_ultima_revision": info.get("numero_ultima_revision"),
+        "verificado": info.get("verificado"),
+    })
+
 
 @app.route("/api/cotizacion/<path:numero_cotizacion>", methods=["GET"])
 @login_required
@@ -3401,7 +3455,7 @@ def ver_item(item_id):
             return jsonify({"encontrado": True, "item": item})
         else:
             from flask import render_template
-            return render_template("ver_cotizacion.html", cotizacion=item)
+            return render_template("ver_cotizacion.html", cotizacion=item, es_simple=es_cotizacion_simple(item))
             
     except Exception as e:
         print(f"Error al ver cotizacion: {e}")
@@ -4198,7 +4252,13 @@ def cotizacion_pdf():
     if request.method == "GET":
         cotizacion_edit = None
         draft_edit = None
+        datos_precargados = None
+        nueva_revision = False
+        modo_edicion_menor = False
+        revision_de = ""
+        info_bloqueo_revision = None
         numero_edit = request.args.get("numero", "").strip()
+        revision_arg = request.args.get("revision", "").strip()
         draft_id = request.args.get("draft", "").strip()
         if draft_id and has_feature(company, FEATURE_FULL_FORM):
             try:
@@ -4211,14 +4271,46 @@ def cotizacion_pdf():
             except Exception as e:
                 print(f"[COTIZACION-PDF] Error cargando draft: {e}")
                 return _respuesta_no_encontrada(draft_id)
+        elif revision_arg:
+            # Nueva revisión de una cotización simple. Solo planes con full_form
+            # (Pro/Business/internal); Starter no tiene folio -R#- y responde 403.
+            if not has_feature(company, FEATURE_FULL_FORM):
+                return jsonify({"success": False, "error": "Tu plan no incluye revisiones."}), 403
+            original, err_rev = _leer_cotizacion_de_sesion(revision_arg)
+            if err_rev:
+                return err_rev
+            info_revision = verificar_revision_mas_reciente(
+                original.get("numeroCotizacion") or revision_arg, db_manager
+            )
+            if info_revision.get("es_mas_reciente"):
+                datos_precargados = preparar_datos_nueva_revision(original)
+                nueva_revision = True
+                revision_de = revision_arg
+            else:
+                info_bloqueo_revision = {
+                    "bloqueada": True,
+                    "numero_actual": revision_arg,
+                    "revision_actual": info_revision.get("revision_actual"),
+                    "revision_maxima": info_revision.get("revision_maxima"),
+                    "numero_ultima_revision": info_revision.get("numero_ultima_revision"),
+                    "historial": info_revision.get("historial_revisiones", []),
+                }
         elif numero_edit:
             item_edit, err_edit = _leer_cotizacion_de_sesion(numero_edit)
             if err_edit:
                 return err_edit
             cotizacion_edit = item_edit
+            # La edición menor (bloqueo de campos) es solo para planes con
+            # full_form. Starter edita libremente, como hoy.
+            modo_edicion_menor = has_feature(company, FEATURE_FULL_FORM)
         return render_template(
             "pdf_simple.html", company=company, cotizacion_edit=cotizacion_edit,
             draft_edit=draft_edit,
+            datos_precargados=datos_precargados,
+            nueva_revision=nueva_revision,
+            modo_edicion_menor=modo_edicion_menor,
+            revision_de=revision_de,
+            info_bloqueo_revision=info_bloqueo_revision,
             user_name=session.get("user_name", ""),
         )
 
@@ -4233,6 +4325,21 @@ def cotizacion_pdf():
     texto_personalizado = (datos.get("textoPersonalizado") or "").strip()
     numero_existente = (datos.get("numeroCotizacion") or "").strip()
     nombre_usuario = (datos.get("nombre") or "").strip()
+    revision_de = (datos.get("revisionDe") or "").strip()
+    modo = (datos.get("modo") or "").strip()
+    if not modo:
+        # Backward-compatible: ligas viejas a ?numero= son edición menor;
+        # la presencia de revisionDe marca nueva revisión.
+        if revision_de:
+            modo = "nueva_revision"
+        elif numero_existente:
+            modo = "edicion_menor"
+        else:
+            modo = "crear"
+    if modo not in ("crear", "nueva_revision", "edicion_menor"):
+        # Un modo desconocido no debe caer en la rama de "crear" (que se
+        # saltaría la cuota y registrar_pdf_simple). Rechazarlo de plano.
+        return jsonify({"success": False, "error": "Modo no válido."}), 400
 
     # ── Validación server-side (defensa en profundidad) ──
     # No guardar cotizaciones vacías. Evita que se creen registros "en cero"
@@ -4284,12 +4391,55 @@ def cotizacion_pdf():
                 "error": "El campo 'Proyecto' es obligatorio en tu plan.",
             }), 400
 
-    if numero_existente:
-        # Edición: el folio tiene que ser de esta compañía. Si es de otra,
-        # 404 y no se guarda encima.
-        bloqueo_existente = _bloquear_si_folio_ajeno(numero_existente)
-        if bloqueo_existente:
-            return bloqueo_existente
+    original_edit = None
+    original_item = None
+    nueva_revision_num = None
+    if modo == "nueva_revision":
+        # Nueva revisión: el folio nuevo NO se acepta del navegador; se deriva
+        # del original (R(n+1)). Solo planes con full_form (Pro/Business/internal).
+        if not has_feature(plan, FEATURE_FULL_FORM):
+            return jsonify({"success": False, "error": "Tu plan no incluye revisiones."}), 403
+        try:
+            resultado_orig = db_manager.obtener_cotizacion(revision_de)
+        except Exception as e:
+            print(f"[COTIZACION-PDF] Error cargando original para revisión: {e}")
+            resultado_orig = None
+        original_item = (resultado_orig or {}).get("item") if (resultado_orig or {}).get("encontrado") else None
+        if not original_item:
+            return jsonify({"success": False, "error": "Cotización no encontrada"}), 404
+        if not _es_de_la_sesion(original_item.get("company_id")):
+            return jsonify({"success": False, "error": "No autorizado"}), 403
+        folio_original = original_item.get("numeroCotizacion") or revision_de
+        info_rev = verificar_revision_mas_reciente(folio_original, db_manager)
+        if not info_rev.get("verificado"):
+            # Búsqueda fallida: no tomarla como "es la más reciente".
+            return jsonify({"success": False, "error": "No se pudo verificar la revisión más reciente. Intenta de nuevo."}), 500
+        if not info_rev.get("es_mas_reciente"):
+            return jsonify({"success": False, "error": "Ya existe una revisión más reciente de esta cotización."}), 409
+        import re
+        match_rev = re.search(r'-R(\d+)(?:-|$)', folio_original or '')
+        if match_rev:
+            nueva_revision_num = str(int(match_rev.group(1)) + 1)
+        else:
+            nueva_revision_num = "2"
+        numero = db_manager.generar_numero_revision(folio_original, nueva_revision_num)
+        # Justificación obligatoria (>= 10 caracteres) para revisiones >= 2.
+        justificacion = (datos_generales.get("actualizacionRevision") or "").strip()
+        if int(nueva_revision_num) >= 2 and len(justificacion) < 10:
+            return jsonify({
+                "success": False,
+                "error": "La justificación de la actualización es obligatoria (mínimo 10 caracteres).",
+                "campo_requerido": "actualizacionRevision",
+            }), 400
+        # Confirmar que el folio R(n+1) no exista → 409 sin sobrescribir.
+        existente_nuevo = db_manager.obtener_cotizacion(numero)
+        if existente_nuevo and existente_nuevo.get("encontrado"):
+            return jsonify({"success": False, "error": "Ya existe esa revisión"}), 409
+    elif modo == "edicion_menor":
+        # Edición menor: folio de esta compañía; 404 si no existe o es ajeno.
+        original_edit, err_edit = _leer_cotizacion_de_sesion(numero_existente)
+        if err_edit:
+            return err_edit
         numero = numero_existente  # edición: número fijo
     elif has_feature(plan, FEATURE_FULL_FORM):
         # Planes con formulario completo → numeración consecutiva idéntica al formulario completo.
@@ -4321,8 +4471,8 @@ def cotizacion_pdf():
     else:
         numero = db_manager.generar_numero_simple(company_id)
 
-    # ── Límite de plan (solo al crear, no al editar) ──
-    if not numero_existente:
+    # ── Límite de plan (solo al crear; editar/revisar no consume cuota) ──
+    if modo == "crear":
         max_pdfs = get_limit(plan, "max_pdfs")
         if max_pdfs is not None:
             usados = db_manager.contar_pdfs_mes(company_id)
@@ -4377,26 +4527,61 @@ def cotizacion_pdf():
         "totales": {"subtotal": subtotal, "iva": iva, "total": total},
     }
 
+    # ── Modo: bloqueo/herencia de campos según el flujo ──
+    if modo == "edicion_menor" and has_feature(plan, FEATURE_FULL_FORM) and isinstance(original_edit, dict):
+        # Edición menor: Vendedor/Cliente/Revisión/Fecha no deben cambiar. Se
+        # fijan al original aunque el frontend se hubiera saltado el candado.
+        # Si el original los tiene vacíos, se conservan vacíos (no se usa el
+        # fallback de sesión/fecha de hoy).
+        orig_dg = original_edit.get("datosGenerales") or {}
+        for campo in ("vendedor", "cliente", "revision"):
+            datos_completos["datosGenerales"][campo] = orig_dg.get(campo) or ""
+        # Fecha: la del original; si falta, sale de su fechaCreacion (no de hoy).
+        fecha_orig = (orig_dg.get("fecha") or "").strip()
+        if not fecha_orig:
+            fecha_creacion = str(original_edit.get("fechaCreacion") or "").strip()
+            fecha_orig = fecha_creacion[:10] if fecha_creacion else ""
+        datos_completos["datosGenerales"]["fecha"] = fecha_orig
+    elif modo == "nueva_revision":
+        # Nueva revisión: el número de revisión se deriva del original (R(n+1)).
+        datos_completos["datosGenerales"]["revision"] = str(nueva_revision_num)
+
     # ── Imagen de referencia (opcional) ──
     img_payload = datos.get("imagenReferencia")
     img_ref = None
     if img_payload and img_payload.get("base64"):
         img_ref = procesar_imagen_referencia(datos, numero or "nueva")
-    elif img_payload and img_payload.get("conservar") and numero_existente:
-        try:
-            existente_img, _err_img = _leer_cotizacion_de_sesion(numero_existente)
-            if existente_img:
-                img_ref = (existente_img.get("datosGenerales") or {}).get("imagenReferencia")
-        except Exception as e:
-            print(f"[COTIZACION-PDF] Error conservando imagen: {e}")
+    elif img_payload and img_payload.get("conservar"):
+        # Conservar la imagen del original. En edición menor se lee del folio
+        # editado; en nueva revisión, del folio original (revision_de).
+        fuente_img = original_item if modo == "nueva_revision" else original_edit
+        if fuente_img is None and numero_existente:
+            try:
+                fuente_img, _err_img = _leer_cotizacion_de_sesion(numero_existente)
+            except Exception as e:
+                print(f"[COTIZACION-PDF] Error conservando imagen: {e}")
+        if isinstance(fuente_img, dict):
+            img_ref = (fuente_img.get("datosGenerales") or {}).get("imagenReferencia")
     if img_ref:
         datos_completos["datosGenerales"]["imagenReferencia"] = img_ref
         print(f"[COTIZACION-PDF] Imagen de referencia incluida: url={bool(img_ref.get('url'))}, dataUri={bool(img_ref.get('dataUri'))}")
     else:
         print(f"[COTIZACION-PDF] Sin imagen de referencia (img_payload={bool(img_payload)}, base64={bool(img_payload and img_payload.get('base64'))}, conservar={bool(img_payload and img_payload.get('conservar'))})")
 
-    resultado = db_manager.guardar_cotizacion(datos_completos, company_id=company_id)
+    resultado = db_manager.guardar_cotizacion(
+        datos_completos,
+        company_id=company_id,
+        solo_insertar=(modo == "nueva_revision"),
+    )
     if not resultado.get("success"):
+        # Folio duplicado (p. ej. ya existía esa revisión): no sobrescribir y
+        # avisar con claridad al usuario, no fallar en silencio.
+        if resultado.get("tipo_error") == "duplicada":
+            return jsonify({
+                "success": False,
+                "error": resultado.get("error", "Ya existe esa revisión"),
+                "tipo_error": "duplicada",
+            }), 409
         status = 403 if resultado.get("tipo_error") == "plan_limit" else 500
         return jsonify({
             "success": False,
@@ -4406,7 +4591,7 @@ def cotizacion_pdf():
     numero_final = resultado.get("numeroCotizacion") or numero
 
     # Registrar uso del mes para la cuota de PDFs (solo cotizaciones nuevas).
-    if not numero_existente:
+    if modo == "crear":
         db_manager.registrar_pdf_simple(company_id)
 
     # ── Generar y almacenar el PDF (mismo generador del PDF original) ──
@@ -4941,7 +5126,7 @@ def ver_desglose(numero_cotizacion):
 
             print(f"[DESGLOSE] Cotización con numeroCotizacion: {cotizacion.get('numeroCotizacion', 'N/A')}")
             from flask import render_template
-            return render_template("ver_cotizacion.html", cotizacion=cotizacion)
+            return render_template("ver_cotizacion.html", cotizacion=cotizacion, es_simple=es_cotizacion_simple(cotizacion))
         
         # PASO 2: Sin fila. Solo cuentas internas o superadmin llegan aquí,
         # y solo se busca el PDF de las variantes ya autorizadas.
