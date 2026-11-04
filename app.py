@@ -944,7 +944,7 @@ def timestamp_to_date(timestamp):
 # ============================================
 
 from functools import wraps
-from cotizador.middleware import login_required, plan_required, superadmin_required
+from cotizador.middleware import login_required, plan_required, superadmin_required, is_superadmin
 from cotizador.plans import (
     FEATURE_SIMPLE_PDF, FEATURE_FAST_QUOTE, FEATURE_FULL_FORM, FEATURE_DESGLOSE,
     FEATURE_IMPORT_PDFS,
@@ -952,6 +952,145 @@ from cotizador.plans import (
     STARTER_HISTORY_LIMIT,
     fast_quote_quota_blocked, fast_quote_consumes_credit,
 )
+
+
+def _company_id_vacio(company_id_registro) -> bool:
+    return company_id_registro is None or company_id_registro == ""
+
+
+def _es_de_la_sesion(company_id_registro) -> bool:
+    """True solo si el registro es de la compañía de la sesión.
+
+    company_id NULL o vacío se trata como ajeno (misma respuesta que otra
+    empresa). La única excepción es el superadmin, que puede ver esas filas.
+    """
+    if _company_id_vacio(company_id_registro):
+        return is_superadmin()
+    sesion = session.get("company_id")
+    if not sesion:
+        return False
+    return str(company_id_registro) == str(sesion)
+
+
+def _puede_ver_pdf_legado() -> bool:
+    """PDF sin fila en cotizaciones: solo cuentas internas o superadmin.
+
+    El registro es público, así que cualquier cuenta nueva no debe poder
+    adivinar folios viejos de Drive/Storage.
+    """
+    if is_superadmin():
+        return True
+    company = g.get("company") or {}
+    return bool(company.get("is_internal"))
+
+
+def _variantes_folio(numero):
+    """Nombre pedido y el intercambio espacio/guion que usa el fallback de PDF."""
+    numero = str(numero or "").strip().rstrip("/")
+    variantes = []
+    for candidato in (numero, numero.replace(" ", "-"), numero.replace("-", " ")):
+        candidato = (candidato or "").strip()
+        if candidato and candidato not in variantes:
+            variantes.append(candidato)
+    return variantes
+
+
+def _fila_cotizacion(numero):
+    """Item si hay fila; None si no existe. No distingue empresa."""
+    if not numero:
+        return None
+    try:
+        resultado = db_manager.obtener_cotizacion(numero)
+    except Exception as e:
+        print(f"[TENANT] Error leyendo cotización '{numero}': {e}")
+        return None
+    if not resultado or not resultado.get("encontrado"):
+        return None
+    return resultado.get("item") or {}
+
+
+def _autorizar_folios_pdf(numero):
+    """Valida el folio y cada variante espacio/guion antes de tocar Storage.
+
+    Devuelve (autorizados, error). autorizados es una lista de
+    (nombre, item|None). Si alguna variante tiene fila y no es de la sesión
+    (incluida company_id NULL), error es 404 y no se sirve nada.
+    Sin ninguna fila, solo cuentas internas o superadmin reciben las
+    variantes para el PDF legado; el resto, 404.
+    """
+    variantes = _variantes_folio(numero)
+    if not variantes:
+        return None, _respuesta_no_encontrada(numero)
+    propias = []
+    for nombre in variantes:
+        fila = _fila_cotizacion(nombre)
+        if fila is None:
+            continue
+        if not _es_de_la_sesion(fila.get("company_id")):
+            return None, _respuesta_no_encontrada(numero)
+        propias.append((nombre, fila))
+    if propias:
+        return propias, None
+    if not _puede_ver_pdf_legado():
+        return None, _respuesta_no_encontrada(numero)
+    return [(nombre, None) for nombre in variantes], None
+
+
+def _respuesta_no_encontrada(identificador=""):
+    """404 uniforme. No dice si el folio existe en otra empresa."""
+    if (
+        (request.path or "").startswith("/api/")
+        or request.is_json
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    ):
+        return jsonify({"success": False, "error": "Cotización no encontrada"}), 404
+    return handle_not_found_response(identificador)
+
+
+def _leer_cotizacion_de_sesion(identificador):
+    """Devuelve (item, None) o (None, respuesta 404). No escribe."""
+    from urllib.parse import unquote
+    identificador = unquote(str(identificador or "")).strip().rstrip("/")
+    if not identificador:
+        return None, _respuesta_no_encontrada(identificador)
+    try:
+        resultado = db_manager.obtener_cotizacion(identificador)
+    except Exception as e:
+        print(f"[TENANT] Error leyendo cotización '{identificador}': {e}")
+        return None, _respuesta_no_encontrada(identificador)
+    item = (resultado or {}).get("item") if resultado and resultado.get("encontrado") else None
+    if not item or not _es_de_la_sesion(item.get("company_id")):
+        return None, _respuesta_no_encontrada(identificador)
+    return item, None
+
+
+def _bloquear_si_folio_ajeno(identificador):
+    """None si el folio no existe o es de esta sesión (se puede guardar).
+
+    Respuesta 404 si ya existe y no es de esta sesión: no se escribe.
+    """
+    from urllib.parse import unquote
+    identificador = unquote(str(identificador or "")).strip()
+    if not identificador:
+        return None
+    try:
+        resultado = db_manager.obtener_cotizacion(identificador)
+    except Exception as e:
+        print(f"[TENANT] Error verificando folio '{identificador}': {e}")
+        return _respuesta_no_encontrada(identificador)
+    if not resultado or not resultado.get("encontrado"):
+        return None
+    item = resultado.get("item") or {}
+    if _es_de_la_sesion(item.get("company_id")):
+        return None
+    return _respuesta_no_encontrada(identificador)
+
+
+def _filtrar_cotizaciones_sesion(cotizaciones):
+    """Quita registros que no son de la compañía de la sesión."""
+    if not isinstance(cotizaciones, list):
+        return []
+    return [c for c in cotizaciones if isinstance(c, dict) and _es_de_la_sesion(c.get("company_id"))]
 
 @app.route("/login")
 def login():
@@ -1188,6 +1327,15 @@ def home():
             if not (datos_generales.get('vendedor') or '').strip():
                 datos_generales['vendedor'] = (session.get('user_name') or '').strip()
                 datos['datosGenerales'] = datos_generales
+
+            # No pisar un folio que ya es de otra compañía.
+            numero_previo = (
+                (datos_generales.get("numeroCotizacion") or "")
+                or (datos.get("numeroCotizacion") or "")
+            )
+            bloqueo = _bloquear_si_folio_ajeno(numero_previo)
+            if bloqueo:
+                return bloqueo
 
             # Guardar TODOS los datos usando el DatabaseManager
             resultado = db_manager.guardar_cotizacion(datos, company_id=session.get("company_id"))
@@ -1493,7 +1641,13 @@ def formulario():
                 datos['datosGenerales']['numeroCotizacion'] = numero_final
             else:
                 print(f"[NUMERO_DEBUG] ⚠️ Procediendo sin número - será generado automáticamente")
-            
+
+            # Antes de subir la imagen: un folio ajeno (o con company_id NULL)
+            # no debe dejar archivos en Storage.
+            bloqueo_folio = _bloquear_si_folio_ajeno(numero_final)
+            if bloqueo_folio:
+                return bloqueo_folio
+
             # Procesar imagen de referencia (si fue enviada)
             img_ref_resultado = procesar_imagen_referencia(datos, numero_final or 'nueva')
             if img_ref_resultado:
@@ -1504,7 +1658,6 @@ def formulario():
                 datos.pop('imagenReferencia', None)
                 print(f"[FORM] Imagen de referencia procesada: {img_ref_resultado.get('url', 'sin URL')}")
 
-            # Guardar usando DatabaseManager con manejo robusto de errores
             print("[FORM] FORMULARIO: Llamando a guardar_cotizacion...")
             resultado = db_manager.guardar_cotizacion(datos, company_id=session.get("company_id"))
             print(f"[FORM] FORMULARIO: Resultado guardado = {json.dumps(resultado, indent=2, ensure_ascii=False)}")
@@ -1702,14 +1855,12 @@ def formulario():
 
     if edicion_menor_id:
         print(f"[EDICION_MENOR] Cargando formulario para edición menor: '{edicion_menor_id}'")
-        resultado_em = db_manager.obtener_cotizacion(edicion_menor_id)
-        if resultado_em.get('encontrado'):
-            datos_edicion_menor = resultado_em['item']
-            datos_edicion_menor = _safe_for_json(datos_edicion_menor)
-            modo_edicion_menor = True
-            print(f"[EDICION_MENOR] Cotización cargada para edición menor: {edicion_menor_id}")
-        else:
-            print(f"[EDICION_MENOR] Cotización no encontrada: '{edicion_menor_id}'")
+        item_em, err_em = _leer_cotizacion_de_sesion(edicion_menor_id)
+        if err_em:
+            return err_em
+        datos_edicion_menor = _safe_for_json(item_em)
+        modo_edicion_menor = True
+        print(f"[EDICION_MENOR] Cotización cargada para edición menor: {edicion_menor_id}")
 
     # Verificar si es una nueva revisión
     revision_id = request.args.get('revision')
@@ -1718,10 +1869,12 @@ def formulario():
 
     if revision_id:
         print(f"[REVISION] Solicitando nueva revisión de: '{revision_id}'")
-        # Cargar datos de la cotización original para nueva revisión
-        resultado = db_manager.obtener_cotizacion(revision_id)
-        if resultado.get('encontrado'):
-            cotizacion_original = resultado['item']
+        # Cargar datos de la cotización original para nueva revisión.
+        # 404 si no existe o es de otra compañía (misma respuesta).
+        cotizacion_original, err_rev = _leer_cotizacion_de_sesion(revision_id)
+        if err_rev:
+            return err_rev
+        if cotizacion_original:
             numero_cotizacion = cotizacion_original.get('numeroCotizacion', '')
             print(f"[REVISION] Cotización original encontrada: {numero_cotizacion}")
 
@@ -1791,7 +1944,10 @@ def debug_test_obtener_cotizacion(item_id):
     """Endpoint de diagnóstico: prueba obtener_cotizacion() directamente."""
     from urllib.parse import unquote
     item_id = unquote(item_id)
-    resultado = db_manager.obtener_cotizacion(item_id)
+    item, err = _leer_cotizacion_de_sesion(item_id)
+    if err:
+        return err
+    resultado = {"encontrado": True, "item": item}
     encontrado = resultado.get('encontrado', False)
     response = {
         "id_buscado": item_id,
@@ -2134,6 +2290,7 @@ def eliminar_draft(draft_id):
 # ========================================
 
 @app.route("/api/cotizacion/<path:numero_cotizacion>", methods=["GET"])
+@login_required
 def obtener_cotizacion_api(numero_cotizacion):
     """
     Devuelve los datos de una cotización en formato JSON.
@@ -2148,10 +2305,10 @@ def obtener_cotizacion_api(numero_cotizacion):
         preparar_revision = request.args.get('preparar_revision', '').lower() == 'true'
         print(f"[API_COTIZACION] Buscando: {numero_cotizacion!r} | preparar_revision={preparar_revision}")
 
-        resultado = db_manager.obtener_cotizacion(numero_cotizacion)
-        print(f"[API_COTIZACION] Resultado: encontrado={resultado.get('encontrado')} | keys={list(resultado.keys())}")
-        if resultado.get('encontrado'):
-            cotizacion = resultado['item']
+        cotizacion, err_cot = _leer_cotizacion_de_sesion(numero_cotizacion)
+        if err_cot:
+            return err_cot
+        if cotizacion:
             if preparar_revision:
                 # Verificar que sea la revisión más reciente
                 nc = cotizacion.get('numeroCotizacion', '')
@@ -2179,6 +2336,7 @@ def obtener_cotizacion_api(numero_cotizacion):
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/cotizacion/<path:numero_cotizacion>/edicion-menor", methods=["PATCH"])
+@login_required
 def edicion_menor(numero_cotizacion):
     """
     Corrige una cotización sin generar nueva revisión.
@@ -2190,6 +2348,14 @@ def edicion_menor(numero_cotizacion):
     - Actualización de imagen de referencia
     """
     try:
+        from urllib.parse import unquote
+        numero_cotizacion = unquote(numero_cotizacion)
+        # Antes de tocar imágenes o de validar el cuerpo: un folio ajeno
+        # responde igual que uno inexistente y no se modifica.
+        _item_em, err_em = _leer_cotizacion_de_sesion(numero_cotizacion)
+        if err_em:
+            return err_em
+
         parche = request.get_json()
         if not parche:
             return jsonify({"success": False, "error": "No se recibieron datos"}), 400
@@ -2213,7 +2379,9 @@ def edicion_menor(numero_cotizacion):
                 parche['imagenReferenciaProcesada'] = None
 
         usuario = session.get('user_name', 'desconocido')
-        resultado = db_manager.edicion_menor_cotizacion(numero_cotizacion, parche, usuario)
+        resultado = db_manager.edicion_menor_cotizacion(
+            numero_cotizacion, parche, usuario, company_id=session.get("company_id")
+        )
 
         if resultado.get('success'):
             nuevo_numero = resultado.get('numero_cotizacion', numero_cotizacion)
@@ -2236,6 +2404,7 @@ def edicion_menor(numero_cotizacion):
 
 
 @app.route("/diagnostico-completo")
+@login_required
 def diagnostico_completo():
     """Diagnóstico completo del sistema para debugging de producción"""
     import sys
@@ -2535,17 +2704,16 @@ def cotizacion_resumen(numero_cotizacion):
             return jsonify({"success": False, "error": resultado["error"]})
 
         cotizaciones = resultado.get("resultados", [])
-        if not cotizaciones:
-            return jsonify({"success": False, "error": "Cotización no encontrada"})
 
-        # buscar_cotizaciones hace match por subcadena; preferir el match exacto
+        # Match exacto y de esta compañía. Un subcadena de otro folio, o un
+        # folio de otra empresa (o company_id NULL), responde 404.
         cot = None
         for c in cotizaciones:
-            if c.get('numeroCotizacion') == numero_cotizacion:
+            if c.get('numeroCotizacion') == numero_cotizacion and _es_de_la_sesion(c.get('company_id')):
                 cot = c
                 break
         if cot is None:
-            cot = cotizaciones[0]
+            return jsonify({"success": False, "error": "Cotización no encontrada"}), 404
 
         plano = _transformar_cotizacion(cot)
 
@@ -3031,8 +3199,9 @@ def todas_cotizaciones():
         return f"Error al cargar cotizaciones: {str(e)}", 500
 
 @app.route("/diagnostico-tabla-datos")
+@login_required
 def diagnostico_tabla_datos():
-    """Diagnóstico de datos de tabla sin requerimiento de login - Para debugging"""
+    """Diagnóstico de la tabla de cotizaciones de la compañía en sesión."""
     import traceback
     import json
 
@@ -3047,7 +3216,7 @@ def diagnostico_tabla_datos():
                 "modo_conexion": "Offline (JSON)" if db_manager.modo_offline else "Online (Supabase)"
             })
 
-        cotizaciones_raw = resultado_db.get("resultados", [])
+        cotizaciones_raw = _filtrar_cotizaciones_sesion(resultado_db.get("resultados", []))
 
         # Analizar primeras 3 cotizaciones
         analisis = []
@@ -3211,6 +3380,7 @@ def debug_tabla_cotizaciones():
         """, 500
 
 @app.route("/ver/<path:item_id>")
+@login_required
 def ver_item(item_id):
     """Ver cotización específica (acepta caracteres especiales)"""
     try:
@@ -3219,21 +3389,19 @@ def ver_item(item_id):
         item_id = unquote(item_id)
         
         print(f"Viendo cotizacion: '{item_id}'")
-        
-        resultado = db_manager.obtener_cotizacion(item_id)
-        
-        if "error" in resultado:
-            return handle_error_response(resultado["error"], item_id)
-        
-        if not resultado["encontrado"]:
-            return handle_not_found_response(item_id)
+
+        # Incluye el fallback por id numérico de obtener_cotizacion, pero
+        # solo si el registro es de la compañía de la sesión.
+        item, err = _leer_cotizacion_de_sesion(item_id)
+        if err:
+            return err
         
         # Respuesta según el tipo de petición
         if is_json_request():
-            return jsonify(resultado)
+            return jsonify({"encontrado": True, "item": item})
         else:
             from flask import render_template
-            return render_template("ver_cotizacion.html", cotizacion=resultado["item"])
+            return render_template("ver_cotizacion.html", cotizacion=item)
             
     except Exception as e:
         print(f"Error al ver cotizacion: {e}")
@@ -3242,6 +3410,7 @@ def ver_item(item_id):
         return handle_error_response(str(e), item_id)
 
 @app.route("/listar")
+@login_required
 def listar_cotizaciones():
     """Listar todas las cotizaciones recientes con paginación"""
     try:
@@ -3251,8 +3420,12 @@ def listar_cotizaciones():
         # Limitar per_page al máximo configurado
         max_per_page = int(os.getenv('MAX_RESULTS_PER_PAGE', '50'))
         per_page = min(per_page, max_per_page)
-        
-        resultado = db_manager.obtener_todas_cotizaciones(page, per_page)
+
+        company_id = session.get("company_id")
+        resultado = db_manager.buscar_cotizaciones("", page, per_page, company_id=company_id)
+        for clave in ("resultados", "items"):
+            if isinstance(resultado.get(clave), list):
+                resultado[clave] = _filtrar_cotizaciones_sesion(resultado[clave])
         
         if "error" in resultado:
             return jsonify({"error": resultado["error"]}), 500
@@ -3308,8 +3481,9 @@ def generar_texto_ia():
         if numero_cotizacion:
             try:
                 resultado_bd = db_manager.obtener_cotizacion(numero_cotizacion)
-                if resultado_bd.get('encontrado'):
-                    item = resultado_bd['item']
+                item = resultado_bd.get('item') if resultado_bd.get('encontrado') else None
+                # Texto de otra empresa: tratarlo como si no hubiera texto guardado.
+                if item and _es_de_la_sesion(item.get('company_id')):
                     texto_guardado = (
                         item.get('datosGenerales', {}).get('textoIntroductorio', '') or
                         item.get('textoIntroductorio', '') or
@@ -4028,20 +4202,20 @@ def cotizacion_pdf():
         draft_id = request.args.get("draft", "").strip()
         if draft_id and has_feature(company, FEATURE_FULL_FORM):
             try:
-                d = db_manager.obtener_draft(draft_id)
-                if d and (d.get("datos") or {}).get("tipo") == "simple":
+                d = db_manager.obtener_draft(draft_id, company_id=company_id)
+                # Sin fila, o fila de otra empresa: misma respuesta.
+                if not d or not _es_de_la_sesion(d.get("company_id")):
+                    return _respuesta_no_encontrada(draft_id)
+                if (d.get("datos") or {}).get("tipo") == "simple":
                     draft_edit = d
             except Exception as e:
                 print(f"[COTIZACION-PDF] Error cargando draft: {e}")
+                return _respuesta_no_encontrada(draft_id)
         elif numero_edit:
-            try:
-                r = db_manager.obtener_cotizacion(numero_edit)
-                if r.get("encontrado"):
-                    item = r["item"]
-                    if item.get("company_id") == company_id:
-                        cotizacion_edit = item
-            except Exception as e:
-                print(f"[COTIZACION-PDF] Error cargando para editar: {e}")
+            item_edit, err_edit = _leer_cotizacion_de_sesion(numero_edit)
+            if err_edit:
+                return err_edit
+            cotizacion_edit = item_edit
         return render_template(
             "pdf_simple.html", company=company, cotizacion_edit=cotizacion_edit,
             draft_edit=draft_edit,
@@ -4111,6 +4285,11 @@ def cotizacion_pdf():
             }), 400
 
     if numero_existente:
+        # Edición: el folio tiene que ser de esta compañía. Si es de otra,
+        # 404 y no se guarda encima.
+        bloqueo_existente = _bloquear_si_folio_ajeno(numero_existente)
+        if bloqueo_existente:
+            return bloqueo_existente
         numero = numero_existente  # edición: número fijo
     elif has_feature(plan, FEATURE_FULL_FORM):
         # Planes con formulario completo → numeración consecutiva idéntica al formulario completo.
@@ -4130,6 +4309,8 @@ def cotizacion_pdf():
         else:
             existente = db_manager.obtener_cotizacion(numero)
             if existente.get("encontrado"):
+                # El nombre ya está usado. No se reescribe el folio (ni el de
+                # otra empresa): se rechaza antes de guardar, igual que antes.
                 return jsonify({
                     "success": False,
                     "error": (
@@ -4203,9 +4384,9 @@ def cotizacion_pdf():
         img_ref = procesar_imagen_referencia(datos, numero or "nueva")
     elif img_payload and img_payload.get("conservar") and numero_existente:
         try:
-            existente = db_manager.obtener_cotizacion(numero_existente)
-            if existente.get("encontrado"):
-                img_ref = (existente.get("item") or {}).get("datosGenerales", {}).get("imagenReferencia")
+            existente_img, _err_img = _leer_cotizacion_de_sesion(numero_existente)
+            if existente_img:
+                img_ref = (existente_img.get("datosGenerales") or {}).get("imagenReferencia")
         except Exception as e:
             print(f"[COTIZACION-PDF] Error conservando imagen: {e}")
     if img_ref:
@@ -4255,37 +4436,29 @@ def cotizacion_pdf():
 # ============================================
 
 @app.route("/generar_pdf", methods=["POST"])
+@login_required
 def generar_pdf():
     """Genera PDF de la cotización usando el formato oficial de Sifra"""
-    # Verificar si hay generadores de PDF disponibles
-    if not WEASYPRINT_AVAILABLE and not REPORTLAB_AVAILABLE:
-        return jsonify({
-            "error": "Ningún generador de PDF disponible",
-            "mensaje": "Para habilitar la generación de PDF, instala ReportLab o WeasyPrint",
-            "solucion": "Ejecuta: pip install reportlab"
-        }), 503
-    
     try:
-        datos = request.get_json()
+        datos = request.get_json() or {}
         numero_cotizacion = datos.get('numeroCotizacion')
         texto_personalizado = datos.get('textoPersonalizado', None)
 
         if not numero_cotizacion:
             return jsonify({"error": "Número de cotización requerido"}), 400
 
-        # Buscar la cotización en la base de datos
-        resultado = db_manager.obtener_cotizacion(numero_cotizacion)
-        
-        if not resultado["encontrado"]:
-            mensaje_detallado = resultado.get("mensaje", "Sin detalles")
+        # Antes de hablar de generadores: un folio ajeno es 404, igual que
+        # uno que no existe, y no se reescribe el texto introductorio.
+        cotizacion, err_pdf = _leer_cotizacion_de_sesion(numero_cotizacion)
+        if err_pdf:
+            return err_pdf
+
+        if not WEASYPRINT_AVAILABLE and not REPORTLAB_AVAILABLE:
             return jsonify({
-                "error": f"Cotización '{numero_cotizacion}' no encontrada",
-                "detalle": mensaje_detallado,
-                "numero_buscado": numero_cotizacion,
-                "modo_busqueda": resultado.get("modo", "desconocido")
-            }), 404
-        
-        cotizacion = resultado["item"]
+                "error": "Ningún generador de PDF disponible",
+                "mensaje": "Para habilitar la generación de PDF, instala ReportLab o WeasyPrint",
+                "solucion": "Ejecuta: pip install reportlab"
+            }), 503
         
         # Extraer datos para el template
         datos_generales = cotizacion.get('datosGenerales', {})
@@ -4393,6 +4566,9 @@ def generar_pdf():
                     cotizacion['datosGenerales'] = {}
                 cotizacion['datosGenerales']['textoIntroductorio'] = texto_personalizado
                 cotizacion['textoIntroductorio'] = texto_personalizado
+                bloqueo_texto = _bloquear_si_folio_ajeno(numero_cotizacion)
+                if bloqueo_texto:
+                    return bloqueo_texto
                 resultado_texto = db_manager.guardar_cotizacion(cotizacion, company_id=session.get("company_id"))
                 if resultado_texto.get('success'):
                     print(f"Texto introductorio guardado en cotización ({len(texto_personalizado)} chars)")
@@ -4479,6 +4655,7 @@ def ver_pdf_importado(pdf_id):
 
 
 @app.route("/pdf/<path:numero_cotizacion>")
+@login_required
 def servir_pdf(numero_cotizacion):
     """Servir PDF almacenado para visualización"""
     try:
@@ -4489,38 +4666,32 @@ def servir_pdf(numero_cotizacion):
         # BUGFIX: Eliminar trailing slash que causa problemas con nombres de archivo
         numero_cotizacion = numero_cotizacion.rstrip('/')
 
-        # Verificación de propiedad (multi-tenant): si la cotización existe en BD
-        # y pertenece a otra compañía, denegar. Los PDFs legacy sin cotización en
-        # BD (Google Drive legacy) se siguen sirviendo.
-        company_id_session = session.get("company_id")
-        try:
-            owner = db_manager.obtener_cotizacion(numero_cotizacion)
-            owner_company = owner.get("item", {}).get("company_id") if owner.get("encontrado") else None
-        except Exception:
-            owner_company = None
-        if owner_company and owner_company != company_id_session:
-            return jsonify({"error": "No tienes permiso para ver este PDF"}), 403
+        # Cada variante (espacios ↔ guiones) se valida contra la BD antes de
+        # pedir el archivo. Si alguna fila es de otra empresa, o no hay fila
+        # y la cuenta no es interna ni superadmin, no se llama a Storage.
+        autorizados, err_pdf_auth = _autorizar_folios_pdf(numero_cotizacion)
+        if err_pdf_auth:
+            return err_pdf_auth
 
         print(f"PDF: Sirviendo PDF:")
         print(f"   URL original: '{numero_original}'")
         print(f"   Después de unquote: '{numero_cotizacion}'")
-        
-        # Si tiene espacios, intentar reemplazar con guiones
-        if ' ' in numero_cotizacion:
-            numero_alternativo = numero_cotizacion.replace(' ', '-')
-            print(f"   Variación con guiones: '{numero_alternativo}'")
-        else:
-            numero_alternativo = None
-        
-        # Obtener información del PDF - intentar versión principal primero
-        resultado = pdf_manager.obtener_pdf(numero_cotizacion)
-        
-        # Si no lo encuentra y hay una versión alternativa, intentar con esa
-        if not resultado.get("encontrado", False) and numero_alternativo:
-            print(f"   No encontrado con espacios, intentando con guiones...")
-            resultado = pdf_manager.obtener_pdf(numero_alternativo)
-            if resultado.get("encontrado", False):
-                numero_cotizacion = numero_alternativo  # Usar la versión que funcionó
+        print(f"   Variantes autorizadas: {[n for n, _ in autorizados]}")
+
+        resultado = {"encontrado": False}
+        item_propio = None
+        for nombre, item in autorizados:
+            if item is not None and item_propio is None:
+                item_propio = item
+            if not pdf_manager:
+                continue
+            candidato = pdf_manager.obtener_pdf(nombre)
+            if candidato.get("encontrado", False):
+                resultado = candidato
+                numero_cotizacion = nombre
+                if item is not None:
+                    item_propio = item
+                break
         
         # Verificar si el PDF fue encontrado. Si no, intentar regenerar al vuelo.
         # IMPORTANTE: verificar "encontrado" ANTES de "error" porque _obtener_pdf_offline
@@ -4532,11 +4703,10 @@ def servir_pdf(numero_cotizacion):
             if not (REPORTLAB_AVAILABLE or WEASYPRINT_AVAILABLE):
                 return jsonify({"error": f"PDF '{numero_cotizacion}' no encontrado y no hay generador disponible"}), 404
 
-            cot_resultado = db_manager.obtener_cotizacion(numero_cotizacion)
-            if not cot_resultado.get('encontrado'):
+            if not item_propio:
                 return jsonify({"error": f"PDF '{numero_cotizacion}' no encontrado en Storage ni en base de datos"}), 404
 
-            cotizacion = cot_resultado["item"]
+            cotizacion = item_propio
             try:
                 pdf_data = generar_pdf_reportlab(cotizacion, company_branding=g.get("company")) if REPORTLAB_AVAILABLE else None
                 if pdf_data is None:
@@ -4670,15 +4840,19 @@ def ver_desglose(numero_cotizacion):
         
         print(f"[DESGLOSE] Viendo: '{numero_cotizacion}'")
         
-        # PASO 1: Intentar obtener cotización completa (con datos de desglose)
-        resultado_cotizacion = db_manager.obtener_cotizacion(numero_cotizacion)
-        
-        if resultado_cotizacion.get("encontrado"):
-            # Verificación de propiedad (multi-tenant)
-            owner_company = resultado_cotizacion.get("item", {}).get("company_id")
-            if owner_company and owner_company != session.get("company_id"):
-                return jsonify({"error": "No tienes permiso para ver este desglose"}), 403
+        # PASO 1: Cotización de esta sesión, o 404 si alguna variante
+        # espacio/guion es de otra empresa o el PDF legado no corresponde.
+        autorizados, err_des = _autorizar_folios_pdf(numero_cotizacion)
+        if err_des:
+            return err_des
+        propias = [(n, it) for n, it in autorizados if it]
+        if propias:
+            numero_cotizacion = propias[0][0]
+            resultado_cotizacion = {"encontrado": True, "item": propias[0][1]}
+        else:
+            resultado_cotizacion = {"encontrado": False}
 
+        if resultado_cotizacion.get("encontrado"):
             # Tenemos datos completos - mostrar desglose normal
             cotizacion = resultado_cotizacion["item"]
             print(f"[DESGLOSE] Cotización encontrada en DB - mostrando desglose completo")
@@ -4769,9 +4943,17 @@ def ver_desglose(numero_cotizacion):
             from flask import render_template
             return render_template("ver_cotizacion.html", cotizacion=cotizacion)
         
-        # PASO 2: No hay datos completos, verificar si existe PDF
-        print(f"[DESGLOSE] Cotización no en DB, verificando PDF...")
-        resultado_pdf = pdf_manager.obtener_pdf(numero_cotizacion)
+        # PASO 2: Sin fila. Solo cuentas internas o superadmin llegan aquí,
+        # y solo se busca el PDF de las variantes ya autorizadas.
+        print(f"[DESGLOSE] Cotización no en DB, verificando PDF legado...")
+        resultado_pdf = {"encontrado": False}
+        if pdf_manager:
+            for nombre, _item in autorizados:
+                candidato = pdf_manager.obtener_pdf(nombre)
+                if candidato.get("encontrado"):
+                    resultado_pdf = candidato
+                    numero_cotizacion = nombre
+                    break
         
         if resultado_pdf.get("encontrado"):
             registro_pdf = resultado_pdf.get("registro", {})
@@ -5049,13 +5231,10 @@ def descargar_desglose_pdf(numero_cotizacion):
         print(f"[DESGLOSE_PDF] Generando PDF compacto para: '{numero_cotizacion}'")
 
         # Obtener datos de la cotización (misma lógica que ver_desglose)
-        resultado = db_manager.obtener_cotizacion(numero_cotizacion)
-
-        if not resultado.get("encontrado"):
-            print(f"[DESGLOSE_PDF] Cotización no encontrada: '{numero_cotizacion}'")
-            return jsonify({"error": "Cotización no encontrada", "numero": numero_cotizacion}), 404
-
-        cotizacion = resultado["item"]
+        cotizacion, err_des = _leer_cotizacion_de_sesion(numero_cotizacion)
+        if err_des:
+            print(f"[DESGLOSE_PDF] Cotización no disponible para esta sesión: '{numero_cotizacion}'")
+            return err_des
 
         # Asegurar numeroCotizacion
         if not cotizacion.get('numeroCotizacion'):
@@ -5881,6 +6060,8 @@ def debug_pdf_especifico(numero_cotizacion):
         return jsonify({"error": f"Error en debug: {str(e)}"}), 500
 
 @app.route("/debug-env")
+@login_required
+@superadmin_required
 def debug_env():
     """Diagnostico de variables de entorno para Render"""
     import os
@@ -5917,16 +6098,17 @@ def debug_env():
     return jsonify(env_check)
 
 @app.route("/stats")
+@login_required
 def stats_sistema():
     """Estadísticas detalladas de la base de datos"""
     try:
         if db_manager.modo_offline:
             # Modo offline - contar desde archivo JSON
             datos = db_manager._cargar_datos_offline()
-            total_cotizaciones = len(datos.get("cotizaciones", []))
+            cotizaciones = _filtrar_cotizaciones_sesion(datos.get("cotizaciones", []))
+            total_cotizaciones = len(cotizaciones)
             
             # Estadísticas adicionales
-            cotizaciones = datos.get("cotizaciones", [])
             clientes_unicos = set()
             vendedores_unicos = set()
             
@@ -5957,7 +6139,10 @@ def stats_sistema():
             try:
                 if hasattr(db_manager, 'supabase_client') and db_manager.supabase_client:
                     try:
-                        resp = db_manager.supabase_client.table('cotizaciones').select('datosGenerales').execute()
+                        resp_q = db_manager.supabase_client.table('cotizaciones').select('datosGenerales, company_id')
+                        if session.get("company_id"):
+                            resp_q = resp_q.eq('company_id', session.get("company_id"))
+                        resp = resp_q.execute()
                         if resp.data:
                             clientes_set = set()
                             vendedores_set = set()
@@ -5985,11 +6170,11 @@ def stats_sistema():
             ultima_info = None
             try:
                 if hasattr(db_manager, 'supabase_client') and db_manager.supabase_client:
-                    ultima_resp = db_manager.supabase_client.table('cotizaciones') \
-                        .select('numeroCotizacion, datosGenerales, fechaCreacion') \
-                        .order('created_at', desc=True) \
-                        .limit(1) \
-                        .execute()
+                    ultima_q = db_manager.supabase_client.table('cotizaciones') \
+                        .select('numeroCotizacion, datosGenerales, fechaCreacion, company_id')
+                    if session.get("company_id"):
+                        ultima_q = ultima_q.eq('company_id', session.get("company_id"))
+                    ultima_resp = ultima_q.order('created_at', desc=True).limit(1).execute()
                     if ultima_resp.data:
                         ultima = ultima_resp.data[0]
                         ultima_info = {
@@ -6017,6 +6202,7 @@ def stats_sistema():
         }), 500
 
 @app.route("/info")
+@login_required
 def info_sistema():
     """Información del sistema y configuración (sin datos sensibles)"""
     
@@ -6093,6 +6279,7 @@ def info_sistema():
     })
 
 @app.route("/debug-pdfs")
+@login_required
 def debug_pdfs_simple():
     """Debug simple para ver PDFs en Google Drive"""
     try:
@@ -6125,6 +6312,8 @@ def debug_pdfs_simple():
         })
 
 @app.route("/test-drive")
+@login_required
+@superadmin_required
 def test_drive():
     """Test super simple de Google Drive"""
     try:
@@ -6166,6 +6355,8 @@ def test_drive():
         })
 
 @app.route("/debug/google-drive")
+@login_required
+@superadmin_required
 def debug_google_drive():
     """Debug específico para Google Drive"""
     try:
@@ -6203,10 +6394,21 @@ def debug_google_drive():
         }), 500
 
 @app.route("/debug/buscar-pdf/<numero_cotizacion>")
+@login_required
 def debug_buscar_pdf_especifico(numero_cotizacion):
     """Debug para buscar un PDF específico"""
     try:
         print(f"🔍 DEBUG: Buscando PDF específico: '{numero_cotizacion}'")
+        fila_pdf, err_pdf = _leer_cotizacion_de_sesion(numero_cotizacion)
+        # Si hay cotización y no es de esta sesión, _leer ya devolvió 404.
+        # Si no hay fila, el debug de Drive legado sigue (requiere login).
+        if err_pdf and fila_pdf is None:
+            try:
+                existe = db_manager.obtener_cotizacion(numero_cotizacion)
+            except Exception:
+                existe = None
+            if existe and existe.get("encontrado"):
+                return err_pdf
         
         # Búsqueda general en Google Drive
         if pdf_manager.drive_client and pdf_manager.drive_client.is_available():
@@ -6253,6 +6455,7 @@ def debug_buscar_pdf_especifico(numero_cotizacion):
         }), 500
 
 @app.route("/debug/listar-pdfs-drive")
+@login_required
 def debug_listar_todos_pdfs():
     """Lista TODOS los PDFs disponibles en Google Drive"""
     try:
@@ -6320,16 +6523,18 @@ def handle_error_response(error_msg, item_id):
         """, 500
 
 def handle_not_found_response(item_id):
-    """Maneja respuestas de no encontrado"""
+    """Maneja respuestas de no encontrado. El folio se escapa: llega por la URL."""
+    from markupsafe import escape
+    folio = escape(item_id or "")
     if is_json_request():
         return jsonify({
             "encontrado": False,
-            "mensaje": f"Cotización '{item_id}' no encontrada"
+            "mensaje": f"Cotización '{folio}' no encontrada"
         }), 404
     else:
         return f"""
         <h1>Cotización no encontrada</h1>
-        <p>La cotización '{item_id}' no existe.</p>
+        <p>La cotización '{folio}' no existe.</p>
         <p><a href="/">Volver al inicio</a></p>
         """, 404
 
@@ -6853,18 +7058,16 @@ def actualizar_timestamps():
         """, 500
 
 @app.route("/debug-estructura/<path:item_id>")
+@login_required
 def debug_estructura_items(item_id):
     """Debug específico para estructura de items"""
     try:
         from urllib.parse import unquote
         item_id = unquote(item_id)
         
-        resultado = db_manager.obtener_cotizacion(item_id)
-        
-        if not resultado["encontrado"]:
-            return "Cotización no encontrada", 404
-        
-        cotizacion = resultado["item"]
+        cotizacion, err_dbg = _leer_cotizacion_de_sesion(item_id)
+        if err_dbg:
+            return err_dbg
         
         # Analizar específicamente los items
         items_debug = {
@@ -6950,18 +7153,16 @@ def debug_estructura_items(item_id):
     # Agregar esta ruta temporal a tu app.py para diagnóstico directo
 
 @app.route("/ver-datos/<path:item_id>")
+@login_required
 def ver_datos_directo(item_id):
     """Ver datos directamente sin template complejo"""
     try:
         from urllib.parse import unquote
         item_id = unquote(item_id)
         
-        resultado = db_manager.obtener_cotizacion(item_id)
-        
-        if not resultado["encontrado"]:
-            return "Cotización no encontrada", 404
-        
-        cotizacion = resultado["item"]
+        cotizacion, err_datos = _leer_cotizacion_de_sesion(item_id)
+        if err_datos:
+            return err_datos
         
         # Crear HTML simple y directo
         html = f"""
@@ -7026,19 +7227,19 @@ def ver_datos_directo(item_id):
 # En app.py, asegúrate de que la función esté correctamente indentada:
 
 @app.route("/ver-json/<path:item_id>")
+@login_required
 def ver_json_cotizacion(item_id):
     """Ver estructura JSON completa de la cotización"""
     try:
         from urllib.parse import unquote
         item_id = unquote(item_id)
         
-        resultado = db_manager.obtener_cotizacion(item_id)
-        
-        if not resultado["encontrado"]:
-            return jsonify({"error": "Cotización no encontrada"}), 404
+        cotizacion, err_json = _leer_cotizacion_de_sesion(item_id)
+        if err_json:
+            return err_json
         
         # Devolver JSON formateado
-        return jsonify(resultado["item"])
+        return jsonify(cotizacion)
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -7082,6 +7283,7 @@ def debug_sistema():
         return jsonify({'error': str(e)}), 500
 
 @app.route("/buscar-texto-completo/<texto>")
+@login_required
 def buscar_texto_completo(texto):
     """Busca un texto en TODOS los campos de las cotizaciones"""
     try:
@@ -7093,13 +7295,17 @@ def buscar_texto_completo(texto):
         else:
             # Usar Supabase SDK para obtener todas las cotizaciones
             try:
-                resp = db_manager.supabase_client.table('cotizaciones') \
-                    .select('*').execute()
+                consulta = db_manager.supabase_client.table('cotizaciones').select('*')
+                if session.get("company_id"):
+                    consulta = consulta.eq('company_id', session.get("company_id"))
+                resp = consulta.execute()
                 cotizaciones = resp.data if resp.data else []
             except Exception:
                 # Fallback a JSON offline
                 datos = db_manager._cargar_datos_offline()
                 cotizaciones = datos.get("cotizaciones", [])
+
+        cotizaciones = _filtrar_cotizaciones_sesion(cotizaciones)
 
         # Buscar en TODO el documento
         for cot in cotizaciones:
@@ -7124,13 +7330,14 @@ def buscar_texto_completo(texto):
         return jsonify({"error": str(e)}), 500
     
 @app.route("/verificar-ultima")
+@login_required
 def verificar_ultima():
     """Verifica la última cotización guardada"""
     try:
         if db_manager.modo_offline:
             # En modo offline, buscar en JSON local
             datos = db_manager._cargar_datos_offline()
-            cotizaciones = datos.get("cotizaciones", [])
+            cotizaciones = _filtrar_cotizaciones_sesion(datos.get("cotizaciones", []))
             if cotizaciones:
                 # Ordenar por timestamp descendente
                 cotizaciones_ordenadas = sorted(
@@ -7154,11 +7361,10 @@ def verificar_ultima():
 
         # Modo online - Supabase
         try:
-            ultima_resp = db_manager.supabase_client.table('cotizaciones') \
-                .select('*') \
-                .order('created_at', desc=True) \
-                .limit(1) \
-                .execute()
+            ultima_query = db_manager.supabase_client.table('cotizaciones').select('*')
+            if session.get("company_id"):
+                ultima_query = ultima_query.eq('company_id', session.get("company_id"))
+            ultima_resp = ultima_query.order('created_at', desc=True).limit(1).execute()
 
             if ultima_resp.data:
                 ultima = ultima_resp.data[0]
@@ -7325,6 +7531,7 @@ def storage_diagnostic():
 # ============================================
 
 @app.route("/debug-revision/<path:numero_cotizacion>")
+@login_required
 def debug_revision_especifica(numero_cotizacion):
     """Debug temporal específico para el caso DAIKIN-CWS-RM-001-R1-COMPUTADOR"""
     try:
@@ -7340,12 +7547,13 @@ def debug_revision_especifica(numero_cotizacion):
         
         print(f"[DEBUG_REVISION] ===== ANÁLISIS TEMPORAL PARA: {numero_decodificado} =====")
         
-        # 1. Verificar si la cotización existe
-        resultado_busqueda = db_manager.obtener_cotizacion(numero_decodificado)
-        debug_info["analisis"]["cotizacion_existe"] = resultado_busqueda.get("encontrado", False)
+        # 1. Verificar si la cotización existe y es de esta compañía
+        cotizacion, err_rev = _leer_cotizacion_de_sesion(numero_decodificado)
+        if err_rev:
+            return err_rev
+        debug_info["analisis"]["cotizacion_existe"] = True
         
-        if resultado_busqueda.get("encontrado"):
-            cotizacion = resultado_busqueda["item"]
+        if cotizacion:
             datos_generales = cotizacion.get("datosGenerales", {})
             
             debug_info["analisis"]["datos_cotizacion"] = {
@@ -7404,7 +7612,10 @@ def debug_revision_especifica(numero_cotizacion):
         if hasattr(db_manager, 'supabase_client'):
             try:
                 # Test simple de conectividad
-                test_result = db_manager.supabase_client.table('cotizaciones').select('*').limit(1).execute()
+                conteo = db_manager.supabase_client.table('cotizaciones').select('id')
+                if session.get("company_id"):
+                    conteo = conteo.eq('company_id', session.get("company_id"))
+                test_result = conteo.limit(1).execute()
                 debug_info["analisis"]["supabase_conectividad"] = {
                     "conectado": True,
                     "registros_disponibles": len(test_result.data) if test_result.data else 0
@@ -7426,6 +7637,7 @@ def debug_revision_especifica(numero_cotizacion):
         }), 500
 
 @app.route("/test-revision-form", methods=["POST"])
+@login_required
 def test_revision_form():
     """Endpoint temporal para probar el formulario de revisión con datos específicos"""
     try:
@@ -7462,6 +7674,9 @@ def test_revision_form():
                 return jsonify(resultado_test), 400
         
         # Si pasa la validación, intentar guardado simulado (sin commitear)
+        bloqueo_test = _bloquear_si_folio_ajeno(numero_cotizacion if numero_cotizacion != 'N/A' else '')
+        if bloqueo_test:
+            return bloqueo_test
         try:
             resultado_guardado = db_manager.guardar_cotizacion(datos_test, company_id=session.get("company_id"))
             resultado_test["guardado_simulado"] = {
@@ -7490,6 +7705,7 @@ def test_revision_form():
 # ============================================
 
 @app.route("/local-pdf/<path:numero_cotizacion>")
+@login_required
 def servir_pdf_local(numero_cotizacion):
     """Servir PDF directamente desde almacenamiento local de Render"""
     try:
@@ -7497,24 +7713,27 @@ def servir_pdf_local(numero_cotizacion):
         from flask import send_file
         from urllib.parse import unquote
         
-        numero_cotizacion = unquote(numero_cotizacion)
-        
-        # Limpiar extensión si viene incluida
+        numero_cotizacion = unquote(numero_cotizacion).rstrip('/')
         if numero_cotizacion.endswith('.pdf'):
             numero_cotizacion = numero_cotizacion[:-4]
-        
-        # Buscar en carpetas locales
+
+        autorizados, err_local = _autorizar_folios_pdf(numero_cotizacion)
+        if err_local:
+            return err_local
+
+        # Buscar en carpetas locales solo nombres ya autorizados
+        # (el folio pedido y su variante espacio/guion).
         base_path = os.path.join(os.getcwd(), "pdfs_cotizaciones")
-        posibles_rutas = [
-            os.path.join(base_path, "nuevas", f"{numero_cotizacion}.pdf"),
-            os.path.join(base_path, "antiguas", f"{numero_cotizacion}.pdf"),
-            os.path.join(base_path, f"{numero_cotizacion}.pdf")
-        ]
-        
-        for ruta in posibles_rutas:
-            if os.path.exists(ruta):
-                print(f"[LOCAL_PDF] Sirviendo: {ruta}")
-                return send_file(ruta, as_attachment=False, mimetype='application/pdf')
+        for nombre, _item in autorizados:
+            posibles_rutas = [
+                os.path.join(base_path, "nuevas", f"{nombre}.pdf"),
+                os.path.join(base_path, "antiguas", f"{nombre}.pdf"),
+                os.path.join(base_path, f"{nombre}.pdf"),
+            ]
+            for ruta in posibles_rutas:
+                if os.path.exists(ruta):
+                    print(f"[LOCAL_PDF] Sirviendo: {ruta}")
+                    return send_file(ruta, as_attachment=False, mimetype='application/pdf')
         
         print(f"[LOCAL_PDF] No encontrado: {numero_cotizacion}")
         print(f"[LOCAL_PDF] Rutas buscadas: {posibles_rutas}")

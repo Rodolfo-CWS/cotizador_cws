@@ -49,6 +49,17 @@ def _row_scalar(row):
     from cotizador.db_rows import row_scalar
     return row_scalar(row)
 
+
+# Mismo centinela que la política RLS cuando el GUC no está definido.
+RLS_DENY_COMPANY_ID = "00000000-0000-0000-0000-000000000000"
+
+
+def _company_ids_iguales(a, b) -> bool:
+    """True solo si ambos ids existen y son el mismo tenant."""
+    if not a or not b:
+        return False
+    return str(a) == str(b)
+
 class SupabaseManager:
     """
     Administrador de Supabase PostgreSQL que reemplaza DatabaseManager de MongoDB
@@ -625,7 +636,20 @@ class SupabaseManager:
                     revision_r1 = revision
             else:
                 es_nueva_r1 = False
-            
+
+            # No reescribir un folio que ya pertenece a otra compañía.
+            # La ruta también lo rechaza; esto cubre cualquier caller que
+            # llegue aquí con un número ajeno (el UPDATE es por numero, global).
+            if not es_nueva_r1 and numero_cotizacion and self._folio_es_de_otra_compania(
+                numero_cotizacion, company_id or datos.get("company_id")
+            ):
+                print(f"[GUARDAR] Rechazado: '{numero_cotizacion}' no pertenece a la compañía de la petición")
+                return {
+                    "success": False,
+                    "error": "Cotización no encontrada",
+                    "tipo_error": "no_encontrada",
+                }
+
             print(f"[GUARDAR] Procesando cotización: {numero_cotizacion}")
 
             # RECALCULAR totales de items desde componentes para garantizar consistencia
@@ -2546,7 +2570,26 @@ class SupabaseManager:
 
         return items
 
-    def edicion_menor_cotizacion(self, numero_cotizacion: str, parche: dict, usuario: str = '') -> dict:
+    def _folio_es_de_otra_compania(self, numero_cotizacion: str, company_id) -> bool:
+        """True si el folio ya existe y no es de company_id.
+
+        Un folio inexistente no bloquea el alta. Un folio con company_id
+        NULL se trata como ajeno (no se reescribe). También bloquea cuando
+        el dueño no coincide o la petición no trae compañía.
+        """
+        try:
+            existente = self.obtener_cotizacion(numero_cotizacion)
+        except Exception as e:
+            print(f"[GUARDAR] No se pudo verificar dueño de '{numero_cotizacion}': {e}")
+            return False
+        if not existente or not existente.get("encontrado"):
+            return False
+        owner = (existente.get("item") or {}).get("company_id")
+        if not owner or not company_id:
+            return True
+        return not _company_ids_iguales(owner, company_id)
+
+    def edicion_menor_cotizacion(self, numero_cotizacion: str, parche: dict, usuario: str = '', company_id: str = None) -> dict:
         """
         Aplica correcciones a una cotización sin generar nueva revisión.
         Soporta:
@@ -2567,6 +2610,10 @@ class SupabaseManager:
                 return {'success': False, 'error': f'Cotización no encontrada: {numero_cotizacion}'}
 
             cotizacion = resultado['item']
+            # Defensa en profundidad: si la ruta pasó la compañía de la sesión,
+            # no aplicar el parche sobre el folio de otro tenant.
+            if company_id is not None and not _company_ids_iguales(cotizacion.get("company_id"), company_id):
+                return {"success": False, "error": "Cotización no encontrada"}
             campos_modificados = []
             proyecto_cambiado = False
             viejo_numero = numero_cotizacion
@@ -2727,7 +2774,9 @@ class SupabaseManager:
             # 9. Guardar cotización actualizada
             numero_para_guardar = cotizacion.get('numeroCotizacion', viejo_numero)
             print(f"[EDICION_MENOR] Guardando en: {numero_para_guardar} | tipo: {tipo_edicion} | campos: {campos_modificados}")
-            resultado_guardado = self.guardar_cotizacion(cotizacion)
+            resultado_guardado = self.guardar_cotizacion(
+                cotizacion, company_id=company_id or cotizacion.get("company_id")
+            )
 
             # 10. Si proyecto cambió y el guardado fue exitoso, eliminar el registro viejo
             if proyecto_cambiado and resultado_guardado.get('success'):
@@ -3177,19 +3226,39 @@ class SupabaseManager:
 
         # ── Métodos Multi-Tenant (SaaS) ──
 
-    def set_company_context(self, company_id: str):
-        """Configura el contexto de compañía en PostgreSQL para RLS."""
+    def set_company_context(self, company_id: str = None):
+        """Fija app.current_company_id en la conexión PG compartida.
+
+        Sin company_id escribe el UUID nulo (ninguna empresa coincide).
+        set_config(..., false) es de sesión. Se confirma con COMMIT porque
+        un ROLLBACK posterior de la ruta desharía un SET aún no confirmado
+        y dejaría el company_id del request anterior. is_local=true no
+        sirve: cada commit/rollback de la ruta abriría una transacción
+        nueva sin el GUC.
+        """
+        valor = str(company_id).strip() if company_id else RLS_DENY_COMPANY_ID
         try:
             if self.pg_connection and not self.pg_connection.closed:
+                try:
+                    self.pg_connection.rollback()
+                except Exception:
+                    pass
                 cursor = self.pg_connection.cursor()
                 cursor.execute(
                     "SELECT set_config('app.current_company_id', %s, false)",
-                    (company_id,)
+                    (valor,)
                 )
                 cursor.close()
+                # El SET de sesión solo queda firme después del COMMIT.
+                self.pg_connection.commit()
                 return True
         except Exception as e:
             print(f"[TENANT] Error configurando company context: {e}")
+            try:
+                if self.pg_connection and not self.pg_connection.closed:
+                    self.pg_connection.rollback()
+            except Exception:
+                pass
         return False
 
     def get_company_by_id(self, company_id: str) -> Optional[Dict]:
