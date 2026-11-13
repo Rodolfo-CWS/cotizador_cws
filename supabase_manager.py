@@ -1307,7 +1307,8 @@ class SupabaseManager:
                     "fechaCreacion": row['fecha_creacion'],
                     "timestamp": row['timestamp'],
                     "usuario": row['usuario'],
-                    "observaciones": row['observaciones']
+                    "observaciones": row['observaciones'],
+                    "company_id": row.get('company_id')
                 }
                 cotizaciones.append(cotizacion)
             
@@ -1347,7 +1348,8 @@ class SupabaseManager:
                 count_query = f"SELECT COUNT(*) as total FROM cotizaciones WHERE 1=1{company_filter};"
                 search_query = f"""
                     SELECT id, numero_cotizacion, datos_generales, items,
-                           revision, fecha_creacion, timestamp, usuario, observaciones
+                           revision, fecha_creacion, timestamp, usuario, observaciones,
+                           company_id
                     FROM cotizaciones WHERE 1=1{company_filter}
                     ORDER BY fecha_creacion DESC
                     LIMIT %s OFFSET %s;
@@ -1371,7 +1373,8 @@ class SupabaseManager:
                 """
                 search_query = f"""
                     SELECT id, numero_cotizacion, datos_generales, items,
-                           revision, fecha_creacion, timestamp, usuario, observaciones
+                           revision, fecha_creacion, timestamp, usuario, observaciones,
+                           company_id
                     FROM cotizaciones
                     WHERE {search_conditions}{company_filter}
                     ORDER BY fecha_creacion DESC
@@ -1400,7 +1403,8 @@ class SupabaseManager:
                     "fechaCreacion": row['fecha_creacion'].isoformat() if row['fecha_creacion'] else None,
                     "timestamp": row['timestamp'],
                     "usuario": row['usuario'],
-                    "observaciones": row['observaciones']
+                    "observaciones": row['observaciones'],
+                    "company_id": row['company_id']
                 }
                 cotizaciones.append(cotizacion)
             

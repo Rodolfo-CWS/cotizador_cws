@@ -2753,20 +2753,8 @@ def sugerencias():
 def cotizacion_resumen(numero_cotizacion):
     """Resumen de una cotización para la vista previa inline del home (Mejora 5)."""
     try:
-        resultado = db_manager.buscar_cotizaciones(numero_cotizacion, 1, 50, company_id=session.get("company_id"))
-        if resultado.get("error"):
-            return jsonify({"success": False, "error": resultado["error"]})
-
-        cotizaciones = resultado.get("resultados", [])
-
-        # Match exacto y de esta compañía. Un subcadena de otro folio, o un
-        # folio de otra empresa (o company_id NULL), responde 404.
-        cot = None
-        for c in cotizaciones:
-            if c.get('numeroCotizacion') == numero_cotizacion and _es_de_la_sesion(c.get('company_id')):
-                cot = c
-                break
-        if cot is None:
+        cot, error = _leer_cotizacion_de_sesion(numero_cotizacion)
+        if error:
             return jsonify({"success": False, "error": "Cotización no encontrada"}), 404
 
         plano = _transformar_cotizacion(cot)

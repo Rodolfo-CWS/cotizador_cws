@@ -669,3 +669,196 @@ def test_set_company_context_confirma_el_set_de_sesion():
     assert mgr.set_company_context(COMPANY_A) is True
     assert cursor.executions[-1][1] == (COMPANY_A,)
     assert conn.commits == 2
+
+
+class FakeDBBuggySearch(FakeDB):
+    def buscar_cotizaciones(self, query, page=1, per_page=20, company_id=None):
+        # Simula el bug real: _buscar_cotizaciones_supabase/_sdk no devolvían company_id.
+        resultados = [dict(item) for item in self.items]
+        for item in resultados:
+            item.pop('company_id', None)
+        return {'resultados': resultados, 'items': resultados, 'total': len(resultados)}
+
+
+@pytest.fixture
+def buggy_db():
+    items = [
+        _item(COMPANY_A, FOLIO_A, CLIENTE_A, '7'),
+        _item(COMPANY_B, FOLIO_B, SECRETO_B, ID_B),
+    ]
+    return FakeDBBuggySearch(items)
+
+
+@pytest.fixture
+def client_buggy_search(buggy_db, monkeypatch, tmp_path):
+    pdf_path = tmp_path / 'cotizacion.pdf'
+    pdf_path.write_bytes(b'%PDF-1.4\n%fake\n')
+    fake_pdf = FakePDF(str(pdf_path))
+
+    monkeypatch.setattr(app_module, 'db_manager', buggy_db)
+    monkeypatch.setattr(app_module, 'pdf_manager', fake_pdf)
+    monkeypatch.setattr(app_module, 'generar_pdf_reportlab', lambda *a, **k: b'%PDF-1.4\n')
+    monkeypatch.setattr(app_module, 'generar_desglose_pdf_reportlab', lambda *a, **k: b'%PDF-1.4\n')
+    monkeypatch.setattr(
+        'cotizador.middleware._load_company_from_db',
+        _company_loader(False),
+    )
+    app_module.app.config['SECRET_KEY'] = 'test-secret'
+    test_client = app_module.app.test_client()
+    test_client.fake_pdf = fake_pdf
+    return test_client
+
+
+def test_cotizacion_resumen_dueno_con_busqueda_sin_company_id(client_buggy_search):
+    _login(client_buggy_search, COMPANY_B)
+    resp = client_buggy_search.get(f'/cotizacion-resumen/{FOLIO_B}')
+    assert resp.status_code == 200
+    assert resp.get_json()['cotizacion']['cliente'] == SECRETO_B
+
+
+def test_cotizacion_resumen_otra_empresa_con_busqueda_sin_company_id(client_buggy_search):
+    _login(client_buggy_search, COMPANY_A)
+    resp = client_buggy_search.get(f'/cotizacion-resumen/{FOLIO_B}')
+    assert resp.status_code == 404
+    assert SECRETO_B not in _cuerpo(resp)
+
+
+class FakeCursorSearch:
+    def __init__(self, count, rows):
+        self.executions = []
+        self.count = count
+        self.rows = rows
+
+    def execute(self, sql, params=None):
+        self.executions.append((sql, params))
+
+    def fetchone(self):
+        return {'total': self.count}
+
+    def fetchall(self):
+        return self.rows
+
+    def close(self):
+        pass
+
+
+def test_buscar_cotizaciones_supabase_incluye_company_id():
+    row = {
+        'id': 7,
+        'numero_cotizacion': FOLIO_A,
+        'datos_generales': {'cliente': CLIENTE_A},
+        'items': [],
+        'revision': 1,
+        'fecha_creacion': None,
+        'timestamp': '2024-01-01',
+        'usuario': 'user',
+        'observaciones': 'obs',
+        'company_id': COMPANY_A,
+    }
+    cursor = FakeCursorSearch(1, [row])
+    conn = FakeConn(cursor)
+    mgr = SupabaseManager.__new__(SupabaseManager)
+    mgr.pg_connection = conn
+
+    resultado = mgr._buscar_cotizaciones_supabase('', 1, 20, company_id=COMPANY_A)
+
+    assert resultado['resultados'][0]['company_id'] == COMPANY_A
+    assert any('SELECT id' in sql and 'company_id' in sql for sql, _ in cursor.executions)
+
+
+class FakeSDKResponse:
+    def __init__(self, data=None, count=None):
+        self.data = data or []
+        self.count = count if count is not None else len(self.data)
+
+
+class FakeSDKQuery:
+    def __init__(self, data, count):
+        self.data = data
+        self.count = count
+
+    def select(self, *args, **kwargs):
+        return self
+
+    def eq(self, *args, **kwargs):
+        return self
+
+    def or_(self, *args, **kwargs):
+        return self
+
+    def order(self, *args, **kwargs):
+        return self
+
+    def range(self, *args, **kwargs):
+        return self
+
+    def execute(self):
+        return FakeSDKResponse(self.data, self.count)
+
+
+class FakeSDKClient:
+    def __init__(self, data, count):
+        self.data = data
+        self.count = count
+
+    def table(self, name):
+        assert name == 'cotizaciones'
+        return FakeSDKQuery(self.data, self.count)
+
+
+def test_buscar_cotizaciones_sdk_incluye_company_id():
+    row = {
+        'id': 7,
+        'numero_cotizacion': FOLIO_A,
+        'datos_generales': {'cliente': CLIENTE_A},
+        'items': [],
+        'revision': 1,
+        'fecha_creacion': '2024-01-01T00:00:00',
+        'timestamp': '2024-01-01',
+        'usuario': 'user',
+        'observaciones': 'obs',
+        'company_id': COMPANY_A,
+    }
+    mgr = SupabaseManager.__new__(SupabaseManager)
+    mgr.supabase_client = FakeSDKClient([row], 1)
+
+    resultado = mgr._buscar_cotizaciones_sdk('', 1, 20, company_id=COMPANY_A)
+
+    assert resultado['resultados'][0]['company_id'] == COMPANY_A
+
+
+def test_cotizacion_resumen_error_json_para_folio_ajeno(client):
+    _login(client, COMPANY_A)
+    resp = client.get(f'/cotizacion-resumen/{FOLIO_B}')
+    assert resp.status_code == 404
+    assert resp.is_json
+    data = resp.get_json()
+    assert data['success'] is False
+    assert data['error'] == "Cotización no encontrada"
+    assert SECRETO_B not in _cuerpo(resp)
+
+
+def test_listar_owner_company_a_solo_su_folio(client):
+    _login(client, COMPANY_A)
+    resp = client.get('/listar')
+    assert resp.status_code == 200
+    body = _cuerpo(resp)
+    assert FOLIO_A in body
+    assert FOLIO_B not in body
+    assert SECRETO_B not in body
+    data = resp.get_json()
+    assert len(data['resultados']) == 1
+    assert data['resultados'][0]['numeroCotizacion'] == FOLIO_A
+
+
+def test_listar_busqueda_sin_company_id_devuelve_vacio(client_buggy_search):
+    _login(client_buggy_search, COMPANY_A)
+    resp = client_buggy_search.get('/listar')
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data['resultados'] == []
+    assert data['items'] == []
+    body = _cuerpo(resp)
+    assert FOLIO_A not in body
+    assert FOLIO_B not in body
+    assert SECRETO_B not in body
