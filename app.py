@@ -1125,47 +1125,6 @@ def logout():
     return redirect(url_for('auth.logout'))
 
 # ============================================
-# HEALTH CHECK ENDPOINT (para Render Keepalive)
-# ============================================
-
-@app.route("/health", methods=["GET"])
-def health_check():
-    """
-    Endpoint de health check para mantener Render activo.
-
-    No requiere autenticación para permitir pings automáticos.
-    Devuelve estado del sistema y métricas básicas.
-    """
-    try:
-        # Obtener estadísticas básicas
-        stats = db_manager.obtener_estadisticas()
-
-        # Construir respuesta con estado del sistema
-        response = {
-            'status': 'healthy',
-            'timestamp': datetime.datetime.now().isoformat(),
-            'database': {
-                'mode': 'offline' if db_manager.modo_offline else 'online',
-                'type': 'JSON local' if db_manager.modo_offline else 'Supabase PostgreSQL',
-                'total_quotations': stats.get('total', 0)
-            },
-            'services': {
-                'pdf_generation': REPORTLAB_AVAILABLE or WEASYPRINT_AVAILABLE,
-                'pdf_manager': pdf_manager is not None
-            }
-        }
-
-        return jsonify(response), 200
-
-    except Exception as e:
-        # Incluso si hay error, devolver 200 para mantener Render despierto
-        return jsonify({
-            'status': 'degraded',
-            'timestamp': datetime.datetime.now().isoformat(),
-            'error': str(e)
-        }), 200
-
-# ============================================
 # RUTAS PRINCIPALES
 # ============================================
 
@@ -2004,6 +1963,8 @@ def debug_test_obtener_cotizacion(item_id):
 
 
 @app.route("/debug-materiales")
+@login_required
+@superadmin_required
 def debug_materiales():
     """Ruta de debug para verificar materiales"""
     return jsonify({
@@ -2522,6 +2483,8 @@ def diagnostico_completo():
     return jsonify(diagnostico)
 
 @app.route("/diagnostico-entorno")
+@login_required
+@superadmin_required
 def diagnostico_entorno():
     """Diagnóstico de variables de entorno para Render (mantenido por compatibilidad)"""
     es_render = os.getenv('RENDER') or os.getenv('RENDER_SERVICE_NAME')
@@ -6453,6 +6416,7 @@ def info_sistema():
 
 @app.route("/debug-pdfs")
 @login_required
+@superadmin_required
 def debug_pdfs_simple():
     """Debug simple para ver PDFs en Google Drive"""
     try:
@@ -6629,6 +6593,7 @@ def debug_buscar_pdf_especifico(numero_cotizacion):
 
 @app.route("/debug/listar-pdfs-drive")
 @login_required
+@superadmin_required
 def debug_listar_todos_pdfs():
     """Lista TODOS los PDFs disponibles en Google Drive"""
     try:
@@ -7419,6 +7384,8 @@ def ver_json_cotizacion(item_id):
 
 # ============================================
 @app.route("/debug/sistema")
+@login_required
+@superadmin_required
 def debug_sistema():
     """Diagnóstico del sistema para debugging"""
     try:

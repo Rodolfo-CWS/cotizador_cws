@@ -281,13 +281,11 @@ def create_app():
     # ── Health check ──
     @app.route("/health")
     def health():
-        stats = db_manager.obtener_estadisticas()
+        from datetime import datetime
         return jsonify({
             "status": "ok",
-            "app": os.getenv('APP_NAME', 'Sifra'),
-            "version": os.getenv('APP_VERSION', '1.0.0'),
             "modo": "offline" if db_manager.modo_offline else "online",
-            **stats
+            "timestamp": datetime.now().isoformat(),
         })
 
     return app
