@@ -1083,8 +1083,13 @@ async function autoGuardarDraft() {
                 ultimoGuardadoTimestamp = resultado.timestamp;
                 formModificado = false;
 
-                console.log('[DRAFT] Auto-guardado exitoso:', resultado.draft_id);
-                mostrarNotificacionGuardado();
+                if (resultado.persistido === false) {
+                    console.error('[DRAFT] Auto-guardado solo local:', resultado.advertencia);
+                    mostrarAdvertenciaGuardado(resultado.advertencia);
+                } else {
+                    console.log('[DRAFT] Auto-guardado exitoso:', resultado.draft_id);
+                    mostrarNotificacionGuardado();
+                }
             } else {
                 console.error('[DRAFT] Error auto-guardando:', resultado.error);
             }
@@ -1263,6 +1268,17 @@ function mostrarNotificacionGuardado() {
     setTimeout(() => {
         notif.remove();
     }, 2500);
+}
+
+function mostrarAdvertenciaGuardado(mensaje) {
+    // Aviso: el borrador NO quedó guardado en la base de datos
+    const notif = document.createElement('div');
+    notif.textContent = mensaje || 'El borrador no se guardó en la base de datos. Avisa al administrador.';
+    notif.className = 'fixed bottom-4 right-4 bg-red-600 text-white px-4 py-2 rounded shadow-lg text-sm z-50 max-w-sm';
+    document.body.appendChild(notif);
+    setTimeout(() => {
+        notif.remove();
+    }, 6000);
 }
 
 function recopilarDatosGenerales() {
