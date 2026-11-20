@@ -2949,6 +2949,39 @@ class SupabaseManager:
     # MÉTODOS DE GESTIÓN DE DRAFTS (BORRADORES)
     # ========================================
 
+    def _drafts_client(self):
+        """Cliente Supabase con service_role para la tabla drafts (cacheado).
+
+        Desde la migración v14 el rol anon no tiene acceso a drafts, así que
+        SOLO se usa SUPABASE_SERVICE_KEY. Nunca se cae al cliente anon.
+        Como service_role se salta RLS, el aislamiento por compañía se aplica
+        en cada método de drafts (filtro company_id obligatorio).
+        Devuelve None si no se puede crear (el llamador usa el respaldo JSON).
+        """
+        cliente_cacheado = getattr(self, '_drafts_service_client', None)
+        if cliente_cacheado is not None:
+            return cliente_cacheado
+
+        service_key = os.getenv('SUPABASE_SERVICE_KEY')
+        supabase_url = getattr(self, 'supabase_url', None) or os.getenv('SUPABASE_URL')
+        motivo = None
+        if not service_key:
+            motivo = "SUPABASE_SERVICE_KEY no configurada"
+        elif not supabase_url:
+            motivo = "SUPABASE_URL no configurada"
+        else:
+            try:
+                self._drafts_service_client = create_client(supabase_url, service_key)
+                return self._drafts_service_client
+            except Exception as exc:
+                # Solo el tipo de error: nunca imprimir la llave ni texto que la contenga
+                motivo = f"no se pudo crear el cliente service_role ({type(exc).__name__})"
+
+        if not getattr(self, '_drafts_client_error_printed', False):
+            print(f"[DRAFT] ❌ ERROR: {motivo} - los drafts NO se persistirán en Supabase")
+            self._drafts_client_error_printed = True
+        return None
+
     def guardar_draft(self, datos: Dict) -> Dict:
         """
         Guarda o actualiza un draft (borrador) de cotización
@@ -2970,6 +3003,10 @@ class SupabaseManager:
             datos_draft = datos.get('datos', {})
             draft_id = datos.get('draft_id') or f"draft_{int(time.time() * 1000)}"
             company_id = datos.get('company_id')
+
+            if not company_id:
+                print("[DRAFT] ERROR: company_id requerido para guardar draft")
+                return {"success": False, "error": "company_id requerido"}
 
             # Generar nombre automático para el draft
             datos_generales = datos_draft.get('datosGenerales', {})
@@ -2997,33 +3034,36 @@ class SupabaseManager:
                 'ultima_modificacion': fecha_actual
             }
 
+            db_client = self._drafts_client() if not self.modo_offline else None
+            persistido_en_supabase = False
+
             # Intentar guardar en Supabase si está disponible
-            if not self.modo_offline and self.supabase_client:
+            if not self.modo_offline and db_client:
                 try:
                     print(f"[DRAFT] Guardando draft en Supabase: {draft_id}")
 
                     # Verificar si el draft ya existe (solo para esta compañía)
-                    existing_query = self.supabase_client.table('drafts').select('id').eq('id', draft_id)
-                    if company_id:
-                        existing_query = existing_query.eq('company_id', company_id)
+                    existing_query = db_client.table('drafts').select('id').eq('id', draft_id)
+                    existing_query = existing_query.eq('company_id', company_id)
                     existing = existing_query.execute()
 
                     if existing.data:
                         # Actualizar draft existente (solo si pertenece a esta compañía)
-                        update_query = self.supabase_client.table('drafts').update({
+                        update_query = db_client.table('drafts').update({
                             'nombre': nombre_draft,
                             'datos': datos_draft,
                             'company_id': company_id,
                             'ultima_modificacion': fecha_actual,
                             'timestamp': timestamp
                         }).eq('id', draft_id)
-                        if company_id:
-                            update_query = update_query.eq('company_id', company_id)
+                        update_query = update_query.eq('company_id', company_id)
                         update_query.execute()
+                        persistido_en_supabase = True
                         print(f"[DRAFT] Draft actualizado en Supabase: {draft_id}")
                     else:
                         # Insertar nuevo draft
-                        self.supabase_client.table('drafts').insert(draft_obj).execute()
+                        db_client.table('drafts').insert(draft_obj).execute()
+                        persistido_en_supabase = True
                         print(f"[DRAFT] Draft creado en Supabase: {draft_id}")
 
                 except Exception as supabase_error:
@@ -3062,11 +3102,23 @@ class SupabaseManager:
                 print(f"[DRAFT] Error guardando en JSON: {safe_str(json_error)}")
                 return {"success": False, "error": safe_str(json_error)}
 
+            if not persistido_en_supabase:
+                print(f"[DRAFT] ❌ ERROR CRITICO: draft {draft_id} NO persistido en Supabase")
+                return {
+                    "success": True,
+                    "draft_id": draft_id,
+                    "timestamp": timestamp,
+                    "nombre": nombre_draft,
+                    "persistido": False,
+                    "advertencia": "El borrador solo se guardó localmente en el servidor y puede perderse. Avisa al administrador."
+                }
+
             return {
                 "success": True,
                 "draft_id": draft_id,
                 "timestamp": timestamp,
-                "nombre": nombre_draft
+                "nombre": nombre_draft,
+                "persistido": True
             }
 
         except Exception as e:
@@ -3080,18 +3132,21 @@ class SupabaseManager:
         Lista todos los drafts, filtrados por vendedor y/o compañía.
         """
         try:
+            if not company_id:
+                print("[DRAFT] ERROR: company_id requerido para listar drafts")
+                return []
+
             drafts = []
+            cliente = self._drafts_client() if not self.modo_offline else None
 
             # Intentar obtener de Supabase si está disponible
-            if not self.modo_offline and self.supabase_client:
+            if not self.modo_offline and cliente:
                 try:
                     print(f"[DRAFT] Listando drafts desde Supabase")
-                    query = self.supabase_client.table('drafts').select('*')
+                    query = cliente.table('drafts').select('*').eq('company_id', company_id)
 
                     if vendedor:
                         query = query.eq('vendedor', vendedor)
-                    if company_id:
-                        query = query.eq('company_id', company_id)
 
                     response = query.order('ultima_modificacion', desc=True).execute()
 
@@ -3124,12 +3179,10 @@ class SupabaseManager:
 
             all_drafts = drafts_data.get("drafts", [])
 
-            # Filtrar por vendedor y company_id si se especifican
-            drafts = all_drafts
+            # Filtrar siempre por company_id y vendedor si se especifica
+            drafts = [d for d in all_drafts if d.get('company_id') == company_id]
             if vendedor:
                 drafts = [d for d in drafts if d.get('vendedor') == vendedor]
-            if company_id:
-                drafts = [d for d in drafts if d.get('company_id') == company_id]
 
             # Ordenar por timestamp descendente
             drafts.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
@@ -3164,13 +3217,17 @@ class SupabaseManager:
             Dict con todos los datos del draft o None si no se encuentra
         """
         try:
+            if not company_id:
+                print("[DRAFT] ERROR: company_id requerido para obtener draft")
+                return None
+
+            cliente = self._drafts_client() if not self.modo_offline else None
+
             # Intentar obtener de Supabase si está disponible
-            if not self.modo_offline and self.supabase_client:
+            if not self.modo_offline and cliente:
                 try:
                     print(f"[DRAFT] Obteniendo draft desde Supabase: {draft_id}")
-                    query = self.supabase_client.table('drafts').select('*').eq('id', draft_id)
-                    if company_id:
-                        query = query.eq('company_id', company_id)
+                    query = cliente.table('drafts').select('*').eq('id', draft_id).eq('company_id', company_id)
                     response = query.execute()
 
                     if response.data:
@@ -3195,7 +3252,7 @@ class SupabaseManager:
             all_drafts = drafts_data.get("drafts", [])
 
             for draft in all_drafts:
-                if draft.get('id') == draft_id and (not company_id or draft.get('company_id') == company_id):
+                if draft.get('id') == draft_id and draft.get('company_id') == company_id:
                     print(f"[DRAFT] Draft encontrado en JSON local: {draft_id}")
                     return draft
 
@@ -3218,18 +3275,21 @@ class SupabaseManager:
             Dict con success, cantidad de drafts eliminados
         """
         try:
+            if not company_id:
+                print("[DRAFT] ERROR: company_id requerido para eliminar por número de cotización")
+                return {"success": False, "error": "company_id requerido"}
+
             error_msg = f"[DRAFT] Eliminando drafts para cotización: {numero_cotizacion}"
             print(error_msg)
 
             drafts_eliminados = 0
+            cliente = self._drafts_client() if not self.modo_offline else None
 
             # Intentar eliminar de Supabase si está disponible
-            if not self.modo_offline and self.supabase_client:
+            if not self.modo_offline and cliente:
                 try:
                     # Buscar drafts que contengan este número de cotización
-                    query = self.supabase_client.table('drafts').select('*')
-                    if company_id:
-                        query = query.eq('company_id', company_id)
+                    query = cliente.table('drafts').select('*').eq('company_id', company_id)
                     response = query.execute()
 
                     if response.data:
@@ -3240,7 +3300,7 @@ class SupabaseManager:
 
                             # Si el draft tiene el mismo número de cotización, eliminarlo
                             if numero_draft == numero_cotizacion:
-                                self.supabase_client.table('drafts').delete().eq('id', draft['id']).execute()
+                                cliente.table('drafts').delete().eq('id', draft['id']).eq('company_id', company_id).execute()
                                 print(f"[DRAFT] Draft eliminado de Supabase: {draft['id']}")
                                 drafts_eliminados += 1
 
@@ -3296,13 +3356,17 @@ class SupabaseManager:
             Dict con success y mensaje
         """
         try:
+            if not company_id:
+                print("[DRAFT] ERROR: company_id requerido para eliminar draft")
+                return {"success": False, "error": "company_id requerido"}
+
+            cliente = self._drafts_client() if not self.modo_offline else None
+
             # Intentar eliminar de Supabase si está disponible
-            if not self.modo_offline and self.supabase_client:
+            if not self.modo_offline and cliente:
                 try:
                     print(f"[DRAFT] Eliminando draft de Supabase: {draft_id}")
-                    query = self.supabase_client.table('drafts').delete().eq('id', draft_id)
-                    if company_id:
-                        query = query.eq('company_id', company_id)
+                    query = cliente.table('drafts').delete().eq('id', draft_id).eq('company_id', company_id)
                     query.execute()
                     print(f"[DRAFT] Draft eliminado de Supabase: {draft_id}")
 
@@ -3320,7 +3384,7 @@ class SupabaseManager:
                 all_drafts = drafts_data.get("drafts", [])
                 drafts_filtrados = [
                     d for d in all_drafts
-                    if not (d.get('id') == draft_id and (not company_id or d.get('company_id') == company_id))
+                    if not (d.get('id') == draft_id and d.get('company_id') == company_id)
                 ]
 
                 if len(drafts_filtrados) < len(all_drafts):
